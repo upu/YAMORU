@@ -1,28 +1,15 @@
-import { execFileSync } from "node:child_process";
-import { join } from "node:path";
+import { envWorkdir, getStatusEnv } from "../scripts/supabase-cli.ts";
 
-function readEnvValue(output: string, name: string): string {
-  const value = new RegExp(`^${name}="([^"]+)"$`, "m").exec(output)?.[1];
-
-  if (!value) {
-    throw new Error(`ローカルSupabaseの${name}を取得できませんでした。`);
-  }
-
-  return value;
-}
-
+// 自動テストは常にtest環境(environments/test)のローカルSupabaseへ接続する。
+// prodのURLやキーを使わないことをここで構造的に保証する(Issue #31)。
 export function getLocalSupabaseEnv(): {
   publishableKey: string;
   url: string;
 } {
-  const cliPath = join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js");
-  const output = execFileSync(process.execPath, [cliPath, "status", "-o", "env"], {
-    encoding: "utf8",
-    env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: "1" },
-  });
+  const status = getStatusEnv(envWorkdir("test"));
 
   return {
-    publishableKey: readEnvValue(output, "PUBLISHABLE_KEY"),
-    url: readEnvValue(output, "API_URL"),
+    publishableKey: status.publishableKey,
+    url: status.url,
   };
 }
