@@ -18,6 +18,10 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 
 - [Component knowledge](components/index.md) - プロダクトとソフトウェアの責務境界。実装開始に合わせて追加する
 
+## Spikes
+
+- [Spike knowledge](spikes/index.md) - 実装前に構造上のリスクを検証した技術スパイクの結果
+
 ## References
 
 - [Reference knowledge](references/index.md) - レビュー手順や外部資料への参照

@@ -10,7 +10,11 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:stop": "supabase stop"
   },
   "dependencies": {
     "next": "16.3.0",
@@ -26,6 +30,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.0",
     "jsdom": "30.0.1",
+    "supabase": "2.113.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
     "vitest": "4.1.10"
