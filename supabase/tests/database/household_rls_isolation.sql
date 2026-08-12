@@ -33,10 +33,8 @@ select isnt_empty(
 );
 
 select isnt_empty(
-  $$ insert into public.managed_items (household_id, name)
-     values ('00000000-0000-0000-0000-00000000a001', '家庭Aメンバーが作成')
-     returning id $$,
-  '家庭Aのメンバーは家庭Aの管理対象を作成できる'
+  $$ select public.create_managed_item('家庭Aメンバーが作成', 'other', null) $$,
+  '家庭Aのメンバーは限定RPCで家庭Aの管理対象を作成できる'
 );
 
 select isnt_empty(
@@ -47,15 +45,9 @@ select isnt_empty(
   '家庭Aのメンバーは家庭Aの管理対象を更新できる'
 );
 
--- 削除対象は先に別文でINSERTしておく。同一文のWITH句でINSERT+DELETEを
--- 組み合わせると、DELETE側のスキャンが文全体の開始時点のスナップショットを
--- 使うためINSERT直後の行を見つけられず0件になる(RLSとは無関係のPostgresの仕様)。
-insert into public.managed_items (id, household_id, name)
-values ('00000000-0000-0000-0000-0000000ad004', '00000000-0000-0000-0000-00000000a001', '家庭Aメンバーが削除する用');
-
 select isnt_empty(
   $$ delete from public.managed_items
-     where id = '00000000-0000-0000-0000-0000000ad004'
+     where id = '00000000-0000-0000-0000-0000000aa001'
      returning id $$,
   '家庭Aのメンバーは家庭Aの管理対象を削除できる'
 );

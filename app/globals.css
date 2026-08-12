@@ -805,7 +805,8 @@ footer p {
   font-weight: 800;
 }
 
-.auth-form input {
+.auth-form input,
+.auth-form select {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid rgb(49 92 73 / 24%);
@@ -816,6 +817,7 @@ footer p {
 }
 
 .auth-form input:focus-visible,
+.auth-form select:focus-visible,
 .auth-submit:focus-visible {
   outline: 3px solid rgb(64 103 120 / 34%);
   outline-offset: 2px;
@@ -867,6 +869,78 @@ footer p {
 .signout-form {
   display: flex;
   justify-content: flex-end;
+}
+
+.ledger-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.ledger-page .detail-card > p,
+.managed-item-form > p,
+.ledger-empty {
+  color: var(--muted);
+}
+
+.managed-item-form {
+  margin-top: 18px;
+}
+
+.managed-item-form > p {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.ledger-primary-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--green);
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
+.ledger-list,
+.external-link-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.ledger-list a,
+.external-link-list a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
+.ledger-list span {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-pale);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.external-link-list li {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 @media (max-width: 480px) {
