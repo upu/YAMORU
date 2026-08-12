@@ -272,74 +272,185 @@ h1 {
   font-size: 0.74rem;
 }
 
-.completion-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+.completion-trigger {
+  width: 100%;
+  min-height: 44px;
   margin-top: 13px;
-}
-
-.completion-actions button,
-.date-time-form input {
-  min-height: 42px;
-  border-radius: 10px;
-  font: inherit;
-}
-
-.completion-actions button {
-  padding: 9px 13px;
+  padding: 10px 16px;
   border: 1px solid var(--green);
+  border-radius: 11px;
   color: white;
   background: var(--green);
+  font: inherit;
   font-size: 0.76rem;
   font-weight: 800;
   cursor: pointer;
 }
 
-.completion-actions button:hover {
+.completion-trigger:hover,
+.dialog-primary-button:hover {
   background: #244a39;
 }
 
-.completion-actions button:focus-visible,
-.date-time-form input:focus-visible {
+.completion-trigger:focus-visible,
+.completion-dialog button:focus-visible,
+.completion-detail-form input:focus-visible {
   outline: 3px solid rgb(64 103 120 / 38%);
   outline-offset: 2px;
 }
 
-.completion-actions .date-time-toggle {
-  color: var(--green);
-  background: transparent;
+.completion-dialog-backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(24 34 29 / 52%);
 }
 
-.completion-actions .date-time-toggle:hover {
+.completion-dialog {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid rgb(49 92 73 / 20%);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 24px 70px rgb(24 34 29 / 30%);
+}
+
+.completion-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.completion-dialog-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: clamp(1.25rem, 5vw, 1.55rem);
+  line-height: 1.35;
+}
+
+.dialog-close {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: white;
+  font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.completion-choice-list,
+.completion-detail-form {
+  display: grid;
+  gap: 12px;
+}
+
+.completion-choice-list > p {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.dialog-primary-button,
+.dialog-secondary-button {
+  display: grid;
+  gap: 4px;
+  min-height: 62px;
+  padding: 12px 15px;
+  border-radius: 13px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dialog-primary-button {
+  border: 1px solid var(--green);
   color: white;
   background: var(--green);
 }
 
-.date-time-form {
-  display: grid;
-  width: 100%;
-  gap: 7px;
-  padding-top: 5px;
-}
-
-.date-time-form label {
-  font-size: 0.74rem;
-  font-weight: 800;
-}
-
-.date-time-form input {
-  width: 100%;
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  color: var(--ink);
+.dialog-secondary-button {
+  border: 1px solid rgb(49 92 73 / 30%);
+  color: var(--green);
   background: white;
 }
 
-.date-time-form button {
+.dialog-secondary-button:hover {
+  background: var(--green-pale);
+}
+
+.dialog-primary-button strong,
+.dialog-secondary-button strong {
+  font-size: 0.84rem;
+}
+
+.dialog-primary-button span,
+.dialog-secondary-button span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  opacity: 0.78;
+}
+
+.completion-detail-form label {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.completion-detail-form input {
+  width: 100%;
+  min-height: 46px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+}
+
+.dialog-back-button {
   justify-self: start;
+  padding: 8px 0;
+  border: 0;
+  color: var(--green);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.input-help {
+  margin: -5px 0 2px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.recording-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  background: var(--green-pale);
+  font-size: 0.76rem;
+}
+
+.recording-summary span {
+  color: var(--muted);
 }
 
 .completion-feedback {
@@ -616,14 +727,16 @@ footer p {
     gap: 8px;
   }
 
-  .completion-actions {
-    align-items: stretch;
-    flex-direction: column;
+  .completion-dialog-backdrop {
+    align-items: end;
+    padding: 0;
   }
 
-  .completion-actions > button,
-  .date-time-form button {
+  .completion-dialog {
     width: 100%;
+    max-height: 90vh;
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0;
   }
 
   .completion-feedback {

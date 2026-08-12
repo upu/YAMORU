@@ -27,22 +27,19 @@ type DemoStateValue = DemoState & {
 
 const DemoStateContext = createContext<DemoStateValue | null>(null);
 
-function formatDateTime(date: Date) {
-  return `${String(date.getMonth() + 1)}月${String(date.getDate())}日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+function formatDate(date: Date) {
+  return `${String(date.getMonth() + 1)}月${String(date.getDate())}日`;
 }
 
 function formatDueDate(date: Date) {
   return `${String(date.getMonth() + 1)}月${String(date.getDate())}日まで`;
 }
 
-export function formatDateTimeInput(date: Date) {
+export function formatDateInput(date: Date) {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return `${year}-${month}-${day}`;
 }
 
 function createInitialState(): DemoState {
@@ -66,8 +63,8 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
       const nextDueAt = new Date(occurredAt);
       nextDueAt.setDate(nextDueAt.getDate() + 30);
       const activity = {
-        date: formatDateTime(occurredAt),
-        dateTime: formatDateTimeInput(occurredAt),
+        date: formatDate(occurredAt),
+        dateTime: formatDateInput(occurredAt),
         member: SAMPLE_MEMBER,
       };
 

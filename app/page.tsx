@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { type SyntheticEvent, useState } from "react";
 
-import { formatDateTimeInput, useDemoState } from "./demo-state";
+import { CompletionPanel } from "./completion-panel";
+import { useDemoState } from "./demo-state";
 import {
   HOME_SECTIONS,
   type HomeItem,
@@ -20,71 +20,6 @@ const TONE_LABELS: Record<HomeItem["tone"], string> = {
   upcoming: "予定",
   done: "完了",
 };
-
-function CompletionActions({
-  onComplete,
-}: {
-  onComplete: (occurredAt: Date) => void;
-}) {
-  const [isDateTimeVisible, setIsDateTimeVisible] = useState(false);
-  const [dateTime, setDateTime] = useState("");
-
-  function toggleDateTimeInput() {
-    if (!isDateTimeVisible) {
-      setDateTime(formatDateTimeInput(new Date()));
-    }
-    setIsDateTimeVisible((current) => !current);
-  }
-
-  function submitWithDateTime(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const occurredAt = new FormData(event.currentTarget).get("occurredAt");
-
-    if (typeof occurredAt === "string" && occurredAt !== "") {
-      onComplete(new Date(occurredAt));
-    }
-  }
-
-  return (
-    <div className="completion-actions">
-      <button
-        className="complete-button"
-        onClick={() => { onComplete(new Date()); }}
-        type="button"
-      >
-        フィルター交換を完了
-      </button>
-      <button
-        aria-controls="filter-completion-date-time"
-        aria-expanded={isDateTimeVisible}
-        className="date-time-toggle"
-        onClick={toggleDateTimeInput}
-        type="button"
-      >
-        実施日時を変更
-      </button>
-      {isDateTimeVisible ? (
-        <form
-          aria-label="実施日時を指定して完了"
-          className="date-time-form"
-          id="filter-completion-date-time"
-          onSubmit={submitWithDateTime}
-        >
-          <label htmlFor="filter-completed-at">実施日時</label>
-          <input
-            id="filter-completed-at"
-            max={formatDateTimeInput(new Date())}
-            name="occurredAt"
-            required
-            type="datetime-local"
-            defaultValue={dateTime}
-          />
-          <button type="submit">指定した日時で完了</button>
-        </form>
-      ) : null}
-    </div>
-  );
-}
 
 function createHomeSections(
   isFilterReplacementCompleted: boolean,
@@ -147,7 +82,7 @@ function TaskCard({
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
         {onComplete === undefined ? null : (
-          <CompletionActions onComplete={onComplete} />
+          <CompletionPanel onComplete={onComplete} taskTitle={item.title} />
         )}
       </div>
     </article>
@@ -238,7 +173,7 @@ export default function Home() {
 
       {isFilterReplacementCompleted ? (
         <p className="completion-feedback" role="status">
-          フィルター交換を完了しました。次回期限を更新しました。
+          フィルター交換を記録しました。次回の予定を更新しました。
         </p>
       ) : null}
 
