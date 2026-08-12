@@ -12,6 +12,7 @@ import {
 
 const FILTER_REPLACEMENT_ID = "cat-water-fountain-filter";
 const FILTER_REPLACEMENT_HREF = "/managed-items/cat-water-fountain";
+const OPEN_SECTION_IDS = new Set(["overdue", "today", "upcoming"]);
 
 const TONE_LABELS: Record<HomeItem["tone"], string> = {
   urgent: "要対応",
@@ -102,7 +103,7 @@ function createHomeSections(
         ...section,
         items: [
           {
-            id: "cat-water-fountain-filter-completed-now",
+            id: "cat-water-fountain-filter-latest-completion",
             title: "猫の浄水器のフィルター交換",
             detail: "猫の浄水器",
             meta: `${lastActivity.date} ・ ${lastActivity.member}が実施`,
@@ -197,11 +198,13 @@ export default function Home() {
     isFilterReplacementCompleted,
     lastActivity,
   );
-  const openItemCount = sections.slice(0, 3).reduce(
-    (total, section) => total + section.items.length,
+  const openItemCount = sections.reduce(
+    (total, section) =>
+      total + (OPEN_SECTION_IDS.has(section.id) ? section.items.length : 0),
     0,
   );
-  const overdueItemCount = sections[0]?.items.length ?? 0;
+  const overdueItemCount =
+    sections.find((section) => section.id === "overdue")?.items.length ?? 0;
 
   return (
     <main>

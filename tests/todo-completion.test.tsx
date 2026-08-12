@@ -30,6 +30,9 @@ describe("フィルター交換Todoの完了フロー", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "フィルター交換を完了しました",
     );
+    expect(screen.getByLabelText("対応状況")).toHaveTextContent(
+      "3件の予定0件が期限切れ",
+    );
     expect(
       within(screen.getByRole("region", { name: "期限切れ" })).queryByRole(
         "button",
