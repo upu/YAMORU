@@ -194,7 +194,12 @@ function HomeHero({
           <p className="eyebrow">HOME CARE</p>
           <h1>YAMORU</h1>
         </div>
-        <span className="date-badge">8月12日 水</span>
+        <div className="hero-actions">
+          <span className="date-badge">8月12日 水</span>
+          <Link className="account-link" href="/account" aria-label="アカウントを開く">
+            アカウント
+          </Link>
+        </div>
       </div>
       <p className="tagline">暮らしの「いつだっけ？」をなくす。</p>
 

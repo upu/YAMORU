@@ -25,6 +25,15 @@ describe("ホーム画面", () => {
     ).toBeInTheDocument();
   });
 
+  it("右上からアカウント画面へ移動できる", () => {
+    renderHome();
+
+    const header = screen.getByRole("banner");
+    expect(
+      within(header).getByRole("link", { name: "アカウントを開く" }),
+    ).toHaveAttribute("href", "/account");
+  });
+
   it.each(["期限切れ", "今日", "そろそろ", "近日", "最近の実施"])(
     "%sの区分を見分けられる",
     (sectionTitle) => {
