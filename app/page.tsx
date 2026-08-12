@@ -1,10 +1,19 @@
-import Link from "next/link";
+"use client";
 
+import Link from "next/link";
+import { useEffect, useRef } from "react";
+
+import { CompletionPanel } from "./completion-panel";
+import { useDemoState } from "./demo-state";
 import {
   HOME_SECTIONS,
   type HomeItem,
   type HomeSection,
 } from "./home-data";
+
+const FILTER_REPLACEMENT_ID = "cat-water-fountain-filter";
+const FILTER_REPLACEMENT_HREF = "/managed-items/cat-water-fountain";
+const OPEN_SECTION_IDS = new Set(["overdue", "today", "upcoming"]);
 
 const TONE_LABELS: Record<HomeItem["tone"], string> = {
   urgent: "要対応",
@@ -13,7 +22,59 @@ const TONE_LABELS: Record<HomeItem["tone"], string> = {
   done: "完了",
 };
 
-function TaskCard({ item }: { item: HomeItem }) {
+function useCompletionFeedbackFocus(isCompleted: boolean) {
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    // 記録後に消えるボタンではなく、結果を伝える通知へ現在位置を移します。
+    if (isCompleted) feedbackRef.current?.focus();
+  }, [isCompleted]);
+
+  return feedbackRef;
+}
+
+function createHomeSections(
+  isFilterReplacementCompleted: boolean,
+  lastActivity: { date: string; member: string },
+): HomeSection[] {
+  return HOME_SECTIONS.map((section) => {
+    if (section.id === "overdue" && isFilterReplacementCompleted) {
+      return {
+        ...section,
+        items: section.items.filter((item) => item.id !== FILTER_REPLACEMENT_ID),
+      };
+    }
+
+    if (section.id === "recent" && isFilterReplacementCompleted) {
+      return {
+        ...section,
+        items: [
+          {
+            id: "cat-water-fountain-filter-latest-completion",
+            title: "猫の浄水器のフィルター交換",
+            detail: "猫の浄水器",
+            meta: `${lastActivity.date} ・ ${lastActivity.member}が実施`,
+            tone: "done",
+            detailHref: FILTER_REPLACEMENT_HREF,
+          },
+          ...section.items.filter(
+            (item) => item.detailHref !== FILTER_REPLACEMENT_HREF,
+          ),
+        ],
+      };
+    }
+
+    return section;
+  });
+}
+
+function TaskCard({
+  item,
+  onComplete,
+}: {
+  item: HomeItem;
+  onComplete?: (occurredAt: Date) => void;
+}) {
   return (
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
@@ -32,12 +93,17 @@ function TaskCard({ item }: { item: HomeItem }) {
         </div>
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
+        {onComplete === undefined ? null : (
+          <CompletionPanel onComplete={onComplete} taskTitle={item.title} />
+        )}
       </div>
     </article>
   );
 }
 
 function HomeSectionView({ section }: { section: HomeSection }) {
+  const { completeFilterReplacement } = useDemoState();
+
   return (
     <section
       aria-labelledby={`${section.id}-title`}
@@ -57,7 +123,12 @@ function HomeSectionView({ section }: { section: HomeSection }) {
         {section.items.map((item) => (
           <TaskCard
             item={item}
-            key={`${section.id}-${item.title}`}
+            key={item.id}
+            onComplete={
+              item.id === FILTER_REPLACEMENT_ID
+                ? completeFilterReplacement
+                : undefined
+            }
           />
         ))}
       </div>
@@ -66,10 +137,19 @@ function HomeSectionView({ section }: { section: HomeSection }) {
 }
 
 export default function Home() {
-  const openItemCount = HOME_SECTIONS.slice(0, 3).reduce(
-    (total, section) => total + section.items.length,
+  const { isFilterReplacementCompleted, lastActivity } = useDemoState();
+  const completionFeedbackRef = useCompletionFeedbackFocus(isFilterReplacementCompleted);
+  const sections = createHomeSections(
+    isFilterReplacementCompleted,
+    lastActivity,
+  );
+  const openItemCount = sections.reduce(
+    (total, section) =>
+      total + (OPEN_SECTION_IDS.has(section.id) ? section.items.length : 0),
     0,
   );
+  const overdueItemCount =
+    sections.find((section) => section.id === "overdue")?.items.length ?? 0;
 
   return (
     <main>
@@ -89,17 +169,28 @@ export default function Home() {
             <span>件の予定</span>
           </div>
           <div>
-            <strong>1</strong>
+            <strong>{overdueItemCount}</strong>
             <span>件が期限切れ</span>
           </div>
         </div>
       </header>
 
       <div className="section-list">
-        {HOME_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <HomeSectionView key={section.id} section={section} />
         ))}
       </div>
+
+      {isFilterReplacementCompleted ? (
+        <p
+          className="completion-feedback"
+          ref={completionFeedbackRef}
+          role="status"
+          tabIndex={-1}
+        >
+          フィルター交換を記録しました。次回の予定を更新しました。
+        </p>
+      ) : null}
 
       <footer>
         <span className="footer-mark" aria-hidden="true">Y</span>
