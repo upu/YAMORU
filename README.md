@@ -12,7 +12,7 @@ YAMORUは、家族のTodo、家電や契約などの管理対象、定期メン�
 
 ## ローカルで起動する
 
-Node.jsを用意し、リポジトリのルートで次のコマンドを実行します。
+Node.js 24 LTSを用意し、リポジトリのルートで次のコマンドを実行します。
 
 ```powershell
 npm install
@@ -30,6 +30,8 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+Pull Requestと`main`へのpushでは、GitHub Actionsの`Quality checks`が同じlint、型チェック、テスト、プロダクションビルドを自動で確認します。
 
 ## 文書の入口
 
