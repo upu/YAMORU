@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { createFirstHousehold } from "./actions";
-import { INITIAL_HOUSEHOLD_STATE } from "./state";
+import { registerNickname } from "./actions";
+import { INITIAL_NICKNAME_STATE } from "./state";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -15,31 +15,30 @@ function SubmitButton() {
       disabled={pending}
       type="submit"
     >
-      {pending ? "作成中…" : "家庭を作成"}
+      {pending ? "登録中…" : "ニックネームを登録"}
     </button>
   );
 }
 
-export function HouseholdForm({ defaultName }: { defaultName?: string }) {
+export function NicknameForm() {
   const [state, formAction] = useActionState(
-    createFirstHousehold,
-    INITIAL_HOUSEHOLD_STATE,
+    registerNickname,
+    INITIAL_NICKNAME_STATE,
   );
 
   return (
     <form action={formAction} className="auth-form">
-      <label htmlFor="household-name">家庭名</label>
+      <label htmlFor="nickname">ニックネーム</label>
       <input
-        aria-describedby="household-name-help"
-        autoComplete="organization"
-        defaultValue={defaultName}
-        id="household-name"
-        maxLength={100}
-        name="householdName"
+        aria-describedby="nickname-help"
+        autoComplete="nickname"
+        id="nickname"
+        maxLength={20}
+        name="nickname"
         required
         type="text"
       />
-      <p id="household-name-help">1文字以上100文字以内で入力してください。</p>
+      <p id="nickname-help">1文字以上20文字以内で入力してください。</p>
       <SubmitButton />
       {state.status === "error" ? (
         <p className="auth-feedback" role="alert">{state.message}</p>
