@@ -52,7 +52,7 @@ export default function ManagedItemDetail() {
 
   return (
     <main className="detail-page">
-      <nav aria-label="パンくず" className="back-nav">
+      <nav aria-label="ページ移動" className="back-nav">
         <Link href="/">← ホームへ戻る</Link>
       </nav>
 
@@ -80,7 +80,11 @@ export default function ManagedItemDetail() {
           <p className="detail-kicker">REFERENCE</p>
           <h2 id="link-title">商品情報</h2>
           <p className="sample-label">安全なサンプルリンク</p>
-          <a href={item.externalLink.url} rel="noreferrer" target="_blank">
+          <a
+            href={item.externalLink.url}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
             {item.externalLink.label}<span aria-hidden="true"> ↗</span>
           </a>
         </section>

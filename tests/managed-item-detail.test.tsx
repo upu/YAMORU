@@ -36,9 +36,14 @@ describe("猫の浄水器の管理対象詳細", () => {
   it("安全なサンプル外部リンクを表示する", () => {
     render(<ManagedItemDetail />);
 
-    expect(
-      screen.getByRole("link", { name: "サンプル商品ページを開く" }),
-    ).toHaveAttribute("href", "https://example.com/cat-water-fountain");
+    const externalLink = screen.getByRole("link", {
+      name: "サンプル商品ページを開く",
+    });
+    expect(externalLink).toHaveAttribute(
+      "href",
+      "https://example.com/cat-water-fountain",
+    );
+    expect(externalLink).toHaveAttribute("rel", "noopener noreferrer");
     expect(CAT_WATER_FOUNTAIN.externalLink).toMatchObject({
       isSample: true,
       url: "https://example.com/cat-water-fountain",
@@ -58,6 +63,9 @@ describe("猫の浄水器の管理対象詳細", () => {
   it("ホーム画面へ戻れる", () => {
     render(<ManagedItemDetail />);
 
+    expect(
+      screen.getByRole("navigation", { name: "ページ移動" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /ホームへ戻る/ })).toHaveAttribute(
       "href",
       "/",
