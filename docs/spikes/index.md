@@ -12,3 +12,4 @@
 | 対象 | 検証内容 | 文書 |
 |---|---|---|
 | Supabase RLS | household_idとRLSによる家庭間データ分離 | [supabase-rls-household-isolation.md](supabase-rls-household-isolation.md) |
+| Supabase招待受諾 | 期限付き一回限りの招待受諾とRLSによる家庭間分離 | [household-invitation-acceptance.md](household-invitation-acceptance.md) |

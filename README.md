@@ -37,14 +37,14 @@ Pull Requestと`main`へのpushでは、GitHub Actionsの`Quality checks`が同�
 
 ## ローカルSupabase(技術スパイク)
 
-家庭間データ分離をRow Level Security(RLS)で検証する技術スパイク用に、ローカル専用のSupabase環境を用意しています。アプリ本体はまだSupabaseへ接続していません([YDR-005](docs/decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)、[スパイク結果](docs/spikes/supabase-rls-household-isolation.md)を参照)。
+家庭間データ分離と、期限付き・一回限りの招待受諾をRow Level Security(RLS)と両立できるか検証するため、ローカル専用のSupabase環境を用意しています。アプリ本体はまだSupabaseへ接続していません([YDR-005](docs/decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)、[RLSスパイク結果](docs/spikes/supabase-rls-household-isolation.md)、[招待受諾スパイク結果](docs/spikes/household-invitation-acceptance.md)を参照)。
 
 事前に[Docker Desktop](https://www.docker.com/products/docker-desktop/)を起動しておきます。Supabase CLIはこのリポジトリの`devDependencies`に固定バージョンで含まれているため、追加のインストールは不要です。
 
 ```powershell
 npm run db:start  # ローカルSupabaseを起動(初回はDockerイメージの取得で時間がかかります)
 npm run db:reset  # マイグレーションとseed.sqlを最初から再適用
-npm run db:test   # pgTAPによるRLS分離テストを実行(supabase test db)
+npm run db:test   # pgTAPによるRLS分離・招待受諾テストを実行(supabase test db)
 npm run db:stop   # ローカルSupabaseを停止
 ```
 
