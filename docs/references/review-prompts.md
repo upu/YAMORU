@@ -8,14 +8,14 @@ status: stable
 
 # YAMORU レビュー依頼プロンプト集
 
-`docs/product/yamoru-project-plan.md`と`docs/decisions/yamoru-decision-log.md`をClaude Code、Codex、その他のAIや人間のレビュアーに渡す際に使用する。
+`docs/product/yamoru-project-plan.md`と`docs/decisions/index.md`(および索引からたどれる各YDR)をClaude Code、Codex、その他のAIや人間のレビュアーに渡す際に使用する。
 
-意思決定ログの`Accepted`項目にも反対意見を出してよいが、その場合は、既存の理由を読んだうえで、新しい証拠・見落とし・具体的な不利益を示すことを求める。
+各YDRの`Accepted`項目にも反対意見を出してよいが、その場合は、既存の理由を読んだうえで、新しい証拠・見落とし・具体的な不利益を示すことを求める。
 
 ## 1. 総合レビュー
 
 ```text
-docs/product/yamoru-project-plan.mdとdocs/decisions/yamoru-decision-log.mdを読んで、このプロダクト構想と実装計画をレビューしてください。
+docs/product/yamoru-project-plan.mdとdocs/decisions/index.md(索引からたどれる各YDR)を読んで、このプロダクト構想と実装計画をレビューしてください。
 
 現時点では実装を変更せず、レビューだけを行ってください。
 
@@ -42,13 +42,13 @@ docs/product/yamoru-project-plan.mdとdocs/decisions/yamoru-decision-log.mdを�
 - 次に行うべき3つの作業
 
 推測と事実を分け、過度に機能を追加しないでください。
-意思決定ログでAcceptedになっている判断を変更すべきと考える場合は、既存の判断理由を踏まえ、変更を正当化する新しい根拠を示してください。
+各YDRでAcceptedになっている判断を変更すべきと考える場合は、既存の判断理由を踏まえ、変更を正当化する新しい根拠を示してください。
 ```
 
 ## 2. アーキテクチャレビュー
 
 ```text
-docs/product/yamoru-project-plan.mdとdocs/decisions/yamoru-decision-log.mdの技術構成と概念データモデルを、シニアソフトウェアアーキテクトとしてレビューしてください。
+docs/product/yamoru-project-plan.mdとdocs/decisions/index.md(索引からたどれる各YDR)の技術構成と概念データモデルを、シニアソフトウェアアーキテクトとしてレビューしてください。
 
 まだコードは書かないでください。
 
@@ -101,7 +101,7 @@ docs/product/yamoru-project-plan.mdとdocs/decisions/yamoru-decision-log.mdの�
 ## 3. UX・家族利用レビュー
 
 ```text
-docs/product/yamoru-project-plan.mdとdocs/decisions/yamoru-decision-log.mdを、家庭向けアプリのプロダクトデザイナーとしてレビューしてください。
+docs/product/yamoru-project-plan.mdとdocs/decisions/index.md(索引からたどれる各YDR)を、家庭向けアプリのプロダクトデザイナーとしてレビューしてください。
 
 YAMORUは家事の成績や家族の監視を目的とせず、家庭内の記憶と引き継ぎを助けるアプリです。
 
@@ -136,7 +136,7 @@ YAMORUは家事の成績や家族の監視を目的とせず、家庭内の記�
 複数レビューを受けた後に使用する。
 
 ```text
-docs/product/yamoru-project-plan.md、docs/decisions/yamoru-decision-log.md、以下に貼り付ける複数のレビュー結果を比較してください。
+docs/product/yamoru-project-plan.md、docs/decisions/index.md(索引からたどれる各YDR)、以下に貼り付ける複数のレビュー結果を比較してください。
 
 目的は、レビューを無条件に全部採用することではなく、YAMORUの目的に照らして妥当な指摘だけを反映した改訂案を作ることです。
 
@@ -156,7 +156,7 @@ docs/product/yamoru-project-plan.md、docs/decisions/yamoru-decision-log.md、�
 3. 改訂後のロードマップ
 4. 改訂後の未決事項
 5. docs/product/yamoru-project-plan.mdに対する具体的な変更案
-6. docs/decisions/yamoru-decision-log.mdに追加・更新・Supersededとして記録すべき内容
+6. docs/decisions/配下に、新規YDRの追加・既存YDRのSupersededとして記録すべき内容
 
 スコープ追加よりも、明確化と単純化を優先してください。
 
