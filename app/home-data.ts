@@ -3,6 +3,7 @@ export type HomeItem = {
   detail: string;
   meta: string;
   tone: "urgent" | "today" | "upcoming" | "done";
+  detailHref?: string;
 };
 
 export type HomeSection = {
@@ -24,6 +25,7 @@ export const HOME_SECTIONS: HomeSection[] = [
         detail: "猫の浄水器",
         meta: "8月9日まで ・ 3日超過",
         tone: "urgent",
+        detailHref: "/managed-items/cat-water-fountain",
       },
     ],
   },
@@ -69,6 +71,7 @@ export const HOME_SECTIONS: HomeSection[] = [
         detail: "猫の浄水器",
         meta: "7月10日 ・ 家族Aが実施",
         tone: "done",
+        detailHref: "/managed-items/cat-water-fountain",
       },
       {
         title: "洗濯槽クリーナー",

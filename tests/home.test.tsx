@@ -43,6 +43,23 @@ describe("ホーム画面", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("猫の浄水器に関係する表示から管理対象の詳細へ移動できる", () => {
+    render(<Home />);
+
+    const detailLinks = screen.getAllByRole("link", {
+      name: "猫の浄水器のフィルター交換",
+    });
+
+    expect(detailLinks.length).toBeGreaterThan(0);
+    expect(
+      detailLinks.every(
+        (link) =>
+          link.getAttribute("href") ===
+          "/managed-items/cat-water-fountain",
+      ),
+    ).toBe(true);
+  });
+
   it("外部サービスに依存しない固定サンプルを4区分に持つ", () => {
     expect(HOME_SECTIONS).toHaveLength(4);
     expect(HOME_SECTIONS.every((section) => section.items.length > 0)).toBe(
