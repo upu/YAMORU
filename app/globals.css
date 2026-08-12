@@ -272,6 +272,93 @@ h1 {
   font-size: 0.74rem;
 }
 
+.completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.completion-actions button,
+.date-time-form input {
+  min-height: 42px;
+  border-radius: 10px;
+  font: inherit;
+}
+
+.completion-actions button {
+  padding: 9px 13px;
+  border: 1px solid var(--green);
+  color: white;
+  background: var(--green);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.completion-actions button:hover {
+  background: #244a39;
+}
+
+.completion-actions button:focus-visible,
+.date-time-form input:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.completion-actions .date-time-toggle {
+  color: var(--green);
+  background: transparent;
+}
+
+.completion-actions .date-time-toggle:hover {
+  color: white;
+  background: var(--green);
+}
+
+.date-time-form {
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  padding-top: 5px;
+}
+
+.date-time-form label {
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.date-time-form input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: white;
+}
+
+.date-time-form button {
+  justify-self: start;
+}
+
+.completion-feedback {
+  position: fixed;
+  z-index: 1;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  width: min(calc(100% - 32px), 712px);
+  margin: 0 auto;
+  padding: 13px 16px;
+  border-radius: 14px;
+  color: white;
+  background: var(--green);
+  box-shadow: var(--shadow);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .item-meta {
   margin-top: 5px;
   color: var(--ink);
@@ -456,6 +543,10 @@ footer p {
   font-weight: 800;
 }
 
+.due-date-upcoming {
+  color: var(--blue);
+}
+
 .sample-label {
   display: inline-block;
   margin: 18px 0 13px;
@@ -523,6 +614,20 @@ footer p {
 
   .task-title-row {
     gap: 8px;
+  }
+
+  .completion-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .completion-actions > button,
+  .date-time-form button {
+    width: 100%;
+  }
+
+  .completion-feedback {
+    bottom: 10px;
   }
 
   .detail-hero {

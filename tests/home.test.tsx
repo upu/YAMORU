@@ -4,13 +4,18 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import Home from "../app/page";
+import { DemoStateProvider } from "../app/demo-state";
 import { HOME_SECTIONS } from "../app/home-data";
 
 afterEach(cleanup);
 
+function renderHome() {
+  return render(<DemoStateProvider><Home /></DemoStateProvider>);
+}
+
 describe("ホーム画面", () => {
   it("YAMORUの名前とタグラインを表示する", () => {
-    render(<Home />);
+    renderHome();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "YAMORU" }),
@@ -23,7 +28,7 @@ describe("ホーム画面", () => {
   it.each(["期限切れ", "今日", "近日", "最近の実施"])(
     "%sの区分を見分けられる",
     (sectionTitle) => {
-      render(<Home />);
+      renderHome();
 
       const section = screen.getByRole("region", { name: sectionTitle });
       expect(
@@ -36,7 +41,7 @@ describe("ホーム画面", () => {
   );
 
   it("猫の浄水器のフィルター交換の期限または実施を表示する", () => {
-    render(<Home />);
+    renderHome();
 
     expect(
       screen.getAllByText("猫の浄水器のフィルター交換").length,
@@ -44,7 +49,7 @@ describe("ホーム画面", () => {
   });
 
   it("猫の浄水器に関係する表示から管理対象の詳細へ移動できる", () => {
-    render(<Home />);
+    renderHome();
 
     const detailLinks = screen.getAllByRole("link", {
       name: "猫の浄水器のフィルター交換",

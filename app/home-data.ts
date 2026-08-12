@@ -1,4 +1,5 @@
 export type HomeItem = {
+  id: string;
   title: string;
   detail: string;
   meta: string;
@@ -21,6 +22,7 @@ export const HOME_SECTIONS: HomeSection[] = [
     description: "期限を過ぎています",
     items: [
       {
+        id: "cat-water-fountain-filter",
         title: "猫の浄水器のフィルター交換",
         detail: "猫の浄水器",
         meta: "8月9日まで ・ 3日超過",
@@ -35,6 +37,7 @@ export const HOME_SECTIONS: HomeSection[] = [
     description: "今日確認したいこと",
     items: [
       {
+        id: "air-conditioner-filter",
         title: "エアコンのフィルター掃除",
         detail: "リビングのエアコン",
         meta: "今日まで ・ 誰でも可",
@@ -48,12 +51,14 @@ export const HOME_SECTIONS: HomeSection[] = [
     description: "これから7日間の予定",
     items: [
       {
+        id: "ice-maker-water-tank",
         title: "製氷機の給水タンク掃除",
         detail: "キッチンの冷蔵庫",
         meta: "8月16日まで ・ あと4日",
         tone: "upcoming",
       },
       {
+        id: "bath-drain",
         title: "浴室の排水口メンテナンス",
         detail: "浴室",
         meta: "8月18日まで ・ あと6日",
@@ -67,6 +72,7 @@ export const HOME_SECTIONS: HomeSection[] = [
     description: "家族が完了したこと",
     items: [
       {
+        id: "cat-water-fountain-filter-last",
         title: "猫の浄水器のフィルター交換",
         detail: "猫の浄水器",
         meta: "7月10日 ・ 家族Aが実施",
@@ -74,6 +80,7 @@ export const HOME_SECTIONS: HomeSection[] = [
         detailHref: "/managed-items/cat-water-fountain",
       },
       {
+        id: "washing-machine-cleaner",
         title: "洗濯槽クリーナー",
         detail: "ドラム式洗濯機",
         meta: "7月28日 ・ 家族Bが実施",
