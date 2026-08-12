@@ -28,3 +28,4 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 - 概念文書の`status: deprecated`は、現在の仕様ではなく過去の経緯として扱う。`status`がなければ`stable`として扱う。
 - 意思決定は各YDR本文の状態を確認し、`Accepted`かつ後続のYDRで置き換えられていないものだけを現在有効として扱う。
 - 外部情報を扱う概念文書に`stale_after`がある場合は、期限と出典を確認する。
+- `docs/`配下にOKF文書を新規作成・移行する前に、[OKF文書の執筆ガイド](references/okf-authoring-guide.md)を読む。
