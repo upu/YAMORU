@@ -60,7 +60,14 @@ function loadDumpIntoContainer(projectId: string, backupFile: string): void {
   const sql = readFileSync(backupFile);
   execFileSync(
     "docker",
-    ["exec", "-i", `supabase_db_${projectId}`, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"],
+    // -1 (--single-transaction)により、途中で失敗した場合は全体をロールバック
+    // する。ON_ERROR_STOPだけでは失敗後も後続文が続行され、半端に復元された
+    // 状態が残ってしまう。
+    [
+      "exec", "-i", `supabase_db_${projectId}`,
+      "psql", "-U", "postgres", "-d", "postgres",
+      "-v", "ON_ERROR_STOP=1", "-1",
+    ],
     { input: sql, stdio: ["pipe", "inherit", "inherit"] },
   );
 }
