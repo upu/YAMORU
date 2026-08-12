@@ -56,8 +56,8 @@ YDR-005は、MVPでOwner/Memberなどの細かな権限区別を作らない一�
 - **UPDATE/DELETEの拒否は例外ではなく0件処理になる。** RLSの`USING`句で対象外の行は「エラー」ではなく「対象0件」として扱われる。アプリ側は、更新0件を「対象がそもそも他家庭のものだった」可能性として扱う必要がある(今回のテストでは`is_empty`で0件になることを確認する形にした)。
 - **households / household_membersのINSERT/UPDATE/DELETEポリシーは未整備。** 今回はSELECTのみ。家庭作成・招待受諾のフロー(Phase 2、YDR-005の見直し条件外)を実装する段階で、誰が・どの条件で行を作成できるかを別途設計する必要がある。
 - **Auth利用者の作成は`auth.users`への直接INSERTで代用した。** ローカルのGoTrue(Auth)サービス自体は起動しているが、サインアップ・ログイン画面やAuthプロバイダーの設定は技術スパイクの対象外のため未接続。テスト用利用者は`auth.users`へ直接INSERTして用意した。Phase 1でNext.jsからSupabase Authに接続する際、`auth.users`のスキーマ前提(このスパイクで使ったカラム)が変わらないか改めて確認する。
-- **`is_household_member`の`search_path`は`public`のみを指定した。** 関数本体はすべて`public.`で明示スキーマ修飾しているため実害はないが、`SECURITY DEFINER`関数のハードニングとしては`set search_path = ''`(または`, pg_temp`の付加)がより安全とされる。Phase 2でこのパターンを流用する際は見直す。
-- **`create extension pgtap`はマイグレーション(本番にも適用され得る変更列)に含めた。** 技術スパイクでは簡便さを優先したが、Phase 2でリモートSupabaseプロジェクトへ適用する段階では、pgTAPはテスト専用のセットアップ(マイグレーション外)に移すべき。
+- **`is_household_member`は`search_path = ''`でハードニングした。** 本文は`public.household_members`/`auth.uid()`とすべて明示スキーマ修飾しているため、検索パス乗っ取りの余地をなくせる。Phase 2でこのパターンを流用する際も踏襲する。
+- **`create extension pgtap`はマイグレーションに含めない。** テスト専用の拡張のため、リモート環境にも適用され得るマイグレーションチェーンではなく、`supabase/tests/database/household_rls_isolation.sql`側で`supabase test db`実行時にのみ有効化する構成にした。
 - **`supabase test db`はService Roleを一切使わない構成で書けた。** `set local role authenticated / anon`と`request.jwt.claims`の模擬だけで、家庭A/B/非メンバー/未認証の4パターンをすべて検証できている。
 
 ## このスパイクで扱わなかったこと

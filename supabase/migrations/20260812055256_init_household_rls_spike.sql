@@ -9,8 +9,9 @@
 --   - TaskRule / TaskOccurrence / ActivityLogの本実装
 --   - 招待トークンの発行・受諾フロー
 
--- pgTAPはデータベーステスト(supabase test db)でのみ使用する。
-create extension if not exists pgtap with schema extensions;
+-- pgTAPはテスト専用の拡張であり、リモート環境にも適用され得るこのマイグレーション
+-- チェーンには含めない。supabase test db実行時に
+-- supabase/tests/database/household_rls_isolation.sql側で有効化する。
 
 -- ---------------------------------------------------------------------------
 -- households: データを共有する家庭の単位。
@@ -72,13 +73,15 @@ alter table public.managed_items force row level security;
 -- 呼び出しても無限再帰にならないようにする(所有者postgresはRLSを回避するため)。
 -- クライアントが送るhousehold_idそのものを信用せず、必ずauth.uid()とmembership行の
 -- 突き合わせで判定する。
+-- search_pathは空にし、本文はすべてpublic.で明示スキーマ修飾する
+-- (SECURITY DEFINER関数の検索パス乗っ取り対策)。
 -- ---------------------------------------------------------------------------
 create or replace function public.is_household_member(target_household_id uuid)
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1

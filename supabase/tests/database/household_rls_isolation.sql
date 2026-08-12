@@ -14,6 +14,9 @@
 --   家庭Aの管理対象: 00000000-0000-0000-0000-0000000aa001
 --   家庭Bの管理対象: 00000000-0000-0000-0000-0000000bb001
 
+-- pgTAPはテスト専用の拡張のためマイグレーションには含めず、ここで有効化する。
+create extension if not exists pgtap with schema extensions;
+
 begin;
 
 select plan(16);
