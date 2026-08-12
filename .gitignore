@@ -3,6 +3,7 @@ node_modules/
 .next/
 out/
 coverage/
+*.tsbuildinfo
 
 # Local environment variables
 .env
