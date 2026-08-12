@@ -849,6 +849,21 @@ footer p {
   margin-bottom: 18px;
 }
 
+.account-page .detail-card .auth-form {
+  margin-top: 18px;
+}
+
+.account-page .detail-card .auth-form > p:not(.auth-feedback) {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.account-page .detail-card .household-name {
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 .signout-form {
   display: flex;
   justify-content: flex-end;

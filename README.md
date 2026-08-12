@@ -6,7 +6,7 @@ YAMORUは、家族のTodo、家電や契約などの管理対象、定期メン�
 
 ## 現在の段階
 
-プロダクト定義と意思決定をもとに、固定サンプルデータを使ったホーム画面、管理対象の詳細、Todo完了フローを確認できます。ローカルSupabase Authへ接続した登録・ログイン・ログアウトも確認できます。家庭の実データは使用しません。
+プロダクト定義と意思決定をもとに、固定サンプルデータを使ったホーム画面、管理対象の詳細、Todo完了フローを確認できます。ローカルSupabaseへ接続した登録・ログイン・ログアウトと、最初の家庭作成も確認できます。家庭の実データは使用しません。
 
 Todoの完了結果は、画面間で共有するブラウザ内の一時状態です。再読み込みすると固定サンプルデータへ戻り、保存はされません。
 
@@ -76,12 +76,14 @@ npm run dev
 1. [https://127.0.0.1:3000](https://127.0.0.1:3000)を開くと、未認証時はログイン画面へ移動します。
 2. `person@example.test`などの架空のメールアドレスと、6文字以上のテスト用パスワードで新規登録します。
 3. ホーム画面が表示され、再読み込み後もログイン状態が維持されることを確認します。
-4. 「アカウント」を開き、「ログアウト」を選びます。ホーム画面を再度開くとログイン画面へ移動します。
-5. 登録時と同じ値でログインできることを確認します。
+4. 「アカウント」を開き、架空の家庭名を入力して「家庭を作成」を選びます。
+5. 作成した家庭名が表示され、作成フォームが表示されなくなることを確認します。再読み込み後も同じ家庭名が表示されます。
+6. 「ログアウト」を選びます。ホーム画面を再度開くとログイン画面へ移動します。
+7. 登録時と同じ値でログインし、アカウント画面に同じ家庭名が表示されることを確認します。
 
 登録・ログイン・ログアウトは、いずれもServer ActionsまたはRoute Handler経由でNext.jsサーバーからローカルSupabaseへ接続します。ブラウザから`NEXT_PUBLIC_SUPABASE_URL`(HTTP)へ直接接続する経路は現状使用していないため、HTTPS化によるMixed Contentは発生しません。将来ブラウザー用Supabaseクライアントを直接使う場合は、ローカルSupabase APIもLAN内で到達可能なHTTPSにするか、接続をサーバー経由に限定するかを設計時に決め、ブラウザーコンソールにMixed Contentエラーがないことを確認してください。
 
-Authサービスへの実接続だけを自動確認する場合は、ローカルSupabaseを起動してから実行します。テストはSupabase CLIから接続先と公開可能なキーを自動取得するため、テスト専用のenvファイルは不要です。
+登録・ログインと最初の家庭作成の実接続を自動確認する場合は、ローカルSupabaseを起動してから実行します。テストはSupabase CLIから接続先と公開可能なキーを自動取得するため、テスト専用のenvファイルは不要です。
 
 ```powershell
 npm run test:auth:local
@@ -91,14 +93,14 @@ npm run test:auth:local
 
 ## ローカルSupabase(DB・RLS)
 
-家庭間データ分離と、期限付き・一回限りの招待受諾をRow Level Security(RLS)と両立できるか検証するため、ローカル専用のDBテストも用意しています([YDR-005](docs/decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)、[RLSスパイク結果](docs/spikes/supabase-rls-household-isolation.md)、[招待受諾スパイク結果](docs/spikes/household-invitation-acceptance.md)を参照)。
+家庭間データ分離、最初の家庭作成、期限付き・一回限りの招待受諾をRow Level Security(RLS)と両立できるか検証するため、ローカル専用のDBテストも用意しています([YDR-005](docs/decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)、[RLSスパイク結果](docs/spikes/supabase-rls-household-isolation.md)、[招待受諾スパイク結果](docs/spikes/household-invitation-acceptance.md)を参照)。
 
 事前に[Docker Desktop](https://www.docker.com/products/docker-desktop/)を起動しておきます。Supabase CLIはこのリポジトリの`devDependencies`に固定バージョンで含まれているため、追加のインストールは不要です。
 
 ```powershell
 npm run db:start  # ローカルSupabaseを起動(初回はDockerイメージの取得で時間がかかります)
 npm run db:reset  # マイグレーションとseed.sqlを最初から再適用
-npm run db:test   # pgTAPによるRLS分離・招待受諾テストを実行(supabase test db)
+npm run db:test   # pgTAPによるRLS分離・家庭作成・招待受諾テストを実行(supabase test db)
 npm run db:stop   # ローカルSupabaseを停止
 ```
 
