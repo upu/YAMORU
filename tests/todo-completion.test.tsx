@@ -38,8 +38,10 @@ describe("フィルター交換Todoの完了フロー", () => {
     expect(within(dialog).getByRole("button", { name: "今、自分がやった" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "詳しく記録する" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    // 前回実施(7月10日)から4週間後〜8週間後の推奨期間内(YDR-017)のため、
+    // まだ「期限切れ」ではなく「そろそろ」区分に入る。
     expect(screen.getByLabelText("対応状況")).toHaveTextContent(
-      "4件の予定1件が期限切れ",
+      "4件の予定0件が期限切れ",
     );
 
     fireEvent.click(within(dialog).getByRole("button", { name: "今、自分がやった" }));
@@ -75,9 +77,10 @@ describe("フィルター交換Todoの完了フロー", () => {
     });
     expect(within(lastActivity).getByText("8月12日")).toBeInTheDocument();
     expect(within(lastActivity).getByText("家族A")).toBeInTheDocument();
+    // 8月12日完了 + 4週間後(推奨開始) = 9月9日。まだ推奨期間前のため「から」表記。
     expect(
       within(screen.getByRole("region", { name: "関連するTodo" })).getByText(
-        "9月11日まで",
+        "9月9日から交換の目安です",
       ),
     ).toBeInTheDocument();
   });
@@ -123,9 +126,10 @@ describe("フィルター交換Todoの完了フロー", () => {
       name: "最後のフィルター交換",
     });
     expect(within(lastActivity).getByText("8月10日")).toBeInTheDocument();
+    // 8月10日完了 + 4週間後(推奨開始) = 9月7日。まだ推奨期間前のため「から」表記。
     expect(
       within(screen.getByRole("region", { name: "関連するTodo" })).getByText(
-        "9月9日まで",
+        "9月7日から交換の目安です",
       ),
     ).toBeInTheDocument();
   });

@@ -5,13 +5,14 @@ title: MVPではTaskRuleごとに未解決Todoを最大1件とする
 description: 未完了時の扱いを「1件を持ち越す」方式に絞り、TaskRuleごとの未解決Occurrenceを最大1件にする
 tags: [yamoru, decisions, ydr]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-12
+superseded_by: YDR-017
 ---
 
 # YDR-010: MVPではTaskRuleごとに未解決Todoを最大1件とする
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-017](ydr-017-strict-deadline-vs-maintenance-recommended-window.md)(「未完了なら期限切れのまま表示する」という表示前提のみ置き換え。未解決Occurrenceを最大1件とする決定そのものは[YDR-017](ydr-017-strict-deadline-vs-maintenance-recommended-window.md)でも維持される)
 - 決定日: 2026-08-12
 
 ## 背景
@@ -41,3 +42,5 @@ decision_date: 2026-08-12
 
 - 掃除やメンテナンスでも、未実施だった各回を個別に残す必要が実運用から確認された。
 - 支払い機能の設計に着手する。
+
+この決定のうち「未完了なら期限切れのまま表示する」という表示前提は、メンテナンスの推奨期間を区別する[YDR-017](ydr-017-strict-deadline-vs-maintenance-recommended-window.md)によって置き換えられた。未解決Occurrenceを最大1件とする決定自体は変更されていないため、記録は削除しない。

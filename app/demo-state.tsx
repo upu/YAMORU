@@ -11,13 +11,19 @@ import {
   CAT_WATER_FOUNTAIN,
   type Activity,
 } from "./managed-items/cat-water-fountain/sample-data";
+import {
+  computeMaintenanceWindow,
+  formatMonthDay,
+  parseDateOnly,
+} from "./task-schedule";
 
 const SAMPLE_MEMBER = "家族A";
 
 type DemoState = {
   isFilterReplacementCompleted: boolean;
   lastActivity: Activity;
-  nextDueDate: string;
+  scheduledFor: Date;
+  dueAt: Date;
   history: Activity[];
 };
 
@@ -27,14 +33,6 @@ type DemoStateValue = DemoState & {
 
 const DemoStateContext = createContext<DemoStateValue | null>(null);
 
-function formatDate(date: Date) {
-  return `${String(date.getMonth() + 1)}月${String(date.getDate())}日`;
-}
-
-function formatDueDate(date: Date) {
-  return `${String(date.getMonth() + 1)}月${String(date.getDate())}日まで`;
-}
-
 export function formatDateInput(date: Date) {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -43,10 +41,15 @@ export function formatDateInput(date: Date) {
 }
 
 function createInitialState(): DemoState {
+  const { scheduledFor, dueAt } = computeMaintenanceWindow(
+    parseDateOnly(CAT_WATER_FOUNTAIN.lastActivity.dateTime),
+  );
+
   return {
     isFilterReplacementCompleted: false,
     lastActivity: CAT_WATER_FOUNTAIN.lastActivity,
-    nextDueDate: CAT_WATER_FOUNTAIN.nextDueDate,
+    scheduledFor,
+    dueAt,
     history: [...CAT_WATER_FOUNTAIN.history],
   };
 }
@@ -60,10 +63,9 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
         return current;
       }
 
-      const nextDueAt = new Date(occurredAt);
-      nextDueAt.setDate(nextDueAt.getDate() + 30);
+      const { scheduledFor, dueAt } = computeMaintenanceWindow(occurredAt);
       const activity = {
-        date: formatDate(occurredAt),
+        date: formatMonthDay(occurredAt),
         dateTime: formatDateInput(occurredAt),
         member: SAMPLE_MEMBER,
       };
@@ -71,7 +73,8 @@ export function DemoStateProvider({ children }: { children: ReactNode }) {
       return {
         isFilterReplacementCompleted: true,
         lastActivity: activity,
-        nextDueDate: formatDueDate(nextDueAt),
+        scheduledFor,
+        dueAt,
         history: [activity, ...current.history],
       };
     });

@@ -18,11 +18,9 @@ export const CAT_WATER_FOUNTAIN = {
     dateTime: "2026-07-10",
     member: "家族A",
   },
-  nextDueDate: "8月9日まで",
   task: {
     name: "フィルター交換",
-    cadence: "完了日から30日後",
-    status: "期限切れ",
+    cadence: "完了から4週間後を目安に、8週間後までに交換",
   },
   history: [
     {

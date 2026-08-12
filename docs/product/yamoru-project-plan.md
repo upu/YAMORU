@@ -236,7 +236,8 @@ MVP後に追加を検討する概念は、Consumable、StockMovement、ShoppingI
 - TaskRuleは次回日を暦基準または完了日時基準で計算できる。
 - 周期の基準と未完了時の扱いを別の概念として扱う。
 - 未完了時の扱いには「1件を持ち越す」と「回ごとに残す」がある。MVPは「1件を持ち越す」だけを実装する。
-- 「1件を持ち越す」では、TaskRuleごとに未解決のTaskOccurrenceを最大1件とし、未完了なら期限切れのまま残す。
+- 「1件を持ち越す」では、TaskRuleごとに未解決のTaskOccurrenceを最大1件とし、未完了なら持ち越す。
+- TaskRuleは`deadline_kind`(`strict` / `maintenance`)を持つ。税金や支払いなど厳密な期限(`strict`)は`scheduled_for`と`due_at`を同日とし、`due_at`を過ぎたら期限切れのまま表示する。掃除や消耗品交換など(`maintenance`)は`scheduled_for`を推奨期間の開始、`due_at`を推奨期間の上限とし、推奨期間前・期間内・上限超過の3状態を区別して表示する（早期交換を促さない）。詳細は[YDR-017](../decisions/ydr-017-strict-deadline-vs-maintenance-recommended-window.md)を参照。
 - 固定日基準の次回予定枠は、解決したOccurrenceの`scheduled_for`より後にある最初の暦上の候補から探す。候補が実際の解決日時以前なら、解決日時より後になるまで暦上の候補を進める。完了時の解決日時は`occurred_at`、スキップ時は操作日時とする。
 - 例: 7月1日予定を6月28日に前倒し完了した場合は8月1日、8月10日に遅れて完了した場合は9月1日を次回とする。8月10日の完了を10月5日に記録しても次回は9月1日で、生成直後から期限切れとして表示する。
 - 完了日基準のTodoは実施日時から次回を計算する。家族共有MVP（Phase 2まで）ではスキップを提供せず、Phase 3で固定日基準のスキップだけを追加する。

@@ -10,6 +10,8 @@
   --orange-pale: #fff0e7;
   --blue: #406778;
   --blue-pale: #e8f1f4;
+  --amber: #8a6817;
+  --amber-pale: #f7efd9;
   --shadow: 0 10px 35px rgb(37 54 45 / 8%);
 }
 
@@ -206,6 +208,14 @@ h1 {
   background: var(--blue);
 }
 
+.status-reminder {
+  background: var(--green);
+}
+
+.status-caution {
+  background: var(--amber);
+}
+
 .status-done {
   background: #859188;
 }
@@ -258,6 +268,16 @@ h1 {
 .tone-upcoming {
   color: var(--blue);
   background: var(--blue-pale);
+}
+
+.tone-reminder {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.tone-caution {
+  color: var(--amber);
+  background: var(--amber-pale);
 }
 
 .tone-done {
@@ -656,6 +676,14 @@ footer p {
 
 .due-date-upcoming {
   color: var(--blue);
+}
+
+.due-date-reminder {
+  color: var(--green);
+}
+
+.due-date-caution {
+  color: var(--amber);
 }
 
 .sample-label {

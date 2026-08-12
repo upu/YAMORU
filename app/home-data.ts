@@ -3,7 +3,7 @@ export type HomeItem = {
   title: string;
   detail: string;
   meta: string;
-  tone: "urgent" | "today" | "upcoming" | "done";
+  tone: "urgent" | "today" | "upcoming" | "done" | "reminder" | "caution";
   detailHref?: string;
 };
 
@@ -15,21 +15,16 @@ export type HomeSection = {
 };
 
 // バックエンド導入前に情報の優先順位だけを検証するための固定サンプルです。
+// 猫の浄水器のフィルター交換Todoは、推奨期間の状態(YDR-017)に応じて
+// page.tsxがreminderへ実行時に差し込みます。「期限切れ」区分は厳密な
+// 期限(strict)専用のため、推奨期間の上限超過(past-window)でもここには
+// 入りません。
 export const HOME_SECTIONS: HomeSection[] = [
   {
     id: "overdue",
     title: "期限切れ",
     description: "期限を過ぎています",
-    items: [
-      {
-        id: "cat-water-fountain-filter",
-        title: "猫の浄水器のフィルター交換",
-        detail: "猫の浄水器",
-        meta: "8月9日まで ・ 3日超過",
-        tone: "urgent",
-        detailHref: "/managed-items/cat-water-fountain",
-      },
-    ],
+    items: [],
   },
   {
     id: "today",
@@ -44,6 +39,12 @@ export const HOME_SECTIONS: HomeSection[] = [
         tone: "today",
       },
     ],
+  },
+  {
+    id: "reminder",
+    title: "そろそろ",
+    description: "交換の目安の時期です",
+    items: [],
   },
   {
     id: "upcoming",
