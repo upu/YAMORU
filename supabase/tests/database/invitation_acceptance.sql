@@ -153,10 +153,8 @@ select isnt_empty(
 );
 
 select isnt_empty(
-  $$ insert into public.managed_items (household_id, name)
-     values ('00000000-0000-0000-0000-00000000a001', '招待受諾者が作成')
-     returning id $$,
-  '受諾後は招待先家庭のデータを書き込める'
+  $$ select public.create_managed_item('招待受諾者が作成', 'other', null) $$,
+  '受諾後は限定RPCで招待先家庭のデータを書き込める'
 );
 
 select is_empty(

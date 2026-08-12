@@ -196,6 +196,9 @@ function HomeHero({
         </div>
         <div className="hero-actions">
           <span className="date-badge">8月12日 水</span>
+          <Link className="account-link" href="/managed-items">
+            家の台帳
+          </Link>
           <Link className="account-link" href="/account" aria-label="アカウントを開く">
             アカウント
           </Link>
