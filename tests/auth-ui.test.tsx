@@ -3,12 +3,17 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { requireUserMock } = vi.hoisted(() => ({
+const { createClientMock, requireUserMock } = vi.hoisted(() => ({
+  createClientMock: vi.fn(),
   requireUserMock: vi.fn(),
 }));
 
 vi.mock("../lib/auth/current-user", () => ({
   requireUser: requireUserMock,
+}));
+
+vi.mock("../lib/supabase/server", () => ({
+  createClient: createClientMock,
 }));
 
 import AccountPage from "../app/account/page";
@@ -48,21 +53,57 @@ describe("ログイン画面", () => {
 });
 
 describe("アカウント画面", () => {
-  it("検証済み利用者と、家庭所属とは別の認証状態を表示する", async () => {
+  function mockHouseholdResult(
+    data: { id: string; name: string } | null,
+  ) {
+    const maybeSingle = vi.fn().mockResolvedValue({ data, error: null });
+    const limit = vi.fn().mockReturnValue({ maybeSingle });
+    const order = vi.fn().mockReturnValue({ limit });
+    const select = vi.fn().mockReturnValue({ order });
+    createClientMock.mockResolvedValue({
+      from: vi.fn().mockReturnValue({ select }),
+    });
+  }
+
+  it("家庭未所属の利用者に、支援技術から識別できる作成フォームを表示する", async () => {
     requireUserMock.mockResolvedValue({
       email: "person@example.test",
       id: "user-id",
     });
+    mockHouseholdResult(null);
 
     render(await AccountPage());
 
     expect(screen.getByText("person@example.test")).toBeInTheDocument();
-    expect(screen.getByText("家庭はまだ設定されていません")).toBeInTheDocument();
+    const householdSection = screen.getByRole("region", {
+      name: "家庭を作成",
+    });
+    expect(within(householdSection).getByLabelText("家庭名")).toHaveAttribute(
+      "maxLength",
+      "100",
+    );
     expect(
-      screen.getByText("ログイン済みであることと、家庭への所属は別に確認します。"),
+      within(householdSection).getByRole("button", { name: "家庭を作成" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "ログアウト" }),
     ).toBeInTheDocument();
+  });
+
+  it("家庭所属済みの利用者には家庭名だけを表示し、作成フォームを隠す", async () => {
+    requireUserMock.mockResolvedValue({
+      email: "member@example.test",
+      id: "member-id",
+    });
+    mockHouseholdResult({ id: "household-id", name: "テスト家庭" });
+
+    render(await AccountPage());
+
+    expect(screen.getByRole("heading", { name: "所属している家庭" })).toBeInTheDocument();
+    expect(screen.getByText("テスト家庭")).toBeInTheDocument();
+    expect(screen.queryByLabelText("家庭名")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "家庭を作成" }),
+    ).not.toBeInTheDocument();
   });
 });
