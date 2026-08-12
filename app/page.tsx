@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   HOME_SECTIONS,
   type HomeItem,
@@ -17,7 +19,13 @@ function TaskCard({ item }: { item: HomeItem }) {
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
       <div className="task-copy">
         <div className="task-title-row">
-          <h3>{item.title}</h3>
+          <h3>
+            {item.detailHref === undefined ? (
+              item.title
+            ) : (
+              <Link href={item.detailHref}>{item.title}</Link>
+            )}
+          </h3>
           <span className={`tone-label tone-${item.tone}`}>
             {TONE_LABELS[item.tone]}
           </span>
