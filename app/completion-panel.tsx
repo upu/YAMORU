@@ -180,7 +180,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
 
   function completeNow() {
     onComplete(new Date());
-    closePanel();
+    setView("closed");
   }
 
   function submitDetails(event: SyntheticEvent<HTMLFormElement>) {
@@ -188,7 +188,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
     const occurredOn = new FormData(event.currentTarget).get("occurredOn");
     if (typeof occurredOn === "string" && occurredOn !== "") {
       onComplete(parseLocalDate(occurredOn));
-      closePanel();
+      setView("closed");
     }
   }
 

@@ -150,5 +150,6 @@ describe("フィルター交換Todoの完了フロー", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(openCompletionButton).toHaveFocus();
   });
 });
