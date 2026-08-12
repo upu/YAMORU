@@ -74,15 +74,7 @@ function isCertValidForHosts(hosts: string[]): boolean {
   }
 }
 
-function generateCertificate(mkcertPath: string, hosts: string[]): void {
-  mkdirSync(CERT_DIR, { recursive: true });
-  console.log(`証明書を生成します(対象ホスト: ${hosts.join(", ")})`);
-  execFileSync(
-    mkcertPath,
-    ["-install", "-key-file", KEY_PATH, "-cert-file", CERT_PATH, ...hosts],
-    { stdio: "inherit" },
-  );
-
+function printCaRootLocation(mkcertPath: string): void {
   const caRoot = execFileSync(mkcertPath, ["-CAROOT"], {
     encoding: "utf8",
   }).trim();
@@ -93,6 +85,16 @@ function generateCertificate(mkcertPath: string, hosts: string[]): void {
   );
 }
 
+function generateCertificate(mkcertPath: string, hosts: string[]): void {
+  mkdirSync(CERT_DIR, { recursive: true });
+  console.log(`証明書を生成します(対象ホスト: ${hosts.join(", ")})`);
+  execFileSync(
+    mkcertPath,
+    ["-install", "-key-file", KEY_PATH, "-cert-file", CERT_PATH, ...hosts],
+    { stdio: "inherit" },
+  );
+}
+
 function main(): void {
   const hosts = resolveHosts();
 
@@ -100,11 +102,20 @@ function main(): void {
     console.log(
       "既存の証明書は有効期限内で、対象ホストをすべて満たしています。",
     );
+    // 証明書が既にあっても、iPhoneなど別端末での信頼設定に必要な
+    // CAの場所は毎回案内します。mkcertが見つからなくても、既存の
+    // 証明書があれば起動は継続します。
+    try {
+      printCaRootLocation(findMkcertPath());
+    } catch {
+      // 案内できないだけで、起動は継続します。
+    }
     return;
   }
 
   const mkcertPath = findMkcertPath();
   generateCertificate(mkcertPath, hosts);
+  printCaRootLocation(mkcertPath);
 }
 
 main();
