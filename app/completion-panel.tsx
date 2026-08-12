@@ -64,11 +64,13 @@ function CompletionChoice({
 
 function CompletionDetails({
   dateInputRef,
+  inputId,
   onBack,
   onSubmit,
   today,
 }: {
   dateInputRef: RefObject<HTMLInputElement | null>;
+  inputId: string;
   onBack: () => void;
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
   today: string;
@@ -78,10 +80,10 @@ function CompletionDetails({
       <button className="dialog-back-button" onClick={onBack} type="button">
         ← 選び方に戻る
       </button>
-      <label htmlFor="filter-occurred-on">実施日</label>
+      <label htmlFor={inputId}>実施日</label>
       <input
         defaultValue={today}
-        id="filter-occurred-on"
+        id={inputId}
         max={today}
         name="occurredOn"
         ref={dateInputRef}
@@ -102,6 +104,7 @@ function CompletionDetails({
 
 type CompletionDialogProps = {
   dateInputRef: RefObject<HTMLInputElement | null>;
+  inputId: string;
   onBack: () => void;
   onClose: () => void;
   onComplete: () => void;
@@ -150,6 +153,7 @@ function CompletionDialog(props: CompletionDialogProps) {
         ) : (
           <CompletionDetails
             dateInputRef={props.dateInputRef}
+            inputId={props.inputId}
             onBack={props.onBack}
             onSubmit={props.onSubmit}
             today={props.today}
@@ -163,6 +167,7 @@ function CompletionDialog(props: CompletionDialogProps) {
 export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps) {
   const [view, setView] = useState<PanelView>("closed");
   const titleId = useId();
+  const inputId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const quickCompleteRef = useRef<HTMLButtonElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +205,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
       {view === "closed" ? null : (
         <CompletionDialog
           dateInputRef={dateInputRef}
+          inputId={inputId}
           onBack={() => { setView("choice"); }}
           onClose={closePanel}
           onComplete={completeNow}

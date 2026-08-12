@@ -44,9 +44,11 @@ describe("フィルター交換Todoの完了フロー", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "今、自分がやった" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    const completionFeedback = screen.getByRole("status");
+    expect(completionFeedback).toHaveTextContent(
       "フィルター交換を記録しました",
     );
+    expect(completionFeedback).toHaveFocus();
     expect(screen.getByLabelText("対応状況")).toHaveTextContent(
       "3件の予定0件が期限切れ",
     );

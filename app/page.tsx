@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 import { CompletionPanel } from "./completion-panel";
 import { useDemoState } from "./demo-state";
@@ -20,6 +21,17 @@ const TONE_LABELS: Record<HomeItem["tone"], string> = {
   upcoming: "予定",
   done: "完了",
 };
+
+function useCompletionFeedbackFocus(isCompleted: boolean) {
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    // 記録後に消えるボタンではなく、結果を伝える通知へ現在位置を移します。
+    if (isCompleted) feedbackRef.current?.focus();
+  }, [isCompleted]);
+
+  return feedbackRef;
+}
 
 function createHomeSections(
   isFilterReplacementCompleted: boolean,
@@ -125,10 +137,8 @@ function HomeSectionView({ section }: { section: HomeSection }) {
 }
 
 export default function Home() {
-  const {
-    isFilterReplacementCompleted,
-    lastActivity,
-  } = useDemoState();
+  const { isFilterReplacementCompleted, lastActivity } = useDemoState();
+  const completionFeedbackRef = useCompletionFeedbackFocus(isFilterReplacementCompleted);
   const sections = createHomeSections(
     isFilterReplacementCompleted,
     lastActivity,
@@ -172,7 +182,12 @@ export default function Home() {
       </div>
 
       {isFilterReplacementCompleted ? (
-        <p className="completion-feedback" role="status">
+        <p
+          className="completion-feedback"
+          ref={completionFeedbackRef}
+          role="status"
+          tabIndex={-1}
+        >
           フィルター交換を記録しました。次回の予定を更新しました。
         </p>
       ) : null}
