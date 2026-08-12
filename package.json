@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --env-file-if-exists=.env.local scripts/dev-https-cert.ts && next dev --experimental-https --experimental-https-key ./.certs/dev/key.pem --experimental-https-cert ./.certs/dev/cert.pem",
+    "dev:cert": "node --env-file-if-exists=.env.local scripts/dev-https-cert.ts",
+    "dev:http": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
