@@ -5,6 +5,9 @@ out/
 coverage/
 *.tsbuildinfo
 
+# Next.js generated type reference file
+next-env.d.ts
+
 # Local environment variables
 .env
 .env.*
