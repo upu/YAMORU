@@ -218,7 +218,7 @@ MVPでは物理的なAssetと契約・税金などのObligationを`ManagedItem`�
 | 概念 | 役割 |
 |---|---|
 | Household | データを共有する家庭 |
-| Member | 家族、表示名。MVPでは家庭メンバー全員が編集可能。必要なら最終利用日時を1件だけ保持 |
+| Member | 家族、表示名。MVPでは家庭メンバー全員が編集可能。必要なら最終利用日時を1件だけ保持。表示名は`profiles`テーブル(利用者に1対1、家庭作成前から登録可能)に保存し、MVPの一人一家庭制約下ではアカウント単位の値と家庭内表示名を同一のものとして扱う([YDR-018](../decisions/ydr-018-account-nickname-as-member-display-name.md)) |
 | ManagedItem | 家電、設備、ペット用品、契約など、Todoがひも付く管理対象 |
 | TaskRule | 定期Todoの定義、周期、基準日、未完了時の扱い。MVPでは既定担当者を持たない |
 | TaskOccurrence | 実際に発生した一回分のTodoの現在状態。本来の予定日時、現在の期限、状態、任意の担当者を保持 |
