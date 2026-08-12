@@ -12,7 +12,7 @@ status: stable
 - 更新日: 2026-08-12
 - 仮称: **YAMORU（ヤモル）**
 - 仮タグライン: **暮らしの「いつだっけ？」をなくす。**
-- 関連文書: [YAMORU意思決定ログ](../decisions/yamoru-decision-log.md)
+- 関連文書: [YAMORU意思決定](../decisions/index.md)
 
 ## 1. エグゼクティブサマリー
 

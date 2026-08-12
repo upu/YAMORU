@@ -5,8 +5,7 @@
 - 作業を始める前に`docs/index.md`を読む。
 - 現在の作業に関係するプロダクト、コンポーネント、意思決定の文書だけを追加で読む。
 - 現在のプロダクト計画は`docs/product/yamoru-project-plan.md`を正本とする。
-- 現在の意思決定の索引は`docs/decisions/index.md`を正本とする。
-- YDRが1件ずつのOKF文書へ分割されるまでは、`docs/decisions/yamoru-decision-log.md`を意思決定記録の正本とする。
+- 現在の意思決定の索引は`docs/decisions/index.md`を正本とする。個別のYDRは`docs/decisions/`配下の各`type: Decision`文書を読む。
 
 ## 意思決定の扱い
 
