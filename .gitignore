@@ -13,6 +13,9 @@ next-env.d.ts
 .env.*
 !.env.example
 
+# Local HTTPS development certificate and key (mkcert)
+.certs/
+
 # Logs and local tooling
 *.log
 .DS_Store
