@@ -1,7 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { envWorkdir, getStatusEnv, readProjectId, runSupabase } from "./supabase-cli.ts";
+import {
+  envWorkdir,
+  getStatusEnv,
+  readProjectId,
+  runSupabase,
+  writeDerivedConfig,
+} from "./supabase-cli.ts";
 import { syncMigrationsInto } from "./supabase-env-sync.ts";
 
 // prodのバックアップを復元する(Issue #31)。
@@ -20,40 +26,6 @@ const VERIFY_PROJECT_ID = "YAMORU-restore-verify";
 
 function verifyWorkdir(): string {
   return join(REPO_ROOT, "environments", "restore-verify");
-}
-
-// environments/prod/supabase/config.tomlを土台に、project_idとポート番号
-// (55xxx台)だけを一時検証環境用(57xxx台)へ置き換える。他の設定
-// (seed無効化、Realtime/Storage無効化など)はprodと同じものを引き継ぐ。
-function writeVerifyConfig(): void {
-  const prodConfigPath = join(envWorkdir("prod"), "supabase", "config.toml");
-  const template = readFileSync(prodConfigPath, "utf8");
-
-  const portMap: Record<string, string> = {
-    "55321": "57321",
-    "55322": "57322",
-    "55320": "57320",
-    "55329": "57329",
-    "55323": "57323",
-    "55324": "57324",
-    "55327": "57327",
-  };
-
-  let patched = template.replace(
-    `project_id = "${PROD_PROJECT_ID}"`,
-    `project_id = "${VERIFY_PROJECT_ID}"`,
-  );
-  for (const [from, to] of Object.entries(portMap)) {
-    const before = patched;
-    patched = patched.replace(from, to);
-    if (patched === before) {
-      throw new Error(`prodのconfig.tomlにポート${from}が見つかりませんでした。テンプレートを確認してください。`);
-    }
-  }
-
-  const configDir = join(verifyWorkdir(), "supabase");
-  mkdirSync(configDir, { recursive: true });
-  writeFileSync(join(configDir, "config.toml"), patched);
 }
 
 function loadDumpIntoContainer(projectId: string, backupFile: string): void {
@@ -87,7 +59,11 @@ function printVerificationCounts(projectId: string): void {
 }
 
 function restoreToVerify(backupFile: string): void {
-  writeVerifyConfig();
+  writeDerivedConfig({
+    projectId: VERIFY_PROJECT_ID,
+    portPrefix: "57",
+    targetWorkdir: verifyWorkdir(),
+  });
   syncMigrationsInto(join(verifyWorkdir(), "supabase"));
 
   console.log("一時検証スタックを起動します(migrationsのみ適用、seedなし)...");

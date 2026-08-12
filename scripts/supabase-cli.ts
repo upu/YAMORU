@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // prod/testの各スクリプトとtests/local-supabase-env.tsが共通で使う
@@ -66,6 +66,61 @@ export function getStatusEnv(workdir: string): {
     dbUrl: readEnvValue(output, "DB_URL"),
     studioUrl: readEnvValue(output, "STUDIO_URL"),
   };
+}
+
+// prodのconfig.tomlは55321〜55329のポートを使う。ここを別の帯へ
+// 置き換えることで、prod・testと同居できる使い捨てワークディレクトリを作る。
+const PROD_CONFIG_PORTS = [
+  "55321", // api
+  "55322", // db
+  "55320", // db.shadow
+  "55329", // db.pooler
+  "55323", // studio
+  "55324", // local_smtp
+  "55327", // analytics
+] as const;
+
+// environments/prod/supabase/config.tomlを土台に、project_idとポート帯だけを
+// 置き換えた使い捨てワークディレクトリのconfig.tomlを書き出す。他の設定
+// (seed無効化、Realtime/Storage無効化など)はprodと同じものを引き継ぐため、
+// 一時スタックの構成がprodから独りでにずれることがない。
+//
+// バックアップ復旧の検証(scripts/supabase-restore.ts)と型生成
+// (scripts/supabase-gen-types.ts)が共有する。
+export function writeDerivedConfig(options: {
+  projectId: string;
+  portPrefix: string;
+  targetWorkdir: string;
+}): void {
+  const { portPrefix, projectId, targetWorkdir } = options;
+  const template = readFileSync(
+    join(envWorkdir("prod"), "supabase", "config.toml"),
+    "utf8",
+  );
+
+  let patched = template.replace(
+    /^project_id\s*=\s*"[^"]+"/m,
+    `project_id = "${projectId}"`,
+  );
+  if (patched === template) {
+    throw new Error(
+      "prodのconfig.tomlからproject_idの行を見つけられませんでした。テンプレートを確認してください。",
+    );
+  }
+
+  for (const port of PROD_CONFIG_PORTS) {
+    const replaced = patched.replace(port, `${portPrefix}${port.slice(2)}`);
+    if (replaced === patched) {
+      throw new Error(
+        `prodのconfig.tomlにポート${port}が見つかりませんでした。テンプレートを確認してください。`,
+      );
+    }
+    patched = replaced;
+  }
+
+  const configDir = join(targetWorkdir, "supabase");
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(join(configDir, "config.toml"), patched);
 }
 
 // config.tomlは完全なTOMLとしては解析せず、`project_id = "..."`の行だけを

@@ -6,6 +6,7 @@ import { ManagedItemForm } from "./managed-item-form";
 import {
   MANAGED_ITEM_KIND_LABELS,
   type ManagedItemKind,
+  toManagedItemKind,
 } from "./model";
 
 export type ManagedItemSummary = {
@@ -102,10 +103,11 @@ export default async function ManagedItemsPage() {
     throw new Error("台帳を取得できませんでした。");
   }
 
-  return (
-    <ManagedItemsContent
-      household={household}
-      items={itemData}
-    />
-  );
+  const items: ManagedItemSummary[] = itemData.map((item) => ({
+    id: item.id,
+    kind: toManagedItemKind(item.kind),
+    name: item.name,
+  }));
+
+  return <ManagedItemsContent household={household} items={items} />;
 }

@@ -72,8 +72,9 @@ describe("ManagedItem登録操作", () => {
   it("空の外部リンクはリンクなしとして登録する", async () => {
     await createManagedItem(INITIAL_STATE, managedItemForm());
 
+    // 引数を省くとSQL関数側の`default null`が使われ、リンクなしになる。
     expect(rpcMock).toHaveBeenCalledWith("create_managed_item", {
-      external_url: null,
+      external_url: undefined,
       item_kind: "pet_supplies",
       item_name: "猫の浄水器",
     });

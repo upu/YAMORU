@@ -7,6 +7,7 @@ import {
   isSafeExternalUrl,
   MANAGED_ITEM_KIND_LABELS,
   type ManagedItemKind,
+  toManagedItemKind,
 } from "../model";
 
 type ExternalLinkData = { id: string; url: string };
@@ -90,20 +91,13 @@ export default async function RegisteredManagedItemDetail({
 
   if (data === null) notFound();
 
-  const row = data as {
-    external_links: ExternalLinkData[] | null;
-    id: string;
-    kind: ManagedItemKind;
-    name: string;
-  };
-
   return (
     <ManagedItemDetailContent
       item={{
-        externalLinks: row.external_links ?? [],
-        id: row.id,
-        kind: row.kind,
-        name: row.name,
+        externalLinks: data.external_links,
+        id: data.id,
+        kind: toManagedItemKind(data.kind),
+        name: data.name,
       }}
     />
   );

@@ -31,6 +31,11 @@ environments/*/supabase/tests/
 # it is hand-authored.
 environments/restore-verify/
 
+# gen-types is a fully generated, disposable workdir created by
+# scripts/supabase-gen-types.ts to generate lib/supabase/database.types.ts
+# from the committed migrations alone (Issue #45).
+environments/gen-types/
+
 # Logs and local tooling
 *.log
 .DS_Store

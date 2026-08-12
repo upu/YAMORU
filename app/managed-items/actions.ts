@@ -53,7 +53,8 @@ export async function createManagedItem(
 
   const supabase = await createClient();
   const response = await supabase.rpc("create_managed_item", {
-    external_url: externalUrl.length === 0 ? null : externalUrl,
+    // 未入力時は引数自体を省き、SQL関数側の`default null`に委ねる。
+    external_url: externalUrl.length === 0 ? undefined : externalUrl,
     item_kind: rawKind,
     item_name: name,
   });
