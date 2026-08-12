@@ -21,10 +21,13 @@ npm run dev
 
 起動後、ブラウザで[http://localhost:3000](http://localhost:3000)を開きます。
 
-型チェックとプロダクションビルドは次のコマンドで確認できます。
+lint、型チェック、テスト、プロダクションビルドは次のコマンドで確認できます。
 
 ```powershell
+npm run lint
+npm run lint:fix
 npm run typecheck
+npm test
 npm run build
 ```
 
