@@ -1,0 +1,16 @@
+# Dependencies and build outputs
+node_modules/
+.next/
+out/
+coverage/
+
+# Local environment variables
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling
+*.log
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
