@@ -7,6 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -21,8 +23,11 @@
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.0",
     "jsdom": "30.0.1",
-    "typescript": "7.0.2",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0",
     "vitest": "4.1.10"
   }
 }

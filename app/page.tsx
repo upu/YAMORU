@@ -1,4 +1,8 @@
-import { HOME_SECTIONS, type HomeItem } from "./home-data";
+import {
+  HOME_SECTIONS,
+  type HomeItem,
+  type HomeSection,
+} from "./home-data";
 
 const TONE_LABELS: Record<HomeItem["tone"], string> = {
   urgent: "要対応",
@@ -6,6 +10,52 @@ const TONE_LABELS: Record<HomeItem["tone"], string> = {
   upcoming: "予定",
   done: "完了",
 };
+
+function TaskCard({ item }: { item: HomeItem }) {
+  return (
+    <article className="task-card">
+      <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
+      <div className="task-copy">
+        <div className="task-title-row">
+          <h3>{item.title}</h3>
+          <span className={`tone-label tone-${item.tone}`}>
+            {TONE_LABELS[item.tone]}
+          </span>
+        </div>
+        <p className="item-detail">{item.detail}</p>
+        <p className="item-meta">{item.meta}</p>
+      </div>
+    </article>
+  );
+}
+
+function HomeSectionView({ section }: { section: HomeSection }) {
+  return (
+    <section
+      aria-labelledby={`${section.id}-title`}
+      className="home-section"
+    >
+      <div className="section-heading">
+        <div>
+          <h2 id={`${section.id}-title`}>{section.title}</h2>
+          <p>{section.description}</p>
+        </div>
+        <span className="count" aria-label={`${String(section.items.length)}件`}>
+          {section.items.length}
+        </span>
+      </div>
+
+      <div className="card-list">
+        {section.items.map((item) => (
+          <TaskCard
+            item={item}
+            key={`${section.id}-${item.title}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const openItemCount = HOME_SECTIONS.slice(0, 3).reduce(
@@ -39,39 +89,7 @@ export default function Home() {
 
       <div className="section-list">
         {HOME_SECTIONS.map((section) => (
-          <section
-            aria-labelledby={`${section.id}-title`}
-            className="home-section"
-            key={section.id}
-          >
-            <div className="section-heading">
-              <div>
-                <h2 id={`${section.id}-title`}>{section.title}</h2>
-                <p>{section.description}</p>
-              </div>
-              <span className="count" aria-label={`${section.items.length}件`}>
-                {section.items.length}
-              </span>
-            </div>
-
-            <div className="card-list">
-              {section.items.map((item) => (
-                <article className="task-card" key={`${section.id}-${item.title}`}>
-                  <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
-                  <div className="task-copy">
-                    <div className="task-title-row">
-                      <h3>{item.title}</h3>
-                      <span className={`tone-label tone-${item.tone}`}>
-                        {TONE_LABELS[item.tone]}
-                      </span>
-                    </div>
-                    <p className="item-detail">{item.detail}</p>
-                    <p className="item-meta">{item.meta}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
+          <HomeSectionView key={section.id} section={section} />
         ))}
       </div>
 
