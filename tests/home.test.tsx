@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Home from "../app/page";
 import { DemoStateProvider } from "../app/demo-state";
@@ -25,7 +25,7 @@ describe("ホーム画面", () => {
     ).toBeInTheDocument();
   });
 
-  it.each(["期限切れ", "今日", "近日", "最近の実施"])(
+  it.each(["期限切れ", "今日", "そろそろ", "近日", "最近の実施"])(
     "%sの区分を見分けられる",
     (sectionTitle) => {
       renderHome();
@@ -65,10 +65,81 @@ describe("ホーム画面", () => {
     ).toBe(true);
   });
 
-  it("外部サービスに依存しない固定サンプルを4区分に持つ", () => {
-    expect(HOME_SECTIONS).toHaveLength(4);
-    expect(HOME_SECTIONS.every((section) => section.items.length > 0)).toBe(
-      true,
+  it("外部サービスに依存しない固定サンプルを5区分に持つ", () => {
+    // overdue/reminderは、猫の浄水器のフィルター交換Todoを推奨期間の
+    // 状態(YDR-017)に応じて実行時に差し込むため、固定サンプルとしては空。
+    expect(HOME_SECTIONS).toHaveLength(5);
+    expect(
+      HOME_SECTIONS.filter(
+        (section) => section.id !== "overdue" && section.id !== "reminder",
+      ).every((section) => section.items.length > 0),
+    ).toBe(true);
+  });
+});
+
+describe("推奨期間による表示(YDR-017)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("推奨期間内は「そろそろ」区分に中立的に表示する", () => {
+    // 前回実施(7月10日)から4週間後(8月7日)〜8週間後(9月4日)が推奨期間。
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 12, 10, 30));
+    renderHome();
+
+    const reminderSection = screen.getByRole("region", { name: "そろそろ" });
+    const filterCard = within(reminderSection)
+      .getByText("猫の浄水器のフィルター交換")
+      .closest("article");
+    expect(filterCard).not.toBeNull();
+    expect(within(filterCard as HTMLElement).getByText("そろそろ")).toBeInTheDocument();
+    expect(
+      within(reminderSection).getByText("9月4日までが交換の目安です"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("対応状況")).toHaveTextContent(
+      "0件が期限切れ",
+    );
+  });
+
+  it("推奨期間の上限を超えても厳密な「期限切れ」区分には入れず、責めずに強く案内する", () => {
+    // 9月4日が推奨上限。9月10日は上限超過(past-window)。
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 10, 10, 30));
+    renderHome();
+
+    const reminderSection = screen.getByRole("region", { name: "そろそろ" });
+    expect(within(reminderSection).getByText("要確認")).toBeInTheDocument();
+    expect(
+      within(reminderSection).getByText(
+        "9月4日に交換推奨期間の上限を過ぎました",
+      ),
+    ).toBeInTheDocument();
+
+    const overdueSection = screen.getByRole("region", { name: "期限切れ" });
+    expect(
+      within(overdueSection).queryByText("猫の浄水器のフィルター交換"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("対応状況")).toHaveTextContent(
+      "0件が期限切れ",
+    );
+  });
+
+  it("推奨期間前はどの予定区分にも表示せず、交換を急かさない", () => {
+    // 8月7日が推奨開始。8月1日はまだ推奨期間前(before-window)。
+    // 「最近の実施」の履歴表示(過去の完了)とは区別する。
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 1, 10, 30));
+    renderHome();
+
+    for (const sectionName of ["期限切れ", "今日", "そろそろ", "近日"]) {
+      const section = screen.getByRole("region", { name: sectionName });
+      expect(
+        within(section).queryByText("猫の浄水器のフィルター交換"),
+      ).not.toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("対応状況")).toHaveTextContent(
+      "0件が期限切れ",
     );
   });
 });

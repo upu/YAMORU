@@ -21,13 +21,14 @@
 | YDR-007 | 通知を長期間実機検証し、結果だけでネイティブ化しない | Superseded by YDR-009 | [ydr-007-notification-field-trial.md](ydr-007-notification-field-trial.md) |
 | YDR-008 | AIを正しさの基盤にしない | Accepted | [ydr-008-ai-not-source-of-truth.md](ydr-008-ai-not-source-of-truth.md) |
 | YDR-009 | 初期版から通知機能を外し、ホーム画面へ集約する | Accepted | [ydr-009-drop-notifications-consolidate-home.md](ydr-009-drop-notifications-consolidate-home.md) |
-| YDR-010 | MVPではTaskRuleごとに未解決Todoを最大1件とする | Accepted | [ydr-010-single-pending-occurrence-per-task-rule.md](ydr-010-single-pending-occurrence-per-task-rule.md) |
+| YDR-010 | MVPではTaskRuleごとに未解決Todoを最大1件とする | Superseded by YDR-017 | [ydr-010-single-pending-occurrence-per-task-rule.md](ydr-010-single-pending-occurrence-per-task-rule.md) |
 | YDR-011 | 開封履歴を蓄積せず、最終利用日時だけを任意で保持する | Accepted | [ydr-011-last-seen-only-no-open-history.md](ydr-011-last-seen-only-no-open-history.md) |
 | YDR-012 | 実施日時と記録日時、本来の予定と現在期限を分離する | Accepted | [ydr-012-separate-occurred-recorded-scheduled-due.md](ydr-012-separate-occurred-recorded-scheduled-due.md) |
 | YDR-013 | 固定日基準の次回予定枠を元の予定と実際の解決日時から決める | Accepted | [ydr-013-fixed-date-next-occurrence-calculation.md](ydr-013-fixed-date-next-occurrence-calculation.md) |
 | YDR-014 | 二種類の一意制約と条件付き更新で重複完了を防ぐ | Accepted | [ydr-014-unique-constraints-and-conditional-update.md](ydr-014-unique-constraints-and-conditional-update.md) |
 | YDR-015 | Occurrenceを状態、ActivityLogを履歴とし、安全な条件で完了取消する | Accepted | [ydr-015-occurrence-state-activitylog-history-safe-undo.md](ydr-015-occurrence-state-activitylog-history-safe-undo.md) |
 | YDR-016 | 「回ごとに残す」方式の導入時に過去分を自動生成しない | Accepted | [ydr-016-no-backfill-on-per-occurrence-mode.md](ydr-016-no-backfill-on-per-occurrence-mode.md) |
+| YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Accepted | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
 
 ## 新しい意思決定の追加
 

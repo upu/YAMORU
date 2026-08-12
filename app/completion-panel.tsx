@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { formatDateInput } from "./demo-state";
+import { parseDateOnly } from "./task-schedule";
 
 type PanelView = "closed" | "choice" | "details";
 
@@ -19,13 +20,6 @@ type CompletionPanelProps = {
   onComplete: (occurredAt: Date) => void;
   taskTitle: string;
 };
-
-function parseLocalDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  // 日付境界のずれを避けるため、固定サンプルでは選択日の正午として扱います。
-  return new Date(year, month - 1, day, 12);
-}
 
 function CompletionChoice({
   onComplete,
@@ -192,7 +186,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
     event.preventDefault();
     const occurredOn = new FormData(event.currentTarget).get("occurredOn");
     if (typeof occurredOn === "string" && occurredOn !== "") {
-      onComplete(parseLocalDate(occurredOn));
+      onComplete(parseDateOnly(occurredOn));
       setView("closed");
     }
   }

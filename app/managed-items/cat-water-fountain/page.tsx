@@ -3,6 +3,11 @@
 import Link from "next/link";
 
 import { useDemoState } from "../../demo-state";
+import {
+  describeMaintenanceSchedule,
+  getMaintenanceDisplayState,
+  MAINTENANCE_DISPLAY_COPY,
+} from "../../task-schedule";
 import { type Activity, CAT_WATER_FOUNTAIN } from "./sample-data";
 
 function ActivityHistory({ history }: { history: Activity[] }) {
@@ -36,26 +41,26 @@ function ActivityHistory({ history }: { history: Activity[] }) {
 }
 
 function RelatedTodo({
-  isCompleted,
-  nextDueDate,
+  dueAt,
+  scheduledFor,
 }: {
-  isCompleted: boolean;
-  nextDueDate: string;
+  dueAt: Date;
+  scheduledFor: Date;
 }) {
+  const maintenanceWindow = { scheduledFor, dueAt };
+  const state = getMaintenanceDisplayState(maintenanceWindow, new Date());
+  const copy = MAINTENANCE_DISPLAY_COPY[state];
+
   return (
     <section aria-labelledby="todo-title" className="detail-card todo-card">
       <p className="detail-kicker">NEXT</p>
       <div className="detail-section-heading">
         <h2 id="todo-title">関連するTodo</h2>
-        <span
-          className={`tone-label ${isCompleted ? "tone-upcoming" : "tone-urgent"}`}
-        >
-          {isCompleted ? "予定" : CAT_WATER_FOUNTAIN.task.status}
-        </span>
+        <span className={`tone-label tone-${copy.tone}`}>{copy.badge}</span>
       </div>
       <h3>{CAT_WATER_FOUNTAIN.task.name}</h3>
-      <p className={`due-date${isCompleted ? " due-date-upcoming" : ""}`}>
-        {nextDueDate}
+      <p className={`due-date due-date-${copy.tone}`}>
+        {describeMaintenanceSchedule(state, maintenanceWindow)}
       </p>
       <p className="detail-note">{CAT_WATER_FOUNTAIN.task.cadence}</p>
     </section>
@@ -64,12 +69,7 @@ function RelatedTodo({
 
 export default function ManagedItemDetail() {
   const item = CAT_WATER_FOUNTAIN;
-  const {
-    history,
-    isFilterReplacementCompleted,
-    lastActivity,
-    nextDueDate,
-  } = useDemoState();
+  const { dueAt, history, lastActivity, scheduledFor } = useDemoState();
 
   return (
     <main className="detail-page">
@@ -96,10 +96,7 @@ export default function ManagedItemDetail() {
       </section>
 
       <div className="detail-grid">
-        <RelatedTodo
-          isCompleted={isFilterReplacementCompleted}
-          nextDueDate={nextDueDate}
-        />
+        <RelatedTodo dueAt={dueAt} scheduledFor={scheduledFor} />
         <section aria-labelledby="link-title" className="detail-card link-card">
           <p className="detail-kicker">REFERENCE</p>
           <h2 id="link-title">商品情報</h2>

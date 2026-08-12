@@ -1,13 +1,22 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ManagedItemDetail from "../app/managed-items/cat-water-fountain/page";
 import { DemoStateProvider } from "../app/demo-state";
 import { CAT_WATER_FOUNTAIN } from "../app/managed-items/cat-water-fountain/sample-data";
 
-afterEach(cleanup);
+beforeEach(() => {
+  // 前回実施(7月10日)から4週間後(8月7日)〜8週間後(9月4日)の推奨期間内に固定する。
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 7, 12, 10, 30));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function renderManagedItemDetail() {
   return render(<DemoStateProvider><ManagedItemDetail /></DemoStateProvider>);
@@ -32,10 +41,12 @@ describe("猫の浄水器の管理対象詳細", () => {
   it("次回期限と関連するフィルター交換Todoを表示する", () => {
     renderManagedItemDetail();
 
+    // 前回実施(7月10日)から4週間後(8月7日)〜8週間後(9月4日)が推奨期間。
+    // 実行日は現在の実日付に依存するため、推奨期間内であることを前提にする。
     const relatedTodo = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(relatedTodo).getByText("フィルター交換")).toBeInTheDocument();
-    expect(within(relatedTodo).getByText("8月9日まで")).toBeInTheDocument();
-    expect(within(relatedTodo).getByText("期限切れ")).toBeInTheDocument();
+    expect(within(relatedTodo).getByText("9月4日までが交換の目安です")).toBeInTheDocument();
+    expect(within(relatedTodo).getByText("そろそろ")).toBeInTheDocument();
   });
 
   it("安全なサンプル外部リンクを表示する", () => {
