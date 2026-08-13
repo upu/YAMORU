@@ -422,6 +422,10 @@ export type Database = {
         Args: { target_household_id: string }
         Returns: boolean
       }
+      undo_maintenance_task_completion: {
+        Args: { idempotency_key: string; occurrence_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

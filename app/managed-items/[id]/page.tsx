@@ -12,6 +12,7 @@ import {
 } from "../model";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
+import { UndoCompletionPanel } from "./undo-completion-panel";
 import { MAINTENANCE_DISPLAY_COPY, toDeadlineKind, type TodoTone } from "../../task-schedule";
 import {
   describeMaintenanceWindowFromIso,
@@ -183,8 +184,10 @@ function PendingTodoSection({
 
 function RecentCompletionSection({
   completions,
+  managedItemId,
 }: {
   completions: RecentCompletionData[];
+  managedItemId: string;
 }) {
   return (
     <section aria-labelledby="recent-completions-title" className="detail-card">
@@ -198,6 +201,12 @@ function RecentCompletionSection({
             <li key={completion.id}>
               <strong>{completion.title}</strong>
               <span>{formatTokyoDate(completion.occurredAt)}に完了</span>
+              <UndoCompletionPanel
+                managedItemId={managedItemId}
+                occurredAt={completion.occurredAt}
+                occurrenceId={completion.id}
+                taskTitle={completion.title}
+              />
             </li>
           ))}
         </ul>
@@ -296,7 +305,10 @@ export function ManagedItemDetailContent({
           <MaintenanceTodoForm managedItemId={item.id} />
         </section>
 
-        <RecentCompletionSection completions={item.recentCompletions} />
+        <RecentCompletionSection
+          completions={item.recentCompletions}
+          managedItemId={item.id}
+        />
 
         <ExternalLinksSection links={safeLinks} />
       </div>

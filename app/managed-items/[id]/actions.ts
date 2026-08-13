@@ -211,3 +211,46 @@ export async function completeMaintenanceTask(
     status: "success",
   };
 }
+
+const NOT_COMPLETED_MESSAGE_FRAGMENT = "is not completed";
+const NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT = "Next occurrence has been modified";
+
+// Issue #37: 直近の完了を取り消す。取消自体はバックデートしない(YDR-004は完了だけを対象とする)。
+export async function undoMaintenanceTaskCompletion(
+  managedItemId: string,
+  occurrenceId: string,
+  idempotencyKey: string,
+): Promise<MaintenanceTodoActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("undo_maintenance_task_completion", {
+    idempotency_key: idempotencyKey,
+    occurrence_id: occurrenceId,
+  });
+
+  if (error !== null) {
+    if (error.message.includes(NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT)) {
+      return {
+        message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(NOT_COMPLETED_MESSAGE_FRAGMENT)) {
+      return {
+        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+        status: "error",
+      };
+    }
+    return {
+      message: "取消を記録できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    };
+  }
+
+  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  // ホーム(Issue #36)も同じ完了・活動履歴を表示するため、ここで再検証する。
+  revalidatePath("/");
+  return {
+    message: "完了の取消を記録しました。",
+    status: "success",
+  };
+}
