@@ -11,6 +11,7 @@ import {
 afterEach(cleanup);
 
 const ITEM_WITH_TODO: ManagedItemDetailData = {
+  actorName: "家族A",
   externalLinks: [],
   id: "item-1",
   kind: "pet_supplies",

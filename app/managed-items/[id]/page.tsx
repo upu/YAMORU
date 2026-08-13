@@ -27,6 +27,7 @@ type RecentCompletionData = {
 };
 
 export type ManagedItemDetailData = {
+  actorName: string;
   externalLinks: ExternalLinkData[];
   id: string;
   kind: ManagedItemKind;
@@ -87,9 +88,11 @@ function buildRecentCompletions(
 }
 
 function PendingTodoSection({
+  actorName,
   managedItemId,
   todos,
 }: {
+  actorName: string;
   managedItemId: string;
   todos: PendingTodoData[];
 }) {
@@ -109,6 +112,7 @@ function PendingTodoSection({
                 {formatTokyoDate(todo.dueAt)}
               </span>
               <CompleteTodoPanel
+                actorName={actorName}
                 managedItemId={managedItemId}
                 occurrenceId={todo.id}
                 taskTitle={todo.title}
@@ -196,7 +200,11 @@ export function ManagedItemDetailContent({
       </header>
 
       <div className="ledger-grid managed-item-detail-grid">
-        <PendingTodoSection managedItemId={item.id} todos={item.pendingTodos} />
+        <PendingTodoSection
+          actorName={item.actorName}
+          managedItemId={item.id}
+          todos={item.pendingTodos}
+        />
 
         <section aria-labelledby="register-todo-title" className="detail-card">
           <p className="detail-kicker">ADD TODO</p>
@@ -215,21 +223,40 @@ export function ManagedItemDetailContent({
   );
 }
 
+const FALLBACK_ACTOR_NAME = "あなた";
+
+async function loadActorName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<string> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("nickname")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error !== null || data === null) return FALLBACK_ACTOR_NAME;
+  return data.nickname;
+}
+
 export default async function RegisteredManagedItemDetail({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("managed_items")
-    .select(
-      "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data, error }, actorName] = await Promise.all([
+    supabase
+      .from("managed_items")
+      .select(
+        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    loadActorName(supabase, user.id),
+  ]);
 
   if (error !== null) {
     throw new Error("管理対象を取得できませんでした。");
@@ -243,6 +270,7 @@ export default async function RegisteredManagedItemDetail({
   return (
     <ManagedItemDetailContent
       item={{
+        actorName,
         externalLinks: data.external_links,
         id: data.id,
         kind: toManagedItemKind(data.kind),

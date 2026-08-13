@@ -143,7 +143,11 @@ function TaskCard({
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
         {onComplete === undefined ? null : (
-          <CompletionPanel onComplete={handleComplete} taskTitle={item.title} />
+          <CompletionPanel
+            actorName="家族A"
+            onComplete={handleComplete}
+            taskTitle={item.title}
+          />
         )}
       </div>
     </article>

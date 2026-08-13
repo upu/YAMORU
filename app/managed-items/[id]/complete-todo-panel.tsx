@@ -6,10 +6,12 @@ import { CompletionPanel } from "../../completion-panel";
 import { completeMaintenanceTask } from "./actions";
 
 export function CompleteTodoPanel({
+  actorName,
   managedItemId,
   occurrenceId,
   taskTitle,
 }: {
+  actorName: string;
   managedItemId: string;
   occurrenceId: string;
   taskTitle: string;
@@ -37,7 +39,11 @@ export function CompleteTodoPanel({
 
   return (
     <div className="complete-todo-panel">
-      <CompletionPanel onComplete={handleComplete} taskTitle={taskTitle} />
+      <CompletionPanel
+        actorName={actorName}
+        onComplete={handleComplete}
+        taskTitle={taskTitle}
+      />
       {isPending ? (
         <p className="auth-feedback" role="status">
           記録しています…

@@ -27,6 +27,29 @@ describe("CompleteTodoPanel", () => {
     vi.clearAllMocks();
   });
 
+  it("ダイアログにactorNameで渡した実施者名を表示する(ハードコードしない)", () => {
+    render(
+      <CompleteTodoPanel
+        actorName="ぽっぷ"
+        managedItemId="item-1"
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を記録" }),
+    );
+
+    expect(screen.getByText("現在の日付・ぽっぷで記録")).toBeInTheDocument();
+    expect(screen.queryByText(/家族A/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "詳しく記録する" }));
+
+    expect(screen.getByText("実施した人")).toBeInTheDocument();
+    expect(screen.getByText("ぽっぷ")).toBeInTheDocument();
+  });
+
   it("完了を選ぶと同じOccurrenceへ完了アクションを呼び、ダイアログを閉じる", () => {
     completeMaintenanceTaskMock.mockResolvedValue({
       message: "完了を記録しました。",
@@ -35,6 +58,7 @@ describe("CompleteTodoPanel", () => {
 
     render(
       <CompleteTodoPanel
+        actorName="家族A"
         managedItemId="item-1"
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
@@ -70,6 +94,7 @@ describe("CompleteTodoPanel", () => {
 
     render(
       <CompleteTodoPanel
+        actorName="家族A"
         managedItemId="item-1"
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
@@ -92,6 +117,7 @@ describe("CompleteTodoPanel", () => {
 
     render(
       <CompleteTodoPanel
+        actorName="家族A"
         managedItemId="item-1"
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"

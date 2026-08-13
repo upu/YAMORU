@@ -16,6 +16,9 @@ import { formatDateInput } from "./demo-state";
 type PanelView = "closed" | "choice" | "details";
 
 type CompletionPanelProps = {
+  // 完了ダイアログに「実施した人」として表示する名前。実データ画面では
+  // ログイン中の利用者のニックネームを、デモ画面では固定の表示名を渡す。
+  actorName: string;
   // null: 現在時刻で完了する。string: 実施日(YYYY-MM-DD、今日以前)を指定して完了する。
   // 呼び出し側が「現在時刻」の決定方法(クライアント時刻かサーバー時刻か)を選べるよう、
   // このコンポーネント自身はDateを組み立てない。
@@ -24,10 +27,12 @@ type CompletionPanelProps = {
 };
 
 function CompletionChoice({
+  actorName,
   onComplete,
   onShowDetails,
   quickCompleteRef,
 }: {
+  actorName: string;
   onComplete: () => void;
   onShowDetails: () => void;
   quickCompleteRef: RefObject<HTMLButtonElement | null>;
@@ -43,7 +48,7 @@ function CompletionChoice({
         type="button"
       >
         <strong>今、自分がやった</strong>
-        <span>現在の日付・家族Aで記録</span>
+        <span>現在の日付・{actorName}で記録</span>
       </button>
       <button
         aria-label="詳しく記録する"
@@ -59,12 +64,14 @@ function CompletionChoice({
 }
 
 function CompletionDetails({
+  actorName,
   dateInputRef,
   inputId,
   onBack,
   onSubmit,
   today,
 }: {
+  actorName: string;
   dateInputRef: RefObject<HTMLInputElement | null>;
   inputId: string;
   onBack: () => void;
@@ -89,7 +96,7 @@ function CompletionDetails({
       <p className="input-help">すでに実施した日を選びます（今日以前）</p>
       <div className="recording-summary">
         <span>実施した人</span>
-        <strong>家族A</strong>
+        <strong>{actorName}</strong>
       </div>
       <button className="dialog-primary-button" type="submit">
         この内容で記録する
@@ -99,6 +106,7 @@ function CompletionDetails({
 }
 
 type CompletionDialogProps = {
+  actorName: string;
   dateInputRef: RefObject<HTMLInputElement | null>;
   inputId: string;
   onBack: () => void;
@@ -142,12 +150,14 @@ function CompletionDialog(props: CompletionDialogProps) {
         </div>
         {props.view === "choice" ? (
           <CompletionChoice
+            actorName={props.actorName}
             onComplete={props.onComplete}
             onShowDetails={props.onShowDetails}
             quickCompleteRef={props.quickCompleteRef}
           />
         ) : (
           <CompletionDetails
+            actorName={props.actorName}
             dateInputRef={props.dateInputRef}
             inputId={props.inputId}
             onBack={props.onBack}
@@ -160,7 +170,11 @@ function CompletionDialog(props: CompletionDialogProps) {
   );
 }
 
-export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps) {
+export function CompletionPanel({
+  actorName,
+  onComplete,
+  taskTitle,
+}: CompletionPanelProps) {
   const [view, setView] = useState<PanelView>("closed");
   const titleId = useId();
   const inputId = useId();
@@ -200,6 +214,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
       </button>
       {view === "closed" ? null : (
         <CompletionDialog
+          actorName={actorName}
           dateInputRef={dateInputRef}
           inputId={inputId}
           onBack={() => { setView("choice"); }}
