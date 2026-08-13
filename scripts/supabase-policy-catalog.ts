@@ -99,8 +99,10 @@ function normalize(source: string): string {
   return `${source.replace(/\r\n/g, "\n").trimEnd()}\n`;
 }
 
+// バックスラッシュ自身を先にエスケープしないと、`\`を含む値の直後に`|`が
+// 続いた場合に意図しない結合したエスケープ列(`\|`)として解釈され得る。
 function escapeCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 }
 
 function toMarkdown(rows: PolicyRow[]): string {
