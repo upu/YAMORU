@@ -36,6 +36,12 @@ environments/restore-verify/
 # from the committed migrations alone (Issue #45).
 environments/gen-types/
 
+# policy-catalog is a fully generated, disposable workdir created by
+# scripts/supabase-policy-catalog.ts to generate
+# docs/references/rls-policy-catalog.md from the committed migrations
+# alone (Issue #57).
+environments/policy-catalog/
+
 # Logs and local tooling
 *.log
 .DS_Store

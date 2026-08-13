@@ -154,6 +154,19 @@ npm run gen:types:check # コミット済みの型がマイグレーションと
 - `lib/supabase/database.types.ts`は生成物です。手で編集せず、スキーマ側を直してから再生成してください。
 - アプリの`createClient()`はこの型を適用済みです。`.from()`・`.rpc()`のテーブル名・カラム名・引数の誤りは`npm run typecheck`で検出されます。
 
+### 現在有効なRLSポリシー一覧(自動生成)
+
+RLSポリシーは上記の型生成の対象外です(テーブルの形と関数のシグネチャだけが対象で、「誰がどの行を読めるか」は含まれません)。`docs/references/rls-policy-catalog.md`が、`public`スキーマの`pg_policy`と各ポリシーへ付けた`comment on policy`から生成する一覧です。
+
+```powershell
+npm run gen:policies       # マイグレーションからカタログを再生成する
+npm run gen:policies:check # コミット済みのカタログがマイグレーションと一致するか検証する(CIでも実行)
+```
+
+- 型生成と同じ使い捨てスタック方式で生成します。理由も同じです(稼働中の`prod`・`test`から生成すると、「コミット済みマイグレーションだけから再現できる」という前提が崩れるため)。
+- `comment on policy`が付いていないポリシーが1件でもあれば、内容のズレとは別の理由で失敗します。RLSポリシーを追加・変更するマイグレーションでは、`comment on policy ... is '...'`で意図をDBコメントとして残してください。
+- `docs/references/rls-policy-catalog.md`は生成物です。手で編集せず、マイグレーション側を直してから再生成してください。
+
 ## 文書の入口
 
 - [知識バンドル](docs/index.md)
