@@ -132,8 +132,8 @@ export function buildRecentItems(
   actorNames: Map<string, string>,
 ): HomeItem[] {
   return rows
-    // 完了取消(YDR-015)が実装されるまでは常にtrueだが、取消後にOccurrenceの
-    // 状態が戻った場合に「最近の実施」へ残さないための防御。
+    // 完了取消(Issue #37, YDR-015)でOccurrenceの状態がpendingへ戻った場合、
+    // 完了ActivityLog自体は削除しないため、ここで「最近の実施」から除く。
     .filter((row) => row.task_occurrences.status === "completed")
     .map((row) => ({
       detail: row.task_occurrences.task_rules.managed_items.name,

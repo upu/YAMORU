@@ -948,6 +948,30 @@ footer p {
   color: var(--green);
 }
 
+.undo-completion-panel {
+  margin-top: 2px;
+}
+
+.undo-trigger {
+  padding: 0;
+  border: 0;
+  color: var(--orange);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.undo-trigger:hover {
+  text-decoration: underline;
+}
+
+.undo-trigger:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
 @media (max-width: 480px) {
   main {
     padding: 28px 16px 24px;
