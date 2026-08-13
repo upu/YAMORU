@@ -74,11 +74,11 @@ describe("メンテナンスTodoの完了操作", () => {
     });
   });
 
-  it.each([
-    ["Occurrence is not pending"],
-    ["Next occurrence already exists for the computed schedule"],
-  ])("競合・衝突エラー(%s)では最新状態の確認を案内する", async (message) => {
-    rpcMock.mockResolvedValue({ data: null, error: { message } });
+  it("既完了などの競合エラーでは最新状態の確認を案内する", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "Occurrence is not pending" },
+    });
 
     const result = await completeMaintenanceTask(
       "managed-item-id",
@@ -89,6 +89,29 @@ describe("メンテナンスTodoの完了操作", () => {
 
     expect(result).toEqual({
       message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+      status: "error",
+    });
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("バックデートで次回予定が衝突する場合は別の日付を促す", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: {
+        message: "Next occurrence already exists for the computed schedule",
+      },
+    });
+
+    const result = await completeMaintenanceTask(
+      "managed-item-id",
+      "occurrence-id",
+      "idempotency-key-3b",
+      "2020-03-10",
+    );
+
+    expect(result).toEqual({
+      message:
+        "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
       status: "error",
     });
     expect(revalidatePathMock).not.toHaveBeenCalled();

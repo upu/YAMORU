@@ -184,12 +184,16 @@ export async function completeMaintenanceTask(
   });
 
   if (error !== null) {
-    if (
-      error.message.includes(CONFLICT_MESSAGE_FRAGMENT) ||
-      error.message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)
-    ) {
+    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
       return {
         message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)) {
+      return {
+        message:
+          "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
         status: "error",
       };
     }
