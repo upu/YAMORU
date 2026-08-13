@@ -14,6 +14,7 @@ import {
   describeMaintenanceSchedule,
   getMaintenanceDisplayState,
   MAINTENANCE_DISPLAY_COPY,
+  parseDateOnly,
 } from "./task-schedule";
 
 const FILTER_REPLACEMENT_ID = "cat-water-fountain-filter";
@@ -119,6 +120,10 @@ function TaskCard({
   item: HomeItem;
   onComplete?: (occurredAt: Date) => void;
 }) {
+  function handleComplete(occurredOn: string | null) {
+    onComplete?.(occurredOn === null ? new Date() : parseDateOnly(occurredOn));
+  }
+
   return (
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
@@ -138,7 +143,11 @@ function TaskCard({
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
         {onComplete === undefined ? null : (
-          <CompletionPanel onComplete={onComplete} taskTitle={item.title} />
+          <CompletionPanel
+            actorName="家族A"
+            onComplete={handleComplete}
+            taskTitle={item.title}
+          />
         )}
       </div>
     </article>

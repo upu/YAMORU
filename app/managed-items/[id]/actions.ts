@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "../../../lib/supabase/server";
 import type { MaintenanceTodoActionState } from "./state";
-import { addDaysToTokyoDateUtcIso } from "./time-zone";
+import { addDaysToTokyoDateUtcIso, tokyoDateToUtcIso } from "./time-zone";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const MAX_RECOMMENDED_OFFSET = 3650;
@@ -151,6 +151,61 @@ export async function createMaintenanceTodo(
   revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
   return {
     message: "メンテナンスTodoを登録しました。",
+    status: "success",
+  };
+}
+
+const CONFLICT_MESSAGE_FRAGMENT = "is not pending";
+const SCHEDULE_COLLISION_MESSAGE_FRAGMENT = "already exists for the computed schedule";
+const INVALID_OCCURRED_ON: MaintenanceTodoActionState = {
+  message: "実施日を正しく入力してください。",
+  status: "error",
+};
+
+// occurredOnはnull(現在時刻で完了)か、実施日の日付文字列(YYYY-MM-DD)。
+// 日付はメンテナンスTodo登録と同じくAsia/Tokyoの日付として解釈する。
+export async function completeMaintenanceTask(
+  managedItemId: string,
+  occurrenceId: string,
+  idempotencyKey: string,
+  occurredOn: string | null,
+): Promise<MaintenanceTodoActionState> {
+  let occurredAtIso: string | null = null;
+  if (occurredOn !== null) {
+    occurredAtIso = tokyoDateToUtcIso(occurredOn);
+    if (occurredAtIso === null) return INVALID_OCCURRED_ON;
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("complete_maintenance_task", {
+    idempotency_key: idempotencyKey,
+    occurrence_id: occurrenceId,
+    ...(occurredAtIso === null ? {} : { occurred_at: occurredAtIso }),
+  });
+
+  if (error !== null) {
+    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
+      return {
+        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)) {
+      return {
+        message:
+          "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
+        status: "error",
+      };
+    }
+    return {
+      message: "完了を記録できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    };
+  }
+
+  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  return {
+    message: "完了を記録しました。",
     status: "success",
   };
 }

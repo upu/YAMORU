@@ -77,6 +77,7 @@ describe("家の台帳一覧", () => {
 describe("登録済みManagedItem詳細", () => {
   it("名前、種類、複数の安全な外部リンクを表示する", () => {
     const item: ManagedItemDetailData = {
+      actorName: "家族A",
       externalLinks: [
         { id: "link-1", url: "https://example.com/product" },
         { id: "link-2", url: "http://example.com/manual" },
@@ -85,6 +86,7 @@ describe("登録済みManagedItem詳細", () => {
       kind: "pet_supplies",
       name: "猫の浄水器",
       pendingTodos: [],
+      recentCompletions: [],
     };
 
     render(<ManagedItemDetailContent item={item} />);
@@ -100,7 +102,13 @@ describe("登録済みManagedItem詳細", () => {
   it("外部リンクがない場合も明確に表示する", () => {
     render(
       <ManagedItemDetailContent
-        item={{ ...REGISTERED_ITEM, externalLinks: [], pendingTodos: [] }}
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          externalLinks: [],
+          pendingTodos: [],
+          recentCompletions: [],
+        }}
       />,
     );
 
@@ -112,8 +120,10 @@ describe("登録済みManagedItem詳細", () => {
       <ManagedItemDetailContent
         item={{
           ...REGISTERED_ITEM,
+          actorName: "家族A",
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
           pendingTodos: [],
+          recentCompletions: [],
         }}
       />,
     );
