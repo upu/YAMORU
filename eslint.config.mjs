@@ -3,12 +3,16 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypeScript from "eslint-config-next/typescript";
+import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 
 const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 const commonTypeScriptRules = {
   complexity: ["error", 15],
+  // 分岐の「数」はcomplexityで、分岐の「入れ子の深さ」による読みにくさは
+  // cognitive-complexityで別軸に検知する。
+  "sonarjs/cognitive-complexity": ["error", 10],
   "max-depth": ["error", 3],
   // 理由を説明するコメントを厚くしても関数長として罰しない。
   "max-lines-per-function": [
@@ -22,6 +26,7 @@ export default defineConfig([
   ...nextTypeScript,
   {
     files: ["**/*.{ts,tsx}"],
+    plugins: { sonarjs },
     extends: [...tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: {
