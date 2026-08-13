@@ -25,8 +25,8 @@ afterEach(() => {
 });
 
 describe("ログイン画面", () => {
-  it("登録とログインをキーボードや支援技術から識別できる", () => {
-    render(<LoginPage />);
+  it("登録とログインをキーボードや支援技術から識別できる", async () => {
+    render(await LoginPage({ searchParams: Promise.resolve({}) }));
 
     expect(
       screen.getByRole("heading", { level: 1, name: "YAMORUへログイン" }),

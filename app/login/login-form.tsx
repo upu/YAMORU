@@ -49,7 +49,12 @@ function CredentialsFields({ idPrefix }: { idPrefix: string }) {
   );
 }
 
-export function LoginForm() {
+function NextField({ next }: { next?: string }) {
+  if (next === undefined) return null;
+  return <input name="next" type="hidden" value={next} />;
+}
+
+export function LoginForm({ next }: { next?: string }) {
   const [loginState, loginAction] = useActionState(login, INITIAL_AUTH_STATE);
   const [signupState, signupAction] = useActionState(signup, INITIAL_AUTH_STATE);
 
@@ -58,6 +63,7 @@ export function LoginForm() {
       <section aria-labelledby="login-title" className="auth-card">
         <h2 id="login-title">ログイン</h2>
         <form action={loginAction} className="auth-form">
+          <NextField next={next} />
           <CredentialsFields idPrefix="login" />
           <SubmitButton label="ログイン" />
           <Feedback state={loginState} />
@@ -67,6 +73,7 @@ export function LoginForm() {
         <h2 id="signup-title">新規登録</h2>
         <p>ローカル確認用の架空のメールアドレスを使用してください。</p>
         <form action={signupAction} className="auth-form">
+          <NextField next={next} />
           <CredentialsFields idPrefix="signup" />
           <SubmitButton label="新規登録" />
           <Feedback state={signupState} />

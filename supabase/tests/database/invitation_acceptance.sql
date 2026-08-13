@@ -11,7 +11,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(67);
+select plan(68);
 
 -- ---------------------------------------------------------------------------
 -- invitation_pending_claims: スキーマ、RLS、権限の最小性
@@ -242,6 +242,36 @@ insert into public.household_invitations (
   '00000000-0000-0000-0000-0000000a1001',
   extensions.digest(pg_catalog.convert_to('test-only-short-lived-invitation', 'UTF8'), 'sha256'),
   now() + interval '5 minutes'
+);
+
+-- メール未確認の受諾者は、招待先メールと文字列上一致していても共通エラーになる
+-- ことの確認用(YDR-019「Authが確認済みの受諾時点の現在のメールアドレス」)。
+insert into auth.users (
+  instance_id, id, aud, role, email,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-0000000c1006',
+  'authenticated',
+  'authenticated',
+  'unconfirmed-invitation-test@example.test',
+  null,
+  now(),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{}'
+);
+
+insert into public.household_invitations (
+  id, household_id, invited_email, created_by, token_hash, expires_at
+) values (
+  '00000000-0000-0000-0000-00000000d012',
+  '00000000-0000-0000-0000-00000000a001',
+  'unconfirmed-invitation-test@example.test',
+  '00000000-0000-0000-0000-0000000a1001',
+  extensions.digest(pg_catalog.convert_to('test-only-unconfirmed-email-invitation', 'UTF8'), 'sha256'),
+  now() + interval '1 day'
 );
 
 -- ---------------------------------------------------------------------------
@@ -561,6 +591,26 @@ select results_eq(
      ) $$,
   $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '招待先メールとAuthのメールは大文字小文字を区別せず一致すれば受諾できる'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- メール未確認: 文字列上は招待先と一致していても共通エラーになる
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1006", "role": "authenticated"}';
+
+create temporary table claim_unconfirmed_email_d012 as
+select * from public.open_invitation_claim('test-only-unconfirmed-email-invitation');
+
+select throws_ok(
+  $$ select * from public.accept_household_invitation_by_claim(
+       (select claim_secret from claim_unconfirmed_email_d012)
+     ) $$,
+  'P0001',
+  'Invitation token is invalid, expired, or already used',
+  'メール未確認の受諾者は、招待先メールと文字列上一致していても共通エラーになる'
 );
 
 reset role;

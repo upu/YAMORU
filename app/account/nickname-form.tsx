@@ -20,7 +20,7 @@ function SubmitButton() {
   );
 }
 
-export function NicknameForm() {
+export function NicknameForm({ next }: { next?: string }) {
   const [state, formAction] = useActionState(
     registerNickname,
     INITIAL_NICKNAME_STATE,
@@ -28,6 +28,7 @@ export function NicknameForm() {
 
   return (
     <form action={formAction} className="auth-form">
+      {next !== undefined ? <input name="next" type="hidden" value={next} /> : null}
       <label htmlFor="nickname">ニックネーム</label>
       <input
         aria-describedby="nickname-help"

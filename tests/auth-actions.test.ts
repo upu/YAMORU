@@ -75,6 +75,36 @@ describe("認証操作", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
+  it("安全なnextが指定されている場合はログイン後にそこへ戻る(Issue #69: 招待受諾フロー復帰)", async () => {
+    const formData = credentials();
+    formData.set("next", "/invitations/accept/confirm");
+
+    await login(INITIAL_STATE, formData);
+
+    expect(redirectMock).toHaveBeenCalledWith("/invitations/accept/confirm");
+  });
+
+  it("安全なnextが指定されている場合は新規登録後にそこへ戻る", async () => {
+    const formData = credentials("new-person@example.test");
+    formData.set("next", "/invitations/accept/confirm");
+
+    await signup(INITIAL_STATE, formData);
+
+    expect(redirectMock).toHaveBeenCalledWith("/invitations/accept/confirm");
+  });
+
+  it.each(["https://evil.example.test/", "//evil.example.test", "/\\evil.example.test"])(
+    "外部ドメインを指すnext(%s)は無視して既定のホームへ戻る",
+    async (next) => {
+      const formData = credentials();
+      formData.set("next", next);
+
+      await login(INITIAL_STATE, formData);
+
+      expect(redirectMock).toHaveBeenCalledWith("/");
+    },
+  );
+
   it("認証エラーの内部詳細をそのまま表示しない", async () => {
     signInWithPasswordMock.mockResolvedValue({
       error: new Error("sensitive provider detail"),

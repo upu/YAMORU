@@ -192,10 +192,14 @@ begin
   end if;
 
   if claim_found then
+    -- YDR-019は「Authが確認済みの受諾時点の現在のメールアドレス」との一致を
+    -- 求める。未確認のメールはaccepting_emailがnullのままとなり、
+    -- 下のemail_matches判定で自然にfalseへ畳み込まれる(新しい分岐を増やさない)。
     select u.email
       into accepting_email
       from auth.users u
-     where u.id = accepting_user_id;
+     where u.id = accepting_user_id
+       and u.email_confirmed_at is not null;
 
     email_matches := accepting_email is not null
       and pg_catalog.lower(pg_catalog.btrim(accepting_email))

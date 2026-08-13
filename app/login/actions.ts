@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { toSafeRedirectPath } from "../../lib/auth/safe-redirect";
 import { createClient } from "../../lib/supabase/server";
 import type { AuthActionState } from "./state";
 
@@ -37,6 +38,7 @@ export async function login(
 ): Promise<AuthActionState> {
   const credentials = readCredentials(formData);
   if (credentials === null) return invalidInput();
+  const next = toSafeRedirectPath(formData.get("next"));
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(credentials);
@@ -48,7 +50,7 @@ export async function login(
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(next ?? "/");
 }
 
 export async function signup(
@@ -57,6 +59,7 @@ export async function signup(
 ): Promise<AuthActionState> {
   const credentials = readCredentials(formData);
   if (credentials === null) return invalidInput();
+  const next = toSafeRedirectPath(formData.get("next"));
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp(credentials);
@@ -68,5 +71,5 @@ export async function signup(
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(next ?? "/");
 }
