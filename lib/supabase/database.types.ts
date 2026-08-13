@@ -41,6 +41,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          actor_user_id: string
+          household_id: string
+          id: string
+          occurred_at: string
+          recorded_at: string
+          task_occurrence_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          household_id: string
+          id?: string
+          occurred_at: string
+          recorded_at?: string
+          task_occurrence_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          household_id?: string
+          id?: string
+          occurred_at?: string
+          recorded_at?: string
+          task_occurrence_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_actor_household_fkey"
+            columns: ["household_id", "actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["household_id", "user_id"]
+          },
+          {
+            foreignKeyName: "activity_logs_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_occurrence_household_fkey"
+            columns: ["task_occurrence_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "task_occurrences"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
       external_links: {
         Row: {
           created_at: string
@@ -215,6 +267,105 @@ export type Database = {
         }
         Relationships: []
       }
+      task_occurrences: {
+        Row: {
+          created_at: string
+          due_at: string
+          household_id: string
+          id: string
+          scheduled_for: string
+          status: string
+          task_rule_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_at: string
+          household_id: string
+          id?: string
+          scheduled_for: string
+          status?: string
+          task_rule_id: string
+        }
+        Update: {
+          created_at?: string
+          due_at?: string
+          household_id?: string
+          id?: string
+          scheduled_for?: string
+          status?: string
+          task_rule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_occurrences_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_occurrences_rule_household_fkey"
+            columns: ["task_rule_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "task_rules"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
+      task_rules: {
+        Row: {
+          created_at: string
+          deadline_kind: string
+          household_id: string
+          id: string
+          managed_item_id: string
+          recommended_start_offset: number
+          recommended_until_offset: number
+          recurrence_basis: string
+          title: string
+          unresolved_policy: string
+        }
+        Insert: {
+          created_at?: string
+          deadline_kind?: string
+          household_id: string
+          id?: string
+          managed_item_id: string
+          recommended_start_offset: number
+          recommended_until_offset: number
+          recurrence_basis?: string
+          title: string
+          unresolved_policy?: string
+        }
+        Update: {
+          created_at?: string
+          deadline_kind?: string
+          household_id?: string
+          id?: string
+          managed_item_id?: string
+          recommended_start_offset?: number
+          recommended_until_offset?: number
+          recurrence_basis?: string
+          title?: string
+          unresolved_policy?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_rules_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_rules_item_household_fkey"
+            columns: ["managed_item_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "managed_items"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -229,6 +380,17 @@ export type Database = {
       }
       create_first_household: {
         Args: { household_name: string }
+        Returns: string
+      }
+      create_maintenance_task: {
+        Args: {
+          first_due_at: string
+          first_scheduled_for: string
+          item_id: string
+          recommended_start_offset: number
+          recommended_until_offset: number
+          task_title: string
+        }
         Returns: string
       }
       create_managed_item: {

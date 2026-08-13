@@ -84,6 +84,7 @@ describe("登録済みManagedItem詳細", () => {
       id: "item-1",
       kind: "pet_supplies",
       name: "猫の浄水器",
+      pendingTodos: [],
     };
 
     render(<ManagedItemDetailContent item={item} />);
@@ -99,7 +100,7 @@ describe("登録済みManagedItem詳細", () => {
   it("外部リンクがない場合も明確に表示する", () => {
     render(
       <ManagedItemDetailContent
-        item={{ ...REGISTERED_ITEM, externalLinks: [] }}
+        item={{ ...REGISTERED_ITEM, externalLinks: [], pendingTodos: [] }}
       />,
     );
 
@@ -112,6 +113,7 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
+          pendingTodos: [],
         }}
       />,
     );
