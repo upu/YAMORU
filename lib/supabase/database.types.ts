@@ -249,6 +249,41 @@ export type Database = {
         }
         Relationships: []
       }
+      invitation_pending_claims: {
+        Row: {
+          claim_secret_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          invitation_id: string | null
+        }
+        Insert: {
+          claim_secret_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          invitation_id?: string | null
+        }
+        Update: {
+          claim_secret_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitation_pending_claims_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "household_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       managed_items: {
         Row: {
           created_at: string
@@ -403,8 +438,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_household_invitation: {
-        Args: { invitation_token: string }
+      accept_household_invitation_by_claim: {
+        Args: { claim_secret: string }
         Returns: {
           household_id: string
           membership_created: boolean
@@ -462,6 +497,13 @@ export type Database = {
           id: string
           invited_email: string
           status: string
+        }[]
+      }
+      open_invitation_claim: {
+        Args: { invitation_token: string }
+        Returns: {
+          claim_secret: string
+          expires_at: string
         }[]
       }
       undo_maintenance_task_completion: {
