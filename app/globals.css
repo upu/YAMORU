@@ -1065,3 +1065,123 @@ footer p {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   招待(Issue #68)
+--------------------------------------------------------------------------- */
+.invitation-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invitation-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.invitation-row-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.invitation-email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.invitation-status {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.invitation-status-pending {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.invitation-status-accepted {
+  color: var(--blue);
+  background: var(--blue-pale);
+}
+
+.invitation-status-expired {
+  color: var(--orange);
+  background: var(--orange-pale);
+}
+
+.invitation-status-cancelled,
+.invitation-status-replaced {
+  color: var(--muted);
+  background: var(--canvas);
+}
+
+.invitation-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.invitation-cancel-form {
+  display: contents;
+}
+
+.invitation-cancel-button,
+.invitation-reissue-link {
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.invitation-cancel-button {
+  border: 1px solid rgb(184 92 45 / 40%);
+  color: var(--orange);
+  background: var(--orange-pale);
+  font: inherit;
+}
+
+.invitation-reissue-link {
+  border: 1px solid rgb(49 92 73 / 24%);
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.invitation-issued-result {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  background: var(--green-pale);
+}
+
+.invitation-issued-result p {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.invitation-issued-result p:last-child {
+  margin-bottom: 0;
+}
+
+.invitation-link-copy {
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-weight: 800;
+}

@@ -8,7 +8,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(41);
+select plan(48);
 
 -- ---------------------------------------------------------------------------
 -- スキーマ、RLS、権限の最小性
@@ -20,6 +20,10 @@ select hasnt_column('public', 'household_invitations', 'token', '生トークン
 select has_column('public', 'household_invitations', 'expires_at', '有効期限を保持する');
 select has_column('public', 'household_invitations', 'accepted_at', '受諾日時を保持する');
 select has_column('public', 'household_invitations', 'accepted_by', '受諾者を保持する');
+select has_column('public', 'household_invitations', 'invited_email', '招待先メールを保持する(Issue #68)');
+select has_column('public', 'household_invitations', 'created_by', '発行者を保持する(Issue #68)');
+select has_column('public', 'household_invitations', 'cancelled_at', '取消日時を保持する(Issue #68)');
+select has_column('public', 'household_invitations', 'replaced_by', '再発行後の新しい招待IDを保持する(Issue #68)');
 select col_is_unique('public', 'household_invitations', 'token_hash', 'トークンハッシュは一意である');
 
 select is(
@@ -211,6 +215,70 @@ select throws_ok(
   'P0001',
   'Invitation token is invalid, expired, or already used',
   '期限切れトークンは受諾できない'
+);
+
+reset role;
+
+-- Issue #68: 取消済み・再発行により置き換えられた招待も、
+-- 期限切れ・使用済みと同じ共通エラーで拒否する(YDR-019 受諾エラーの扱い)。
+insert into public.household_invitations (
+  id, household_id, invited_email, created_by, token_hash, expires_at, cancelled_at
+) values (
+  '00000000-0000-0000-0000-00000000d005',
+  '00000000-0000-0000-0000-00000000a001',
+  'cancelled-invitation-test@example.test',
+  '00000000-0000-0000-0000-0000000a1001',
+  extensions.digest(pg_catalog.convert_to('test-only-cancelled-invitation', 'UTF8'), 'sha256'),
+  now() + interval '1 day',
+  now()
+);
+
+insert into public.household_invitations (
+  id, household_id, invited_email, created_by, token_hash, expires_at
+) values (
+  '00000000-0000-0000-0000-00000000d007',
+  '00000000-0000-0000-0000-00000000a001',
+  'replaced-invitation-test@example.test',
+  '00000000-0000-0000-0000-0000000a1001',
+  extensions.digest(pg_catalog.convert_to('test-only-replacement-invitation', 'UTF8'), 'sha256'),
+  now() + interval '1 day'
+);
+
+insert into public.household_invitations (
+  id, household_id, invited_email, created_by, token_hash, expires_at, replaced_by
+) values (
+  '00000000-0000-0000-0000-00000000d006',
+  '00000000-0000-0000-0000-00000000a001',
+  'replaced-invitation-test@example.test',
+  '00000000-0000-0000-0000-0000000a1001',
+  extensions.digest(pg_catalog.convert_to('test-only-replaced-invitation', 'UTF8'), 'sha256'),
+  now() + interval '1 day',
+  '00000000-0000-0000-0000-00000000d007'
+);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1004", "role": "authenticated"}';
+
+select throws_ok(
+  $$ select * from public.accept_household_invitation('test-only-cancelled-invitation') $$,
+  'P0001',
+  'Invitation token is invalid, expired, or already used',
+  '取消済みトークンは受諾できない'
+);
+
+select throws_ok(
+  $$ select * from public.accept_household_invitation('test-only-replaced-invitation') $$,
+  'P0001',
+  'Invitation token is invalid, expired, or already used',
+  '再発行により置き換えられた旧トークンは受諾できない'
+);
+
+reset role;
+
+select isnt_empty(
+  $$ select id from public.household_invitations
+     where id = '00000000-0000-0000-0000-00000000d007' $$,
+  '再発行後の新しい招待は受諾可能な状態のまま残る'
 );
 
 select set_config('request.jwt.claims', '', true);

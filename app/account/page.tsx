@@ -58,6 +58,9 @@ export default async function AccountPage() {
           <>
             <h2 id="household-state-title">所属している家庭</h2>
             <p className="household-name">{household.name}</p>
+            <Link className="ledger-primary-link" href="/account/invitations">
+              家族を招待する
+            </Link>
           </>
         ) : profile === null ? (
           <>

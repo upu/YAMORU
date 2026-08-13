@@ -53,29 +53,37 @@ insert into public.managed_items (id, household_id, name, kind) values
 -- 招待(生トークンはfixture生成時にも永続化せず、SHA-256ハッシュだけを保存する)
 -- ---------------------------------------------------------------------------
 insert into public.household_invitations (
-  id, household_id, token_hash, expires_at
+  id, household_id, invited_email, created_by, token_hash, expires_at
 ) values
   (
     '00000000-0000-0000-0000-00000000d001',
     '00000000-0000-0000-0000-00000000a001',
+    'no-household-member@example.test',
+    '00000000-0000-0000-0000-0000000a1001',
     extensions.digest(pg_catalog.convert_to('test-only-valid-invitation-c1001', 'UTF8'), 'sha256'),
     now() + interval '1 day'
   ),
   (
     '00000000-0000-0000-0000-00000000d002',
     '00000000-0000-0000-0000-00000000a001',
+    'expired-invitation-test@example.test',
+    '00000000-0000-0000-0000-0000000a1001',
     extensions.digest(pg_catalog.convert_to('test-only-expired-invitation-c1003', 'UTF8'), 'sha256'),
     now() - interval '1 day'
   ),
   (
     '00000000-0000-0000-0000-00000000d003',
     '00000000-0000-0000-0000-00000000a001',
+    'household-a-member2@example.test',
+    '00000000-0000-0000-0000-0000000a1001',
     extensions.digest(pg_catalog.convert_to('test-only-existing-member-a1002', 'UTF8'), 'sha256'),
     now() + interval '1 day'
   ),
   (
     '00000000-0000-0000-0000-00000000d004',
     '00000000-0000-0000-0000-00000000a001',
+    'atomicity-invitation-test@example.test',
+    '00000000-0000-0000-0000-0000000a1001',
     extensions.digest(pg_catalog.convert_to('test-only-atomicity-c1005', 'UTF8'), 'sha256'),
     now() + interval '1 day'
   );
