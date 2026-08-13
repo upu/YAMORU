@@ -31,6 +31,7 @@
 | YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Accepted | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
 | YDR-018 | アカウント単位のニックネームを家庭内Member表示名と同一概念として扱う | Accepted | [ydr-018-account-nickname-as-member-display-name.md](ydr-018-account-nickname-as-member-display-name.md) |
 | YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Accepted | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
+| YDR-020 | 担当者・実施者・操作主体を区別し、保存先を固定する | Accepted | [ydr-020-assignee-performer-actor.md](ydr-020-assignee-performer-actor.md) |
 
 ## 新しい意思決定の追加
 
