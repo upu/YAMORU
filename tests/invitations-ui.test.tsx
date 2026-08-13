@@ -69,8 +69,11 @@ describe("家族招待画面", () => {
       within(list).getByRole("button", { name: "取消する" }),
     ).toBeInTheDocument();
     expect(
-      within(list).getByRole("button", { name: "再発行する" }),
-    ).toBeInTheDocument();
+      within(list).getByRole("link", { name: "再発行する" }),
+    ).toHaveAttribute(
+      "href",
+      "/account/invitations?reissue=family%40example.test#issue-invitation-title",
+    );
   });
 
   it("受諾済みの招待には取消・再発行操作を表示しない", () => {
@@ -87,7 +90,21 @@ describe("家族招待画面", () => {
       within(list).queryByRole("button", { name: "取消する" }),
     ).not.toBeInTheDocument();
     expect(
-      within(list).queryByRole("button", { name: "再発行する" }),
+      within(list).queryByRole("link", { name: "再発行する" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("reissueクエリのメールを発行フォームへ引き継ぐ", () => {
+    render(
+      <InvitationsContent
+        defaultInviteEmail="reissue-me@example.test"
+        household={{ id: "household-1", name: "テスト家庭" }}
+        invitations={[]}
+      />,
+    );
+
+    expect(screen.getByLabelText("招待先メールアドレス")).toHaveValue(
+      "reissue-me@example.test",
+    );
   });
 });

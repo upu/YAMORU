@@ -33,7 +33,17 @@ function InvitationRow({ invitation }: { invitation: InvitationSummary }) {
       {isInvitationActionable(invitation.status) ? (
         <div className="invitation-row-actions">
           <CancelInvitationButton invitationId={invitation.id} />
-          <IssueInvitationForm invitedEmail={invitation.invitedEmail} mode="reissue" />
+          {/* 再発行は上の発行フォームを同じメールで送信するのと同じ操作(RPC側が
+              既存の有効な招待を置き換える)。フォームをこの行の中に置くと、
+              再発行成功でこの行がreplacedへ変わり、結果に表示する新トークンごと
+              アンマウントされてしまうため、フォームは常に表示される上のフォームへ
+              誘導する。 */}
+          <Link
+            className="invitation-reissue-link"
+            href={`/account/invitations?reissue=${encodeURIComponent(invitation.invitedEmail)}#issue-invitation-title`}
+          >
+            再発行する
+          </Link>
         </div>
       ) : null}
     </li>
@@ -59,9 +69,11 @@ function InvitationListSection({ invitations }: { invitations: InvitationSummary
 }
 
 export function InvitationsContent({
+  defaultInviteEmail,
   household,
   invitations,
 }: {
+  defaultInviteEmail?: string;
   household: Household | null;
   invitations: InvitationSummary[];
 }) {
@@ -91,7 +103,7 @@ export function InvitationsContent({
             <p className="detail-kicker">INVITE</p>
             <h2 id="issue-invitation-title">招待する</h2>
             <p className="detail-note">{household.name}への招待リンクを発行します。</p>
-            <IssueInvitationForm mode="create" />
+            <IssueInvitationForm invitedEmail={defaultInviteEmail} />
           </section>
 
           <InvitationListSection invitations={invitations} />
@@ -101,8 +113,19 @@ export function InvitationsContent({
   );
 }
 
-export default async function InvitationsPage() {
+function firstSearchParamValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function InvitationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireUser();
+  const resolvedSearchParams = await searchParams;
+  const defaultInviteEmail = firstSearchParamValue(resolvedSearchParams.reissue);
+
   const supabase = await createClient();
   const { data: householdData, error: householdError } = await supabase
     .from("households")
@@ -136,5 +159,11 @@ export default async function InvitationsPage() {
     status: toInvitationStatus(invitation.status),
   }));
 
-  return <InvitationsContent household={household} invitations={invitations} />;
+  return (
+    <InvitationsContent
+      defaultInviteEmail={defaultInviteEmail}
+      household={household}
+      invitations={invitations}
+    />
+  );
 }

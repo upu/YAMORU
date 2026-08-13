@@ -1137,29 +1137,29 @@ footer p {
   gap: 10px;
 }
 
-.invitation-row-actions .auth-form,
 .invitation-cancel-form {
   display: contents;
 }
 
-.invitation-cancel-button {
+.invitation-cancel-button,
+.invitation-reissue-link {
   padding: 8px 14px;
-  border: 1px solid rgb(184 92 45 / 40%);
   border-radius: 10px;
-  color: var(--orange);
-  background: var(--orange-pale);
-  font: inherit;
   font-weight: 800;
   cursor: pointer;
 }
 
-.invitation-row-actions .auth-submit {
-  margin-top: 0;
-  padding: 8px 14px;
+.invitation-cancel-button {
+  border: 1px solid rgb(184 92 45 / 40%);
+  color: var(--orange);
+  background: var(--orange-pale);
+  font: inherit;
 }
 
-.invitation-issue-form .auth-feedback {
-  grid-column: 1 / -1;
+.invitation-reissue-link {
+  border: 1px solid rgb(49 92 73 / 24%);
+  color: var(--green);
+  background: var(--green-pale);
 }
 
 .invitation-issued-result {
