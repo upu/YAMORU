@@ -20,6 +20,17 @@ export function isManagedItemKind(value: string): value is ManagedItemKind {
   return MANAGED_ITEM_KINDS.some((kind) => kind === value);
 }
 
+// managed_items.kindはCHECK制約付きのtextであり、生成された型では`string`になる
+// (lib/supabase/database.types.ts)。DBから読んだ値をこのunionへ落とす際に、
+// 制約とMANAGED_ITEM_KINDSのズレを黙って通さず、その場で失敗させる。
+export function toManagedItemKind(value: string): ManagedItemKind {
+  if (!isManagedItemKind(value)) {
+    throw new Error(`未知の管理対象の種類です: ${value}`);
+  }
+
+  return value;
+}
+
 export function isSafeExternalUrl(value: string): boolean {
   try {
     const url = new URL(value);

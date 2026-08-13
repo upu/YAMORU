@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+import type { Database } from "./database.types";
 import { getSupabasePublicEnv } from "./env";
 
 function isPublicPath(pathname: string) {
@@ -10,7 +11,7 @@ function isPublicPath(pathname: string) {
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const { publishableKey, url } = getSupabasePublicEnv();
-  const supabase = createServerClient(url, publishableKey, {
+  const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

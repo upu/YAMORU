@@ -140,11 +140,26 @@ npm run prod:restore -- "C:\Users\<you>\.yamoru\backups\prod\yamoru-prod-2026010
 - Supabase CLIはデフォルトで匿名の利用統計テレメトリを送信します。無効化する場合は、コマンド実行前に`SUPABASE_TELEMETRY_DISABLED=1`を設定します。
 - Realtime、Storage、Edge Functionsなど、現在の対象外の機能は`prod`・`test`両方の`config.toml`で無効化しています。メール・パスワード認証は有効で、ローカル確認ではメール確認を要求しません。
 
+### スキーマの最新仕様(型生成)
+
+`supabase/migrations/`を積み上げた結果の最終スキーマは、`lib/supabase/database.types.ts`が正本です。テーブル・カラム・RLS関数の引数と戻り値が機械可読な形で入っており、全マイグレーションを時系列に読まなくても現在の仕様を確認できます。手で書いた要約文書は置きません(更新を忘れれば実装とずれるため)。
+
+```powershell
+npm run gen:types       # マイグレーションから型を再生成する
+npm run gen:types:check # コミット済みの型がマイグレーションと一致するか検証する(CIでも実行)
+```
+
+- 生成には使い捨てのSupabaseスタック(`environments/gen-types`、`prod`・`test`とは別のproject ID・ポート)を毎回起動し、`supabase/migrations/`だけを適用します。稼働中の`prod`・`test`から生成しないのは、それらに未コミットのマイグレーションが適用されていたり手動操作でずれていたりする可能性があり、「コミット済みマイグレーションだけから再現できる」という前提が崩れるためです。実行後、使い捨てスタックはデータ量ごと破棄されます。
+- マイグレーションを追加したら`npm run gen:types`を実行し、生成結果を同じコミットに含めてください。忘れた場合はCIの`Supabase schema types are up to date`が失敗します。
+- `lib/supabase/database.types.ts`は生成物です。手で編集せず、スキーマ側を直してから再生成してください。
+- アプリの`createClient()`はこの型を適用済みです。`.from()`・`.rpc()`のテーブル名・カラム名・引数の誤りは`npm run typecheck`で検出されます。
+
 ## 文書の入口
 
 - [知識バンドル](docs/index.md)
 - [プロダクト計画](docs/product/yamoru-project-plan.md)
 - [意思決定](docs/decisions/index.md)
+- [データベースに影響する変更の手順](docs/references/database-change-playbook.md)
 - [レビュー依頼プロンプト](docs/references/review-prompts.md)
 - [プロジェクトガイド](AGENTS.md)
 

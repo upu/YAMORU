@@ -13,6 +13,8 @@
     "lint:fix": "eslint . --fix --max-warnings=0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "gen:types": "node scripts/supabase-gen-types.ts",
+    "gen:types:check": "node scripts/supabase-gen-types.ts --check",
     "prod:start": "node scripts/supabase-env-sync.ts prod && supabase start --workdir environments/prod",
     "prod:status": "supabase status --workdir environments/prod -o env",
     "prod:stop": "supabase stop --workdir environments/prod",

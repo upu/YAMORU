@@ -38,3 +38,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  supabase-types:
+    name: Supabase schema types are up to date
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # supabase/migrations/だけを適用した使い捨てスタックから型を再生成し、
+      # コミット済みのlib/supabase/database.types.tsと一致するか検証する。
+      # マイグレーションを足して再生成を忘れると、ここで失敗する(Issue #45)。
+      # Supabase CLIはdevDependenciesに固定してあるものを使うため、
+      # ローカルとCIでCLIのバージョンがずれることはない。
+      - name: Check generated types against migrations
+        run: npm run gen:types:check
