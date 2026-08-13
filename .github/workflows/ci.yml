@@ -63,3 +63,28 @@ jobs:
       # ローカルとCIでCLIのバージョンがずれることはない。
       - name: Check generated types against migrations
         run: npm run gen:types:check
+
+  supabase-policy-catalog:
+    name: RLS policy catalog is up to date
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # supabase/migrations/だけを適用した使い捨てスタックのpg_policyと
+      # comment on policyからRLSポリシーカタログを再生成し、コミット済みの
+      # docs/references/rls-policy-catalog.mdと一致するか検証する。ポリシーを
+      # 追加してcomment on policyを付け忘れると、内容のズレとは別の理由で
+      # ここが失敗する(Issue #57)。
+      - name: Check generated policy catalog against migrations
+        run: npm run gen:policies:check
