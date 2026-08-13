@@ -149,28 +149,40 @@ export type Database = {
         Row: {
           accepted_at: string | null
           accepted_by: string | null
+          cancelled_at: string | null
           created_at: string
+          created_by: string
           expires_at: string
           household_id: string
           id: string
+          invited_email: string
+          replaced_by: string | null
           token_hash: string
         }
         Insert: {
           accepted_at?: string | null
           accepted_by?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          created_by: string
           expires_at: string
           household_id: string
           id?: string
+          invited_email: string
+          replaced_by?: string | null
           token_hash: string
         }
         Update: {
           accepted_at?: string | null
           accepted_by?: string | null
+          cancelled_at?: string | null
           created_at?: string
+          created_by?: string
           expires_at?: string
           household_id?: string
           id?: string
+          invited_email?: string
+          replaced_by?: string | null
           token_hash?: string
         }
         Relationships: [
@@ -179,6 +191,13 @@ export type Database = {
             columns: ["household_id"]
             isOneToOne: false
             referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "household_invitations_replaced_by_fkey"
+            columns: ["replaced_by"]
+            isOneToOne: false
+            referencedRelation: "household_invitations"
             referencedColumns: ["id"]
           },
         ]
@@ -391,6 +410,10 @@ export type Database = {
           membership_created: boolean
         }[]
       }
+      cancel_household_invitation: {
+        Args: { invitation_id: string }
+        Returns: undefined
+      }
       complete_maintenance_task: {
         Args: {
           idempotency_key: string
@@ -421,6 +444,25 @@ export type Database = {
       is_household_member: {
         Args: { target_household_id: string }
         Returns: boolean
+      }
+      issue_household_invitation: {
+        Args: { invited_email: string }
+        Returns: {
+          expires_at: string
+          invitation_email: string
+          invitation_id: string
+          token: string
+        }[]
+      }
+      list_household_invitations: {
+        Args: never
+        Returns: {
+          created_at: string
+          expires_at: string
+          id: string
+          invited_email: string
+          status: string
+        }[]
       }
       undo_maintenance_task_completion: {
         Args: { idempotency_key: string; occurrence_id: string }
