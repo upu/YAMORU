@@ -159,6 +159,7 @@ npm run gen:types:check # コミット済みの型がマイグレーションと
 - [知識バンドル](docs/index.md)
 - [プロダクト計画](docs/product/yamoru-project-plan.md)
 - [意思決定](docs/decisions/index.md)
+- [データベースに影響する変更の手順](docs/references/database-change-playbook.md)
 - [レビュー依頼プロンプト](docs/references/review-prompts.md)
 - [プロジェクトガイド](AGENTS.md)
 
