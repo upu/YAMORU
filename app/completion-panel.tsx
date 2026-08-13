@@ -12,12 +12,14 @@ import {
 } from "react";
 
 import { formatDateInput } from "./demo-state";
-import { parseDateOnly } from "./task-schedule";
 
 type PanelView = "closed" | "choice" | "details";
 
 type CompletionPanelProps = {
-  onComplete: (occurredAt: Date) => void;
+  // null: 現在時刻で完了する。string: 実施日(YYYY-MM-DD、今日以前)を指定して完了する。
+  // 呼び出し側が「現在時刻」の決定方法(クライアント時刻かサーバー時刻か)を選べるよう、
+  // このコンポーネント自身はDateを組み立てない。
+  onComplete: (occurredOn: string | null) => void;
   taskTitle: string;
 };
 
@@ -178,7 +180,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
   }
 
   function completeNow() {
-    onComplete(new Date());
+    onComplete(null);
     setView("closed");
   }
 
@@ -186,7 +188,7 @@ export function CompletionPanel({ onComplete, taskTitle }: CompletionPanelProps)
     event.preventDefault();
     const occurredOn = new FormData(event.currentTarget).get("occurredOn");
     if (typeof occurredOn === "string" && occurredOn !== "") {
-      onComplete(parseDateOnly(occurredOn));
+      onComplete(occurredOn);
       setView("closed");
     }
   }

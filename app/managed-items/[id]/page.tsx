@@ -9,6 +9,7 @@ import {
   type ManagedItemKind,
   toManagedItemKind,
 } from "../model";
+import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
 import { formatTokyoDate } from "./time-zone";
 
@@ -19,6 +20,11 @@ type PendingTodoData = {
   scheduledFor: string;
   title: string;
 };
+type RecentCompletionData = {
+  id: string;
+  occurredAt: string;
+  title: string;
+};
 
 export type ManagedItemDetailData = {
   externalLinks: ExternalLinkData[];
@@ -26,9 +32,67 @@ export type ManagedItemDetailData = {
   kind: ManagedItemKind;
   name: string;
   pendingTodos: PendingTodoData[];
+  recentCompletions: RecentCompletionData[];
 };
 
-function PendingTodoSection({ todos }: { todos: PendingTodoData[] }) {
+type TaskOccurrenceRow = {
+  activity_logs: { action: string; occurred_at: string }[];
+  due_at: string;
+  id: string;
+  scheduled_for: string;
+  status: string;
+};
+type TaskRuleRow = { task_occurrences: TaskOccurrenceRow[]; title: string };
+
+function buildPendingTodos(taskRules: TaskRuleRow[]): PendingTodoData[] {
+  return taskRules
+    .flatMap((rule) =>
+      rule.task_occurrences
+        .filter((occurrence) => occurrence.status === "pending")
+        .map((occurrence) => ({
+          dueAt: occurrence.due_at,
+          id: occurrence.id,
+          scheduledFor: occurrence.scheduled_for,
+          title: rule.title,
+        })),
+    )
+    .sort((left, right) => left.scheduledFor.localeCompare(right.scheduledFor));
+}
+
+function buildRecentCompletions(
+  taskRules: TaskRuleRow[],
+): RecentCompletionData[] {
+  return taskRules
+    .flatMap((rule) => {
+      const completions = rule.task_occurrences
+        .filter((occurrence) => occurrence.status === "completed")
+        .flatMap((occurrence) =>
+          occurrence.activity_logs
+            .filter((log) => log.action === "completed")
+            .map((log) => ({
+              id: occurrence.id,
+              occurredAt: log.occurred_at,
+              title: rule.title,
+            })),
+        );
+      if (completions.length === 0) return [];
+      // TaskRuleごとに最新の完了だけを「直近の完了」として表示する。
+      return [
+        completions.reduce((latest, completion) =>
+          completion.occurredAt > latest.occurredAt ? completion : latest,
+        ),
+      ];
+    })
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
+}
+
+function PendingTodoSection({
+  managedItemId,
+  todos,
+}: {
+  managedItemId: string;
+  todos: PendingTodoData[];
+}) {
   return (
     <section aria-labelledby="current-todos-title" className="detail-card">
       <p className="detail-kicker">CURRENT TODO</p>
@@ -44,6 +108,36 @@ function PendingTodoSection({ todos }: { todos: PendingTodoData[] }) {
                 {formatTokyoDate(todo.scheduledFor)}〜
                 {formatTokyoDate(todo.dueAt)}
               </span>
+              <CompleteTodoPanel
+                managedItemId={managedItemId}
+                occurrenceId={todo.id}
+                taskTitle={todo.title}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function RecentCompletionSection({
+  completions,
+}: {
+  completions: RecentCompletionData[];
+}) {
+  return (
+    <section aria-labelledby="recent-completions-title" className="detail-card">
+      <p className="detail-kicker">RECENT ACTIVITY</p>
+      <h2 id="recent-completions-title">直近の完了</h2>
+      {completions.length === 0 ? (
+        <p className="ledger-empty">まだ完了の記録はありません。</p>
+      ) : (
+        <ul className="maintenance-todo-list">
+          {completions.map((completion) => (
+            <li key={completion.id}>
+              <strong>{completion.title}</strong>
+              <span>{formatTokyoDate(completion.occurredAt)}に完了</span>
             </li>
           ))}
         </ul>
@@ -102,7 +196,7 @@ export function ManagedItemDetailContent({
       </header>
 
       <div className="ledger-grid managed-item-detail-grid">
-        <PendingTodoSection todos={item.pendingTodos} />
+        <PendingTodoSection managedItemId={item.id} todos={item.pendingTodos} />
 
         <section aria-labelledby="register-todo-title" className="detail-card">
           <p className="detail-kicker">ADD TODO</p>
@@ -112,6 +206,8 @@ export function ManagedItemDetailContent({
           </p>
           <MaintenanceTodoForm managedItemId={item.id} />
         </section>
+
+        <RecentCompletionSection completions={item.recentCompletions} />
 
         <ExternalLinksSection links={safeLinks} />
       </div>
@@ -130,7 +226,7 @@ export default async function RegisteredManagedItemDetail({
   const { data, error } = await supabase
     .from("managed_items")
     .select(
-      "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at))",
+      "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -141,18 +237,8 @@ export default async function RegisteredManagedItemDetail({
 
   if (data === null) notFound();
 
-  const pendingTodos = data.task_rules
-    .flatMap((rule) =>
-      rule.task_occurrences
-        .filter((occurrence) => occurrence.status === "pending")
-        .map((occurrence) => ({
-          dueAt: occurrence.due_at,
-          id: occurrence.id,
-          scheduledFor: occurrence.scheduled_for,
-          title: rule.title,
-        })),
-    )
-    .sort((left, right) => left.scheduledFor.localeCompare(right.scheduledFor));
+  const pendingTodos = buildPendingTodos(data.task_rules);
+  const recentCompletions = buildRecentCompletions(data.task_rules);
 
   return (
     <ManagedItemDetailContent
@@ -162,6 +248,7 @@ export default async function RegisteredManagedItemDetail({
         kind: toManagedItemKind(data.kind),
         name: data.name,
         pendingTodos,
+        recentCompletions,
       }}
     />
   );

@@ -23,6 +23,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
       title: "フィルター交換",
     },
   ],
+  recentCompletions: [],
 };
 
 describe("ManagedItem詳細のメンテナンスTodo", () => {
@@ -63,6 +64,9 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(
       within(todoList).getByText("2026年10月9日〜2026年11月6日"),
     ).toBeInTheDocument();
+    expect(
+      within(todoList).getByRole("button", { name: "フィルター交換を記録" }),
+    ).toBeInTheDocument();
   });
 
   it("次回の目安開始日を選ぶと日付項目と自動計算の説明を切り替える", () => {
@@ -98,5 +102,37 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     );
 
     expect(screen.getByText("現在の未完了Todoはありません。")).toBeInTheDocument();
+  });
+
+  it("完了の記録がない場合は空状態を表示する", () => {
+    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
+
+    const recentSection = screen.getByRole("region", { name: "直近の完了" });
+    expect(
+      within(recentSection).getByText("まだ完了の記録はありません。"),
+    ).toBeInTheDocument();
+  });
+
+  it("直近の完了を日本時間で表示する", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...ITEM_WITH_TODO,
+          recentCompletions: [
+            {
+              id: "occurrence-0",
+              occurredAt: "2026-09-01T15:00:00.000Z",
+              title: "フィルター交換",
+            },
+          ],
+        }}
+      />,
+    );
+
+    const recentSection = screen.getByRole("region", { name: "直近の完了" });
+    expect(within(recentSection).getByText("フィルター交換")).toBeInTheDocument();
+    expect(
+      within(recentSection).getByText("2026年9月2日に完了"),
+    ).toBeInTheDocument();
   });
 });

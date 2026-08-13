@@ -47,6 +47,8 @@ export type Database = {
           actor_user_id: string
           household_id: string
           id: string
+          idempotency_key: string | null
+          next_task_occurrence_id: string | null
           occurred_at: string
           recorded_at: string
           task_occurrence_id: string
@@ -56,6 +58,8 @@ export type Database = {
           actor_user_id: string
           household_id: string
           id?: string
+          idempotency_key?: string | null
+          next_task_occurrence_id?: string | null
           occurred_at: string
           recorded_at?: string
           task_occurrence_id: string
@@ -65,6 +69,8 @@ export type Database = {
           actor_user_id?: string
           household_id?: string
           id?: string
+          idempotency_key?: string | null
+          next_task_occurrence_id?: string | null
           occurred_at?: string
           recorded_at?: string
           task_occurrence_id?: string
@@ -82,6 +88,13 @@ export type Database = {
             columns: ["household_id"]
             isOneToOne: false
             referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_next_task_occurrence_id_fkey"
+            columns: ["next_task_occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "task_occurrences"
             referencedColumns: ["id"]
           },
           {
@@ -377,6 +390,14 @@ export type Database = {
           household_id: string
           membership_created: boolean
         }[]
+      }
+      complete_maintenance_task: {
+        Args: {
+          idempotency_key: string
+          occurred_at?: string
+          occurrence_id: string
+        }
+        Returns: string
       }
       create_first_household: {
         Args: { household_name: string }
