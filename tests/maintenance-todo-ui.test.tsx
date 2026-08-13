@@ -15,13 +15,17 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   externalLinks: [],
   id: "item-1",
   kind: "pet_supplies",
+  lastActivity: null,
   name: "猫の浄水器",
   pendingTodos: [
     {
+      badge: "そろそろ",
       dueAt: "2026-11-05T15:00:00.000Z",
       id: "occurrence-1",
+      meta: "11月6日までが推奨期間です",
       scheduledFor: "2026-10-08T15:00:00.000Z",
       title: "フィルター交換",
+      tone: "reminder",
     },
   ],
   recentCompletions: [],
@@ -57,13 +61,14 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(within(form).getByText(/Asia\/Tokyo/)).toBeInTheDocument();
   });
 
-  it("現在のpending Todo名と最初の推奨期間を日本時間で表示する", () => {
+  it("現在のpending Todo名と推奨期間の分類(YDR-017)を表示する", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
     const todoList = screen.getByRole("region", { name: "現在のTodo" });
     expect(within(todoList).getByText("フィルター交換")).toBeInTheDocument();
+    expect(within(todoList).getByText("そろそろ")).toBeInTheDocument();
     expect(
-      within(todoList).getByText("2026年10月9日〜2026年11月6日"),
+      within(todoList).getByText("11月6日までが推奨期間です"),
     ).toBeInTheDocument();
     expect(
       within(todoList).getByRole("button", { name: "フィルター交換を記録" }),

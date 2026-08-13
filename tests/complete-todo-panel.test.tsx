@@ -109,6 +109,31 @@ describe("CompleteTodoPanel", () => {
     expect(secondKey).toBe(firstKey);
   });
 
+  it("主要操作を支援技術から名前で識別でき、Escapeで閉じて元の位置へ焦点を戻す", () => {
+    render(
+      <CompleteTodoPanel
+        actorName="家族A"
+        managedItemId="item-1"
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    const openCompletionButton = screen.getByRole("button", {
+      name: "フィルター交換を記録",
+    });
+    fireEvent.click(openCompletionButton);
+
+    const dialog = screen.getByRole("dialog", { name: "フィルター交換を記録" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(openCompletionButton).toHaveFocus();
+  });
+
   it("失敗すると最新状態の確認を案内する", async () => {
     completeMaintenanceTaskMock.mockResolvedValue({
       message: "他の操作で状態が変わりました。最新の状態を確認してください。",
