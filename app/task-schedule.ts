@@ -24,6 +24,27 @@ export type MaintenanceDisplayState =
 
 export type StrictDisplayState = "upcoming" | "due-today" | "overdue";
 
+// task_rules.deadline_kindはCHECK制約付きのtextであり、生成された型では
+// `string`になる(lib/supabase/database.types.ts)。現在のDBはIssue #34の
+// 範囲である'maintenance'しか許可しないため、strictはまだ実データに現れない
+// (strictの実装はYDR-017が見込む将来のIssue)。制約とのズレを黙って通さず、
+// 未知の値はその場で失敗させる(managed-items/model.tsのtoManagedItemKindと同じ方針)。
+export const DEADLINE_KINDS = ["maintenance"] as const;
+
+export type DeadlineKind = (typeof DEADLINE_KINDS)[number];
+
+export function isDeadlineKind(value: string): value is DeadlineKind {
+  return DEADLINE_KINDS.some((kind) => kind === value);
+}
+
+export function toDeadlineKind(value: string): DeadlineKind {
+  if (!isDeadlineKind(value)) {
+    throw new Error(`未知のdeadline_kindです: ${value}`);
+  }
+
+  return value;
+}
+
 function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

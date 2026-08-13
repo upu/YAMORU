@@ -9,7 +9,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(16);
+select plan(22);
 
 insert into auth.users (
   instance_id, id, aud, role, email,
@@ -19,7 +19,19 @@ insert into auth.users (
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1001', 'authenticated', 'authenticated', 'profile-a@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1002', 'authenticated', 'authenticated', 'profile-b@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
   ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1003', 'authenticated', 'authenticated', 'profile-c@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
-  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1004', 'authenticated', 'authenticated', 'profile-d@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}');
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1004', 'authenticated', 'authenticated', 'profile-d@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1005', 'authenticated', 'authenticated', 'profile-e@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1006', 'authenticated', 'authenticated', 'profile-f@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}'),
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-0000000f1007', 'authenticated', 'authenticated', 'profile-g@example.test', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{}');
+
+-- Issue #36: f1005とf1006を同じ家庭のメンバーとして登録する
+-- (f1007はどの家庭にも属さない非メンバーのまま)。
+insert into public.households (id, name) values
+  ('00000000-0000-0000-0000-0000000f9001', '家庭内共有可視性テスト用');
+
+insert into public.household_members (household_id, user_id) values
+  ('00000000-0000-0000-0000-0000000f9001', '00000000-0000-0000-0000-0000000f1005'),
+  ('00000000-0000-0000-0000-0000000f9001', '00000000-0000-0000-0000-0000000f1006');
 
 -- ---------------------------------------------------------------------------
 -- 利用者A: 自分のニックネームを登録・参照できる
@@ -133,6 +145,50 @@ select results_eq(
   $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1003' $$,
   $$ values ('じろう'::text) $$,
   '保存されたニックネームは前後空白が取り除かれている'
+);
+
+-- ---------------------------------------------------------------------------
+-- Issue #36: 同じ家庭のメンバー同士は互いのニックネームを参照できる。
+-- 家庭に属さない利用者は、この共有可視性ポリシーの対象にならない。
+-- ---------------------------------------------------------------------------
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1005", "role": "authenticated"}';
+
+select isnt_empty(
+  $$ insert into public.profiles (nickname) values ('ごろう') returning user_id $$,
+  '家庭メンバーの利用者Eは自分のニックネームを登録できる'
+);
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1006", "role": "authenticated"}';
+
+select isnt_empty(
+  $$ insert into public.profiles (nickname) values ('ろくろう') returning user_id $$,
+  '家庭メンバーの利用者Fは自分のニックネームを登録できる'
+);
+
+select results_eq(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1005' $$,
+  $$ values ('ごろう'::text) $$,
+  '利用者Fは同じ家庭の利用者Eのニックネームを参照できる'
+);
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1005", "role": "authenticated"}';
+
+select results_eq(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1006' $$,
+  $$ values ('ろくろう'::text) $$,
+  '利用者Eは同じ家庭の利用者Fのニックネームを参照できる'
+);
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1007", "role": "authenticated"}';
+
+select is_empty(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1005' $$,
+  'どの家庭にも属さない利用者Gは、利用者Eのニックネームを参照できない'
+);
+
+select is_empty(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1006' $$,
+  'どの家庭にも属さない利用者Gは、利用者Fのニックネームを参照できない'
 );
 
 -- ---------------------------------------------------------------------------

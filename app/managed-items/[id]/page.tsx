@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
+import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../../../lib/supabase/profile";
 import { createClient } from "../../../lib/supabase/server";
 import {
   isSafeExternalUrl,
@@ -11,53 +12,108 @@ import {
 } from "../model";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
-import { formatTokyoDate } from "./time-zone";
+import { MAINTENANCE_DISPLAY_COPY, toDeadlineKind, type TodoTone } from "../../task-schedule";
+import {
+  describeMaintenanceWindowFromIso,
+  formatTokyoDate,
+  getMaintenanceDisplayStateFromIso,
+} from "../../time-zone";
 
 type ExternalLinkData = { id: string; url: string };
 type PendingTodoData = {
+  badge: string;
   dueAt: string;
   id: string;
+  meta: string;
   scheduledFor: string;
   title: string;
+  tone: TodoTone;
 };
 type RecentCompletionData = {
   id: string;
   occurredAt: string;
   title: string;
 };
+type LastActivityData = { actorName: string; occurredAt: string };
 
 export type ManagedItemDetailData = {
   actorName: string;
   externalLinks: ExternalLinkData[];
   id: string;
   kind: ManagedItemKind;
+  lastActivity: LastActivityData | null;
   name: string;
   pendingTodos: PendingTodoData[];
   recentCompletions: RecentCompletionData[];
 };
 
+type ActivityLogRow = {
+  action: string;
+  actor_user_id: string;
+  occurred_at: string;
+};
 type TaskOccurrenceRow = {
-  activity_logs: { action: string; occurred_at: string }[];
+  activity_logs: ActivityLogRow[];
   due_at: string;
   id: string;
   scheduled_for: string;
   status: string;
 };
-type TaskRuleRow = { task_occurrences: TaskOccurrenceRow[]; title: string };
+type TaskRuleRow = {
+  deadline_kind: string;
+  task_occurrences: TaskOccurrenceRow[];
+  title: string;
+};
 
-function buildPendingTodos(taskRules: TaskRuleRow[]): PendingTodoData[] {
+// ホーム(app/page.tsx)のbuildReminderItemsと同じYDR-017の3状態分類を使い、
+// home/detail間で期限分類・日時表示の結果をそろえる(Issue #36)。ホームは
+// 急かさないため推奨期間前(before-window)を非表示にするが、詳細は台帳の
+// 全体像を見る画面のため、推奨期間前も含めすべての未完了Todoを表示する。
+function buildPendingTodos(
+  taskRules: TaskRuleRow[],
+  nowIso: string,
+): PendingTodoData[] {
   return taskRules
-    .flatMap((rule) =>
-      rule.task_occurrences
+    .flatMap((rule) => {
+      toDeadlineKind(rule.deadline_kind);
+      return rule.task_occurrences
         .filter((occurrence) => occurrence.status === "pending")
-        .map((occurrence) => ({
-          dueAt: occurrence.due_at,
-          id: occurrence.id,
-          scheduledFor: occurrence.scheduled_for,
-          title: rule.title,
-        })),
-    )
+        .map((occurrence) => {
+          const window = {
+            dueAt: occurrence.due_at,
+            scheduledFor: occurrence.scheduled_for,
+          };
+          const state = getMaintenanceDisplayStateFromIso(window, nowIso);
+          const copy = MAINTENANCE_DISPLAY_COPY[state];
+          return {
+            badge: copy.badge,
+            dueAt: occurrence.due_at,
+            id: occurrence.id,
+            meta: describeMaintenanceWindowFromIso(state, window),
+            scheduledFor: occurrence.scheduled_for,
+            title: rule.title,
+            tone: copy.tone,
+          };
+        });
+    })
     .sort((left, right) => left.scheduledFor.localeCompare(right.scheduledFor));
+}
+
+// 取消されていない直近の完了(occurred_at基準)を、全TaskRuleを横断して1件返す
+// (YDR-012)。「誰が」は#30の表示名を使い、操作主体と実施者の分離に備える(Issue #36)。
+function findLatestCompletionLog(taskRules: TaskRuleRow[]): ActivityLogRow | null {
+  const logs = taskRules.flatMap((rule) =>
+    rule.task_occurrences
+      .filter((occurrence) => occurrence.status === "completed")
+      .flatMap((occurrence) =>
+        occurrence.activity_logs.filter((log) => log.action === "completed"),
+      ),
+  );
+  if (logs.length === 0) return null;
+
+  return logs.reduce((latest, log) =>
+    log.occurred_at > latest.occurred_at ? log : latest,
+  );
 }
 
 function buildRecentCompletions(
@@ -106,11 +162,11 @@ function PendingTodoSection({
         <ul className="maintenance-todo-list">
           {todos.map((todo) => (
             <li key={todo.id}>
-              <strong>{todo.title}</strong>
-              <span>
-                {formatTokyoDate(todo.scheduledFor)}〜
-                {formatTokyoDate(todo.dueAt)}
-              </span>
+              <div className="task-title-row">
+                <strong>{todo.title}</strong>
+                <span className={`tone-label tone-${todo.tone}`}>{todo.badge}</span>
+              </div>
+              <span>{todo.meta}</span>
               <CompleteTodoPanel
                 actorName={actorName}
                 managedItemId={managedItemId}
@@ -145,6 +201,29 @@ function RecentCompletionSection({
             </li>
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+function LastActivitySummary({ lastActivity }: { lastActivity: LastActivityData | null }) {
+  return (
+    <section aria-labelledby="last-activity-title" className="last-activity">
+      <p className="detail-kicker">LAST ACTIVITY</p>
+      <h2 id="last-activity-title">最後にいつ・誰が</h2>
+      {lastActivity === null ? (
+        <p>まだ完了の記録はありません。</p>
+      ) : (
+        <div className="last-activity-values">
+          <div>
+            <span>いつ</span>
+            <strong>{formatTokyoDate(lastActivity.occurredAt)}</strong>
+          </div>
+          <div>
+            <span>誰が</span>
+            <strong>{lastActivity.actorName}</strong>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -199,6 +278,8 @@ export function ManagedItemDetailContent({
         <p>登録した管理対象と、現在のメンテナンスTodoを確認できます。</p>
       </header>
 
+      <LastActivitySummary lastActivity={item.lastActivity} />
+
       <div className="ledger-grid managed-item-detail-grid">
         <PendingTodoSection
           actorName={item.actorName}
@@ -223,22 +304,6 @@ export function ManagedItemDetailContent({
   );
 }
 
-const FALLBACK_ACTOR_NAME = "あなた";
-
-async function loadActorName(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-): Promise<string> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("nickname")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error !== null || data === null) return FALLBACK_ACTOR_NAME;
-  return data.nickname;
-}
-
 export default async function RegisteredManagedItemDetail({
   params,
 }: {
@@ -247,15 +312,16 @@ export default async function RegisteredManagedItemDetail({
   const user = await requireUser();
   const { id } = await params;
   const supabase = await createClient();
+  const nowIso = new Date().toISOString();
   const [{ data, error }, actorName] = await Promise.all([
     supabase
       .from("managed_items")
       .select(
-        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
+        "id, name, kind, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, actor_user_id)))",
       )
       .eq("id", id)
       .maybeSingle(),
-    loadActorName(supabase, user.id),
+    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
   ]);
 
   if (error !== null) {
@@ -264,8 +330,20 @@ export default async function RegisteredManagedItemDetail({
 
   if (data === null) notFound();
 
-  const pendingTodos = buildPendingTodos(data.task_rules);
+  const pendingTodos = buildPendingTodos(data.task_rules, nowIso);
   const recentCompletions = buildRecentCompletions(data.task_rules);
+  const latestCompletionLog = findLatestCompletionLog(data.task_rules);
+  const lastActivity =
+    latestCompletionLog === null
+      ? null
+      : {
+          actorName: await loadActorName(
+            supabase,
+            latestCompletionLog.actor_user_id,
+            FALLBACK_OTHER_MEMBER_NAME,
+          ),
+          occurredAt: latestCompletionLog.occurred_at,
+        };
 
   return (
     <ManagedItemDetailContent
@@ -274,6 +352,7 @@ export default async function RegisteredManagedItemDetail({
         externalLinks: data.external_links,
         id: data.id,
         kind: toManagedItemKind(data.kind),
+        lastActivity,
         name: data.name,
         pendingTodos,
         recentCompletions,

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "../../../lib/supabase/server";
 import type { MaintenanceTodoActionState } from "./state";
-import { addDaysToTokyoDateUtcIso, tokyoDateToUtcIso } from "./time-zone";
+import { addDaysToTokyoDateUtcIso, tokyoDateToUtcIso } from "../../time-zone";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const MAX_RECOMMENDED_OFFSET = 3650;
@@ -204,6 +204,8 @@ export async function completeMaintenanceTask(
   }
 
   revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  // ホーム(Issue #36)も同じ完了・活動履歴を表示するため、ここで再検証する。
+  revalidatePath("/");
   return {
     message: "完了を記録しました。",
     status: "success",

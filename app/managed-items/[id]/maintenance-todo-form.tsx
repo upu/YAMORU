@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { createMaintenanceTodo } from "./actions";
 import { INITIAL_MAINTENANCE_TODO_STATE } from "./state";
-import { PHASE_ONE_TIME_ZONE } from "./time-zone";
+import { PHASE_ONE_TIME_ZONE } from "../../time-zone";
 
 function SubmitButton() {
   const { pending } = useFormStatus();

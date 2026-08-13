@@ -495,23 +495,6 @@ h1 {
   color: var(--muted);
 }
 
-.completion-feedback {
-  position: fixed;
-  z-index: 1;
-  right: 16px;
-  bottom: 16px;
-  left: 16px;
-  width: min(calc(100% - 32px), 712px);
-  margin: 0 auto;
-  padding: 13px 16px;
-  border-radius: 14px;
-  color: white;
-  background: var(--green);
-  box-shadow: var(--shadow);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
 .item-meta {
   margin-top: 5px;
   color: var(--ink);
@@ -664,13 +647,6 @@ footer p {
   font-weight: 500;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
 .detail-card {
   min-width: 0;
   padding: 22px;
@@ -682,71 +658,6 @@ footer p {
 
 .detail-card h2 {
   font-size: 1.25rem;
-}
-
-.todo-card h3 {
-  margin-top: 22px;
-  font-size: 1.05rem;
-}
-
-.due-date {
-  margin: 5px 0 0;
-  color: var(--orange);
-  font-size: 1.25rem;
-  font-weight: 800;
-}
-
-.due-date-upcoming {
-  color: var(--blue);
-}
-
-.due-date-reminder {
-  color: var(--green);
-}
-
-.due-date-caution {
-  color: var(--amber);
-}
-
-.sample-label {
-  display: inline-block;
-  margin: 18px 0 13px;
-  padding: 4px 9px;
-}
-
-.link-card a {
-  display: block;
-  overflow-wrap: anywhere;
-}
-
-.history-list {
-  display: grid;
-  gap: 0;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.history-list li {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
-  gap: 12px;
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
-}
-
-.history-dot {
-  width: 9px;
-  height: 9px;
-  margin-top: 8px;
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 1px var(--green);
-}
-
-.history-list time {
-  font-weight: 800;
 }
 
 .auth-page {
@@ -1091,10 +1002,6 @@ footer p {
     border-radius: 22px 22px 0 0;
   }
 
-  .completion-feedback {
-    bottom: 10px;
-  }
-
   .detail-hero {
     padding-inline: 2px;
   }
@@ -1114,8 +1021,7 @@ footer p {
     border-radius: 18px;
   }
 
-  .last-activity-values,
-  .detail-grid {
+  .last-activity-values {
     grid-template-columns: minmax(0, 1fr);
   }
 

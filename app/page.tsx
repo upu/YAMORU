@@ -1,140 +1,232 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useRef } from "react";
 
-import { CompletionPanel } from "./completion-panel";
-import { useDemoState } from "./demo-state";
+import { requireUser } from "../lib/auth/current-user";
+import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../lib/supabase/profile";
+import { createClient } from "../lib/supabase/server";
+import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import {
-  HOME_SECTIONS,
-  type HomeItem,
-  type HomeSection,
-} from "./home-data";
-import {
-  describeMaintenanceSchedule,
-  getMaintenanceDisplayState,
   MAINTENANCE_DISPLAY_COPY,
-  parseDateOnly,
+  toDeadlineKind,
+  type TodoTone,
 } from "./task-schedule";
+import {
+  describeMaintenanceWindowFromIso,
+  formatTokyoDate,
+  formatTokyoMonthDay,
+  getMaintenanceDisplayStateFromIso,
+  PHASE_ONE_TIME_ZONE,
+} from "./time-zone";
 
-const FILTER_REPLACEMENT_ID = "cat-water-fountain-filter";
-const FILTER_REPLACEMENT_HREF = "/managed-items/cat-water-fountain";
-const OPEN_SECTION_IDS = new Set(["overdue", "today", "reminder", "upcoming"]);
-
-const TONE_LABELS: Record<HomeItem["tone"], string> = {
-  urgent: "要対応",
-  today: "今日",
-  upcoming: "予定",
-  done: "完了",
-  reminder: "そろそろ",
-  caution: "要確認",
+export type HomeItem = {
+  detail: string;
+  detailHref: string;
+  id: string;
+  // pending Todo(現在はreminder区分)にだけ設定する。設定されている場合、
+  // TaskCardは「やったよ」ボタン(CompleteTodoPanel)を表示する。
+  // 「最近の実施」など完了済みの項目には設定しない。
+  managedItemId?: string;
+  meta: string;
+  title: string;
+  tone: TodoTone;
 };
 
-function useCompletionFeedbackFocus(isCompleted: boolean) {
-  const feedbackRef = useRef<HTMLParagraphElement>(null);
+export type HomeSectionId = "overdue" | "today" | "reminder" | "upcoming" | "recent";
 
-  useEffect(() => {
-    // 記録後に消えるボタンではなく、結果を伝える通知へ現在位置を移します。
-    if (isCompleted) feedbackRef.current?.focus();
-  }, [isCompleted]);
+export type HomeSection = {
+  description: string;
+  id: HomeSectionId;
+  items: HomeItem[];
+  title: string;
+};
 
-  return feedbackRef;
-}
+export type HomeHouseholdSummary = { id: string; name: string };
 
-// 猫の浄水器のフィルター交換Todoは、まだ今回の交換が済んでいなければ
-// 推奨期間の状態(YDR-017)に応じてreminderへ差し込みます。
-// 「期限切れ」区分と対応状況の件数は厳密な期限(strict)専用のため、
-// 推奨期間の上限超過(past-window)であってもoverdueへは入れません。
-// 推奨期間前(before-window)は交換を急かさないため、どの区分にも表示しません。
-function buildFilterReplacementPendingItem(
-  isFilterReplacementCompleted: boolean,
-  scheduledFor: Date,
-  dueAt: Date,
-): { sectionId: "reminder"; item: HomeItem } | null {
-  if (isFilterReplacementCompleted) return null;
+const OPEN_SECTION_IDS = new Set<HomeSectionId>([
+  "overdue",
+  "today",
+  "reminder",
+  "upcoming",
+]);
 
-  const maintenanceWindow = { scheduledFor, dueAt };
-  const state = getMaintenanceDisplayState(maintenanceWindow, new Date());
+const TONE_LABELS: Record<TodoTone, string> = {
+  caution: "要確認",
+  done: "完了",
+  reminder: "そろそろ",
+  today: "今日",
+  upcoming: "予定",
+  urgent: "要対応",
+};
 
-  if (state === "before-window") return null;
+// 期限切れ/今日/近日はdeadline_kind='strict'向けの区分。現在のDBは
+// 'maintenance'しか作成できない(Issue #34)ため、この3区分は実データでは
+// 常に0件になる。既存の情報構造(YDR-017見直し時に備えた5区分)は保つが、
+// 0件の区分は画面へ過剰に並べない(Issue #36 設計メモ)。
+const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
+  { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
+  { description: "今日確認したいこと", id: "today", title: "今日" },
+  { description: "対応の目安の時期です", id: "reminder", title: "そろそろ" },
+  { description: "これから7日間の予定", id: "upcoming", title: "近日" },
+  { description: "家族が完了したこと", id: "recent", title: "最近の実施" },
+];
 
-  const copy = MAINTENANCE_DISPLAY_COPY[state];
+const RECENT_COMPLETIONS_LIMIT = 10;
 
-  return {
-    sectionId: "reminder",
-    item: {
-      id: FILTER_REPLACEMENT_ID,
-      title: "猫の浄水器のフィルター交換",
-      detail: "猫の浄水器",
-      meta: describeMaintenanceSchedule(state, maintenanceWindow),
-      tone: copy.tone,
-      detailHref: FILTER_REPLACEMENT_HREF,
-    },
+export type PendingOccurrenceRow = {
+  due_at: string;
+  id: string;
+  scheduled_for: string;
+  task_rules: {
+    deadline_kind: string;
+    managed_items: { id: string; name: string };
+    title: string;
   };
+};
+
+export type RecentCompletionRow = {
+  actor_user_id: string;
+  id: string;
+  occurred_at: string;
+  task_occurrences: {
+    status: string;
+    task_rules: {
+      managed_items: { id: string; name: string };
+      title: string;
+    };
+  };
+};
+
+export function buildReminderItems(
+  rows: PendingOccurrenceRow[],
+  nowIso: string,
+): HomeItem[] {
+  return rows
+    .slice()
+    .sort((left, right) => left.due_at.localeCompare(right.due_at))
+    .flatMap((row) => {
+      // 現在のDBはdeadline_kind='maintenance'しか作成できない(YDR-017, Issue #34)。
+      // strictの区分ロジックはまだ実装しないため、未知の値は握りつぶさず失敗させる。
+      toDeadlineKind(row.task_rules.deadline_kind);
+
+      const window = { dueAt: row.due_at, scheduledFor: row.scheduled_for };
+      const state = getMaintenanceDisplayStateFromIso(window, nowIso);
+      // 推奨期間前(before-window)は交換・対応を急かさないため表示しない。
+      if (state === "before-window") return [];
+
+      const copy = MAINTENANCE_DISPLAY_COPY[state];
+      return [
+        {
+          detail: row.task_rules.managed_items.name,
+          detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
+          id: row.id,
+          managedItemId: row.task_rules.managed_items.id,
+          meta: describeMaintenanceWindowFromIso(state, window),
+          title: row.task_rules.title,
+          tone: copy.tone,
+        },
+      ];
+    });
 }
 
-function createHomeSections(
-  isFilterReplacementCompleted: boolean,
-  lastActivity: { date: string; member: string },
-  scheduledFor: Date,
-  dueAt: Date,
+export function buildRecentItems(
+  rows: RecentCompletionRow[],
+  actorNames: Map<string, string>,
+): HomeItem[] {
+  return rows
+    // 完了取消(YDR-015)が実装されるまでは常にtrueだが、取消後にOccurrenceの
+    // 状態が戻った場合に「最近の実施」へ残さないための防御。
+    .filter((row) => row.task_occurrences.status === "completed")
+    .map((row) => ({
+      detail: row.task_occurrences.task_rules.managed_items.name,
+      detailHref: `/managed-items/${row.task_occurrences.task_rules.managed_items.id}`,
+      id: row.id,
+      meta: `${formatTokyoDate(row.occurred_at)} ・ ${
+        actorNames.get(row.actor_user_id) ?? FALLBACK_OTHER_MEMBER_NAME
+      }が実施`,
+      title: row.task_occurrences.task_rules.title,
+      tone: "done" as const,
+    }));
+}
+
+function buildHomeSections(
+  reminderItems: HomeItem[],
+  recentItems: HomeItem[],
 ): HomeSection[] {
-  const pending = buildFilterReplacementPendingItem(
-    isFilterReplacementCompleted,
-    scheduledFor,
-    dueAt,
-  );
+  const itemsBySectionId: Record<HomeSectionId, HomeItem[]> = {
+    overdue: [],
+    reminder: reminderItems,
+    recent: recentItems,
+    today: [],
+    upcoming: [],
+  };
 
-  return HOME_SECTIONS.map((section) => {
-    if (pending !== null && section.id === pending.sectionId) {
-      return { ...section, items: [pending.item, ...section.items] };
-    }
-
-    if (section.id === "recent" && isFilterReplacementCompleted) {
-      return {
-        ...section,
-        items: [
-          {
-            id: "cat-water-fountain-filter-latest-completion",
-            title: "猫の浄水器のフィルター交換",
-            detail: "猫の浄水器",
-            meta: `${lastActivity.date} ・ ${lastActivity.member}が実施`,
-            tone: "done",
-            detailHref: FILTER_REPLACEMENT_HREF,
-          },
-          ...section.items.filter(
-            (item) => item.detailHref !== FILTER_REPLACEMENT_HREF,
-          ),
-        ],
-      };
-    }
-
-    return section;
-  });
+  return HOME_SECTION_SKELETON.map((section) => ({
+    ...section,
+    items: itemsBySectionId[section.id],
+  }));
 }
 
-function TaskCard({
-  item,
-  onComplete,
-}: {
-  item: HomeItem;
-  onComplete?: (occurredAt: Date) => void;
-}) {
-  function handleComplete(occurredOn: string | null) {
-    onComplete?.(occurredOn === null ? new Date() : parseDateOnly(occurredOn));
+function formatHeroDate(nowIso: string): string {
+  const weekday = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: PHASE_ONE_TIME_ZONE,
+    weekday: "narrow",
+  }).format(new Date(nowIso));
+  return `${formatTokyoMonthDay(nowIso)} ${weekday}`;
+}
+
+async function loadHomeSections(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  nowIso: string,
+): Promise<HomeSection[]> {
+  const [
+    { data: occurrenceRows, error: occurrenceError },
+    { data: activityRows, error: activityError },
+  ] = await Promise.all([
+    supabase
+      .from("task_occurrences")
+      .select(
+        "id, scheduled_for, due_at, task_rules(id, title, deadline_kind, managed_items(id, name))",
+      )
+      .eq("status", "pending"),
+    supabase
+      .from("activity_logs")
+      .select(
+        "id, occurred_at, actor_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))",
+      )
+      .eq("action", "completed")
+      .order("occurred_at", { ascending: false })
+      .limit(RECENT_COMPLETIONS_LIMIT),
+  ]);
+
+  if (occurrenceError !== null || activityError !== null) {
+    throw new Error("ホームの予定を取得できませんでした。");
   }
 
+  const actorIds = [...new Set(activityRows.map((row) => row.actor_user_id))];
+  const { data: profileRows, error: profileError } =
+    actorIds.length === 0
+      ? { data: [] as { nickname: string; user_id: string }[], error: null }
+      : await supabase.from("profiles").select("user_id, nickname").in("user_id", actorIds);
+
+  if (profileError !== null) {
+    throw new Error("実施者を取得できませんでした。");
+  }
+
+  const actorNames = new Map(profileRows.map((row) => [row.user_id, row.nickname]));
+
+  return buildHomeSections(
+    buildReminderItems(occurrenceRows, nowIso),
+    buildRecentItems(activityRows, actorNames),
+  );
+}
+
+function TaskCard({ actorName, item }: { actorName: string; item: HomeItem }) {
   return (
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
       <div className="task-copy">
         <div className="task-title-row">
           <h3>
-            {item.detailHref === undefined ? (
-              item.title
-            ) : (
-              <Link href={item.detailHref}>{item.title}</Link>
-            )}
+            <Link href={item.detailHref}>{item.title}</Link>
           </h3>
           <span className={`tone-label tone-${item.tone}`}>
             {TONE_LABELS[item.tone]}
@@ -142,10 +234,11 @@ function TaskCard({
         </div>
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
-        {onComplete === undefined ? null : (
-          <CompletionPanel
-            actorName="家族A"
-            onComplete={handleComplete}
+        {item.managedItemId === undefined ? null : (
+          <CompleteTodoPanel
+            actorName={actorName}
+            managedItemId={item.managedItemId}
+            occurrenceId={item.id}
             taskTitle={item.title}
           />
         )}
@@ -154,14 +247,15 @@ function TaskCard({
   );
 }
 
-function HomeSectionView({ section }: { section: HomeSection }) {
-  const { completeFilterReplacement } = useDemoState();
-
+function HomeSectionView({
+  actorName,
+  section,
+}: {
+  actorName: string;
+  section: HomeSection;
+}) {
   return (
-    <section
-      aria-labelledby={`${section.id}-title`}
-      className="home-section"
-    >
+    <section aria-labelledby={`${section.id}-title`} className="home-section">
       <div className="section-heading">
         <div>
           <h2 id={`${section.id}-title`}>{section.title}</h2>
@@ -174,15 +268,7 @@ function HomeSectionView({ section }: { section: HomeSection }) {
 
       <div className="card-list">
         {section.items.map((item) => (
-          <TaskCard
-            item={item}
-            key={item.id}
-            onComplete={
-              item.id === FILTER_REPLACEMENT_ID
-                ? completeFilterReplacement
-                : undefined
-            }
-          />
+          <TaskCard actorName={actorName} item={item} key={item.id} />
         ))}
       </div>
     </section>
@@ -190,9 +276,11 @@ function HomeSectionView({ section }: { section: HomeSection }) {
 }
 
 function HomeHero({
+  heroDateLabel,
   openItemCount,
   overdueItemCount,
 }: {
+  heroDateLabel: string;
   openItemCount: number;
   overdueItemCount: number;
 }) {
@@ -204,7 +292,7 @@ function HomeHero({
           <h1>YAMORU</h1>
         </div>
         <div className="hero-actions">
-          <span className="date-badge">8月12日 水</span>
+          <span className="date-badge">{heroDateLabel}</span>
           <Link className="account-link" href="/managed-items">
             家の台帳
           </Link>
@@ -229,16 +317,17 @@ function HomeHero({
   );
 }
 
-export default function Home() {
-  const { dueAt, isFilterReplacementCompleted, lastActivity, scheduledFor } =
-    useDemoState();
-  const completionFeedbackRef = useCompletionFeedbackFocus(isFilterReplacementCompleted);
-  const sections = createHomeSections(
-    isFilterReplacementCompleted,
-    lastActivity,
-    scheduledFor,
-    dueAt,
-  );
+export function HomeContent({
+  actorName,
+  heroDateLabel,
+  household,
+  sections,
+}: {
+  actorName: string;
+  heroDateLabel: string;
+  household: HomeHouseholdSummary | null;
+  sections: HomeSection[];
+}) {
   const openItemCount = sections.reduce(
     (total, section) =>
       total + (OPEN_SECTION_IDS.has(section.id) ? section.items.length : 0),
@@ -246,32 +335,91 @@ export default function Home() {
   );
   const overdueItemCount =
     sections.find((section) => section.id === "overdue")?.items.length ?? 0;
+  const visibleSections = sections.filter((section) => section.items.length > 0);
 
   return (
     <main>
-      <HomeHero openItemCount={openItemCount} overdueItemCount={overdueItemCount} />
+      <HomeHero
+        heroDateLabel={heroDateLabel}
+        openItemCount={openItemCount}
+        overdueItemCount={overdueItemCount}
+      />
 
-      <div className="section-list">
-        {sections.map((section) => (
-          <HomeSectionView key={section.id} section={section} />
-        ))}
-      </div>
-
-      {isFilterReplacementCompleted ? (
-        <p
-          className="completion-feedback"
-          ref={completionFeedbackRef}
-          role="status"
-          tabIndex={-1}
-        >
-          フィルター交換を記録しました。次回の予定を更新しました。
-        </p>
-      ) : null}
+      {household === null ? (
+        <section aria-labelledby="household-required-title" className="detail-card">
+          <h2 id="household-required-title">家庭を作成してください</h2>
+          <p>ホームは家庭ごとに表示します。先にアカウント画面で家庭を作成してください。</p>
+          <Link className="ledger-primary-link" href="/account">
+            家庭を作成する
+          </Link>
+        </section>
+      ) : visibleSections.length === 0 ? (
+        <section aria-labelledby="home-empty-title" className="detail-card">
+          <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
+          <p>
+            {household.name}
+            には、まだメンテナンスTodoの記録がありません。家の台帳から管理対象を登録すると、ここに表示されます。
+          </p>
+          <Link className="ledger-primary-link" href="/managed-items">
+            家の台帳を開く
+          </Link>
+        </section>
+      ) : (
+        <div className="section-list">
+          {visibleSections.map((section) => (
+            <HomeSectionView actorName={actorName} key={section.id} section={section} />
+          ))}
+        </div>
+      )}
 
       <footer>
         <span className="footer-mark" aria-hidden="true">Y</span>
         <p>今日は、家のことが見えています。</p>
       </footer>
     </main>
+  );
+}
+
+export default async function Home() {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+  const heroDateLabel = formatHeroDate(nowIso);
+
+  const [{ data: householdData, error: householdError }, actorName] = await Promise.all([
+    supabase
+      .from("households")
+      .select("id, name")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
+  ]);
+
+  if (householdError !== null) {
+    throw new Error("家庭情報を取得できませんでした。");
+  }
+
+  const household: HomeHouseholdSummary | null = householdData;
+  if (household === null) {
+    return (
+      <HomeContent
+        actorName={actorName}
+        heroDateLabel={heroDateLabel}
+        household={null}
+        sections={[]}
+      />
+    );
+  }
+
+  const sections = await loadHomeSections(supabase, nowIso);
+
+  return (
+    <HomeContent
+      actorName={actorName}
+      heroDateLabel={heroDateLabel}
+      household={household}
+      sections={sections}
+    />
   );
 }

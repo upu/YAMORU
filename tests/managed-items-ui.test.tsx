@@ -84,6 +84,7 @@ describe("登録済みManagedItem詳細", () => {
       ],
       id: "item-1",
       kind: "pet_supplies",
+      lastActivity: null,
       name: "猫の浄水器",
       pendingTodos: [],
       recentCompletions: [],
@@ -106,6 +107,7 @@ describe("登録済みManagedItem詳細", () => {
           ...REGISTERED_ITEM,
           actorName: "家族A",
           externalLinks: [],
+          lastActivity: null,
           pendingTodos: [],
           recentCompletions: [],
         }}
@@ -122,6 +124,7 @@ describe("登録済みManagedItem詳細", () => {
           ...REGISTERED_ITEM,
           actorName: "家族A",
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
+          lastActivity: null,
           pendingTodos: [],
           recentCompletions: [],
         }}
@@ -130,5 +133,42 @@ describe("登録済みManagedItem詳細", () => {
 
     expect(screen.queryByRole("link", { name: /外部リンクを開く/ })).not.toBeInTheDocument();
     expect(screen.getByText("外部リンクは登録されていません。")).toBeInTheDocument();
+  });
+
+  it("最後にいつ・誰がを上部に表示する", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          externalLinks: [],
+          lastActivity: { actorName: "たろう", occurredAt: "2026-08-10T00:00:00.000Z" },
+          pendingTodos: [],
+          recentCompletions: [],
+        }}
+      />,
+    );
+
+    const summary = screen.getByRole("region", { name: "最後にいつ・誰が" });
+    expect(within(summary).getByText("2026年8月10日")).toBeInTheDocument();
+    expect(within(summary).getByText("たろう")).toBeInTheDocument();
+  });
+
+  it("完了の記録がない場合は最後にいつ・誰がに空状態を表示する", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          externalLinks: [],
+          lastActivity: null,
+          pendingTodos: [],
+          recentCompletions: [],
+        }}
+      />,
+    );
+
+    const summary = screen.getByRole("region", { name: "最後にいつ・誰が" });
+    expect(within(summary).getByText("まだ完了の記録はありません。")).toBeInTheDocument();
   });
 });

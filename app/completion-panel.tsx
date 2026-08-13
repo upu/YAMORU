@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-import { formatDateInput } from "./demo-state";
+import { formatDateInput } from "./time-zone";
 
 type PanelView = "closed" | "choice" | "details";
 
