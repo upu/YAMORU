@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { requireUser } from "../lib/auth/current-user";
+import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../lib/supabase/profile";
 import { createClient } from "../lib/supabase/server";
+import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
   toDeadlineKind,
@@ -19,6 +21,10 @@ export type HomeItem = {
   detail: string;
   detailHref: string;
   id: string;
+  // pending Todo(現在はreminder区分)にだけ設定する。設定されている場合、
+  // TaskCardは「やったよ」ボタン(CompleteTodoPanel)を表示する。
+  // 「最近の実施」など完了済みの項目には設定しない。
+  managedItemId?: string;
   meta: string;
   title: string;
   tone: TodoTone;
@@ -64,7 +70,6 @@ const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
 ];
 
 const RECENT_COMPLETIONS_LIMIT = 10;
-const ACTOR_FALLBACK_LABEL = "メンバー";
 
 export type PendingOccurrenceRow = {
   due_at: string;
@@ -113,6 +118,7 @@ export function buildReminderItems(
           detail: row.task_rules.managed_items.name,
           detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
           id: row.id,
+          managedItemId: row.task_rules.managed_items.id,
           meta: describeMaintenanceWindowFromIso(state, window),
           title: row.task_rules.title,
           tone: copy.tone,
@@ -134,7 +140,7 @@ export function buildRecentItems(
       detailHref: `/managed-items/${row.task_occurrences.task_rules.managed_items.id}`,
       id: row.id,
       meta: `${formatTokyoDate(row.occurred_at)} ・ ${
-        actorNames.get(row.actor_user_id) ?? ACTOR_FALLBACK_LABEL
+        actorNames.get(row.actor_user_id) ?? FALLBACK_OTHER_MEMBER_NAME
       }が実施`,
       title: row.task_occurrences.task_rules.title,
       tone: "done" as const,
@@ -213,7 +219,7 @@ async function loadHomeSections(
   );
 }
 
-function TaskCard({ item }: { item: HomeItem }) {
+function TaskCard({ actorName, item }: { actorName: string; item: HomeItem }) {
   return (
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
@@ -228,12 +234,26 @@ function TaskCard({ item }: { item: HomeItem }) {
         </div>
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
+        {item.managedItemId === undefined ? null : (
+          <CompleteTodoPanel
+            actorName={actorName}
+            managedItemId={item.managedItemId}
+            occurrenceId={item.id}
+            taskTitle={item.title}
+          />
+        )}
       </div>
     </article>
   );
 }
 
-function HomeSectionView({ section }: { section: HomeSection }) {
+function HomeSectionView({
+  actorName,
+  section,
+}: {
+  actorName: string;
+  section: HomeSection;
+}) {
   return (
     <section aria-labelledby={`${section.id}-title`} className="home-section">
       <div className="section-heading">
@@ -248,7 +268,7 @@ function HomeSectionView({ section }: { section: HomeSection }) {
 
       <div className="card-list">
         {section.items.map((item) => (
-          <TaskCard item={item} key={item.id} />
+          <TaskCard actorName={actorName} item={item} key={item.id} />
         ))}
       </div>
     </section>
@@ -298,10 +318,12 @@ function HomeHero({
 }
 
 export function HomeContent({
+  actorName,
   heroDateLabel,
   household,
   sections,
 }: {
+  actorName: string;
   heroDateLabel: string;
   household: HomeHouseholdSummary | null;
   sections: HomeSection[];
@@ -345,7 +367,7 @@ export function HomeContent({
       ) : (
         <div className="section-list">
           {visibleSections.map((section) => (
-            <HomeSectionView key={section.id} section={section} />
+            <HomeSectionView actorName={actorName} key={section.id} section={section} />
           ))}
         </div>
       )}
@@ -359,17 +381,20 @@ export function HomeContent({
 }
 
 export default async function Home() {
-  await requireUser();
+  const user = await requireUser();
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const heroDateLabel = formatHeroDate(nowIso);
 
-  const { data: householdData, error: householdError } = await supabase
-    .from("households")
-    .select("id, name")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: householdData, error: householdError }, actorName] = await Promise.all([
+    supabase
+      .from("households")
+      .select("id, name")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
+  ]);
 
   if (householdError !== null) {
     throw new Error("家庭情報を取得できませんでした。");
@@ -378,7 +403,12 @@ export default async function Home() {
   const household: HomeHouseholdSummary | null = householdData;
   if (household === null) {
     return (
-      <HomeContent heroDateLabel={heroDateLabel} household={null} sections={[]} />
+      <HomeContent
+        actorName={actorName}
+        heroDateLabel={heroDateLabel}
+        household={null}
+        sections={[]}
+      />
     );
   }
 
@@ -386,6 +416,7 @@ export default async function Home() {
 
   return (
     <HomeContent
+      actorName={actorName}
       heroDateLabel={heroDateLabel}
       household={household}
       sections={sections}

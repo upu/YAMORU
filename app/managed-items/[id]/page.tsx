@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
+import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../../../lib/supabase/profile";
 import { createClient } from "../../../lib/supabase/server";
 import {
   isSafeExternalUrl,
@@ -303,26 +304,6 @@ export function ManagedItemDetailContent({
   );
 }
 
-const FALLBACK_ACTOR_NAME = "あなた";
-// 「最後にいつ・誰が」は操作した本人とは限らない(Issue #36)ため、
-// 現在の利用者向けの「あなた」ではなく中立的なフォールバックを使う。
-const FALLBACK_OTHER_MEMBER_NAME = "メンバー";
-
-async function loadActorName(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  fallback: string,
-): Promise<string> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("nickname")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error !== null || data === null) return fallback;
-  return data.nickname;
-}
-
 export default async function RegisteredManagedItemDetail({
   params,
 }: {
@@ -340,7 +321,7 @@ export default async function RegisteredManagedItemDetail({
       )
       .eq("id", id)
       .maybeSingle(),
-    loadActorName(supabase, user.id, FALLBACK_ACTOR_NAME),
+    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
   ]);
 
   if (error !== null) {

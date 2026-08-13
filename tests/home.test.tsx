@@ -1,7 +1,15 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const { completeMaintenanceTaskMock } = vi.hoisted(() => ({
+  completeMaintenanceTaskMock: vi.fn(),
+}));
+
+vi.mock("../app/managed-items/[id]/actions", () => ({
+  completeMaintenanceTask: completeMaintenanceTaskMock,
+}));
 
 import {
   buildReminderItems,
@@ -12,9 +20,14 @@ import {
   type RecentCompletionRow,
 } from "../app/page";
 
-afterEach(cleanup);
-
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
+const ACTOR_NAME = "ぽっぷ";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(cleanup);
 
 function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection["items"]>> = {}): HomeSection[] {
   return [
@@ -26,11 +39,20 @@ function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection[
   ];
 }
 
+function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null = HOUSEHOLD) {
+  return render(
+    <HomeContent
+      actorName={ACTOR_NAME}
+      heroDateLabel="8月13日 木"
+      household={household}
+      sections={sections}
+    />,
+  );
+}
+
 describe("ホーム画面(HomeContent)", () => {
   it("YAMORUの名前・タグライン・現在日付を表示する", () => {
-    render(
-      <HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={emptySections()} />,
-    );
+    renderHome(emptySections());
 
     expect(screen.getByRole("heading", { level: 1, name: "YAMORU" })).toBeInTheDocument();
     expect(screen.getByText("暮らしの「いつだっけ？」をなくす。")).toBeInTheDocument();
@@ -38,9 +60,7 @@ describe("ホーム画面(HomeContent)", () => {
   });
 
   it("右上からアカウント画面へ移動できる", () => {
-    render(
-      <HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={emptySections()} />,
-    );
+    renderHome(emptySections());
 
     const header = screen.getByRole("banner");
     expect(
@@ -49,7 +69,7 @@ describe("ホーム画面(HomeContent)", () => {
   });
 
   it("家庭未所属の利用者には家庭作成を案内する", () => {
-    render(<HomeContent heroDateLabel="8月13日 木" household={null} sections={[]} />);
+    renderHome([], null);
 
     expect(
       screen.getByRole("heading", { name: "家庭を作成してください" }),
@@ -61,9 +81,7 @@ describe("ホーム画面(HomeContent)", () => {
   });
 
   it("家庭は存在するが表示できるTodo・履歴が0件のときは空状態と登録導線を表示する", () => {
-    render(
-      <HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={emptySections()} />,
-    );
+    renderHome(emptySections());
 
     expect(
       screen.getByRole("heading", { name: "まだ表示できる予定がありません" }),
@@ -82,13 +100,14 @@ describe("ホーム画面(HomeContent)", () => {
           detail: "猫の浄水器",
           detailHref: "/managed-items/item-1",
           id: "occurrence-1",
+          managedItemId: "item-1",
           meta: "9月4日までが推奨期間です",
           title: "フィルター交換",
           tone: "reminder",
         },
       ],
     });
-    render(<HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={sections} />);
+    renderHome(sections);
 
     expect(screen.getByRole("region", { name: "そろそろ" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "期限切れ" })).not.toBeInTheDocument();
@@ -104,13 +123,14 @@ describe("ホーム画面(HomeContent)", () => {
           detail: "猫の浄水器",
           detailHref: "/managed-items/item-1",
           id: "occurrence-1",
+          managedItemId: "item-1",
           meta: "9月4日までが推奨期間です",
           title: "猫の浄水器のフィルター交換",
           tone: "reminder",
         },
       ],
     });
-    render(<HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={sections} />);
+    renderHome(sections);
 
     const reminderSection = screen.getByRole("region", { name: "そろそろ" });
     const link = within(reminderSection).getByRole("link", {
@@ -122,7 +142,47 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件が期限切れ");
   });
 
-  it("最近の実施区分に実施日と実施者名を表示する", () => {
+  it("そろそろ区分のTodoに「やったよ」ボタンを表示し、押すとそのOccurrenceを完了操作する", () => {
+    const sections = emptySections({
+      reminder: [
+        {
+          detail: "猫の浄水器",
+          detailHref: "/managed-items/item-1",
+          id: "occurrence-1",
+          managedItemId: "item-1",
+          meta: "9月4日までが推奨期間です",
+          title: "猫の浄水器のフィルター交換",
+          tone: "reminder",
+        },
+      ],
+    });
+    completeMaintenanceTaskMock.mockResolvedValue({
+      message: "完了を記録しました。",
+      status: "success",
+    });
+    renderHome(sections);
+
+    const reminderSection = screen.getByRole("region", { name: "そろそろ" });
+    const completeButton = within(reminderSection).getByRole("button", {
+      name: "猫の浄水器のフィルター交換を記録",
+    });
+    fireEvent.click(completeButton);
+    expect(within(reminderSection).getByText(`現在の日付・${ACTOR_NAME}で記録`)).toBeInTheDocument();
+
+    fireEvent.click(
+      within(reminderSection).getByRole("button", { name: "今、自分がやった" }),
+    );
+
+    expect(completeMaintenanceTaskMock).toHaveBeenCalledTimes(1);
+    const [managedItemId, occurrenceId] = completeMaintenanceTaskMock.mock.calls[0] as [
+      string,
+      string,
+    ];
+    expect(managedItemId).toBe("item-1");
+    expect(occurrenceId).toBe("occurrence-1");
+  });
+
+  it("最近の実施区分に実施日と実施者名を表示し、「やったよ」ボタンは表示しない", () => {
     const sections = emptySections({
       recent: [
         {
@@ -135,10 +195,11 @@ describe("ホーム画面(HomeContent)", () => {
         },
       ],
     });
-    render(<HomeContent heroDateLabel="8月13日 木" household={HOUSEHOLD} sections={sections} />);
+    renderHome(sections);
 
     const recentSection = screen.getByRole("region", { name: "最近の実施" });
     expect(within(recentSection).getByText("8月10日 ・ たろうが実施")).toBeInTheDocument();
+    expect(within(recentSection).queryByRole("button")).not.toBeInTheDocument();
     // 完了済みは対応状況の「件の予定」には数えない。
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件の予定");
   });
@@ -164,12 +225,13 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
     expect(items).toHaveLength(0);
   });
 
-  it("推奨期間内はreminderトーンで推奨期間の上限を案内する", () => {
+  it("推奨期間内はreminderトーンで推奨期間の上限を案内し、完了操作用のmanagedItemIdを持つ", () => {
     const items = buildReminderItems([pendingRow()], "2026-08-12T00:00:00.000Z");
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       detail: "猫の浄水器",
       detailHref: "/managed-items/item-1",
+      managedItemId: "item-1",
       title: "フィルター交換",
       tone: "reminder",
     });
@@ -221,7 +283,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     };
   }
 
-  it("実施者名をactorNamesから解決して表示する", () => {
+  it("実施者名をactorNamesから解決して表示し、managedItemIdは持たない(完了操作の対象外)", () => {
     const items = buildRecentItems(
       [completionRow()],
       new Map([["user-1", "たろう"]]),
@@ -229,6 +291,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     expect(items).toHaveLength(1);
     expect(items[0].meta).toContain("たろうが実施");
     expect(items[0].tone).toBe("done");
+    expect(items[0].managedItemId).toBeUndefined();
   });
 
   it("実施者名が解決できない場合はフォールバック表示にする", () => {
