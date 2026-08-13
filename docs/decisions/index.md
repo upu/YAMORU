@@ -30,6 +30,7 @@
 | YDR-016 | 「回ごとに残す」方式の導入時に過去分を自動生成しない | Accepted | [ydr-016-no-backfill-on-per-occurrence-mode.md](ydr-016-no-backfill-on-per-occurrence-mode.md) |
 | YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Accepted | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
 | YDR-018 | アカウント単位のニックネームを家庭内Member表示名と同一概念として扱う | Accepted | [ydr-018-account-nickname-as-member-display-name.md](ydr-018-account-nickname-as-member-display-name.md) |
+| YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Accepted | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
 
 ## 新しい意思決定の追加
 
