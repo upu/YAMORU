@@ -67,7 +67,7 @@ describe("RefreshOnVisible", () => {
   it("クールダウン時間内の重複イベントでは連続取得しない", () => {
     render(<RefreshOnVisible cooldownMs={2000} />);
 
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(0);
+    const nowSpy = vi.spyOn(performance, "now").mockReturnValue(0);
 
     window.dispatchEvent(new Event("focus"));
     document.dispatchEvent(new Event("visibilitychange"));
@@ -83,6 +83,28 @@ describe("RefreshOnVisible", () => {
     expect(refreshMock).toHaveBeenCalledTimes(2);
 
     nowSpy.mockRestore();
+  });
+
+  it("システム時計(Date.now)が巻き戻ってもクールダウン判定に影響しない(performance.nowは単調増加)", () => {
+    render(<RefreshOnVisible cooldownMs={2000} />);
+
+    const perfSpy = vi.spyOn(performance, "now").mockReturnValue(10_000);
+    // NTP補正などでシステム時計が巻き戻る状況を模す。クールダウン判定が
+    // Date.now()に依存していれば、この巻き戻りだけで負の差分が生じ、
+    // 以降の正当な再取得が抑止され続けてしまう。
+    const dateSpy = vi.spyOn(Date, "now").mockReturnValue(10_000);
+
+    window.dispatchEvent(new Event("focus"));
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    dateSpy.mockReturnValue(0);
+    perfSpy.mockReturnValue(12_500);
+
+    window.dispatchEvent(new Event("focus"));
+    expect(refreshMock).toHaveBeenCalledTimes(2);
+
+    perfSpy.mockRestore();
+    dateSpy.mockRestore();
   });
 
   it("アンマウント後はイベントに反応しない", () => {

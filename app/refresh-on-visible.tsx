@@ -24,7 +24,10 @@ export function RefreshOnVisible({
 
   useEffect(() => {
     function refreshIfDue() {
-      const now = Date.now();
+      // Date.now()はシステム時計に追従するため、時計合わせ等で巻き戻ると
+      // 差分が負になり正当な再取得まで抑止され続ける。performance.now()は
+      // 単調増加でシステム時計の変更に影響されないため、こちらを使う。
+      const now = performance.now();
       if (now - lastRefreshAtRef.current < cooldownMs) return;
       lastRefreshAtRef.current = now;
       router.refresh();
