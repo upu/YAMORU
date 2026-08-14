@@ -212,6 +212,53 @@ export async function completeMaintenanceTask(
   };
 }
 
+const ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT = "Assignee not found";
+
+// Issue #72: pendingなOccurrenceの担当者を設定・解除する。assigneeUserIdが
+// nullの場合は「誰でも可」へ解除する。scheduled_for, due_at, status, 次回
+// Occurrenceの生成は行わない(set_task_occurrence_assignee RPCの契約、YDR-020)。
+export async function setTaskOccurrenceAssignee(
+  managedItemId: string,
+  occurrenceId: string,
+  assigneeUserId: string | null,
+): Promise<MaintenanceTodoActionState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_task_occurrence_assignee", {
+    occurrence_id: occurrenceId,
+    // assigneeUserIdがnull(解除)の場合はキー自体を省略する。RPC側の
+    // default nullが同じ意味になり、生成された型はnull非許容のため
+    // (complete_maintenance_taskのoccurred_atと同じ回避方法)。
+    ...(assigneeUserId === null ? {} : { new_assignee_user_id: assigneeUserId }),
+  });
+
+  if (error !== null) {
+    if (error.message.includes(ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT)) {
+      return {
+        message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
+      return {
+        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+        status: "error",
+      };
+    }
+    return {
+      message: "担当を変更できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    };
+  }
+
+  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  // ホーム(Issue #36)も同じTodoの担当を表示するため、ここで再検証する。
+  revalidatePath("/");
+  return {
+    message: "担当を変更しました。",
+    status: "success",
+  };
+}
+
 const NOT_COMPLETED_MESSAGE_FRAGMENT = "is not completed";
 const NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT = "Next occurrence has been modified";
 

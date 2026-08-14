@@ -85,6 +85,7 @@ describe("登録済みManagedItem詳細", () => {
       id: "item-1",
       kind: "pet_supplies",
       lastActivity: null,
+      members: [],
       name: "猫の浄水器",
       pendingTodos: [],
       recentCompletions: [],
@@ -108,6 +109,7 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           externalLinks: [],
           lastActivity: null,
+          members: [],
           pendingTodos: [],
           recentCompletions: [],
         }}
@@ -125,6 +127,7 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
           lastActivity: null,
+          members: [],
           pendingTodos: [],
           recentCompletions: [],
         }}
@@ -143,6 +146,7 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           externalLinks: [],
           lastActivity: { actorName: "たろう", occurredAt: "2026-08-10T00:00:00.000Z" },
+          members: [],
           pendingTodos: [],
           recentCompletions: [],
         }}
@@ -162,6 +166,7 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           externalLinks: [],
           lastActivity: null,
+          members: [],
           pendingTodos: [],
           recentCompletions: [],
         }}

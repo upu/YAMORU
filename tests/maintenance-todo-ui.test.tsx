@@ -16,9 +16,11 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   id: "item-1",
   kind: "pet_supplies",
   lastActivity: null,
+  members: [],
   name: "猫の浄水器",
   pendingTodos: [
     {
+      assigneeUserId: null,
       badge: "そろそろ",
       dueAt: "2026-11-05T15:00:00.000Z",
       id: "occurrence-1",

@@ -48,8 +48,10 @@ export type Database = {
           household_id: string
           id: string
           idempotency_key: string | null
+          new_assignee_user_id: string | null
           next_task_occurrence_id: string | null
           occurred_at: string
+          previous_assignee_user_id: string | null
           recorded_at: string
           task_occurrence_id: string
         }
@@ -59,8 +61,10 @@ export type Database = {
           household_id: string
           id?: string
           idempotency_key?: string | null
+          new_assignee_user_id?: string | null
           next_task_occurrence_id?: string | null
           occurred_at: string
+          previous_assignee_user_id?: string | null
           recorded_at?: string
           task_occurrence_id: string
         }
@@ -70,8 +74,10 @@ export type Database = {
           household_id?: string
           id?: string
           idempotency_key?: string | null
+          new_assignee_user_id?: string | null
           next_task_occurrence_id?: string | null
           occurred_at?: string
+          previous_assignee_user_id?: string | null
           recorded_at?: string
           task_occurrence_id?: string
         }
@@ -91,6 +97,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_new_assignee_household_fkey"
+            columns: ["household_id", "new_assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["household_id", "user_id"]
+          },
+          {
             foreignKeyName: "activity_logs_next_task_occurrence_id_fkey"
             columns: ["next_task_occurrence_id"]
             isOneToOne: false
@@ -103,6 +116,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "task_occurrences"
             referencedColumns: ["id", "household_id"]
+          },
+          {
+            foreignKeyName: "activity_logs_previous_assignee_household_fkey"
+            columns: ["household_id", "previous_assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["household_id", "user_id"]
           },
         ]
       }
@@ -363,6 +383,7 @@ export type Database = {
       }
       task_occurrences: {
         Row: {
+          assignee_user_id: string | null
           created_at: string
           due_at: string
           household_id: string
@@ -372,6 +393,7 @@ export type Database = {
           task_rule_id: string
         }
         Insert: {
+          assignee_user_id?: string | null
           created_at?: string
           due_at: string
           household_id: string
@@ -381,6 +403,7 @@ export type Database = {
           task_rule_id: string
         }
         Update: {
+          assignee_user_id?: string | null
           created_at?: string
           due_at?: string
           household_id?: string
@@ -390,6 +413,13 @@ export type Database = {
           task_rule_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_occurrences_assignee_household_fkey"
+            columns: ["household_id", "assignee_user_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["household_id", "user_id"]
+          },
           {
             foreignKeyName: "task_occurrences_household_id_fkey"
             columns: ["household_id"]
@@ -551,6 +581,10 @@ export type Database = {
           claim_secret: string
           expires_at: string
         }[]
+      }
+      set_task_occurrence_assignee: {
+        Args: { new_assignee_user_id?: string; occurrence_id: string }
+        Returns: undefined
       }
       undo_maintenance_task_completion: {
         Args: { idempotency_key: string; occurrence_id: string }
