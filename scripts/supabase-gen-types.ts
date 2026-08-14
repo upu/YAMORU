@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runSupabase, writeDerivedConfig } from "./supabase-cli.ts";
+import { runSupabase, startSupabase, writeDerivedConfig } from "./supabase-cli.ts";
 import { syncMigrationsInto } from "./supabase-env-sync.ts";
 
 // supabase/migrations/の累積結果からTypeScript型を生成する(Issue #45)。
@@ -47,7 +47,7 @@ function generateFromDisposableStack(): string {
   syncMigrationsInto(join(workdir(), "supabase"));
 
   console.log("型生成用の使い捨てスタックを起動します(migrationsのみ適用)...");
-  runSupabase(["start"], { workdir: workdir() });
+  startSupabase(workdir());
 
   try {
     const generated = runSupabase(["gen", "types", "typescript", "--local"], {

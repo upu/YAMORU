@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { runSupabase, writeDerivedConfig } from "./supabase-cli.ts";
+import { runSupabase, startSupabase, writeDerivedConfig } from "./supabase-cli.ts";
 import { syncMigrationsInto } from "./supabase-env-sync.ts";
 
 // public スキーマ上の現在有効なRLSポリシー一覧を、pg_policyと`comment on policy`
@@ -129,7 +129,7 @@ function queryPolicies(): PolicyRow[] {
   syncMigrationsInto(join(workdir(), "supabase"));
 
   console.log("RLSポリシーカタログ用の使い捨てスタックを起動します(migrationsのみ適用)...");
-  runSupabase(["start"], { workdir: workdir() });
+  startSupabase(workdir());
 
   try {
     const output = execFileSync(

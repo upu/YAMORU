@@ -43,6 +43,38 @@ function readEnvValue(output: string, name: string): string {
   return value;
 }
 
+const START_MAX_ATTEMPTS = 3;
+const START_RETRY_DELAY_MS = 3000;
+
+// Node標準APIだけで完結する同期スリープ。execFileSyncベースの本ファイルの
+// スタイルに合わせ、この関数だけのためにasync/awaitへ書き換えない
+// (OS依存のsleepコマンドを呼ぶより、Windows/Linux両方で同じ挙動になる)。
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// `supabase start`は、直前のコンテナのポート開放がまだ終わっていない状態で
+// 次のバインドが走ると「address already in use」で失敗することがある
+// (GitHub Actionsのホスト型ランナーで実際に観測。Issue #86関連調査)。原因を
+// 問わず起動失敗全般を対象に、短い待機を挟んで数回まで自動再試行する。
+// CI(型生成・RLSポリシーカタログ生成)・ローカルのprod/test起動・バックアップ
+// 復元検証など、スタックを起動するすべての経路がこの関数を通る想定。
+export function startSupabase(workdir: string): void {
+  for (let attempt = 1; attempt <= START_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      runSupabase(["start"], { workdir });
+      return;
+    } catch (error) {
+      if (attempt === START_MAX_ATTEMPTS) throw error;
+      console.error(
+        `supabase startに失敗しました(${String(attempt)}/${String(START_MAX_ATTEMPTS)}回目)。` +
+          `${String(START_RETRY_DELAY_MS / 1000)}秒待ってから再試行します。`,
+      );
+      sleepSync(START_RETRY_DELAY_MS);
+    }
+  }
+}
+
 export function getStatusEnv(workdir: string): {
   publishableKey: string;
   serviceRoleKey: string;
