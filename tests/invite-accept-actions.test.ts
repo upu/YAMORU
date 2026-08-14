@@ -142,14 +142,15 @@ describe("招待claim受諾操作", () => {
     expect(deleteMock).toHaveBeenCalled();
   });
 
-  it("予期しないRPCエラーも共通エラーとして扱う", async () => {
+  it("予期しないRPCエラーは招待の無効扱いに畳み込まず、cookieを残したまま例外にする", async () => {
     const { deleteMock, store } = cookieStore("claim-secret-value");
     cookiesMock.mockResolvedValue(store);
     rpcMock.mockResolvedValue({ data: null, error: new Error("unexpected failure") });
 
-    const result = await acceptInvitationClaim();
-
-    expect(result).toEqual({ kind: "invalid", status: "error" });
-    expect(deleteMock).toHaveBeenCalled();
+    // DB接続断などの内部エラーを「この招待は無効」と偽って表示すると、
+    // 一時的な障害で利用者の再試行手段(cookie)を失わせてしまうため、
+    // 例外として伝播させ、cookieは消費しない(Codexレビュー指摘)。
+    await expect(acceptInvitationClaim()).rejects.toThrow();
+    expect(deleteMock).not.toHaveBeenCalled();
   });
 });

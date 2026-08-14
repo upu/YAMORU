@@ -16,7 +16,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(92);
+select plan(94);
 
 -- ---------------------------------------------------------------------------
 -- invitation_pending_claims: スキーマ、RLS、権限の最小性
@@ -957,6 +957,24 @@ select is(
   'レート制限された交換試行はpending_claims行を作らない(招待やclaim状態を変更しない)'
 );
 
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_exchange'
+      and actor = 'exchange-rate-limit-test-ip'
+      and token_fingerprint = pg_catalog.encode(
+        extensions.digest(
+          pg_catalog.convert_to('this-token-matches-nothing-for-exchange-rate-limit-test', 'UTF8'),
+          'sha256'
+        ),
+        'hex'
+      )
+  ),
+  21::bigint,
+  '交換イベントには生トークンではなく非可逆fingerprintが記録される(Codexレビュー指摘の回帰確認)'
+);
+
 -- ---------------------------------------------------------------------------
 -- 認証済み利用者単位の受諾失敗回数制限(初期値5回・15分、Issue #70)。
 -- 制限中はmembership・invitation・claimの状態を一切変更せず、共通エラーと
@@ -1022,6 +1040,61 @@ select is(
   ),
   0::bigint,
   'レート制限中の受諾試行はmembershipを作らない'
+);
+
+-- ---------------------------------------------------------------------------
+-- レート制限時のresult_codeは、制限がなかった場合と同じ分岐になる(Codex
+-- レビューで指摘・修正した回帰の確認)。既に別家庭(家庭B)に所属する専用の
+-- fixture利用者(b1002、このセクション以外では使わない)を使い、5回の失敗で
+-- 制限に達しても、6回目もcross_householdのままでinvalidへすり替わらない
+-- ことを確認する(すり替わるとレート制限の発火が外部から見分けられ、
+-- YDR-019の無区別原則に反する)。
+-- ---------------------------------------------------------------------------
+insert into auth.users (
+  instance_id, id, aud, role, email,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-0000000b1002',
+  'authenticated',
+  'authenticated',
+  'household-b-member2-rate-limit-test@example.test',
+  now(),
+  now(),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{}'
+);
+
+insert into public.household_members (household_id, user_id)
+values ('00000000-0000-0000-0000-00000000b001', '00000000-0000-0000-0000-0000000b1002');
+
+set local role service_role;
+
+do $$
+begin
+  for attempt_number in 1..5 loop
+    perform 1 from public.accept_household_invitation_by_claim(
+      '00000000-0000-0000-0000-0000000b1002'::uuid,
+      'this-claim-secret-does-not-exist-for-b1002-' || attempt_number
+    );
+  end loop;
+end;
+$$;
+
+create temporary table accept_b1002_after_rate_limit as
+select * from public.accept_household_invitation_by_claim(
+  '00000000-0000-0000-0000-0000000b1002'::uuid,
+  'this-claim-secret-does-not-exist-for-b1002-final'
+);
+
+reset role;
+
+select results_eq(
+  $$ select result_code from accept_b1002_after_rate_limit $$,
+  $$ values ('cross_household'::text) $$,
+  '既に別家庭に所属する利用者は、レート制限時もcross_householdのまま(invalidへすり替わらない)'
 );
 
 select * from finish();

@@ -58,6 +58,13 @@ comment on column public.security_events.token_fingerprint is
 create index security_events_lookup_idx
   on public.security_events (event_type, actor, occurred_at);
 
+-- _security_event_log内の保持期間削除(occurred_atだけを条件にする)を
+-- 支える。上のlookup_idxはevent_type/actorを先頭に持つため、この削除には使えない
+-- (Codexレビュー指摘: 削除のたびに全件スキャンになり、ログが増えるほど
+-- すべての招待リクエストが重くなる)。
+create index security_events_occurred_at_idx
+  on public.security_events (occurred_at);
+
 alter table public.security_events enable row level security;
 alter table public.security_events force row level security;
 
@@ -70,14 +77,21 @@ revoke all on table public.security_events from public, anon, authenticated, ser
 -- SECURITY DEFINER関数の内部から所有者(postgres)権限で呼ばれる前提の実装詳細。
 -- ---------------------------------------------------------------------------
 
--- 直近ウィンドウ内の試行件数を返す。同一(event_type, actor)の並行呼び出しは
--- トランザクションスコープのadvisory lockで直列化し、カウントと直後の記録
--- (呼び出し元が続けて行う_security_event_log)の間の競合を防ぐ
--- (Issue #70受け入れ基準「並行試行を含むDB境界」)。
+-- 直近ウィンドウ内で、p_resultsに含まれるresultを持つ件数を返す。同一
+-- (event_type, actor)の並行呼び出しはトランザクションスコープのadvisory lockで
+-- 直列化し、カウントと直後の記録(呼び出し元が続けて行う_security_event_log)の
+-- 間の競合を防ぐ(Issue #70受け入れ基準「並行試行を含むDB境界」)。
+--
+-- p_resultsで対象を絞る理由(Codexレビュー指摘): 制限を超えて拒否された
+-- 試行はresult='rate_limited'として記録されるが、これも無条件にカウントへ
+-- 含めると、制限中に繰り返し呼ばれるたびにウィンドウが実質的に延長され続け、
+-- 元のウィンドップが過ぎても制限が解除されない。呼び出し側は、実際に制限
+-- 対象としたい種別(交換なら'attempt'、受諾なら'failure')だけを渡す。
 create or replace function public._security_event_recent_count(
   p_event_type text,
   p_actor text,
-  p_window interval
+  p_window interval,
+  p_results text[]
 ) returns integer
 language plpgsql
 security definer
@@ -95,14 +109,15 @@ begin
     from public.security_events event
    where event.event_type = p_event_type
      and event.actor = p_actor
+     and event.result = any (p_results)
      and event.occurred_at > pg_catalog.statement_timestamp() - p_window;
 
   return recent_count;
 end;
 $$;
 
-alter function public._security_event_recent_count(text, text, interval) owner to postgres;
-revoke all on function public._security_event_recent_count(text, text, interval)
+alter function public._security_event_recent_count(text, text, interval, text[]) owner to postgres;
+revoke all on function public._security_event_recent_count(text, text, interval, text[])
   from public, anon, authenticated, service_role;
 
 -- セキュリティログを1件記録する。呼び出し側(このマイグレーションの2関数)は
@@ -176,18 +191,31 @@ declare
   recent_attempts integer;
   exchange_limit_count constant integer := 20;
   exchange_window constant interval := interval '10 minutes';
+  -- 生トークンは保持しないが、同一トークンへの繰り返し試行をログ上で相関
+  -- できるよう非可逆fingerprintだけを残す(Issue #70受け入れ基準、
+  -- Codexレビュー指摘: 交換イベントのtoken_fingerprintが常にnullだった)。
+  token_fingerprint text := pg_catalog.encode(
+    extensions.digest(pg_catalog.convert_to(invitation_token, 'UTF8'), 'sha256'), 'hex'
+  );
 begin
+  -- 'rate_limited'自体はここでカウントしない(Codexレビュー指摘: 含めると
+  -- 制限中の再試行のたびにウィンドウが延長され、ロックアウトが際限なく
+  -- 続いてしまう)。実際に処理を進めた'attempt'だけを対象にする。
   recent_attempts := public._security_event_recent_count(
-    'invitation_exchange', p_client_ip, exchange_window
+    'invitation_exchange', p_client_ip, exchange_window, array['attempt']
   );
 
   if recent_attempts >= exchange_limit_count then
-    perform public._security_event_log('invitation_exchange', p_client_ip, 'rate_limited', null);
+    perform public._security_event_log(
+      'invitation_exchange', p_client_ip, 'rate_limited', token_fingerprint
+    );
     return query select new_claim_secret, public_expires_at;
     return;
   end if;
 
-  perform public._security_event_log('invitation_exchange', p_client_ip, 'attempt', null);
+  perform public._security_event_log(
+    'invitation_exchange', p_client_ip, 'attempt', token_fingerprint
+  );
 
   select invitation.*
     into matched_invitation
@@ -287,26 +315,47 @@ begin
   -- 認証済み利用者単位の受諾失敗を制限する(YDR-019, Issue #70)。無効なトークン
   -- の試行だけを対象にすると制限の発火自体がオラクルになるため、有効な
   -- トークンによる失敗(別家庭所属など)も同じ制限対象に含める(下の各分岐で
-  -- 一律にfailureを記録する)。制限中はmembership・invitation・claimの状態を
-  -- 一切確認・変更せず、下の共通エラーと区別できない結果を返す。
+  -- 一律にfailureを記録する)。カウント対象はresult='failure'だけに絞る
+  -- (Codexレビュー指摘: 'success'や'rate_limited'まで数えると、成功後すぐに
+  -- 制限に達したり、制限中の再試行でロックアウトが延長され続けたりする)。
+  --
+  -- 既存membershipの有無は、この呼び出し(内部でp_user_id単位のadvisory lock
+  -- を取る)の直後に確定させる(順序が重要: 同一利用者の同時受諾レースでは、
+  -- 先行トランザクションがadvisory lockを保持したままcommitまで進むため、
+  -- 後続トランザクションはlock待ちで先行側のcommit後まで止まる。ここより
+  -- 前でexisting_household_idを読むと、後続側は先行側のmembership作成を
+  -- 見落とした古い値のまま以降の分岐(下の「一人一家庭制約下」判定と
+  -- 制限時の分岐の両方)を評価してしまい、cross_householdになるべき結果が
+  -- invalidへ誤って倒れる。読む位置を安易に早めないこと)。
   recent_failures := public._security_event_recent_count(
-    'invitation_accept', p_user_id::text, accept_window
+    'invitation_accept', p_user_id::text, accept_window, array['failure']
   );
 
-  if recent_failures >= accept_limit_count then
-    perform public._security_event_log(
-      'invitation_accept', p_user_id::text, 'rate_limited', claim_fingerprint
-    );
-    return query select 'invalid'::text, null::uuid, null::boolean;
-    return;
-  end if;
-
-  -- 既存membershipの有無を先に確定する(以後の分岐は常にこの値を参照する)。
+  -- 以後の分岐は常にこの値を参照する。advisory lockの直後に読むため、
+  -- 同時受諾レースの先行側がcommitした結果を後続側が正しく観測できる
+  -- (上のコメント参照)。
   select member.household_id
     into existing_household_id
     from public.household_members member
    where member.user_id = p_user_id
    for update;
+
+  if recent_failures >= accept_limit_count then
+    perform public._security_event_log(
+      'invitation_accept', p_user_id::text, 'rate_limited', claim_fingerprint
+    );
+    -- 制限時も、制限がなかった場合に返るはずの結果コードと同じ分岐にする
+    -- (Codexレビュー指摘: 常に'invalid'を返すと、既に別家庭に所属する利用者
+    -- だけ6回目で応答が変わり、レート制限の発火が外部から見分けられてしまう。
+    -- YDR-019「レート制限に達した場合の応答も、共通エラーと区別できない
+    -- 形にする」に反するため、下の通常の失敗分岐と同じ判定を使う)。
+    if existing_household_id is not null then
+      return query select 'cross_household'::text, null::uuid, null::boolean;
+    else
+      return query select 'invalid'::text, null::uuid, null::boolean;
+    end if;
+    return;
+  end if;
 
   -- claimとその招待の現在の有効性を、受諾時点で改めて検証する(交換後の失効・
   -- 別セッションによる先行受諾との競合はここで共通エラーへ畳み込む)。

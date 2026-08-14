@@ -35,13 +35,24 @@ export async function acceptInvitationClaim(): Promise<AcceptInvitationState> {
     claim_secret: claimSecret,
   });
 
-  // 成功・失敗いずれの結果でも、この画面での受諾試行は一度きりとして扱い、
-  // claim cookieを使い切る(YDR-019「単回使用」の趣旨。DB側のclaim自体は
-  // 受諾成立時だけ消費済みになるが、cookie側は再提示を防ぐ)。
+  // RPC自体が失敗するのは、DB接続断や想定外のトリガー失敗など、招待の状態とは
+  // 無関係な内部エラーの場合だけである(有効・無効・レート制限などのドメイン
+  // 結果はすべてresult_codeとして正常応答で返る、DB側マイグレーションのコメント
+  // 参照)。ここでcookieを消費して共通エラーへ畳み込むと、一時的な障害を
+  // 「この招待は無効」と表示したまま利用者の再試行手段(cookie)を失わせて
+  // しまう(Codexレビュー指摘)ため、cookieを残したまま例外として伝播させる。
+  if (error !== null) {
+    throw new Error("招待の受諾に失敗しました。時間をおいて再試行してください。");
+  }
+
+  // ここから先はドメイン結果(result_code)が確定しているため、この画面での
+  // 受諾試行は一度きりとして扱い、claim cookieを使い切る(YDR-019「単回使用」
+  // の趣旨。DB側のclaim自体は受諾成立時だけ消費済みになるが、cookie側は
+  // 再提示を防ぐ)。
   cookieStore.delete({ name: INVITE_CLAIM_COOKIE_NAME, path: INVITE_CLAIM_COOKIE_PATH });
 
-  const resultCode = data?.[0]?.result_code;
-  if (error !== null || resultCode !== "success") {
+  const resultCode = data[0]?.result_code;
+  if (resultCode !== "success") {
     return {
       kind: resultCode === "cross_household" ? "cross-household" : "invalid",
       status: "error",

@@ -475,7 +475,12 @@ export type Database = {
         Returns: undefined
       }
       _security_event_recent_count: {
-        Args: { p_actor: string; p_event_type: string; p_window: string }
+        Args: {
+          p_actor: string
+          p_event_type: string
+          p_results: string[]
+          p_window: string
+        }
         Returns: number
       }
       accept_household_invitation_by_claim: {
