@@ -1,17 +1,22 @@
 -- Issue #69 (YDR-019): 招待URLを登録・ログイン後に受諾できるようにするpgTAPテスト。
 --
--- 生トークンの交換(open_invitation_claim)は未認証でも呼べ、トークンの有効性に
--- よらず常に同じ形の結果を返すこと(一人一家庭制約下での不変条件)、受諾
--- (accept_household_invitation_by_claim)がメール一致・一人一家庭制約の二段階
--- エラー方針を実装すること、失敗した受諾ではinvitation/membership/claimのいずれも
--- 部分更新しないことを検証する。Service Roleは使わず、Data APIと同じ
--- authenticated / anonロールで境界を通す。
+-- 生トークンの交換(open_invitation_claim)は常に同じ形の結果を返すこと(一人一家庭
+-- 制約下での不変条件)、受諾(accept_household_invitation_by_claim)がメール一致・
+-- 一人一家庭制約の二段階の結果方針を実装すること、失敗した受諾ではinvitation/
+-- membership/claimのいずれも部分更新しないことを検証する。
+--
+-- Issue #70: 両RPCはservice_role専用境界に移った(anon/authenticatedキーからの
+-- 直接呼び出しでレート制限を迂回できないようにするため)。呼び出し元が
+-- Web/API層で判断済みのIPアドレス・Auth検証済みの利用者IDを明示的に渡す前提の
+-- ため、このテストでもservice_roleロールでRPCを呼ぶ。household_members /
+-- managed_itemsなど他テーブルのRLS境界を確認する箇所は、引き続きData APIと
+-- 同じauthenticated / anonロールを使う。
 
 create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(69);
+select plan(94);
 
 -- ---------------------------------------------------------------------------
 -- invitation_pending_claims: スキーマ、RLS、権限の最小性
@@ -54,18 +59,20 @@ select ok(
 
 -- ---------------------------------------------------------------------------
 -- open_invitation_claim: 権限とSECURITY DEFINERの最小性
+-- Issue #70: service_role専用境界に移した。anon/authenticatedキー(ブラウザに
+-- 公開される)からの直接呼び出しでIPレート制限を迂回できないようにするため。
 -- ---------------------------------------------------------------------------
 select ok(
-  has_function_privilege('anon', 'public.open_invitation_claim(text)', 'execute'),
-  'anonは交換RPCを実行できる(未ログインで招待リンクを開くため)'
+  not has_function_privilege('anon', 'public.open_invitation_claim(text, text)', 'execute'),
+  'anonは交換RPCを直接実行できない(service_role専用境界)'
 );
 select ok(
-  has_function_privilege('authenticated', 'public.open_invitation_claim(text)', 'execute'),
-  'authenticatedも交換RPCを実行できる'
+  not has_function_privilege('authenticated', 'public.open_invitation_claim(text, text)', 'execute'),
+  'authenticatedも交換RPCを直接実行できない'
 );
 select ok(
-  not has_function_privilege('service_role', 'public.open_invitation_claim(text)', 'execute'),
-  'Service Roleには交換RPCの実行権限がない'
+  has_function_privilege('service_role', 'public.open_invitation_claim(text, text)', 'execute'),
+  'Service Roleだけが交換RPCを実行できる(Next.jsのRoute Handler経由)'
 );
 select is(
   (
@@ -100,18 +107,20 @@ select is(
 
 -- ---------------------------------------------------------------------------
 -- accept_household_invitation_by_claim: 権限とSECURITY DEFINERの最小性
+-- Issue #70: 同様にservice_role専用境界に移し、呼び出し元がAuth検証済みの
+-- 利用者IDを明示的に渡す(auth.uid()は使わない)。
 -- ---------------------------------------------------------------------------
 select ok(
-  has_function_privilege('authenticated', 'public.accept_household_invitation_by_claim(text)', 'execute'),
-  'authenticatedは受諾RPCを実行できる'
+  not has_function_privilege('authenticated', 'public.accept_household_invitation_by_claim(uuid, text)', 'execute'),
+  'authenticatedは受諾RPCを直接実行できない(service_role専用境界)'
 );
 select ok(
-  not has_function_privilege('anon', 'public.accept_household_invitation_by_claim(text)', 'execute'),
+  not has_function_privilege('anon', 'public.accept_household_invitation_by_claim(uuid, text)', 'execute'),
   'anonには受諾RPCの実行権限がない'
 );
 select ok(
-  not has_function_privilege('service_role', 'public.accept_household_invitation_by_claim(text)', 'execute'),
-  'Service Roleにも受諾RPCの実行権限を与えない'
+  has_function_privilege('service_role', 'public.accept_household_invitation_by_claim(uuid, text)', 'execute'),
+  'Service Roleだけが受諾RPCを実行できる(Next.jsのServer Action経由)'
 );
 select is(
   (
@@ -156,6 +165,40 @@ select is(
   ),
   0::bigint,
   '旧accept_household_invitation(text)は削除され、claimを経由しないバイパス経路が残らない'
+);
+
+-- ---------------------------------------------------------------------------
+-- security_events: レート制限判定とセキュリティログを兼ねるテーブルの
+-- スキーマ・RLS・権限の最小性(Issue #70)
+-- ---------------------------------------------------------------------------
+select has_table('public', 'security_events', 'セキュリティログテーブルが存在する');
+select has_column('public', 'security_events', 'event_type', '対象RPCの種別を保持する');
+select has_column('public', 'security_events', 'actor', 'IPアドレスまたは利用者IDを保持する');
+select has_column('public', 'security_events', 'result', '結果種別を保持する');
+select has_column('public', 'security_events', 'token_fingerprint', 'claim secretの非可逆fingerprintを保持する');
+select hasnt_column('public', 'security_events', 'raw_token', '生のトークンを保存する列を持たない');
+
+select is(
+  (select relrowsecurity from pg_catalog.pg_class where oid = 'public.security_events'::regclass),
+  true,
+  'セキュリティログテーブルでRLSが有効である'
+);
+select is(
+  (select relforcerowsecurity from pg_catalog.pg_class where oid = 'public.security_events'::regclass),
+  true,
+  'セキュリティログテーブルでRLSが強制される'
+);
+select ok(
+  not has_table_privilege('anon', 'public.security_events', 'select'),
+  'anonはセキュリティログテーブルを直接参照できない'
+);
+select ok(
+  not has_table_privilege('authenticated', 'public.security_events', 'select'),
+  'authenticatedはセキュリティログテーブルを直接参照できない'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.security_events', 'select'),
+  'Service Roleもセキュリティログテーブルを直接参照できない(限定関数だけが読み書きする)'
 );
 
 -- ---------------------------------------------------------------------------
@@ -275,21 +318,23 @@ insert into public.household_invitations (
 );
 
 -- ---------------------------------------------------------------------------
--- 交換は未認証でも呼べ、有効性によらず常に同じ形の結果を返す(YDR-019不変条件)
+-- 交換は(service_role経由であれば)呼べ、有効性によらず常に同じ形の結果を
+-- 返す(YDR-019不変条件)。Issue #70でservice_role専用境界に移ったが、この
+-- 無区別の契約自体は変えていない。
 -- ---------------------------------------------------------------------------
-set local role anon;
+set local role service_role;
 
 create temporary table claim_from_garbage as
-select * from public.open_invitation_claim('this-token-matches-nothing-at-all');
+select * from public.open_invitation_claim('this-token-matches-nothing-at-all', 'test-ip-invariant');
 
 create temporary table claim_from_expired as
-select * from public.open_invitation_claim('test-only-expired-invitation-c1003');
+select * from public.open_invitation_claim('test-only-expired-invitation-c1003', 'test-ip-invariant');
 
 create temporary table claim_from_cancelled as
-select * from public.open_invitation_claim('test-only-cancelled-invitation');
+select * from public.open_invitation_claim('test-only-cancelled-invitation', 'test-ip-invariant');
 
 create temporary table claim_from_replaced as
-select * from public.open_invitation_claim('test-only-replaced-invitation');
+select * from public.open_invitation_claim('test-only-replaced-invitation', 'test-ip-invariant');
 
 reset role;
 
@@ -325,10 +370,10 @@ select isnt(
 -- で指摘: 公開値をそのままキャップすると、招待の残り期限が30分未満のときだけ
 -- 応答が短くなり、無効なトークンと区別できてしまうため)。
 -- ---------------------------------------------------------------------------
-set local role anon;
+set local role service_role;
 
 create temporary table claim_from_short_lived as
-select * from public.open_invitation_claim('test-only-short-lived-invitation');
+select * from public.open_invitation_claim('test-only-short-lived-invitation', 'test-ip-invariant');
 
 reset role;
 
@@ -353,14 +398,10 @@ select ok(
 -- ---------------------------------------------------------------------------
 -- 受諾成功と、受諾後も維持される家庭間RLS分離(d001, c1001)
 -- ---------------------------------------------------------------------------
--- 交換自体が未認証でも呼べることは上のセクションで検証済みなので、ここでは
--- 後続の受諾呼び出しと同じauthenticatedロールで交換し、一時テーブルの所有権を
--- 揃える(pgTAPの一時テーブルはロールをまたいで参照できないため)。
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_valid_c1001 as
-select * from public.open_invitation_claim('test-only-valid-invitation-c1001');
+select * from public.open_invitation_claim('test-only-valid-invitation-c1001', 'test-ip-c1001');
 
 reset role;
 
@@ -388,14 +429,25 @@ select throws_ok(
   '利用者はmembershipへ直接追加して任意の家庭へ参加できない'
 );
 
+reset role;
+
+-- Issue #70: 受諾RPCはservice_role専用境界のため、ここだけロールを切り替える。
+set local role service_role;
+
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1001'::uuid,
        (select claim_secret from claim_valid_c1001)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '認証済み利用者は有効なclaimを受諾でき、membershipが新規作成されたと分かる'
 );
+
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
 
 select isnt_empty(
   $$ select user_id from public.household_members
@@ -453,52 +505,48 @@ select ok(
 
 -- ---------------------------------------------------------------------------
 -- 使用済みclaimの再提示: 受諾者は既に家庭Aのメンバーになっているため
--- 「既に別の家庭に所属」エラーに畳み込まれる(トークンの状態を理由に含めない)
+-- 「既に別の家庭に所属」結果に畳み込まれる(トークンの状態を理由に含めない)
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+set local role service_role;
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1001'::uuid,
        (select claim_secret from claim_valid_c1001)
      ) $$,
-  'P0002',
-  'Already a member of a different household',
-  '使用済みclaimの再提示は、既にメンバーであることを理由に同一のエラーになる'
+  $$ values ('cross_household'::text) $$,
+  '使用済みclaimの再提示は、既にメンバーであることを理由に同一の結果になる'
 );
 
 reset role;
 
 -- ---------------------------------------------------------------------------
--- 使用済み・期限切れの招待は、家庭未所属の受諾者には共通エラーを返す
+-- 使用済み・期限切れの招待は、家庭未所属の受諾者には共通の'invalid'を返す
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1002", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_reused_d001 as
-select * from public.open_invitation_claim('test-only-valid-invitation-c1001');
+select * from public.open_invitation_claim('test-only-valid-invitation-c1001', 'test-ip-c1002');
 
 create temporary table claim_expired_d002 as
-select * from public.open_invitation_claim('test-only-expired-invitation-c1003');
+select * from public.open_invitation_claim('test-only-expired-invitation-c1003', 'test-ip-c1002');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1002'::uuid,
        (select claim_secret from claim_reused_d001)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
-  '使用済みの招待は、家庭未所属の受諾者には共通エラーになる'
+  $$ values ('invalid'::text) $$,
+  '使用済みの招待は、家庭未所属の受諾者には共通のinvalidになる'
 );
 
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1003", "role": "authenticated"}';
-
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1003'::uuid,
        (select claim_secret from claim_expired_d002)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
-  '期限切れの招待は、家庭未所属の受諾者には共通エラーになる'
+  $$ values ('invalid'::text) $$,
+  '期限切れの招待は、家庭未所属の受諾者には共通のinvalidになる'
 );
 
 reset role;
@@ -508,63 +556,57 @@ reset role;
 -- (PIN: 交換時点では区別されなかった無効トークンが、受諾時点で受諾者の
 --  所属状態だけに応じて分岐することを確認する)
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1004", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_garbage_for_c1004 as
-select * from public.open_invitation_claim('this-token-matches-nothing-either');
+select * from public.open_invitation_claim('this-token-matches-nothing-either', 'test-ip-c1004');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1004'::uuid,
        (select claim_secret from claim_garbage_for_c1004)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
-  '存在しないトークンは、家庭未所属の受諾者には共通エラーになる'
+  $$ values ('invalid'::text) $$,
+  '存在しないトークンは、家庭未所属の受諾者には共通のinvalidになる'
 );
 
-reset role;
-
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000b1001", "role": "authenticated"}';
-
 create temporary table claim_garbage_for_b1001 as
-select * from public.open_invitation_claim('this-token-also-matches-nothing');
+select * from public.open_invitation_claim('this-token-also-matches-nothing', 'test-ip-b1001');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000b1001'::uuid,
        (select claim_secret from claim_garbage_for_b1001)
      ) $$,
-  'P0002',
-  'Already a member of a different household',
-  '存在しないトークンでも、既に別の家庭に所属する受諾者には別のエラーになる(トークンの状態で内容や有無を変えない)'
+  $$ values ('cross_household'::text) $$,
+  '存在しないトークンでも、既に別の家庭に所属する受諾者には別の結果になる(トークンの状態で内容や有無を変えない)'
 );
 
 -- ---------------------------------------------------------------------------
 -- 取消済み・再発行済みの旧トークンも、既存メンバーには同じ別エラーになる
 -- ---------------------------------------------------------------------------
 create temporary table claim_cancelled_for_b1001 as
-select * from public.open_invitation_claim('test-only-cancelled-invitation');
+select * from public.open_invitation_claim('test-only-cancelled-invitation', 'test-ip-b1001');
 
 create temporary table claim_replaced_for_b1001 as
-select * from public.open_invitation_claim('test-only-replaced-invitation');
+select * from public.open_invitation_claim('test-only-replaced-invitation', 'test-ip-b1001');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000b1001'::uuid,
        (select claim_secret from claim_cancelled_for_b1001)
      ) $$,
-  'P0002',
-  'Already a member of a different household',
-  '取消済みトークンでも、既存メンバーには同一の別エラーになる'
+  $$ values ('cross_household'::text) $$,
+  '取消済みトークンでも、既存メンバーには同一の別結果になる'
 );
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000b1001'::uuid,
        (select claim_secret from claim_replaced_for_b1001)
      ) $$,
-  'P0002',
-  'Already a member of a different household',
-  '再発行で置き換えられた旧トークンでも、既存メンバーには同一の別エラーになる'
+  $$ values ('cross_household'::text) $$,
+  '再発行で置き換えられた旧トークンでも、既存メンバーには同一の別結果になる'
 );
 
 reset role;
@@ -578,30 +620,30 @@ select isnt_empty(
 -- ---------------------------------------------------------------------------
 -- メール不一致: 家庭未所属者には共通エラー、大文字小文字を区別しない一致は成功
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1004", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_mismatch_d008 as
-select * from public.open_invitation_claim('test-only-mismatch-invitation');
+select * from public.open_invitation_claim('test-only-mismatch-invitation', 'test-ip-c1004');
 
 create temporary table claim_case_insensitive_d010 as
-select * from public.open_invitation_claim('test-only-case-insensitive-invitation');
+select * from public.open_invitation_claim('test-only-case-insensitive-invitation', 'test-ip-c1004');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1004'::uuid,
        (select claim_secret from claim_mismatch_d008)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
-  'Authのメールと招待先メールが一致しない場合は共通エラーになる'
+  $$ values ('invalid'::text) $$,
+  'Authのメールと招待先メールが一致しない場合は共通のinvalidになる'
 );
 
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1004'::uuid,
        (select claim_secret from claim_case_insensitive_d010)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '招待先メールとAuthのメールは大文字小文字を区別せず一致すれば受諾できる'
 );
 
@@ -610,19 +652,18 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- メール未確認: 文字列上は招待先と一致していても共通エラーになる
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1006", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_unconfirmed_email_d012 as
-select * from public.open_invitation_claim('test-only-unconfirmed-email-invitation');
+select * from public.open_invitation_claim('test-only-unconfirmed-email-invitation', 'test-ip-c1006');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1006'::uuid,
        (select claim_secret from claim_unconfirmed_email_d012)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
-  'メール未確認の受諾者は、招待先メールと文字列上一致していても共通エラーになる'
+  $$ values ('invalid'::text) $$,
+  'メール未確認の受諾者は、招待先メールと文字列上一致していても共通のinvalidになる'
 );
 
 reset role;
@@ -630,18 +671,17 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 一人一家庭制約下での受諾結果: 別家庭所属者は拒否、状態は変更しない
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000b1001", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_cross_household_d009 as
-select * from public.open_invitation_claim('test-only-cross-household-invitation');
+select * from public.open_invitation_claim('test-only-cross-household-invitation', 'test-ip-b1001');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000b1001'::uuid,
        (select claim_secret from claim_cross_household_d009)
      ) $$,
-  'P0002',
-  'Already a member of a different household',
+  $$ values ('cross_household'::text) $$,
   '有効かつメール一致でも、招待先が所属家庭と異なれば拒否される'
 );
 
@@ -669,18 +709,18 @@ select is(
 -- ---------------------------------------------------------------------------
 -- 一人一家庭制約下での受諾結果: 同じ家庭の既存メンバーは冪等に成功する
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1002", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_existing_member_d003 as
-select * from public.open_invitation_claim('test-only-existing-member-a1002');
+select * from public.open_invitation_claim('test-only-existing-member-a1002', 'test-ip-a1002');
 
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000a1002'::uuid,
        (select claim_secret from claim_existing_member_d003)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, false) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, false) $$,
   '既存メンバーが同じ家庭の招待を受諾した場合は重複を作らなかったと分かる'
 );
 
@@ -725,19 +765,19 @@ create trigger reject_atomicity_test_membership
 before insert on public.household_members
 for each row execute function public.reject_atomicity_test_membership();
 
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1005", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table claim_atomicity_d004 as
-select * from public.open_invitation_claim('test-only-atomicity-c1005');
+select * from public.open_invitation_claim('test-only-atomicity-c1005', 'test-ip-c1005');
 
 select throws_ok(
   $$ select * from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1005'::uuid,
        (select claim_secret from claim_atomicity_d004)
      ) $$,
   'P0001',
   'atomicity test failure',
-  'membership追加に失敗した受諾は例外になる'
+  'membership追加に失敗した受諾は例外になる(想定外のトリガー失敗はresult_codeではなく例外のまま伝播する)'
 );
 
 reset role;
@@ -776,33 +816,286 @@ select ok(
 drop trigger reject_atomicity_test_membership on public.household_members;
 drop function public.reject_atomicity_test_membership();
 
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1005", "role": "authenticated"}';
+set local role service_role;
 
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1005'::uuid,
        (select claim_secret from claim_atomicity_d004)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '失敗が解消された後、同じclaimで改めて受諾できる(claimが誤って消費されていなかった証拠)'
 );
 
 reset role;
 
 -- ---------------------------------------------------------------------------
--- 未認証利用者は受諾RPCを実行できない
+-- anon/authenticatedは受諾・交換のいずれのRPCも直接実行できない
+-- (Issue #70: service_role専用境界。直接RPC呼び出しでレート制限を迂回できない)
 -- ---------------------------------------------------------------------------
 set local role anon;
 
 select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim('irrelevant-value') $$,
+  $$ select * from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1001'::uuid, 'irrelevant-value'
+     ) $$,
   '42501',
   null,
-  '未認証利用者は招待を受諾できない'
+  'anonは受諾RPCを直接実行できない'
+);
+
+select throws_ok(
+  $$ select * from public.open_invitation_claim('irrelevant-value', '203.0.113.1') $$,
+  '42501',
+  null,
+  'anonは交換RPCを直接実行できない'
 );
 
 reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+
+select throws_ok(
+  $$ select * from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1001'::uuid, 'irrelevant-value'
+     ) $$,
+  '42501',
+  null,
+  'authenticatedも受諾RPCを直接実行できない'
+);
+
+select throws_ok(
+  $$ select * from public.open_invitation_claim('irrelevant-value', '203.0.113.1') $$,
+  '42501',
+  null,
+  'authenticatedも交換RPCを直接実行できない'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- service_role経由でも、呼び出し元の契約違反(検証済み利用者IDを渡さない)は
+-- 拒否される(anon/authenticatedからの直接呼び出しとは別の防御レイヤー)。
+-- ---------------------------------------------------------------------------
+set local role service_role;
+
+select throws_ok(
+  $$ select * from public.accept_household_invitation_by_claim(null, 'irrelevant-value') $$,
+  'P0001',
+  'Authentication required',
+  '利用者IDを渡さない呼び出しは拒否される(呼び出し元の契約違反)'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- IPアドレス単位の交換試行回数制限(Issue #70)。無関係な文字列を大量に
+-- 投げ込む試行への防御。制限中も交換時点の完全な無区別を保つ(YDR-019)。
+-- ---------------------------------------------------------------------------
+set local role service_role;
+
+do $$
+begin
+  for attempt_number in 1..20 loop
+    perform 1 from public.open_invitation_claim(
+      'this-token-matches-nothing-for-exchange-rate-limit-test',
+      'exchange-rate-limit-test-ip'
+    );
+  end loop;
+end;
+$$;
+
+create temporary table claim_after_exchange_limit as
+select * from public.open_invitation_claim(
+  'this-token-matches-nothing-for-exchange-rate-limit-test',
+  'exchange-rate-limit-test-ip'
+);
+
+reset role;
+
+select ok(
+  (select pg_catalog.char_length(claim_secret) = 64 from claim_after_exchange_limit),
+  '交換IP制限超過後も同じ形の結果を返す(YDR-019の無区別を維持する)'
+);
+
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_exchange'
+      and actor = 'exchange-rate-limit-test-ip'
+      and result = 'rate_limited'
+  ),
+  1::bigint,
+  '21回目のIP単位の交換試行はレート制限され、ログに1件記録される'
+);
+
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_exchange'
+      and actor = 'exchange-rate-limit-test-ip'
+      and result = 'attempt'
+  ),
+  20::bigint,
+  '制限に達するまでの20回はattemptとして記録される'
+);
+
+select is(
+  (
+    select count(*)
+    from public.invitation_pending_claims
+    where claim_secret_hash = extensions.digest(
+      pg_catalog.convert_to((select claim_secret from claim_after_exchange_limit), 'UTF8'),
+      'sha256'
+    )
+  ),
+  0::bigint,
+  'レート制限された交換試行はpending_claims行を作らない(招待やclaim状態を変更しない)'
+);
+
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_exchange'
+      and actor = 'exchange-rate-limit-test-ip'
+      and token_fingerprint = pg_catalog.encode(
+        extensions.digest(
+          pg_catalog.convert_to('this-token-matches-nothing-for-exchange-rate-limit-test', 'UTF8'),
+          'sha256'
+        ),
+        'hex'
+      )
+  ),
+  21::bigint,
+  '交換イベントには生トークンではなく非可逆fingerprintが記録される(Codexレビュー指摘の回帰確認)'
+);
+
+-- ---------------------------------------------------------------------------
+-- 認証済み利用者単位の受諾失敗回数制限(初期値5回・15分、Issue #70)。
+-- 制限中はmembership・invitation・claimの状態を一切変更せず、共通エラーと
+-- 区別できないinvalidを返す。garbageなclaim secretはどの招待にも一致しない
+-- ため、対応するauth.usersの行を用意しなくても検証できる。
+-- ---------------------------------------------------------------------------
+set local role service_role;
+
+do $$
+begin
+  for attempt_number in 1..5 loop
+    perform 1 from public.accept_household_invitation_by_claim(
+      '00000000-0000-0000-0000-0000000c1099'::uuid,
+      'this-claim-secret-does-not-exist-' || attempt_number
+    );
+  end loop;
+end;
+$$;
+
+create temporary table accept_after_rate_limit as
+select * from public.accept_household_invitation_by_claim(
+  '00000000-0000-0000-0000-0000000c1099'::uuid,
+  'this-claim-secret-does-not-exist-6'
+);
+
+reset role;
+
+select results_eq(
+  $$ select result_code from accept_after_rate_limit $$,
+  $$ values ('invalid'::text) $$,
+  '6回目の受諾失敗は利用者単位でレート制限され、共通のinvalidになる'
+);
+
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_accept'
+      and actor = '00000000-0000-0000-0000-0000000c1099'
+      and result = 'rate_limited'
+  ),
+  1::bigint,
+  '6回目の受諾試行はレート制限としてログに記録される'
+);
+
+select is(
+  (
+    select count(*)
+    from public.security_events
+    where event_type = 'invitation_accept'
+      and actor = '00000000-0000-0000-0000-0000000c1099'
+      and result = 'failure'
+  ),
+  5::bigint,
+  '制限に達するまでの5回はfailureとして記録される(有効なトークンによる失敗も同じ制限対象に含める方針と同じ扱い)'
+);
+
+select is(
+  (
+    select count(*)
+    from public.household_members
+    where user_id = '00000000-0000-0000-0000-0000000c1099'
+  ),
+  0::bigint,
+  'レート制限中の受諾試行はmembershipを作らない'
+);
+
+-- ---------------------------------------------------------------------------
+-- レート制限時のresult_codeは、制限がなかった場合と同じ分岐になる(Codex
+-- レビューで指摘・修正した回帰の確認)。既に別家庭(家庭B)に所属する専用の
+-- fixture利用者(b1002、このセクション以外では使わない)を使い、5回の失敗で
+-- 制限に達しても、6回目もcross_householdのままでinvalidへすり替わらない
+-- ことを確認する(すり替わるとレート制限の発火が外部から見分けられ、
+-- YDR-019の無区別原則に反する)。
+-- ---------------------------------------------------------------------------
+insert into auth.users (
+  instance_id, id, aud, role, email,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-0000-0000-0000000b1002',
+  'authenticated',
+  'authenticated',
+  'household-b-member2-rate-limit-test@example.test',
+  now(),
+  now(),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{}'
+);
+
+insert into public.household_members (household_id, user_id)
+values ('00000000-0000-0000-0000-00000000b001', '00000000-0000-0000-0000-0000000b1002');
+
+set local role service_role;
+
+do $$
+begin
+  for attempt_number in 1..5 loop
+    perform 1 from public.accept_household_invitation_by_claim(
+      '00000000-0000-0000-0000-0000000b1002'::uuid,
+      'this-claim-secret-does-not-exist-for-b1002-' || attempt_number
+    );
+  end loop;
+end;
+$$;
+
+create temporary table accept_b1002_after_rate_limit as
+select * from public.accept_household_invitation_by_claim(
+  '00000000-0000-0000-0000-0000000b1002'::uuid,
+  'this-claim-secret-does-not-exist-for-b1002-final'
+);
+
+reset role;
+
+select results_eq(
+  $$ select result_code from accept_b1002_after_rate_limit $$,
+  $$ values ('cross_household'::text) $$,
+  '既に別家庭に所属する利用者は、レート制限時もcross_householdのまま(invalidへすり替わらない)'
+);
 
 select * from finish();
 

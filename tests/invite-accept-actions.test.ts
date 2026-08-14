@@ -1,16 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cookiesMock, createClientMock, redirectMock, revalidatePathMock, rpcMock } =
-  vi.hoisted(() => ({
-    cookiesMock: vi.fn(),
-    createClientMock: vi.fn(),
-    redirectMock: vi.fn(),
-    revalidatePathMock: vi.fn(),
-    rpcMock: vi.fn(),
-  }));
+const {
+  cookiesMock,
+  createClientMock,
+  createServiceRoleClientMock,
+  getUserMock,
+  redirectMock,
+  revalidatePathMock,
+  rpcMock,
+} = vi.hoisted(() => ({
+  cookiesMock: vi.fn(),
+  createClientMock: vi.fn(),
+  createServiceRoleClientMock: vi.fn(),
+  getUserMock: vi.fn(),
+  redirectMock: vi.fn(),
+  revalidatePathMock: vi.fn(),
+  rpcMock: vi.fn(),
+}));
 
+vi.mock("server-only", () => ({}));
+
+// requireUser() (lib/auth/current-user) はgetUser()の検証にanonキーの
+// サーバークライアントを使う。RPC呼び出し自体はservice-roleクライアント
+// (下のservice-roleモック)を経由するため、二つを別々にモックする。
 vi.mock("../lib/supabase/server", () => ({
   createClient: createClientMock,
+}));
+
+vi.mock("../lib/supabase/service-role", () => ({
+  createServiceRoleClient: createServiceRoleClientMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -35,10 +53,14 @@ function cookieStore(claimSecret: string | undefined) {
   return { deleteMock, getMock, store: { delete: deleteMock, get: getMock } };
 }
 
+const VERIFIED_USER = { email: "person@example.test", id: "user-1" };
+
 describe("招待claim受諾操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
+    createClientMock.mockResolvedValue({ auth: { getUser: getUserMock } });
+    getUserMock.mockResolvedValue({ data: { user: VERIFIED_USER }, error: null });
+    createServiceRoleClientMock.mockReturnValue({ rpc: rpcMock });
   });
 
   it("claim cookieがない場合はRPCを呼ばず共通エラーを返す", async () => {
@@ -47,20 +69,24 @@ describe("招待claim受諾操作", () => {
 
     const result = await acceptInvitationClaim();
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(createServiceRoleClientMock).not.toHaveBeenCalled();
     expect(result).toEqual({ kind: "invalid", status: "error" });
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("成功時はclaim cookieを削除し、ホームへ移動する", async () => {
+  it("成功時はAuthで検証済みの利用者IDを渡してRPCを呼び、claim cookieを削除してホームへ移動する", async () => {
     const { deleteMock, getMock, store } = cookieStore("claim-secret-value");
     cookiesMock.mockResolvedValue(store);
-    rpcMock.mockResolvedValue({ data: [{ household_id: "h1", membership_created: true }], error: null });
+    rpcMock.mockResolvedValue({
+      data: [{ result_code: "success", household_id: "h1", membership_created: true }],
+      error: null,
+    });
 
     await acceptInvitationClaim();
 
     expect(getMock).toHaveBeenCalledWith("yamoru_invite_claim");
     expect(rpcMock).toHaveBeenCalledWith("accept_household_invitation_by_claim", {
+      p_user_id: VERIFIED_USER.id,
       claim_secret: "claim-secret-value",
     });
     expect(deleteMock).toHaveBeenCalledWith({
@@ -71,12 +97,12 @@ describe("招待claim受諾操作", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
-  it("一人一家庭制約違反(P0002)は別のエラー種別を返し、cookieを削除する", async () => {
+  it("一人一家庭制約違反(cross_household)は別のエラー種別を返し、cookieを削除する", async () => {
     const { deleteMock, store } = cookieStore("claim-secret-value");
     cookiesMock.mockResolvedValue(store);
     rpcMock.mockResolvedValue({
-      data: null,
-      error: { code: "P0002", message: "Already a member of a different household" },
+      data: [{ result_code: "cross_household", household_id: null, membership_created: null }],
+      error: null,
     });
 
     const result = await acceptInvitationClaim();
@@ -90,8 +116,8 @@ describe("招待claim受諾操作", () => {
     const { deleteMock, store } = cookieStore("claim-secret-value");
     cookiesMock.mockResolvedValue(store);
     rpcMock.mockResolvedValue({
-      data: null,
-      error: { code: "P0001", message: "Invitation token is invalid, expired, or already used" },
+      data: [{ result_code: "invalid", household_id: null, membership_created: null }],
+      error: null,
     });
 
     const result = await acceptInvitationClaim();
@@ -99,5 +125,32 @@ describe("招待claim受諾操作", () => {
     expect(result).toEqual({ kind: "invalid", status: "error" });
     expect(deleteMock).toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain("Invitation token is invalid");
+  });
+
+  it("レート制限中(rate_limited相当)も共通エラーと区別できない結果を返す", async () => {
+    const { deleteMock, store } = cookieStore("claim-secret-value");
+    cookiesMock.mockResolvedValue(store);
+    // DB側はrate_limitedもinvalidとして返す(YDR-019: 区別できない応答)。
+    rpcMock.mockResolvedValue({
+      data: [{ result_code: "invalid", household_id: null, membership_created: null }],
+      error: null,
+    });
+
+    const result = await acceptInvitationClaim();
+
+    expect(result).toEqual({ kind: "invalid", status: "error" });
+    expect(deleteMock).toHaveBeenCalled();
+  });
+
+  it("予期しないRPCエラーは招待の無効扱いに畳み込まず、cookieを残したまま例外にする", async () => {
+    const { deleteMock, store } = cookieStore("claim-secret-value");
+    cookiesMock.mockResolvedValue(store);
+    rpcMock.mockResolvedValue({ data: null, error: new Error("unexpected failure") });
+
+    // DB接続断などの内部エラーを「この招待は無効」と偽って表示すると、
+    // 一時的な障害で利用者の再試行手段(cookie)を失わせてしまうため、
+    // 例外として伝播させ、cookieは消費しない(Codexレビュー指摘)。
+    await expect(acceptInvitationClaim()).rejects.toThrow();
+    expect(deleteMock).not.toHaveBeenCalled();
   });
 });

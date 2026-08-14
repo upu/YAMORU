@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, rpcMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+const { createServiceRoleClientMock, rpcMock } = vi.hoisted(() => ({
+  createServiceRoleClientMock: vi.fn(),
   rpcMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("server-only", () => ({}));
+vi.mock("../lib/supabase/service-role", () => ({
+  createServiceRoleClient: createServiceRoleClientMock,
 }));
 
 import { NextRequest } from "next/server";
@@ -16,10 +17,10 @@ import { GET } from "../app/invitations/accept/route";
 describe("招待リンクの交換エントリーポイント(GET /invitations/accept)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
+    createServiceRoleClientMock.mockReturnValue({ rpc: rpcMock });
   });
 
-  it("tokenを持つ場合は交換RPCを呼び、claim secretをhttpOnly cookieへ格納してtokenを含まないURLへ303リダイレクトする", async () => {
+  it("tokenを持つ場合はservice-role経由で交換RPCを呼び、IPアドレスを渡し、claim secretをhttpOnly cookieへ格納してtokenを含まないURLへ303リダイレクトする", async () => {
     rpcMock.mockResolvedValue({
       data: [
         {
@@ -31,11 +32,14 @@ describe("招待リンクの交換エントリーポイント(GET /invitations/a
     });
 
     const response = await GET(
-      new NextRequest("http://localhost/invitations/accept?token=raw-secret-token"),
+      new NextRequest("http://localhost/invitations/accept?token=raw-secret-token", {
+        headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" },
+      }),
     );
 
     expect(rpcMock).toHaveBeenCalledWith("open_invitation_claim", {
       invitation_token: "raw-secret-token",
+      p_client_ip: "203.0.113.5",
     });
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(

@@ -334,6 +334,33 @@ export type Database = {
         }
         Relationships: []
       }
+      security_events: {
+        Row: {
+          actor: string
+          event_type: string
+          id: string
+          occurred_at: string
+          result: string
+          token_fingerprint: string | null
+        }
+        Insert: {
+          actor: string
+          event_type: string
+          id?: string
+          occurred_at?: string
+          result: string
+          token_fingerprint?: string | null
+        }
+        Update: {
+          actor?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          result?: string
+          token_fingerprint?: string | null
+        }
+        Relationships: []
+      }
       task_occurrences: {
         Row: {
           created_at: string
@@ -438,11 +465,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _security_event_log: {
+        Args: {
+          p_actor: string
+          p_event_type: string
+          p_result: string
+          p_token_fingerprint: string
+        }
+        Returns: undefined
+      }
+      _security_event_recent_count: {
+        Args: {
+          p_actor: string
+          p_event_type: string
+          p_results: string[]
+          p_window: string
+        }
+        Returns: number
+      }
       accept_household_invitation_by_claim: {
-        Args: { claim_secret: string }
+        Args: { claim_secret: string; p_user_id: string }
         Returns: {
           household_id: string
           membership_created: boolean
+          result_code: string
         }[]
       }
       cancel_household_invitation: {
@@ -500,7 +546,7 @@ export type Database = {
         }[]
       }
       open_invitation_claim: {
-        Args: { invitation_token: string }
+        Args: { invitation_token: string; p_client_ip: string }
         Returns: {
           claim_secret: string
           expires_at: string
