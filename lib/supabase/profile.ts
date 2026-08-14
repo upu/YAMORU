@@ -28,6 +28,12 @@ export type HouseholdMemberOption = { nickname: string; userId: string };
 // Todoの担当者選択(Issue #72)で、同じ家庭のメンバー一覧をニックネーム付きで返す。
 // household_membersとprofilesは別々のRLSポリシーで守られているため2段階で取得する
 // (ホームの実施者名解決と同じ方針)。
+//
+// 取得失敗をここで空配列へ握りつぶすと、既に担当者が設定済みのOccurrenceでも
+// AssigneePanelの選択肢に該当利用者のoptionが存在せず、ブラウザが黙って先頭の
+// 「誰でも可」を選択済み表示にしてしまう(実際は担当者が設定されたまま)。
+// 家庭に本当にメンバーがいない場合と取得エラーを区別し、エラーは呼び出し元の
+// 他クエリ(loadHomeSectionsなど)と同じく例外にする。
 export async function loadHouseholdMembers(
   supabase: Awaited<ReturnType<typeof createClient>>,
   householdId: string,
@@ -38,7 +44,10 @@ export async function loadHouseholdMembers(
     .eq("household_id", householdId)
     .order("created_at", { ascending: true });
 
-  if (memberError !== null || memberRows.length === 0) return [];
+  if (memberError !== null) {
+    throw new Error("家庭メンバーを取得できませんでした。");
+  }
+  if (memberRows.length === 0) return [];
 
   const userIds = memberRows.map((row) => row.user_id);
   const { data: profileRows, error: profileError } = await supabase
@@ -46,7 +55,9 @@ export async function loadHouseholdMembers(
     .select("user_id, nickname")
     .in("user_id", userIds);
 
-  if (profileError !== null) return [];
+  if (profileError !== null) {
+    throw new Error("家庭メンバーのニックネームを取得できませんでした。");
+  }
 
   const nicknameByUserId = new Map(
     profileRows.map((row) => [row.user_id, row.nickname]),
