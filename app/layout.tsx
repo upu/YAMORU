@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { RefreshOnVisible } from "./refresh-on-visible";
 
 export const metadata: Metadata = {
   title: "YAMORU",
@@ -16,7 +17,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <RefreshOnVisible />
+        {children}
+      </body>
     </html>
   );
 }
