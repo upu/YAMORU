@@ -6,7 +6,7 @@ import { getLocalSupabaseEnv } from "./local-supabase-env";
 // app/page.tsxのloadHomeSectionsが実際に使うクエリと同じ埋め込み指定・フィルタで、
 // 家庭間のRLS分離を実Auth・実DBで検証する(Issue #36)。
 const PENDING_OCCURRENCES_SELECT =
-  "id, scheduled_for, due_at, task_rules(id, title, deadline_kind, managed_items(id, name))";
+  "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, managed_items(id, name))";
 const RECENT_ACTIVITY_SELECT =
   "id, occurred_at, actor_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))";
 

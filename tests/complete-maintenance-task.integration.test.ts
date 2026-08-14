@@ -141,7 +141,7 @@ describe("メンテナンスTodo完了の実Auth・実DB接続", () => {
     const detailResult = await supabase
       .from("managed_items")
       .select(
-        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
+        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
       )
       .eq("id", itemId)
       .single();

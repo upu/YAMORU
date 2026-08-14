@@ -3,12 +3,14 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeMaintenanceTaskMock } = vi.hoisted(() => ({
+const { completeMaintenanceTaskMock, setTaskOccurrenceAssigneeMock } = vi.hoisted(() => ({
   completeMaintenanceTaskMock: vi.fn(),
+  setTaskOccurrenceAssigneeMock: vi.fn(),
 }));
 
 vi.mock("../app/managed-items/[id]/actions", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
+  setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
 }));
 
 import {
@@ -22,6 +24,10 @@ import {
 
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
 const ACTOR_NAME = "ぽっぷ";
+const MEMBERS = [
+  { nickname: "ぽっぷ", userId: "user-1" },
+  { nickname: "たろう", userId: "user-2" },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -45,6 +51,7 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
       actorName={ACTOR_NAME}
       heroDateLabel="8月13日 木"
       household={household}
+      members={MEMBERS}
       sections={sections}
     />,
   );
@@ -208,6 +215,7 @@ describe("ホーム画面(HomeContent)", () => {
 describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
   function pendingRow(overrides: Partial<PendingOccurrenceRow> = {}): PendingOccurrenceRow {
     return {
+      assignee_user_id: null,
       due_at: "2026-09-04T15:00:00.000Z",
       id: "occurrence-1",
       scheduled_for: "2026-08-06T15:00:00.000Z",

@@ -1,8 +1,15 @@
 import Link from "next/link";
 
 import { requireUser } from "../lib/auth/current-user";
-import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../lib/supabase/profile";
+import {
+  FALLBACK_OTHER_MEMBER_NAME,
+  FALLBACK_SELF_ACTOR_NAME,
+  type HouseholdMemberOption,
+  loadActorName,
+  loadHouseholdMembers,
+} from "../lib/supabase/profile";
 import { createClient } from "../lib/supabase/server";
+import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
@@ -18,6 +25,9 @@ import {
 } from "./time-zone";
 
 export type HomeItem = {
+  // managedItemIdと同じ条件(pending Todoにだけ設定)で、担当者選択パネル
+  // (AssigneePanel)を表示するかどうかを決める。未設定(誰でも可)はnull。
+  assigneeUserId?: string | null;
   detail: string;
   detailHref: string;
   id: string;
@@ -72,6 +82,7 @@ const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
 const RECENT_COMPLETIONS_LIMIT = 10;
 
 export type PendingOccurrenceRow = {
+  assignee_user_id: string | null;
   due_at: string;
   id: string;
   scheduled_for: string;
@@ -115,6 +126,7 @@ export function buildReminderItems(
       const copy = MAINTENANCE_DISPLAY_COPY[state];
       return [
         {
+          assigneeUserId: row.assignee_user_id,
           detail: row.task_rules.managed_items.name,
           detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
           id: row.id,
@@ -184,7 +196,7 @@ async function loadHomeSections(
     supabase
       .from("task_occurrences")
       .select(
-        "id, scheduled_for, due_at, task_rules(id, title, deadline_kind, managed_items(id, name))",
+        "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, managed_items(id, name))",
       )
       .eq("status", "pending"),
     supabase
@@ -219,7 +231,15 @@ async function loadHomeSections(
   );
 }
 
-function TaskCard({ actorName, item }: { actorName: string; item: HomeItem }) {
+function TaskCard({
+  actorName,
+  item,
+  members,
+}: {
+  actorName: string;
+  item: HomeItem;
+  members: HouseholdMemberOption[];
+}) {
   return (
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
@@ -235,12 +255,21 @@ function TaskCard({ actorName, item }: { actorName: string; item: HomeItem }) {
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
         {item.managedItemId === undefined ? null : (
-          <CompleteTodoPanel
-            actorName={actorName}
-            managedItemId={item.managedItemId}
-            occurrenceId={item.id}
-            taskTitle={item.title}
-          />
+          <>
+            <AssigneePanel
+              assigneeUserId={item.assigneeUserId ?? null}
+              managedItemId={item.managedItemId}
+              members={members}
+              occurrenceId={item.id}
+              taskTitle={item.title}
+            />
+            <CompleteTodoPanel
+              actorName={actorName}
+              managedItemId={item.managedItemId}
+              occurrenceId={item.id}
+              taskTitle={item.title}
+            />
+          </>
         )}
       </div>
     </article>
@@ -249,9 +278,11 @@ function TaskCard({ actorName, item }: { actorName: string; item: HomeItem }) {
 
 function HomeSectionView({
   actorName,
+  members,
   section,
 }: {
   actorName: string;
+  members: HouseholdMemberOption[];
   section: HomeSection;
 }) {
   return (
@@ -268,7 +299,7 @@ function HomeSectionView({
 
       <div className="card-list">
         {section.items.map((item) => (
-          <TaskCard actorName={actorName} item={item} key={item.id} />
+          <TaskCard actorName={actorName} item={item} key={item.id} members={members} />
         ))}
       </div>
     </section>
@@ -317,15 +348,67 @@ function HomeHero({
   );
 }
 
+function HouseholdRequiredNotice() {
+  return (
+    <section aria-labelledby="household-required-title" className="detail-card">
+      <h2 id="household-required-title">家庭を作成してください</h2>
+      <p>ホームは家庭ごとに表示します。先にアカウント画面で家庭を作成してください。</p>
+      <Link className="ledger-primary-link" href="/account">
+        家庭を作成する
+      </Link>
+    </section>
+  );
+}
+
+function HomeEmptyState({ householdName }: { householdName: string }) {
+  return (
+    <section aria-labelledby="home-empty-title" className="detail-card">
+      <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
+      <p>
+        {householdName}
+        には、まだメンテナンスTodoの記録がありません。家の台帳から管理対象を登録すると、ここに表示されます。
+      </p>
+      <Link className="ledger-primary-link" href="/managed-items">
+        家の台帳を開く
+      </Link>
+    </section>
+  );
+}
+
+function HomeSectionList({
+  actorName,
+  members,
+  sections,
+}: {
+  actorName: string;
+  members: HouseholdMemberOption[];
+  sections: HomeSection[];
+}) {
+  return (
+    <div className="section-list">
+      {sections.map((section) => (
+        <HomeSectionView
+          actorName={actorName}
+          key={section.id}
+          members={members}
+          section={section}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function HomeContent({
   actorName,
   heroDateLabel,
   household,
+  members,
   sections,
 }: {
   actorName: string;
   heroDateLabel: string;
   household: HomeHouseholdSummary | null;
+  members: HouseholdMemberOption[];
   sections: HomeSection[];
 }) {
   const openItemCount = sections.reduce(
@@ -346,30 +429,11 @@ export function HomeContent({
       />
 
       {household === null ? (
-        <section aria-labelledby="household-required-title" className="detail-card">
-          <h2 id="household-required-title">家庭を作成してください</h2>
-          <p>ホームは家庭ごとに表示します。先にアカウント画面で家庭を作成してください。</p>
-          <Link className="ledger-primary-link" href="/account">
-            家庭を作成する
-          </Link>
-        </section>
+        <HouseholdRequiredNotice />
       ) : visibleSections.length === 0 ? (
-        <section aria-labelledby="home-empty-title" className="detail-card">
-          <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
-          <p>
-            {household.name}
-            には、まだメンテナンスTodoの記録がありません。家の台帳から管理対象を登録すると、ここに表示されます。
-          </p>
-          <Link className="ledger-primary-link" href="/managed-items">
-            家の台帳を開く
-          </Link>
-        </section>
+        <HomeEmptyState householdName={household.name} />
       ) : (
-        <div className="section-list">
-          {visibleSections.map((section) => (
-            <HomeSectionView actorName={actorName} key={section.id} section={section} />
-          ))}
-        </div>
+        <HomeSectionList actorName={actorName} members={members} sections={visibleSections} />
       )}
 
       <footer>
@@ -407,18 +471,24 @@ export default async function Home() {
         actorName={actorName}
         heroDateLabel={heroDateLabel}
         household={null}
+        members={[]}
         sections={[]}
       />
     );
   }
 
-  const sections = await loadHomeSections(supabase, nowIso);
+  const [sections, members] = await Promise.all([
+    loadHomeSections(supabase, nowIso),
+    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
+    loadHouseholdMembers(supabase, household.id),
+  ]);
 
   return (
     <HomeContent
       actorName={actorName}
       heroDateLabel={heroDateLabel}
       household={household}
+      members={members}
       sections={sections}
     />
   );

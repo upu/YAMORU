@@ -2,7 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
-import { FALLBACK_OTHER_MEMBER_NAME, FALLBACK_SELF_ACTOR_NAME, loadActorName } from "../../../lib/supabase/profile";
+import {
+  FALLBACK_OTHER_MEMBER_NAME,
+  FALLBACK_SELF_ACTOR_NAME,
+  type HouseholdMemberOption,
+  loadActorName,
+  loadHouseholdMembers,
+} from "../../../lib/supabase/profile";
 import { createClient } from "../../../lib/supabase/server";
 import {
   isSafeExternalUrl,
@@ -10,6 +16,7 @@ import {
   type ManagedItemKind,
   toManagedItemKind,
 } from "../model";
+import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
 import { UndoCompletionPanel } from "./undo-completion-panel";
@@ -22,6 +29,7 @@ import {
 
 type ExternalLinkData = { id: string; url: string };
 type PendingTodoData = {
+  assigneeUserId: string | null;
   badge: string;
   dueAt: string;
   id: string;
@@ -43,6 +51,7 @@ export type ManagedItemDetailData = {
   id: string;
   kind: ManagedItemKind;
   lastActivity: LastActivityData | null;
+  members: HouseholdMemberOption[];
   name: string;
   pendingTodos: PendingTodoData[];
   recentCompletions: RecentCompletionData[];
@@ -55,6 +64,7 @@ type ActivityLogRow = {
 };
 type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
+  assignee_user_id: string | null;
   due_at: string;
   id: string;
   scheduled_for: string;
@@ -87,6 +97,7 @@ function buildPendingTodos(
           const state = getMaintenanceDisplayStateFromIso(window, nowIso);
           const copy = MAINTENANCE_DISPLAY_COPY[state];
           return {
+            assigneeUserId: occurrence.assignee_user_id,
             badge: copy.badge,
             dueAt: occurrence.due_at,
             id: occurrence.id,
@@ -147,10 +158,12 @@ function buildRecentCompletions(
 function PendingTodoSection({
   actorName,
   managedItemId,
+  members,
   todos,
 }: {
   actorName: string;
   managedItemId: string;
+  members: HouseholdMemberOption[];
   todos: PendingTodoData[];
 }) {
   return (
@@ -168,6 +181,13 @@ function PendingTodoSection({
                 <span className={`tone-label tone-${todo.tone}`}>{todo.badge}</span>
               </div>
               <span>{todo.meta}</span>
+              <AssigneePanel
+                assigneeUserId={todo.assigneeUserId}
+                managedItemId={managedItemId}
+                members={members}
+                occurrenceId={todo.id}
+                taskTitle={todo.title}
+              />
               <CompleteTodoPanel
                 actorName={actorName}
                 managedItemId={managedItemId}
@@ -293,6 +313,7 @@ export function ManagedItemDetailContent({
         <PendingTodoSection
           actorName={item.actorName}
           managedItemId={item.id}
+          members={item.members}
           todos={item.pendingTodos}
         />
 
@@ -329,7 +350,7 @@ export default async function RegisteredManagedItemDetail({
     supabase
       .from("managed_items")
       .select(
-        "id, name, kind, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, actor_user_id)))",
+        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, actor_user_id)))",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -345,17 +366,21 @@ export default async function RegisteredManagedItemDetail({
   const pendingTodos = buildPendingTodos(data.task_rules, nowIso);
   const recentCompletions = buildRecentCompletions(data.task_rules);
   const latestCompletionLog = findLatestCompletionLog(data.task_rules);
-  const lastActivity =
+  const [lastActivityActorName, members] = await Promise.all([
     latestCompletionLog === null
+      ? Promise.resolve(null)
+      : loadActorName(
+          supabase,
+          latestCompletionLog.actor_user_id,
+          FALLBACK_OTHER_MEMBER_NAME,
+        ),
+    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
+    loadHouseholdMembers(supabase, data.household_id),
+  ]);
+  const lastActivity =
+    latestCompletionLog === null || lastActivityActorName === null
       ? null
-      : {
-          actorName: await loadActorName(
-            supabase,
-            latestCompletionLog.actor_user_id,
-            FALLBACK_OTHER_MEMBER_NAME,
-          ),
-          occurredAt: latestCompletionLog.occurred_at,
-        };
+      : { actorName: lastActivityActorName, occurredAt: latestCompletionLog.occurred_at };
 
   return (
     <ManagedItemDetailContent
@@ -365,6 +390,7 @@ export default async function RegisteredManagedItemDetail({
         id: data.id,
         kind: toManagedItemKind(data.kind),
         lastActivity,
+        members,
         name: data.name,
         pendingTodos,
         recentCompletions,
