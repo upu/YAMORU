@@ -73,7 +73,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", "role": "authenticated"}';
 
 create temporary table first_issue as
-select * from public.issue_household_invitation('first-invite@example.test');
+select * from public.issue_household_invitation('used-invitation-test@example.test');
 
 select ok(
   (select token is not null and pg_catalog.char_length(token) = 64 from first_issue),
@@ -81,7 +81,7 @@ select ok(
 );
 select is(
   (select invitation_email from first_issue),
-  'first-invite@example.test',
+  'used-invitation-test@example.test',
   '発行RPCは招待先メールをそのまま返す'
 );
 
@@ -96,7 +96,7 @@ select results_eq(
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1002", "role": "authenticated"}';
 
 create temporary table second_issue as
-select * from public.issue_household_invitation('first-invite@example.test');
+select * from public.issue_household_invitation('used-invitation-test@example.test');
 
 select isnt(
   (select token from second_issue),
@@ -124,7 +124,7 @@ select is(
     select count(*)
     from public.household_invitations
     where household_id = '00000000-0000-0000-0000-00000000a001'
-      and lower(invited_email) = 'first-invite@example.test'
+      and lower(invited_email) = 'used-invitation-test@example.test'
       and accepted_at is null
       and cancelled_at is null
       and replaced_by is null
@@ -137,11 +137,17 @@ select is(
 -- 旧トークンは受諾不能、新トークンは受諾可能
 -- ---------------------------------------------------------------------------
 set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1002", "role": "authenticated"}';
+
+create temporary table first_issue_claim as
+select * from public.open_invitation_claim((select token from first_issue));
+
+create temporary table second_issue_claim as
+select * from public.open_invitation_claim((select token from second_issue));
 
 select throws_ok(
-  $$ select * from public.accept_household_invitation(
-       (select token from first_issue)
+  $$ select * from public.accept_household_invitation_by_claim(
+       (select claim_secret from first_issue_claim)
      ) $$,
   'P0001',
   'Invitation token is invalid, expired, or already used',
@@ -150,7 +156,9 @@ select throws_ok(
 
 select results_eq(
   $$ select household_id, membership_created
-     from public.accept_household_invitation((select token from second_issue)) $$,
+     from public.accept_household_invitation_by_claim(
+       (select claim_secret from second_issue_claim)
+     ) $$,
   $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '再発行後の新しいトークンは受諾できる'
 );
@@ -192,11 +200,14 @@ select lives_ok(
 reset role;
 
 set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1002", "role": "authenticated"}';
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1004", "role": "authenticated"}';
+
+create temporary table cancel_target_claim as
+select * from public.open_invitation_claim((select token from cancel_target));
 
 select throws_ok(
-  $$ select * from public.accept_household_invitation(
-       (select token from cancel_target)
+  $$ select * from public.accept_household_invitation_by_claim(
+       (select claim_secret from cancel_target_claim)
      ) $$,
   'P0001',
   'Invitation token is invalid, expired, or already used',
@@ -209,11 +220,16 @@ reset role;
 -- 受諾済みの招待は取消できない
 -- ---------------------------------------------------------------------------
 set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1003", "role": "authenticated"}';
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+
+create temporary table boundary_target_claim as
+select * from public.open_invitation_claim('test-only-valid-invitation-c1001');
 
 select results_eq(
   $$ select household_id, membership_created
-     from public.accept_household_invitation('test-only-valid-invitation-c1001') $$,
+     from public.accept_household_invitation_by_claim(
+       (select claim_secret from boundary_target_claim)
+     ) $$,
   $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '境界テスト用の招待を先に受諾させる'
 );

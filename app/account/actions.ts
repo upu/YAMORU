@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { toSafeRedirectPath } from "../../lib/auth/safe-redirect";
 import { createClient } from "../../lib/supabase/server";
 import type { HouseholdActionState, NicknameActionState } from "./state";
 
@@ -61,6 +62,7 @@ export async function registerNickname(
 ): Promise<NicknameActionState> {
   const rawNickname = formData.get("nickname");
   if (typeof rawNickname !== "string") return invalidNickname();
+  const next = toSafeRedirectPath(formData.get("next"));
 
   const nickname = rawNickname.trim();
   if (
@@ -82,5 +84,5 @@ export async function registerNickname(
   }
 
   revalidatePath("/account");
-  redirect("/account");
+  redirect(next ?? "/account");
 }

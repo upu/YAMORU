@@ -60,6 +60,27 @@ describe("ニックネーム登録操作", () => {
     },
   );
 
+  it("安全なnextが指定されている場合はそこへ戻る(Issue #69: 招待受諾フロー復帰)", async () => {
+    const formData = nicknameForm("たろう");
+    formData.set("next", "/invitations/accept/confirm");
+
+    await registerNickname(INITIAL_STATE, formData);
+
+    expect(redirectMock).toHaveBeenCalledWith("/invitations/accept/confirm");
+  });
+
+  it.each(["https://evil.example.test/", "//evil.example.test", "/\\evil.example.test"])(
+    "外部ドメインを指すnext(%s)は無視して既定のアカウント画面へ戻る",
+    async (next) => {
+      const formData = nicknameForm("たろう");
+      formData.set("next", next);
+
+      await registerNickname(INITIAL_STATE, formData);
+
+      expect(redirectMock).toHaveBeenCalledWith("/account");
+    },
+  );
+
   it("一意制約違反(二重送信)は成功として扱う", async () => {
     insertMock.mockResolvedValue({
       error: { code: "23505", message: "duplicate key value" },
