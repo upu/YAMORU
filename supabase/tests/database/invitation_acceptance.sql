@@ -11,7 +11,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(68);
+select plan(69);
 
 -- ---------------------------------------------------------------------------
 -- invitation_pending_claims: スキーマ、RLS、権限の最小性
@@ -320,7 +320,10 @@ select isnt(
 );
 
 -- ---------------------------------------------------------------------------
--- claimの有効期限は招待自体の残り有効期限でキャップされる
+-- claimの内部の有効期限は招待自体の残り有効期限でキャップされるが、
+-- 公開される値は常に約30分で無効なトークンと見分けられない(Codexレビュー
+-- で指摘: 公開値をそのままキャップすると、招待の残り期限が30分未満のときだけ
+-- 応答が短くなり、無効なトークンと区別できてしまうため)。
 -- ---------------------------------------------------------------------------
 set local role anon;
 
@@ -330,12 +333,21 @@ select * from public.open_invitation_claim('test-only-short-lived-invitation');
 reset role;
 
 select ok(
+  (select expires_at > now() + interval '25 minutes' from claim_from_short_lived),
+  '有効な招待(残り5分)から交換しても、呼び出し元へ返す有効期限は約30分で無効なトークンと見分けられない'
+);
+
+select ok(
   (
     select expires_at > now()
       and expires_at <= now() + interval '6 minutes'
-    from claim_from_short_lived
+    from public.invitation_pending_claims
+    where claim_secret_hash = extensions.digest(
+      pg_catalog.convert_to((select claim_secret from claim_from_short_lived), 'UTF8'),
+      'sha256'
+    )
   ),
-  '有効な招待から交換したclaimの有効期限は招待の残り期限(5分)でキャップされる'
+  'DBに保存される内部の有効期限は、招待の残り期限(5分)で正しくキャップされ、受諾時の失効判定に使われる'
 );
 
 -- ---------------------------------------------------------------------------

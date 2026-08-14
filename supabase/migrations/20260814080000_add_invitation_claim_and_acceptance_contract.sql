@@ -75,7 +75,17 @@ declare
   matched_invitation public.household_invitations%rowtype;
   matched boolean;
   new_claim_secret text := pg_catalog.encode(extensions.gen_random_bytes(32), 'hex');
-  new_expires_at timestamptz;
+  -- 呼び出し元へ返す・cookieのmax-ageに使う値。トークンの状態によらず常に一定
+  -- (下のstored_expires_atと意図的に分離する。理由はコメント参照)。
+  public_expires_at timestamptz := pg_catalog.statement_timestamp() + interval '30 minutes';
+  -- DBの行に実際に保存し、accept_household_invitation_by_claimの有効性判定に
+  -- 使う値。招待の残り期限でキャップする(YDR-019「一時状態の有効期限は、
+  -- 招待自体の残り有効期限を超えない」)。この値をpublic_expires_atとして
+  -- そのまま返す/cookieのmax-ageへ使うと、招待の残り期限が30分未満のときだけ
+  -- 応答(・Set-CookieのMax-Age)が短くなり、無効なトークン(常に約30分)と
+  -- 見分けられてしまう。交換時点の完全な無区別を保つため、公開する値と
+  -- 内部の失効判定に使う値をここで分ける。
+  stored_expires_at timestamptz;
 begin
   select invitation.*
     into matched_invitation
@@ -91,12 +101,9 @@ begin
 
   matched := found;
 
-  new_expires_at := case
-    when matched then least(
-      pg_catalog.statement_timestamp() + interval '30 minutes',
-      matched_invitation.expires_at
-    )
-    else pg_catalog.statement_timestamp() + interval '30 minutes'
+  stored_expires_at := case
+    when matched then least(public_expires_at, matched_invitation.expires_at)
+    else public_expires_at
   end;
 
   -- 期限切れ・使用済みの古い一時状態を、挿入のついでに間引く(専用のcronは持たない)。
@@ -108,10 +115,10 @@ begin
   values (
     case when matched then matched_invitation.id else null end,
     extensions.digest(pg_catalog.convert_to(new_claim_secret, 'UTF8'), 'sha256'),
-    new_expires_at
+    stored_expires_at
   );
 
-  return query select new_claim_secret, new_expires_at;
+  return query select new_claim_secret, public_expires_at;
 end;
 $$;
 
