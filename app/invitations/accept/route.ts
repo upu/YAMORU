@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getClientIp } from "../../../lib/http/client-ip";
 import {
   INVITE_CLAIM_COOKIE_NAME,
   INVITE_CLAIM_COOKIE_PATH,
   INVITE_CLAIM_FALLBACK_MAX_AGE_SECONDS,
 } from "../../../lib/invitations/claim-cookie";
-import { createClient } from "../../../lib/supabase/server";
+import { createServiceRoleClient } from "../../../lib/supabase/service-role";
 
 const CONFIRM_PATH = "/invitations/accept/confirm";
 
@@ -20,6 +21,11 @@ const CONFIRM_PATH = "/invitations/accept/confirm";
 // 交換RPC(open_invitation_claim)はトークンの有効性によらず常に成功する
 // 設計のため、ここで失敗するのは想定外の障害時だけである。その場合はcookieを
 // 設定せず、確認ページの共通エラー表示に委ねる(有効・無効で応答を変えない)。
+//
+// Issue #70: このRPCはservice_role専用境界に移した。anon/authenticatedキーの
+// クライアントからは呼べない(直接RPC呼び出しでのバイパスを塞ぐ)。この
+// Route Handlerだけがservice-roleクライアントで呼び、IPアドレス単位の試行
+// 回数を判断する。
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
   const response = NextResponse.redirect(new URL(CONFIRM_PATH, request.url), {
@@ -30,9 +36,11 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceRoleClient();
+  const clientIp = getClientIp(request.headers);
   const { data, error } = await supabase.rpc("open_invitation_claim", {
     invitation_token: token,
+    p_client_ip: clientIp,
   });
 
   const claim = data?.[0];

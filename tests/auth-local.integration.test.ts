@@ -220,7 +220,11 @@ describe("招待受諾の統合テスト(Issue #69)", () => {
   };
 
   it("交換から受諾まで実Authで完走し、同時受諾でも一件だけ成功する", async () => {
-    const { publishableKey, url } = getLocalSupabaseEnv();
+    const { publishableKey, serviceRoleKey, url } = getLocalSupabaseEnv();
+    // Issue #70: 交換・受諾の両RPCはservice_role専用境界に移った。Next.jsの
+    // Route Handler / Server Actionが担う役割を、このテストではservice-role
+    // クライアントで代行する。
+    const serviceRoleClient = createClient(url, serviceRoleKey, authOptions);
     const suffix = crypto.randomUUID();
 
     const ownerClient = createClient(url, publishableKey, authOptions);
@@ -266,13 +270,16 @@ describe("招待受諾の統合テスト(Issue #69)", () => {
 
     await inviteeSessionA.from("profiles").insert({ nickname: "招待受諾者" });
 
-    // 同じ生トークンから、未認証でも呼べる交換RPCで二つの独立したclaimを作る
-    // (YDR-019: 交換は有効性によらず常に成功し、claimは単回使用)。
-    const claimA = await inviteeSessionA.rpc("open_invitation_claim", {
+    // 同じ生トークンから、交換RPC(service_role専用境界)で二つの独立した
+    // claimを作る(YDR-019: 交換は有効性によらず常に成功し、claimは単回使用)。
+    // 呼び出し元のIPは二つのタブを模して別々の値にする。
+    const claimA = await serviceRoleClient.rpc("open_invitation_claim", {
       invitation_token: rawToken,
+      p_client_ip: `test-ip-a-${suffix}`,
     });
-    const claimB = await inviteeSessionB.rpc("open_invitation_claim", {
+    const claimB = await serviceRoleClient.rpc("open_invitation_claim", {
       invitation_token: rawToken,
+      p_client_ip: `test-ip-b-${suffix}`,
     });
     expect(claimA.error).toBeNull();
     expect(claimB.error).toBeNull();
@@ -284,20 +291,30 @@ describe("招待受諾の統合テスト(Issue #69)", () => {
     expect(claimSecretA).not.toBe(claimSecretB);
 
     const [acceptA, acceptB] = await Promise.all([
-      inviteeSessionA.rpc("accept_household_invitation_by_claim", {
+      serviceRoleClient.rpc("accept_household_invitation_by_claim", {
+        p_user_id: inviteeUserId,
         claim_secret: claimSecretA,
       }),
-      inviteeSessionB.rpc("accept_household_invitation_by_claim", {
+      serviceRoleClient.rpc("accept_household_invitation_by_claim", {
+        p_user_id: inviteeUserId,
         claim_secret: claimSecretB,
       }),
     ]);
 
     const results = [acceptA, acceptB];
-    const successes = results.filter((result) => result.error === null);
-    const failures = results.filter((result) => result.error !== null);
-    expect(successes).toHaveLength(1);
-    expect(failures).toHaveLength(1);
-    expect(firstRow(successes[0]?.data)).toMatchObject({
+    const successRows = results
+      .map((result) => firstRow(result.data))
+      .filter(
+        (row): row is Record<string, unknown> => row !== undefined && row.result_code === "success",
+      );
+    const otherRows = results
+      .map((result) => firstRow(result.data))
+      .filter((row) => row === undefined || row.result_code !== "success");
+    expect(results.every((result) => result.error === null)).toBe(true);
+    expect(successRows).toHaveLength(1);
+    expect(otherRows).toHaveLength(1);
+    expect(otherRows[0]).toMatchObject({ result_code: "cross_household" });
+    expect(successRows[0]).toMatchObject({
       household_id: householdId,
       membership_created: true,
     });

@@ -75,6 +75,11 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 create temporary table first_issue as
 select * from public.issue_household_invitation('used-invitation-test@example.test');
 
+-- Issue #70: 後続で交換RPCをservice_roleとして呼ぶ際にこの一時テーブルを
+-- 参照するため、作成したロール(authenticated)から明示的に読み取りを許可する
+-- (pgTAPの一時テーブルはロールをまたいで参照できないため)。
+grant select on first_issue to service_role;
+
 select ok(
   (select token is not null and pg_catalog.char_length(token) = 64 from first_issue),
   '発行RPCは推測困難な生トークンを返す'
@@ -97,6 +102,8 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1002", 
 
 create temporary table second_issue as
 select * from public.issue_household_invitation('used-invitation-test@example.test');
+
+grant select on second_issue to service_role;
 
 select isnt(
   (select token from second_issue),
@@ -136,30 +143,32 @@ select is(
 -- ---------------------------------------------------------------------------
 -- 旧トークンは受諾不能、新トークンは受諾可能
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1002", "role": "authenticated"}';
+-- Issue #70: 交換・受諾はservice_role専用境界に移った。呼び出し元(ここでは
+-- テストコード自身)がAuth検証済みの利用者IDを明示的に渡す。
+set local role service_role;
 
 create temporary table first_issue_claim as
-select * from public.open_invitation_claim((select token from first_issue));
+select * from public.open_invitation_claim((select token from first_issue), 'test-ip-management-c1002');
 
 create temporary table second_issue_claim as
-select * from public.open_invitation_claim((select token from second_issue));
+select * from public.open_invitation_claim((select token from second_issue), 'test-ip-management-c1002');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1002'::uuid,
        (select claim_secret from first_issue_claim)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
+  $$ values ('invalid'::text) $$,
   '再発行により置き換えられた旧トークンは受諾できない'
 );
 
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1002'::uuid,
        (select claim_secret from second_issue_claim)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '再発行後の新しいトークンは受諾できる'
 );
 
@@ -173,6 +182,8 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 
 create temporary table cancel_target as
 select * from public.issue_household_invitation('cancel-me@example.test');
+
+grant select on cancel_target to service_role;
 
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1002", "role": "authenticated"}';
 
@@ -199,18 +210,17 @@ select lives_ok(
 
 reset role;
 
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1004", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table cancel_target_claim as
-select * from public.open_invitation_claim((select token from cancel_target));
+select * from public.open_invitation_claim((select token from cancel_target), 'test-ip-management-c1004');
 
-select throws_ok(
-  $$ select * from public.accept_household_invitation_by_claim(
+select results_eq(
+  $$ select result_code from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1004'::uuid,
        (select claim_secret from cancel_target_claim)
      ) $$,
-  'P0001',
-  'Invitation token is invalid, expired, or already used',
+  $$ values ('invalid'::text) $$,
   '取消済みトークンは即時に受諾できなくなる'
 );
 
@@ -219,21 +229,24 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 受諾済みの招待は取消できない
 -- ---------------------------------------------------------------------------
-set local role authenticated;
-set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", "role": "authenticated"}';
+set local role service_role;
 
 create temporary table boundary_target_claim as
-select * from public.open_invitation_claim('test-only-valid-invitation-c1001');
+select * from public.open_invitation_claim('test-only-valid-invitation-c1001', 'test-ip-management-c1001');
 
 select results_eq(
-  $$ select household_id, membership_created
+  $$ select result_code, household_id, membership_created
      from public.accept_household_invitation_by_claim(
+       '00000000-0000-0000-0000-0000000c1001'::uuid,
        (select claim_secret from boundary_target_claim)
      ) $$,
-  $$ values ('00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
+  $$ values ('success'::text, '00000000-0000-0000-0000-00000000a001'::uuid, true) $$,
   '境界テスト用の招待を先に受諾させる'
 );
 
+reset role;
+
+set local role authenticated;
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", "role": "authenticated"}';
 
 select throws_ok(

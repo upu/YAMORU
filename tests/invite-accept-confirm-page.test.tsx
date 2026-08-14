@@ -12,8 +12,11 @@ const { cookiesMock, createClientMock, getCurrentUserMock, redirectMock } = vi.h
   }),
 );
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("../lib/auth/current-user", () => ({
   getCurrentUser: getCurrentUserMock,
+  requireUser: vi.fn(),
 }));
 
 vi.mock("../lib/supabase/server", () => ({
