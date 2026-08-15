@@ -6,7 +6,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(25);
+select plan(26);
 
 select has_function(
   'public',
@@ -232,6 +232,31 @@ select is(
   ),
   1::bigint,
   '無変化の再送はActivityLogを重複追記しない'
+);
+
+-- ---------------------------------------------------------------------------
+-- 無変化の再送は、現在時刻がdue_atを追い越して過去になっていても成功する
+-- (無変化判定を未来日検証より先に行うことで、境界値での再送が
+-- 「must be in the future」で失敗しないようにする)
+-- ---------------------------------------------------------------------------
+select lives_ok(
+  $$ select public.postpone_task_occurrence(
+       (
+         select occurrence.id
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '完了取消相互作用確認用'
+            and occurrence.status = 'pending'
+       ),
+       (
+         select occurrence.due_at
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '完了取消相互作用確認用'
+            and occurrence.status = 'pending'
+       )
+     ) $$,
+  '既に過去日のdue_atへの無変化再送は、未来日検証より先に成功する'
 );
 
 -- ---------------------------------------------------------------------------

@@ -82,6 +82,14 @@ begin
       message = 'Occurrence is not pending';
   end if;
 
+  -- 変更なしの再送は、境界値(現在時刻ぎりぎりの延期をnowが追い越した場合など)
+  -- でも無害な成功として扱う(set_task_occurrence_assigneeと同じ、既に目的の
+  -- 状態である場合の方針)。この判定を未来日・scheduled_forの検証より先に行い、
+  -- 同一内容の再送が検証エラーで失敗しないようにする。
+  if previous_due_at = new_due_at then
+    return;
+  end if;
+
   -- 「未来の日付を指定して延期できる」(Issue #19の受け入れ基準)。日付の
   -- タイムゾーン解釈は呼び出し側(app/time-zone.tsのtokyoDateToUtcIso)が
   -- Asia/Tokyoの日付境界で行う。ここでは現在時刻より後であることだけを検証する。
@@ -97,12 +105,6 @@ begin
     raise exception using
       errcode = 'P0001',
       message = 'new_due_at must not be before scheduled_for';
-  end if;
-
-  if previous_due_at = new_due_at then
-    -- 変更なしの再送は無害な成功として扱い、ActivityLogを追記しない
-    -- (set_task_occurrence_assigneeと同じ、既に目的の状態である場合の方針)。
-    return;
   end if;
 
   -- pendingかつ変更前の値と一致する行だけを条件付きで更新する(YDR-014)。
