@@ -3,6 +3,7 @@
 import { type ChangeEvent, useState, useTransition } from "react";
 
 import { setTaskOccurrenceAssignee } from "./actions";
+import { OperationFeedback } from "../../operation-feedback";
 
 const UNASSIGNED_VALUE = "";
 // 「誰でも可」の表示文言(YDR-006)。担当者未設定の既定表示として、担当・実施・
@@ -10,29 +11,6 @@ const UNASSIGNED_VALUE = "";
 export const UNASSIGNED_LABEL = "誰でも可";
 
 export type AssigneeOption = { nickname: string; userId: string };
-
-function AssigneeFeedback({
-  errorMessage,
-  isPending,
-}: {
-  errorMessage: string | null;
-  isPending: boolean;
-}) {
-  return (
-    <>
-      {isPending ? (
-        <p className="auth-feedback" role="status">
-          担当を変更しています…
-        </p>
-      ) : null}
-      {errorMessage !== null ? (
-        <p className="auth-feedback" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
-    </>
-  );
-}
 
 export function AssigneePanel({
   assigneeUserId,
@@ -85,7 +63,11 @@ export function AssigneePanel({
           </option>
         ))}
       </select>
-      <AssigneeFeedback errorMessage={errorMessage} isPending={isPending} />
+      <OperationFeedback
+        errorMessage={errorMessage}
+        isPending={isPending}
+        pendingMessage="担当を変更しています…"
+      />
     </div>
   );
 }

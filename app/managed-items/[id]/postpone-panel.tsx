@@ -1,18 +1,17 @@
 "use client";
 
 import {
-  type KeyboardEvent,
-  type MouseEvent,
   type RefObject,
   type SyntheticEvent,
   useEffect,
   useId,
   useRef,
-  useState,
-  useTransition,
 } from "react";
 
+import { DialogShell } from "../../dialog-shell";
+import { OperationFeedback } from "../../operation-feedback";
 import { formatDateInput } from "../../time-zone";
+import { useDialogAction } from "../../use-dialog-action";
 import { postponeTaskOccurrence } from "./actions";
 
 // 完了記録の「実施日」(今日以前)とは逆に、翌日以降だけを選べるようにする。
@@ -54,16 +53,6 @@ function PostponeTrigger({
   );
 }
 
-type PostponeDialogProps = {
-  dateInputRef: RefObject<HTMLInputElement | null>;
-  inputId: string;
-  min: string;
-  onCancel: () => void;
-  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
-  taskTitle: string;
-  titleId: string;
-};
-
 function PostponeDialog({
   dateInputRef,
   inputId,
@@ -72,137 +61,41 @@ function PostponeDialog({
   onSubmit,
   taskTitle,
   titleId,
-}: PostponeDialogProps) {
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) onCancel();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") onCancel();
-  }
-
-  return (
-    <div className="completion-dialog-backdrop" onMouseDown={handleBackdropClick}>
-      <section
-        aria-labelledby={titleId}
-        aria-modal="true"
-        className="completion-dialog"
-        onKeyDown={handleKeyDown}
-        role="dialog"
-      >
-        <div className="completion-dialog-heading">
-          <div>
-            <p className="detail-kicker">POSTPONE</p>
-            <h2 id={titleId}>{taskTitle}を延期</h2>
-          </div>
-          <button aria-label="閉じる" className="dialog-close" onClick={onCancel} type="button">
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        {/* バックデート完了の「実施日」(過去の記録)と混同しないよう、ここでは
-            まだ実施していない未完了Todoの現在期限だけを未来へ動かす操作である
-            ことが分かる文言にする(YDR-020「UIでの区別」、Issue #19)。本来の
-            予定(scheduled_for)は変えない。 */}
-        <form className="completion-detail-form" onSubmit={onSubmit}>
-          <label htmlFor={inputId}>実施する予定の新しい期限</label>
-          <input
-            defaultValue={min}
-            id={inputId}
-            min={min}
-            name="dueOn"
-            ref={dateInputRef}
-            required
-            type="date"
-          />
-          <p className="input-help">
-            まだ実施していないTodoの期限を、これから実施する未来の日へ動かします（明日以降）。本来の予定日は変わりません。
-          </p>
-          <button className="dialog-primary-button" type="submit">
-            この日まで延期する
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function PostponeFeedback({
-  errorMessage,
-  isPending,
-  successMessage,
 }: {
-  errorMessage: string | null;
-  isPending: boolean;
-  successMessage: string | null;
+  dateInputRef: RefObject<HTMLInputElement | null>;
+  inputId: string;
+  min: string;
+  onCancel: () => void;
+  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
+  taskTitle: string;
+  titleId: string;
 }) {
   return (
-    <>
-      {isPending ? (
-        <p className="auth-feedback" role="status">
-          延期しています…
+    <DialogShell kicker="POSTPONE" onClose={onCancel} title={`${taskTitle}を延期`} titleId={titleId}>
+      {/* バックデート完了の「実施日」(過去の記録)と混同しないよう、ここでは
+          まだ実施していない未完了Todoの現在期限だけを未来へ動かす操作である
+          ことが分かる文言にする(YDR-020「UIでの区別」、Issue #19)。本来の
+          予定(scheduled_for)は変えない。 */}
+      <form className="completion-detail-form" onSubmit={onSubmit}>
+        <label htmlFor={inputId}>実施する予定の新しい期限</label>
+        <input
+          defaultValue={min}
+          id={inputId}
+          min={min}
+          name="dueOn"
+          ref={dateInputRef}
+          required
+          type="date"
+        />
+        <p className="input-help">
+          まだ実施していないTodoの期限を、これから実施する未来の日へ動かします（明日以降）。本来の予定日は変わりません。
         </p>
-      ) : null}
-      {errorMessage !== null ? (
-        <p className="auth-feedback" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
-      {successMessage !== null ? (
-        <p className="auth-feedback" role="status">
-          {successMessage}
-        </p>
-      ) : null}
-    </>
+        <button className="dialog-primary-button" type="submit">
+          この日まで延期する
+        </button>
+      </form>
+    </DialogShell>
   );
-}
-
-// isOpen/送信/フィードバックの状態管理をひとまとめにし、PostponePanel本体を
-// レイアウトの組み立てだけに専念させる。
-function usePostponeDialog(
-  managedItemId: string,
-  occurrenceId: string,
-  triggerRef: RefObject<HTMLButtonElement | null>,
-) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  function openDialog() {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setIsOpen(true);
-  }
-
-  function closeDialog() {
-    setIsOpen(false);
-    triggerRef.current?.focus();
-  }
-
-  function submitPostpone(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const dueOn = parsePostponeForm(new FormData(event.currentTarget));
-    if (dueOn === null) return;
-    setIsOpen(false);
-    startTransition(async () => {
-      const result = await postponeTaskOccurrence(managedItemId, occurrenceId, dueOn);
-      if (result.status === "error") {
-        setErrorMessage(result.message);
-      } else {
-        setSuccessMessage(result.message);
-      }
-    });
-  }
-
-  return {
-    closeDialog,
-    errorMessage,
-    isOpen,
-    isPending,
-    openDialog,
-    submitPostpone,
-    successMessage,
-  };
 }
 
 // Issue #19: 未完了Todoから、実施する予定の未来日を指定して延期する。完了記録の
@@ -221,37 +114,40 @@ export function PostponePanel({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const min = tomorrowDateInput();
-  const {
-    closeDialog,
-    errorMessage,
-    isOpen,
-    isPending,
-    openDialog,
-    submitPostpone,
-    successMessage,
-  } = usePostponeDialog(managedItemId, occurrenceId, triggerRef);
+  const { close, errorMessage, isOpen, isPending, open, run, successMessage } =
+    useDialogAction(triggerRef);
 
   useEffect(() => {
     if (isOpen) dateInputRef.current?.focus();
   }, [isOpen]);
 
+  function submitPostpone(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const dueOn = parsePostponeForm(new FormData(event.currentTarget));
+    if (dueOn === null) return;
+    run(() => postponeTaskOccurrence(managedItemId, occurrenceId, dueOn), {
+      showSuccessMessage: true,
+    });
+  }
+
   return (
     <div className="postpone-panel">
-      <PostponeTrigger onOpen={openDialog} taskTitle={taskTitle} triggerRef={triggerRef} />
+      <PostponeTrigger onOpen={open} taskTitle={taskTitle} triggerRef={triggerRef} />
       {isOpen ? (
         <PostponeDialog
           dateInputRef={dateInputRef}
           inputId={inputId}
           min={min}
-          onCancel={closeDialog}
+          onCancel={close}
           onSubmit={submitPostpone}
           taskTitle={taskTitle}
           titleId={titleId}
         />
       ) : null}
-      <PostponeFeedback
+      <OperationFeedback
         errorMessage={errorMessage}
         isPending={isPending}
+        pendingMessage="延期しています…"
         successMessage={successMessage}
       />
     </div>

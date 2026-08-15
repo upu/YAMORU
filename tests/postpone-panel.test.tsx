@@ -143,4 +143,27 @@ describe("PostponePanel", () => {
       await screen.findByText("延期する日付は未来の日を指定してください。"),
     ).toBeInTheDocument();
   });
+
+  it("成功後に再度開くと前回の成功メッセージが消える(useDialogActionのopen()の契約)", async () => {
+    postponeTaskOccurrenceMock.mockResolvedValue({
+      message: "9月1日まで延期しました。",
+      status: "success",
+    });
+
+    render(
+      <PostponePanel
+        managedItemId="item-1"
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    openDialog();
+    fillAndSubmit("2026-09-01");
+    await screen.findByText("9月1日まで延期しました。");
+
+    openDialog();
+
+    expect(screen.queryByText("9月1日まで延期しました。")).not.toBeInTheDocument();
+  });
 });

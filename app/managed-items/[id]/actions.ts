@@ -159,6 +159,37 @@ export async function createMaintenanceTodo(
   };
 }
 
+// RPCのエラーメッセージに含まれる断片から、利用者向けの案内文へ変換する。
+// 各actionは断片と応答の対応表(先勝ち)をこの関数へ渡すだけでよく、
+// if文の連なりを重複させない(complete/assignee/postpone/undoの4箇所で
+// 同じ形のマッピングが必要になるため)。
+type RpcErrorRule = { fragment: string; response: MaintenanceTodoActionState };
+
+function mapRpcError(
+  message: string,
+  rules: RpcErrorRule[],
+  fallback: MaintenanceTodoActionState,
+): MaintenanceTodoActionState {
+  const matched = rules.find((rule) => message.includes(rule.fragment));
+  return matched === undefined ? fallback : matched.response;
+}
+
+// 「他の操作で状態が変わりました」は、pending/completed限定のRPCが条件付き
+// 更新に負けたときの共通の案内文。RPCごとに検知する断片文字列は異なるが
+// (「is not pending」「is not completed」)、利用者への案内は同じにする。
+const STATE_CHANGED_ERROR: MaintenanceTodoActionState = {
+  message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+  status: "error",
+};
+
+// メンテナンスTodoの状態を表示する画面(詳細・ホーム、Issue #36)を両方
+// 再検証する。完了・担当変更・延期・完了取消はいずれも両画面へ反映されるため
+// 同じペアを呼ぶ(createMaintenanceTodoは新規追加のためホームの対象外)。
+function revalidateManagedItemAndHome(managedItemId: string): void {
+  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  revalidatePath("/");
+}
+
 const CONFLICT_MESSAGE_FRAGMENT = "is not pending";
 const SCHEDULE_COLLISION_MESSAGE_FRAGMENT = "already exists for the computed schedule";
 const PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT = "Performer not found";
@@ -172,25 +203,27 @@ const GENERIC_COMPLETION_ERROR: MaintenanceTodoActionState = {
 };
 
 function mapCompleteMaintenanceTaskError(message: string): MaintenanceTodoActionState {
-  if (message.includes(PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT)) {
-    return {
-      message: "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。",
-      status: "error",
-    };
-  }
-  if (message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
-    return {
-      message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-      status: "error",
-    };
-  }
-  if (message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)) {
-    return {
-      message: "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
-      status: "error",
-    };
-  }
-  return GENERIC_COMPLETION_ERROR;
+  return mapRpcError(
+    message,
+    [
+      {
+        fragment: PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT,
+        response: {
+          message: "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。",
+          status: "error",
+        },
+      },
+      { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
+      {
+        fragment: SCHEDULE_COLLISION_MESSAGE_FRAGMENT,
+        response: {
+          message: "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
+          status: "error",
+        },
+      },
+    ],
+    GENERIC_COMPLETION_ERROR,
+  );
 }
 
 // occurredOnはnull(現在時刻で完了)か、実施日の日付文字列(YYYY-MM-DD)。
@@ -222,9 +255,7 @@ export async function completeMaintenanceTask(
 
   if (error !== null) return mapCompleteMaintenanceTaskError(error.message);
 
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
-  // ホーム(Issue #36)も同じ完了・活動履歴を表示するため、ここで再検証する。
-  revalidatePath("/");
+  revalidateManagedItemAndHome(managedItemId);
   return {
     message: "完了を記録しました。",
     status: "success",
@@ -251,27 +282,23 @@ export async function setTaskOccurrenceAssignee(
   });
 
   if (error !== null) {
-    if (error.message.includes(ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT)) {
-      return {
-        message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
-        status: "error",
-      };
-    }
-    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
-      return {
-        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-        status: "error",
-      };
-    }
-    return {
-      message: "担当を変更できませんでした。時間をおいて再度お試しください。",
-      status: "error",
-    };
+    return mapRpcError(
+      error.message,
+      [
+        {
+          fragment: ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT,
+          response: {
+            message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
+            status: "error",
+          },
+        },
+        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
+      ],
+      { message: "担当を変更できませんでした。時間をおいて再度お試しください。", status: "error" },
+    );
   }
 
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
-  // ホーム(Issue #36)も同じTodoの担当を表示するため、ここで再検証する。
-  revalidatePath("/");
+  revalidateManagedItemAndHome(managedItemId);
   return {
     message: "担当を変更しました。",
     status: "success",
@@ -304,33 +331,24 @@ export async function postponeTaskOccurrence(
   });
 
   if (error !== null) {
-    if (error.message.includes(NOT_IN_FUTURE_MESSAGE_FRAGMENT)) {
-      return {
-        message: "延期する日付は未来の日を指定してください。",
-        status: "error",
-      };
-    }
-    if (error.message.includes(BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT)) {
-      return {
-        message: "本来の予定日より前には延期できません。",
-        status: "error",
-      };
-    }
-    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
-      return {
-        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-        status: "error",
-      };
-    }
-    return {
-      message: "延期を記録できませんでした。時間をおいて再度お試しください。",
-      status: "error",
-    };
+    return mapRpcError(
+      error.message,
+      [
+        {
+          fragment: NOT_IN_FUTURE_MESSAGE_FRAGMENT,
+          response: { message: "延期する日付は未来の日を指定してください。", status: "error" },
+        },
+        {
+          fragment: BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT,
+          response: { message: "本来の予定日より前には延期できません。", status: "error" },
+        },
+        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
+      ],
+      { message: "延期を記録できませんでした。時間をおいて再度お試しください。", status: "error" },
+    );
   }
 
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
-  // ホーム(Issue #36)も同じTodoの期限を表示するため、ここで再検証する。
-  revalidatePath("/");
+  revalidateManagedItemAndHome(managedItemId);
   return {
     message: `${formatTokyoDate(dueAtIso)}まで延期しました。`,
     status: "success",
@@ -353,27 +371,23 @@ export async function undoMaintenanceTaskCompletion(
   });
 
   if (error !== null) {
-    if (error.message.includes(NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT)) {
-      return {
-        message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
-        status: "error",
-      };
-    }
-    if (error.message.includes(NOT_COMPLETED_MESSAGE_FRAGMENT)) {
-      return {
-        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-        status: "error",
-      };
-    }
-    return {
-      message: "取消を記録できませんでした。時間をおいて再度お試しください。",
-      status: "error",
-    };
+    return mapRpcError(
+      error.message,
+      [
+        {
+          fragment: NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT,
+          response: {
+            message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+            status: "error",
+          },
+        },
+        { fragment: NOT_COMPLETED_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
+      ],
+      { message: "取消を記録できませんでした。時間をおいて再度お試しください。", status: "error" },
+    );
   }
 
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
-  // ホーム(Issue #36)も同じ完了・活動履歴を表示するため、ここで再検証する。
-  revalidatePath("/");
+  revalidateManagedItemAndHome(managedItemId);
   return {
     message: "完了の取消を記録しました。",
     status: "success",

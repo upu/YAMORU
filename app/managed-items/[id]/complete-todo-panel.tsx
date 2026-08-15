@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 
 import type { HouseholdMemberOption } from "../../../lib/supabase/profile";
 import { CompletionPanel } from "../../completion-panel";
+import { OperationFeedback } from "../../operation-feedback";
 import { completeMaintenanceTask } from "./actions";
 
 export function CompleteTodoPanel({
@@ -55,16 +56,11 @@ export function CompleteTodoPanel({
         onComplete={handleComplete}
         taskTitle={taskTitle}
       />
-      {isPending ? (
-        <p className="auth-feedback" role="status">
-          記録しています…
-        </p>
-      ) : null}
-      {errorMessage !== null ? (
-        <p className="auth-feedback" role="alert">
-          {errorMessage}
-        </p>
-      ) : null}
+      <OperationFeedback
+        errorMessage={errorMessage}
+        isPending={isPending}
+        pendingMessage="記録しています…"
+      />
     </div>
   );
 }

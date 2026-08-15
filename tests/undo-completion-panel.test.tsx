@@ -151,4 +151,34 @@ describe("UndoCompletionPanel", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("失敗後に再度開くと前回の失敗メッセージが消える(useDialogActionのopen()の契約)", async () => {
+    undoMaintenanceTaskCompletionMock.mockResolvedValue({
+      message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+      status: "error",
+    });
+
+    render(
+      <UndoCompletionPanel
+        managedItemId="item-1"
+        occurredAt="2026-09-01T15:00:00.000Z"
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    openDialog();
+    fireEvent.click(screen.getByRole("button", { name: "この完了を取り消す" }));
+    await screen.findByText(
+      "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+    );
+
+    openDialog();
+
+    expect(
+      screen.queryByText(
+        "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+      ),
+    ).not.toBeInTheDocument();
+  });
 });
