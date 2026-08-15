@@ -49,6 +49,7 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
   return render(
     <HomeContent
       actorName={ACTOR_NAME}
+      currentUserId="user-1"
       heroDateLabel="8月13日 木"
       household={household}
       members={MEMBERS}
@@ -277,9 +278,9 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
 describe("最近の実施の組み立て(buildRecentItems)", () => {
   function completionRow(overrides: Partial<RecentCompletionRow> = {}): RecentCompletionRow {
     return {
-      actor_user_id: "user-1",
       id: "activity-1",
       occurred_at: "2026-08-10T00:00:00.000Z",
+      performed_by_user_id: "user-1",
       task_occurrences: {
         status: "completed",
         task_rules: {
@@ -291,7 +292,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     };
   }
 
-  it("実施者名をactorNamesから解決して表示し、managedItemIdは持たない(完了操作の対象外)", () => {
+  it("実施者名をperformerNamesから解決して表示し、managedItemIdは持たない(完了操作の対象外)", () => {
     const items = buildRecentItems(
       [completionRow()],
       new Map([["user-1", "たろう"]]),
@@ -304,6 +305,14 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
 
   it("実施者名が解決できない場合はフォールバック表示にする", () => {
     const items = buildRecentItems([completionRow()], new Map());
+    expect(items[0].meta).toContain("メンバーが実施");
+  });
+
+  it("performed_by_user_idがnullの場合もフォールバック表示にする(型上のnull許容への防御)", () => {
+    const items = buildRecentItems(
+      [completionRow({ performed_by_user_id: null })],
+      new Map([["user-1", "たろう"]]),
+    );
     expect(items[0].meta).toContain("メンバーが実施");
   });
 

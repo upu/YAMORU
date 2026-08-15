@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { getLocalSupabaseEnv } from "./local-supabase-env";
 
-type ActivityLogRow = { action: string; occurred_at: string };
+type ActivityLogRow = {
+  action: string;
+  occurred_at: string;
+  performed_by_user_id: string | null;
+};
 type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
   due_at: string;
@@ -22,12 +26,18 @@ function asActivityLogRow(value: unknown): ActivityLogRow {
     typeof value !== "object" ||
     !("action" in value) ||
     !("occurred_at" in value) ||
+    !("performed_by_user_id" in value) ||
     typeof value.action !== "string" ||
-    typeof value.occurred_at !== "string"
+    typeof value.occurred_at !== "string" ||
+    (typeof value.performed_by_user_id !== "string" && value.performed_by_user_id !== null)
   ) {
     throw new Error("ActivityLogの形が不正です。");
   }
-  return { action: value.action, occurred_at: value.occurred_at };
+  return {
+    action: value.action,
+    occurred_at: value.occurred_at,
+    performed_by_user_id: value.performed_by_user_id,
+  };
 }
 
 function asTaskOccurrenceRow(value: unknown): TaskOccurrenceRow {
@@ -141,7 +151,7 @@ describe("メンテナンスTodo完了の実Auth・実DB接続", () => {
     const detailResult = await supabase
       .from("managed_items")
       .select(
-        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at)))",
+        "id, name, kind, external_links(id, url), task_rules(id, title, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, performed_by_user_id)))",
       )
       .eq("id", itemId)
       .single();
@@ -157,8 +167,13 @@ describe("メンテナンスTodo完了の実Auth・実DB接続", () => {
     // オフセット日数を足し、日本時間0時をUTCへ戻した値(YDR-012, YDR-017)。
     expect(pending?.scheduled_for).toBe("2020-01-28T15:00:00+00:00");
     expect(pending?.due_at).toBe("2020-02-25T15:00:00+00:00");
+    // 実施者を省略した完了では、操作主体(signUpした自分)が実施者になる(Issue #18, YDR-020)。
     expect(completed?.activity_logs).toEqual([
-      { action: "completed", occurred_at: "2020-01-01T00:00:00+00:00" },
+      {
+        action: "completed",
+        occurred_at: "2020-01-01T00:00:00+00:00",
+        performed_by_user_id: signupResult.data.user?.id,
+      },
     ]);
 
     await expect(supabase.auth.signOut()).resolves.toMatchObject({ error: null });

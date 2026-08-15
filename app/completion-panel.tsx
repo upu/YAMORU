@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 
+import type { HouseholdMemberOption } from "../lib/supabase/profile";
 import { formatDateInput } from "./time-zone";
 
 type PanelView = "closed" | "choice" | "details";
@@ -19,10 +20,15 @@ type CompletionPanelProps = {
   // 完了ダイアログに「実施した人」として表示する名前。実データ画面では
   // ログイン中の利用者のニックネームを、デモ画面では固定の表示名を渡す。
   actorName: string;
-  // null: 現在時刻で完了する。string: 実施日(YYYY-MM-DD、今日以前)を指定して完了する。
+  // 「詳しく記録する」の実施者選択で、既定値(自分)を判定するために使う。
+  currentUserId: string;
+  // 実施者選択の候補。同じ家庭のログイン済みメンバーに限る(YDR-020)。
+  members: HouseholdMemberOption[];
+  // occurredOn: null(現在時刻で完了)、string(実施日YYYY-MM-DD、今日以前を指定)。
+  // performedByUserId: null(実施者=操作主体、既定)、string(選択した実施者のuser_id)。
   // 呼び出し側が「現在時刻」の決定方法(クライアント時刻かサーバー時刻か)を選べるよう、
   // このコンポーネント自身はDateを組み立てない。
-  onComplete: (occurredOn: string | null) => void;
+  onComplete: (occurredOn: string | null, performedByUserId: string | null) => void;
   taskTitle: string;
 };
 
@@ -57,25 +63,29 @@ function CompletionChoice({
         type="button"
       >
         <strong>詳しく記録する</strong>
-        <span>実施した日を変更</span>
+        <span>実施した日・実施した人を変更</span>
       </button>
     </div>
   );
 }
 
 function CompletionDetails({
-  actorName,
+  currentUserId,
   dateInputRef,
   inputId,
+  members,
   onBack,
   onSubmit,
+  performerSelectId,
   today,
 }: {
-  actorName: string;
+  currentUserId: string;
   dateInputRef: RefObject<HTMLInputElement | null>;
   inputId: string;
+  members: HouseholdMemberOption[];
   onBack: () => void;
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
+  performerSelectId: string;
   today: string;
 }) {
   return (
@@ -94,10 +104,22 @@ function CompletionDetails({
         type="date"
       />
       <p className="input-help">すでに実施した日を選びます（今日以前）</p>
-      <div className="recording-summary">
-        <span>実施した人</span>
-        <strong>{actorName}</strong>
-      </div>
+      {/* 担当者(AssigneePanel)とは別の概念であることが分かるよう、ラベルと
+          位置を分ける(YDR-020「UIでの区別」)。既定値は現在の利用者で、
+          変更した場合だけ操作主体と異なる実施者として記録される。 */}
+      <label htmlFor={performerSelectId}>実施した人</label>
+      <select
+        defaultValue={currentUserId}
+        id={performerSelectId}
+        name="performedByUserId"
+      >
+        {members.map((member) => (
+          <option key={member.userId} value={member.userId}>
+            {member.nickname}
+          </option>
+        ))}
+      </select>
+      <p className="input-help">実際に作業した家庭のメンバーを選びます（既定は自分）</p>
       <button className="dialog-primary-button" type="submit">
         この内容で記録する
       </button>
@@ -105,15 +127,43 @@ function CompletionDetails({
   );
 }
 
+// 実施者<select>のdefaultValueは常にcurrentUserId。membersに現在の利用者の
+// optionが無いと、ブラウザは代わりに先頭optionを暗黙選択してしまい、変更操作
+// なしで別人が実施者として送信されうる。householdMembersは通常currentUserId
+// を含むはずだが、その前提が崩れた場合の安全側として自分の選択肢を補う。
+function ensureSelfOption(
+  members: HouseholdMemberOption[],
+  currentUserId: string,
+  actorName: string,
+): HouseholdMemberOption[] {
+  if (members.some((member) => member.userId === currentUserId)) return members;
+  return [{ nickname: actorName, userId: currentUserId }, ...members];
+}
+
+// 「この内容で記録する」の送信内容を取り出す。実施日・実施した人のどちらかが
+// 欠けていれば(ブラウザのバリデーションを回避された場合の防御)nullを返す。
+function parseCompletionDetailsForm(
+  formData: FormData,
+): { occurredOn: string; performedByUserId: string } | null {
+  const occurredOn = formData.get("occurredOn");
+  const performedByUserId = formData.get("performedByUserId");
+  if (typeof occurredOn !== "string" || occurredOn === "") return null;
+  if (typeof performedByUserId !== "string" || performedByUserId === "") return null;
+  return { occurredOn, performedByUserId };
+}
+
 type CompletionDialogProps = {
   actorName: string;
+  currentUserId: string;
   dateInputRef: RefObject<HTMLInputElement | null>;
   inputId: string;
+  members: HouseholdMemberOption[];
   onBack: () => void;
   onClose: () => void;
   onComplete: () => void;
   onShowDetails: () => void;
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
+  performerSelectId: string;
   quickCompleteRef: RefObject<HTMLButtonElement | null>;
   taskTitle: string;
   titleId: string;
@@ -157,11 +207,13 @@ function CompletionDialog(props: CompletionDialogProps) {
           />
         ) : (
           <CompletionDetails
-            actorName={props.actorName}
+            currentUserId={props.currentUserId}
             dateInputRef={props.dateInputRef}
             inputId={props.inputId}
+            members={props.members}
             onBack={props.onBack}
             onSubmit={props.onSubmit}
+            performerSelectId={props.performerSelectId}
             today={props.today}
           />
         )}
@@ -172,39 +224,33 @@ function CompletionDialog(props: CompletionDialogProps) {
 
 export function CompletionPanel({
   actorName,
+  currentUserId,
+  members,
   onComplete,
   taskTitle,
 }: CompletionPanelProps) {
   const [view, setView] = useState<PanelView>("closed");
   const titleId = useId();
   const inputId = useId();
+  const performerSelectId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const quickCompleteRef = useRef<HTMLButtonElement>(null);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const today = formatDateInput(new Date());
+
+  const performerOptions = ensureSelfOption(members, currentUserId, actorName);
 
   useEffect(() => {
     if (view === "choice") quickCompleteRef.current?.focus();
     if (view === "details") dateInputRef.current?.focus();
   }, [view]);
 
-  function closePanel() {
-    setView("closed");
-    triggerRef.current?.focus();
-  }
-
-  function completeNow() {
-    onComplete(null);
-    setView("closed");
-  }
-
   function submitDetails(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    const occurredOn = new FormData(event.currentTarget).get("occurredOn");
-    if (typeof occurredOn === "string" && occurredOn !== "") {
-      onComplete(occurredOn);
-      setView("closed");
-    }
+    const parsed = parseCompletionDetailsForm(new FormData(event.currentTarget));
+    if (parsed === null) return;
+    onComplete(parsed.occurredOn, parsed.performedByUserId);
+    setView("closed");
   }
 
   return (
@@ -215,13 +261,20 @@ export function CompletionPanel({
       {view === "closed" ? null : (
         <CompletionDialog
           actorName={actorName}
+          currentUserId={currentUserId}
           dateInputRef={dateInputRef}
           inputId={inputId}
+          members={performerOptions}
           onBack={() => { setView("choice"); }}
-          onClose={closePanel}
-          onComplete={completeNow}
+          onClose={() => { setView("closed"); triggerRef.current?.focus(); }}
+          onComplete={() => {
+            // 追加入力なしの完了では、現在の利用者を実施者として記録する(Issue #18)。
+            onComplete(null, null);
+            setView("closed");
+          }}
           onShowDetails={() => { setView("details"); }}
           onSubmit={submitDetails}
+          performerSelectId={performerSelectId}
           quickCompleteRef={quickCompleteRef}
           taskTitle={taskTitle}
           titleId={titleId}

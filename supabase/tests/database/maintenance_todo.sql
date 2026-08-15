@@ -321,15 +321,20 @@ select throws_ok(
   '異なる家庭のTaskRuleとOccurrenceを関連付けられない'
 );
 
+-- action='completed'の行はperformed_by_user_idを伴う不変条件(YDR-020)を満たすため、
+-- 操作主体と同じ値を実施者として入れる。この行自体はFK分離の検証用フィクスチャで
+-- あり、実施者機能そのものの検証はcomplete_maintenance_task.sqlで行う。
 insert into public.activity_logs (
-  household_id, task_occurrence_id, action, actor_user_id, occurred_at
+  household_id, task_occurrence_id, action, actor_user_id, occurred_at,
+  performed_by_user_id
 )
 select
   '00000000-0000-0000-0000-00000000a001',
   occurrence.id,
   'completed',
   '00000000-0000-0000-0000-0000000a1001',
-  '2026-10-08 12:00:00+00'
+  '2026-10-08 12:00:00+00',
+  '00000000-0000-0000-0000-0000000a1001'
 from public.task_occurrences occurrence
 join public.task_rules rule on rule.id = occurrence.task_rule_id
 where rule.title = 'フィルター交換'
@@ -337,13 +342,15 @@ where rule.title = 'フィルター交換'
 
 select throws_ok(
   $$ insert into public.activity_logs (
-       household_id, task_occurrence_id, action, actor_user_id, occurred_at
+       household_id, task_occurrence_id, action, actor_user_id, occurred_at,
+       performed_by_user_id
      ) select
        '00000000-0000-0000-0000-00000000b001',
        occurrence.id,
        'completed',
        '00000000-0000-0000-0000-0000000b1001',
-       '2026-10-08 12:00:00+00'
+       '2026-10-08 12:00:00+00',
+       '00000000-0000-0000-0000-0000000b1001'
        from public.task_occurrences occurrence
        join public.task_rules rule on rule.id = occurrence.task_rule_id
       where rule.title = 'フィルター交換'

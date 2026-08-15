@@ -157,18 +157,48 @@ export async function createMaintenanceTodo(
 
 const CONFLICT_MESSAGE_FRAGMENT = "is not pending";
 const SCHEDULE_COLLISION_MESSAGE_FRAGMENT = "already exists for the computed schedule";
+const PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT = "Performer not found";
 const INVALID_OCCURRED_ON: MaintenanceTodoActionState = {
   message: "実施日を正しく入力してください。",
   status: "error",
 };
+const GENERIC_COMPLETION_ERROR: MaintenanceTodoActionState = {
+  message: "完了を記録できませんでした。時間をおいて再度お試しください。",
+  status: "error",
+};
+
+function mapCompleteMaintenanceTaskError(message: string): MaintenanceTodoActionState {
+  if (message.includes(PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT)) {
+    return {
+      message: "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。",
+      status: "error",
+    };
+  }
+  if (message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
+    return {
+      message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+      status: "error",
+    };
+  }
+  if (message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)) {
+    return {
+      message: "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
+      status: "error",
+    };
+  }
+  return GENERIC_COMPLETION_ERROR;
+}
 
 // occurredOnはnull(現在時刻で完了)か、実施日の日付文字列(YYYY-MM-DD)。
 // 日付はメンテナンスTodo登録と同じくAsia/Tokyoの日付として解釈する。
+// performedByUserIdはnull(実施者=操作主体、既定)か、同じ家庭のメンバーのuser_id
+// (「詳しく記録する」で選択した実施者、Issue #18, YDR-020)。
 export async function completeMaintenanceTask(
   managedItemId: string,
   occurrenceId: string,
   idempotencyKey: string,
   occurredOn: string | null,
+  performedByUserId: string | null,
 ): Promise<MaintenanceTodoActionState> {
   let occurredAtIso: string | null = null;
   if (occurredOn !== null) {
@@ -181,27 +211,12 @@ export async function completeMaintenanceTask(
     idempotency_key: idempotencyKey,
     occurrence_id: occurrenceId,
     ...(occurredAtIso === null ? {} : { occurred_at: occurredAtIso }),
+    // 省略時はRPC側のdefault nullが操作主体を実施者として使う
+    // (setTaskOccurrenceAssigneeのnew_assignee_user_idと同じ回避方法)。
+    ...(performedByUserId === null ? {} : { performed_by_user_id: performedByUserId }),
   });
 
-  if (error !== null) {
-    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
-      return {
-        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-        status: "error",
-      };
-    }
-    if (error.message.includes(SCHEDULE_COLLISION_MESSAGE_FRAGMENT)) {
-      return {
-        message:
-          "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
-        status: "error",
-      };
-    }
-    return {
-      message: "完了を記録できませんでした。時間をおいて再度お試しください。",
-      status: "error",
-    };
-  }
+  if (error !== null) return mapCompleteMaintenanceTaskError(error.message);
 
   revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
   // ホーム(Issue #36)も同じ完了・活動履歴を表示するため、ここで再検証する。

@@ -51,6 +51,7 @@ export type Database = {
           new_assignee_user_id: string | null
           next_task_occurrence_id: string | null
           occurred_at: string
+          performed_by_user_id: string | null
           previous_assignee_user_id: string | null
           recorded_at: string
           task_occurrence_id: string
@@ -64,6 +65,7 @@ export type Database = {
           new_assignee_user_id?: string | null
           next_task_occurrence_id?: string | null
           occurred_at: string
+          performed_by_user_id?: string | null
           previous_assignee_user_id?: string | null
           recorded_at?: string
           task_occurrence_id: string
@@ -77,6 +79,7 @@ export type Database = {
           new_assignee_user_id?: string | null
           next_task_occurrence_id?: string | null
           occurred_at?: string
+          performed_by_user_id?: string | null
           previous_assignee_user_id?: string | null
           recorded_at?: string
           task_occurrence_id?: string
@@ -116,6 +119,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "task_occurrences"
             referencedColumns: ["id", "household_id"]
+          },
+          {
+            foreignKeyName: "activity_logs_performed_by_household_fkey"
+            columns: ["household_id", "performed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "household_members"
+            referencedColumns: ["household_id", "user_id"]
           },
           {
             foreignKeyName: "activity_logs_previous_assignee_household_fkey"
@@ -530,6 +540,7 @@ export type Database = {
           idempotency_key: string
           occurred_at?: string
           occurrence_id: string
+          performed_by_user_id?: string
         }
         Returns: string
       }

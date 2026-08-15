@@ -15,6 +15,11 @@ import { CompleteTodoPanel } from "../app/managed-items/[id]/complete-todo-panel
 
 afterEach(cleanup);
 
+const MEMBERS = [
+  { nickname: "ぽっぷ", userId: "user-self" },
+  { nickname: "家族B", userId: "user-other" },
+];
+
 function openAndCompleteNow() {
   fireEvent.click(
     screen.getByRole("button", { name: "フィルター交換を記録" }),
@@ -31,7 +36,9 @@ describe("CompleteTodoPanel", () => {
     render(
       <CompleteTodoPanel
         actorName="ぽっぷ"
+        currentUserId="user-self"
         managedItemId="item-1"
+        members={MEMBERS}
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
       />,
@@ -46,8 +53,36 @@ describe("CompleteTodoPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "詳しく記録する" }));
 
-    expect(screen.getByText("実施した人")).toBeInTheDocument();
-    expect(screen.getByText("ぽっぷ")).toBeInTheDocument();
+    // ラベルとselectがhtmlFor/idで結び付いていること(スクリーンリーダーが
+    // 名前で識別できること)を、アクセシブルネーム付きのクエリで検証する。
+    // 既定値は現在の利用者(Issue #18)。
+    expect(
+      screen.getByRole<HTMLSelectElement>("combobox", { name: "実施した人" })
+        .value,
+    ).toBe("user-self");
+  });
+
+  it("membersに現在の利用者が含まれない場合でも、既定値は自分になる(先頭optionの暗黙選択を防ぐ)", () => {
+    render(
+      <CompleteTodoPanel
+        actorName="ぽっぷ"
+        currentUserId="user-self"
+        managedItemId="item-1"
+        members={[{ nickname: "家族B", userId: "user-other" }]}
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を記録" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "詳しく記録する" }));
+
+    expect(
+      screen.getByRole<HTMLSelectElement>("combobox", { name: "実施した人" })
+        .value,
+    ).toBe("user-self");
   });
 
   it("完了を選ぶと同じOccurrenceへ完了アクションを呼び、ダイアログを閉じる", () => {
@@ -59,7 +94,9 @@ describe("CompleteTodoPanel", () => {
     render(
       <CompleteTodoPanel
         actorName="家族A"
+        currentUserId="user-self"
         managedItemId="item-1"
+        members={MEMBERS}
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
       />,
@@ -71,11 +108,12 @@ describe("CompleteTodoPanel", () => {
       screen.queryByRole("dialog", { name: "フィルター交換を記録" }),
     ).not.toBeInTheDocument();
     expect(completeMaintenanceTaskMock).toHaveBeenCalledTimes(1);
-    const [managedItemId, occurrenceId, idempotencyKey, occurredOn] =
+    const [managedItemId, occurrenceId, idempotencyKey, occurredOn, performedByUserId] =
       completeMaintenanceTaskMock.mock.calls[0] as [
         string,
         string,
         string,
+        string | null,
         string | null,
       ];
     expect(managedItemId).toBe("item-1");
@@ -84,6 +122,43 @@ describe("CompleteTodoPanel", () => {
     // 「今、自分がやった」ではnullを渡し、サーバー側のnow()に決定を委ねる
     // (クライアント時計のずれで未来判定にならないようにするため)。
     expect(occurredOn).toBeNull();
+    // 追加入力なしの完了では実施者も指定せず、操作主体をRPC側の既定値に委ねる
+    // (Issue #18, YDR-020)。
+    expect(performedByUserId).toBeNull();
+  });
+
+  it("詳しく記録するで別の実施者を選ぶとperformedByUserIdを渡す", () => {
+    completeMaintenanceTaskMock.mockResolvedValue({
+      message: "完了を記録しました。",
+      status: "success",
+    });
+
+    render(
+      <CompleteTodoPanel
+        actorName="ぽっぷ"
+        currentUserId="user-self"
+        managedItemId="item-1"
+        members={MEMBERS}
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を記録" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "詳しく記録する" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "実施した人" }), {
+      target: { value: "user-other" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "この内容で記録する" }),
+    );
+
+    expect(completeMaintenanceTaskMock).toHaveBeenCalledTimes(1);
+    const [, , , , performedByUserId] = completeMaintenanceTaskMock.mock
+      .calls[0] as [string, string, string, string | null, string | null];
+    expect(performedByUserId).toBe("user-other");
   });
 
   it("同じマウント中の再送は同じ冪等性キーを使う", () => {
@@ -95,7 +170,9 @@ describe("CompleteTodoPanel", () => {
     render(
       <CompleteTodoPanel
         actorName="家族A"
+        currentUserId="user-self"
         managedItemId="item-1"
+        members={MEMBERS}
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
       />,
@@ -113,7 +190,9 @@ describe("CompleteTodoPanel", () => {
     render(
       <CompleteTodoPanel
         actorName="家族A"
+        currentUserId="user-self"
         managedItemId="item-1"
+        members={MEMBERS}
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
       />,
@@ -143,7 +222,9 @@ describe("CompleteTodoPanel", () => {
     render(
       <CompleteTodoPanel
         actorName="家族A"
+        currentUserId="user-self"
         managedItemId="item-1"
+        members={MEMBERS}
         occurrenceId="occurrence-1"
         taskTitle="フィルター交換"
       />,
