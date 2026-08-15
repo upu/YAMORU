@@ -996,6 +996,30 @@ footer p {
   outline-offset: 2px;
 }
 
+.postpone-panel {
+  margin-top: 6px;
+}
+
+.postpone-trigger {
+  padding: 0;
+  border: 0;
+  color: var(--green);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.postpone-trigger:hover {
+  text-decoration: underline;
+}
+
+.postpone-trigger:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
 @media (max-width: 480px) {
   main {
     padding: 28px 16px 24px;

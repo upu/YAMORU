@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "../../../lib/supabase/server";
 import type { MaintenanceTodoActionState } from "./state";
-import { addDaysToTokyoDateUtcIso, tokyoDateToUtcIso } from "../../time-zone";
+import {
+  addDaysToTokyoDateUtcIso,
+  formatTokyoDate,
+  tokyoDateToUtcIso,
+} from "../../time-zone";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const MAX_RECOMMENDED_OFFSET = 3650;
@@ -270,6 +274,65 @@ export async function setTaskOccurrenceAssignee(
   revalidatePath("/");
   return {
     message: "担当を変更しました。",
+    status: "success",
+  };
+}
+
+const NOT_IN_FUTURE_MESSAGE_FRAGMENT = "must be in the future";
+const BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT = "must not be before scheduled_for";
+const INVALID_DUE_DATE: MaintenanceTodoActionState = {
+  message: "延期する日付を正しく入力してください。",
+  status: "error",
+};
+
+// Issue #19: pendingなOccurrenceのdue_atだけを未来日へ変更する。scheduled_for、
+// 担当者、完了状態は変更しない(YDR-012)。実施者という概念はなく、操作主体と
+// 操作日時だけをActivityLogへ記録する(YDR-020)。dueOnはYYYY-MM-DD形式で、
+// メンテナンスTodo登録・完了記録と同じくAsia/Tokyoの日付として解釈する。
+export async function postponeTaskOccurrence(
+  managedItemId: string,
+  occurrenceId: string,
+  dueOn: string,
+): Promise<MaintenanceTodoActionState> {
+  const dueAtIso = tokyoDateToUtcIso(dueOn);
+  if (dueAtIso === null) return INVALID_DUE_DATE;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("postpone_task_occurrence", {
+    new_due_at: dueAtIso,
+    occurrence_id: occurrenceId,
+  });
+
+  if (error !== null) {
+    if (error.message.includes(NOT_IN_FUTURE_MESSAGE_FRAGMENT)) {
+      return {
+        message: "延期する日付は未来の日を指定してください。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT)) {
+      return {
+        message: "本来の予定日より前には延期できません。",
+        status: "error",
+      };
+    }
+    if (error.message.includes(CONFLICT_MESSAGE_FRAGMENT)) {
+      return {
+        message: "他の操作で状態が変わりました。最新の状態を確認してください。",
+        status: "error",
+      };
+    }
+    return {
+      message: "延期を記録できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    };
+  }
+
+  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  // ホーム(Issue #36)も同じTodoの期限を表示するため、ここで再検証する。
+  revalidatePath("/");
+  return {
+    message: `${formatTokyoDate(dueAtIso)}まで延期しました。`,
     status: "success",
   };
 }
