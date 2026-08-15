@@ -49,10 +49,12 @@ export type Database = {
           id: string
           idempotency_key: string | null
           new_assignee_user_id: string | null
+          new_due_at: string | null
           next_task_occurrence_id: string | null
           occurred_at: string
           performed_by_user_id: string | null
           previous_assignee_user_id: string | null
+          previous_due_at: string | null
           recorded_at: string
           task_occurrence_id: string
         }
@@ -63,10 +65,12 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           new_assignee_user_id?: string | null
+          new_due_at?: string | null
           next_task_occurrence_id?: string | null
           occurred_at: string
           performed_by_user_id?: string | null
           previous_assignee_user_id?: string | null
+          previous_due_at?: string | null
           recorded_at?: string
           task_occurrence_id: string
         }
@@ -77,10 +81,12 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           new_assignee_user_id?: string | null
+          new_due_at?: string | null
           next_task_occurrence_id?: string | null
           occurred_at?: string
           performed_by_user_id?: string | null
           previous_assignee_user_id?: string | null
+          previous_due_at?: string | null
           recorded_at?: string
           task_occurrence_id?: string
         }
@@ -592,6 +598,10 @@ export type Database = {
           claim_secret: string
           expires_at: string
         }[]
+      }
+      postpone_task_occurrence: {
+        Args: { new_due_at: string; occurrence_id: string }
+        Returns: undefined
       }
       set_task_occurrence_assignee: {
         Args: { new_assignee_user_id?: string; occurrence_id: string }

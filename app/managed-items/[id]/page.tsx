@@ -19,6 +19,7 @@ import {
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
+import { PostponePanel } from "./postpone-panel";
 import { UndoCompletionPanel } from "./undo-completion-panel";
 import { MAINTENANCE_DISPLAY_COPY, toDeadlineKind, type TodoTone } from "../../task-schedule";
 import {
@@ -197,6 +198,11 @@ function PendingTodoSection({
                 currentUserId={currentUserId}
                 managedItemId={managedItemId}
                 members={members}
+                occurrenceId={todo.id}
+                taskTitle={todo.title}
+              />
+              <PostponePanel
+                managedItemId={managedItemId}
                 occurrenceId={todo.id}
                 taskTitle={todo.title}
               />

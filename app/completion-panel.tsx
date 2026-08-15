@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  type KeyboardEvent,
-  type MouseEvent,
   type RefObject,
   type SyntheticEvent,
   useEffect,
@@ -12,6 +10,7 @@ import {
 } from "react";
 
 import type { HouseholdMemberOption } from "../lib/supabase/profile";
+import { DialogShell } from "./dialog-shell";
 import { formatDateInput } from "./time-zone";
 
 type PanelView = "closed" | "choice" | "details";
@@ -172,53 +171,33 @@ type CompletionDialogProps = {
 };
 
 function CompletionDialog(props: CompletionDialogProps) {
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) props.onClose();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") props.onClose();
-  }
-
   return (
-    <div className="completion-dialog-backdrop" onMouseDown={handleBackdropClick}>
-      <section
-        aria-labelledby={props.titleId}
-        aria-modal="true"
-        className="completion-dialog"
-        onKeyDown={handleKeyDown}
-        role="dialog"
-      >
-        <div className="completion-dialog-heading">
-          <div>
-            <p className="detail-kicker">ACTIVITY</p>
-            <h2 id={props.titleId}>{props.taskTitle}を記録</h2>
-          </div>
-          <button aria-label="閉じる" className="dialog-close" onClick={props.onClose} type="button">
-            <span aria-hidden="true">×</span>
-          </button>
-        </div>
-        {props.view === "choice" ? (
-          <CompletionChoice
-            actorName={props.actorName}
-            onComplete={props.onComplete}
-            onShowDetails={props.onShowDetails}
-            quickCompleteRef={props.quickCompleteRef}
-          />
-        ) : (
-          <CompletionDetails
-            currentUserId={props.currentUserId}
-            dateInputRef={props.dateInputRef}
-            inputId={props.inputId}
-            members={props.members}
-            onBack={props.onBack}
-            onSubmit={props.onSubmit}
-            performerSelectId={props.performerSelectId}
-            today={props.today}
-          />
-        )}
-      </section>
-    </div>
+    <DialogShell
+      kicker="ACTIVITY"
+      onClose={props.onClose}
+      title={`${props.taskTitle}を記録`}
+      titleId={props.titleId}
+    >
+      {props.view === "choice" ? (
+        <CompletionChoice
+          actorName={props.actorName}
+          onComplete={props.onComplete}
+          onShowDetails={props.onShowDetails}
+          quickCompleteRef={props.quickCompleteRef}
+        />
+      ) : (
+        <CompletionDetails
+          currentUserId={props.currentUserId}
+          dateInputRef={props.dateInputRef}
+          inputId={props.inputId}
+          members={props.members}
+          onBack={props.onBack}
+          onSubmit={props.onSubmit}
+          performerSelectId={props.performerSelectId}
+          today={props.today}
+        />
+      )}
+    </DialogShell>
   );
 }
 

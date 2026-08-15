@@ -976,10 +976,12 @@ footer p {
   margin-top: 2px;
 }
 
-.undo-trigger {
+/* undo-trigger(取消)・postpone-trigger(延期)は、Todo詳細操作の補助的な
+   テキストボタンとして見た目を共有し、色だけで意味を区別する。 */
+.undo-trigger,
+.postpone-trigger {
   padding: 0;
   border: 0;
-  color: var(--orange);
   background: transparent;
   font: inherit;
   font-size: 0.75rem;
@@ -987,13 +989,27 @@ footer p {
   cursor: pointer;
 }
 
-.undo-trigger:hover {
+.undo-trigger {
+  color: var(--orange);
+}
+
+.postpone-trigger {
+  color: var(--green);
+}
+
+.undo-trigger:hover,
+.postpone-trigger:hover {
   text-decoration: underline;
 }
 
-.undo-trigger:focus-visible {
+.undo-trigger:focus-visible,
+.postpone-trigger:focus-visible {
   outline: 3px solid rgb(64 103 120 / 38%);
   outline-offset: 2px;
+}
+
+.postpone-panel {
+  margin-top: 6px;
 }
 
 @media (max-width: 480px) {
