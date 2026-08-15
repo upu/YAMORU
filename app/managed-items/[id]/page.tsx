@@ -43,10 +43,11 @@ type RecentCompletionData = {
   occurredAt: string;
   title: string;
 };
-type LastActivityData = { actorName: string; occurredAt: string };
+type LastActivityData = { occurredAt: string; performerName: string };
 
 export type ManagedItemDetailData = {
   actorName: string;
+  currentUserId: string;
   externalLinks: ExternalLinkData[];
   id: string;
   kind: ManagedItemKind;
@@ -59,8 +60,8 @@ export type ManagedItemDetailData = {
 
 type ActivityLogRow = {
   action: string;
-  actor_user_id: string;
   occurred_at: string;
+  performed_by_user_id: string | null;
 };
 type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
@@ -112,7 +113,8 @@ function buildPendingTodos(
 }
 
 // 取消されていない直近の完了(occurred_at基準)を、全TaskRuleを横断して1件返す
-// (YDR-012)。「誰が」は#30の表示名を使い、操作主体と実施者の分離に備える(Issue #36)。
+// (YDR-012)。「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
+// (Issue #18, YDR-020)。
 function findLatestCompletionLog(taskRules: TaskRuleRow[]): ActivityLogRow | null {
   const logs = taskRules.flatMap((rule) =>
     rule.task_occurrences
@@ -157,11 +159,13 @@ function buildRecentCompletions(
 
 function PendingTodoSection({
   actorName,
+  currentUserId,
   managedItemId,
   members,
   todos,
 }: {
   actorName: string;
+  currentUserId: string;
   managedItemId: string;
   members: HouseholdMemberOption[];
   todos: PendingTodoData[];
@@ -190,7 +194,9 @@ function PendingTodoSection({
               />
               <CompleteTodoPanel
                 actorName={actorName}
+                currentUserId={currentUserId}
                 managedItemId={managedItemId}
+                members={members}
                 occurrenceId={todo.id}
                 taskTitle={todo.title}
               />
@@ -250,7 +256,7 @@ function LastActivitySummary({ lastActivity }: { lastActivity: LastActivityData 
           </div>
           <div>
             <span>誰が</span>
-            <strong>{lastActivity.actorName}</strong>
+            <strong>{lastActivity.performerName}</strong>
           </div>
         </div>
       )}
@@ -312,6 +318,7 @@ export function ManagedItemDetailContent({
       <div className="ledger-grid managed-item-detail-grid">
         <PendingTodoSection
           actorName={item.actorName}
+          currentUserId={item.currentUserId}
           managedItemId={item.id}
           members={item.members}
           todos={item.pendingTodos}
@@ -350,7 +357,7 @@ export default async function RegisteredManagedItemDetail({
     supabase
       .from("managed_items")
       .select(
-        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, actor_user_id)))",
+        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, performed_by_user_id)))",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -366,26 +373,31 @@ export default async function RegisteredManagedItemDetail({
   const pendingTodos = buildPendingTodos(data.task_rules, nowIso);
   const recentCompletions = buildRecentCompletions(data.task_rules);
   const latestCompletionLog = findLatestCompletionLog(data.task_rules);
-  const [lastActivityActorName, members] = await Promise.all([
-    latestCompletionLog === null
+  const [lastActivityPerformerName, members] = await Promise.all([
+    // performed_by_user_idはaction='completed'の行にのみ設定される
+    // (CHECK制約、YDR-020)。findLatestCompletionLogはcompletedの行だけを
+    // 対象にするため、ここでは常に非nullのはずだが、フォールバック名で
+    // 安全側に倒す。
+    latestCompletionLog === null || latestCompletionLog.performed_by_user_id === null
       ? Promise.resolve(null)
       : loadActorName(
           supabase,
-          latestCompletionLog.actor_user_id,
+          latestCompletionLog.performed_by_user_id,
           FALLBACK_OTHER_MEMBER_NAME,
         ),
-    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
+    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(supabase, data.household_id),
   ]);
   const lastActivity =
-    latestCompletionLog === null || lastActivityActorName === null
+    latestCompletionLog === null || lastActivityPerformerName === null
       ? null
-      : { actorName: lastActivityActorName, occurredAt: latestCompletionLog.occurred_at };
+      : { occurredAt: latestCompletionLog.occurred_at, performerName: lastActivityPerformerName };
 
   return (
     <ManagedItemDetailContent
       item={{
         actorName,
+        currentUserId: user.id,
         externalLinks: data.external_links,
         id: data.id,
         kind: toManagedItemKind(data.kind),

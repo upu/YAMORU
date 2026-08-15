@@ -23,11 +23,12 @@ describe("メンテナンスTodoの完了操作", () => {
     rpcMock.mockResolvedValue({ data: "next-occurrence-id", error: null });
   });
 
-  it("現在時刻での完了ではoccurred_atを送らずRPCへ渡す", async () => {
+  it("現在時刻での完了ではoccurred_atとperformed_by_user_idを送らずRPCへ渡す", async () => {
     const result = await completeMaintenanceTask(
       "managed-item-id",
       "occurrence-id",
       "idempotency-key-1",
+      null,
       null,
     );
 
@@ -50,6 +51,7 @@ describe("メンテナンスTodoの完了操作", () => {
       "occurrence-id",
       "idempotency-key-2",
       "2026-08-01",
+      null,
     );
 
     expect(rpcMock).toHaveBeenCalledWith("complete_maintenance_task", {
@@ -65,12 +67,29 @@ describe("メンテナンスTodoの完了操作", () => {
       "occurrence-id",
       "idempotency-key-2b",
       "2026-02-30",
+      null,
     );
 
     expect(createClientMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "実施日を正しく入力してください。",
       status: "error",
+    });
+  });
+
+  it("実施者を指定した場合はperformed_by_user_idをRPCへ渡す", async () => {
+    await completeMaintenanceTask(
+      "managed-item-id",
+      "occurrence-id",
+      "idempotency-key-2c",
+      null,
+      "other-member-id",
+    );
+
+    expect(rpcMock).toHaveBeenCalledWith("complete_maintenance_task", {
+      idempotency_key: "idempotency-key-2c",
+      occurrence_id: "occurrence-id",
+      performed_by_user_id: "other-member-id",
     });
   });
 
@@ -84,6 +103,7 @@ describe("メンテナンスTodoの完了操作", () => {
       "managed-item-id",
       "occurrence-id",
       "idempotency-key-3",
+      null,
       null,
     );
 
@@ -107,11 +127,33 @@ describe("メンテナンスTodoの完了操作", () => {
       "occurrence-id",
       "idempotency-key-3b",
       "2020-03-10",
+      null,
     );
 
     expect(result).toEqual({
       message:
         "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
+      status: "error",
+    });
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  it("実施者が同じ家庭のメンバーでない場合は選び直しを案内する", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "Performer not found" },
+    });
+
+    const result = await completeMaintenanceTask(
+      "managed-item-id",
+      "occurrence-id",
+      "idempotency-key-3c",
+      null,
+      "other-household-member-id",
+    );
+
+    expect(result).toEqual({
+      message: "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。",
       status: "error",
     });
     expect(revalidatePathMock).not.toHaveBeenCalled();
@@ -127,6 +169,7 @@ describe("メンテナンスTodoの完了操作", () => {
       "managed-item-id",
       "occurrence-id",
       "idempotency-key-4",
+      null,
       null,
     );
 

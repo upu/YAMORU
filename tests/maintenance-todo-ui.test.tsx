@@ -12,6 +12,7 @@ afterEach(cleanup);
 
 const ITEM_WITH_TODO: ManagedItemDetailData = {
   actorName: "家族A",
+  currentUserId: "user-1",
   externalLinks: [],
   id: "item-1",
   kind: "pet_supplies",

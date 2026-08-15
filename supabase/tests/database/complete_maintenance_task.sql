@@ -1,23 +1,25 @@
 -- Issue #35: メンテナンスTodoの原子的な完了、冪等性キー、同時完了、家庭間分離を検証する。
+-- Issue #18: 完了時の実施者(performed_by_user_id)の既定値・任意指定・検証・冪等性の
+-- 整合も併せて検証する(YDR-020)。
 -- fixtureはsupabase/seed.sqlの架空データだけを使う。
 
 create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(37);
+select plan(47);
 
 select has_function(
   'public',
   'complete_maintenance_task',
-  array['uuid', 'uuid', 'timestamp with time zone'],
+  array['uuid', 'uuid', 'timestamp with time zone', 'uuid'],
   'メンテナンスTodoを完了し次回Occurrenceを作るRPCが存在する'
 );
 
 select ok(
   has_function_privilege(
     'authenticated',
-    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone)',
+    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone,uuid)',
     'execute'
   ),
   'authenticatedだけが完了RPCを実行できる'
@@ -26,7 +28,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone)',
+    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone,uuid)',
     'execute'
   ),
   'anonは完了RPCを実行できない'
@@ -35,7 +37,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'service_role',
-    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone)',
+    'public.complete_maintenance_task(uuid,uuid,timestamp with time zone,uuid)',
     'execute'
   ),
   'Service Roleにも完了RPCを公開しない'
@@ -49,6 +51,10 @@ select has_column(
   'public', 'activity_logs', 'next_task_occurrence_id',
   'ActivityLogに自動生成した次回Occurrenceへの参照列がある'
 );
+select has_column(
+  'public', 'activity_logs', 'performed_by_user_id',
+  'ActivityLogに実施者列がある'
+);
 select ok(
   exists (
     select 1 from pg_catalog.pg_constraint
@@ -57,6 +63,15 @@ select ok(
        and contype = 'u'
   ),
   '冪等性キーに一意制約がある'
+);
+select ok(
+  exists (
+    select 1 from pg_catalog.pg_constraint
+     where conrelid = 'public.activity_logs'::regclass
+       and conname = 'activity_logs_performed_by_completed_check'
+       and contype = 'c'
+  ),
+  '完了以外の行は実施者を持たない不変条件がCHECK制約で強制されている'
 );
 
 -- ---------------------------------------------------------------------------
@@ -96,6 +111,14 @@ select isnt_empty(
        '2020-04-01 00:00:00+00', '2020-04-08 00:00:00+00'
      ) $$,
   '検証用TaskRule(原子性確認用)を作成できる'
+);
+select isnt_empty(
+  $$ select public.create_maintenance_task(
+       '00000000-0000-0000-0000-0000000aa001',
+       '実施者指定確認用', 1, 2,
+       '2020-05-10 00:00:00+00', '2020-05-11 00:00:00+00'
+     ) $$,
+  '検証用TaskRule(実施者指定確認用)を作成できる'
 );
 
 -- ---------------------------------------------------------------------------
@@ -199,6 +222,96 @@ select is(
 );
 
 -- ---------------------------------------------------------------------------
+-- 実施者(performer)の既定値・任意指定・検証(Issue #18, YDR-020)
+-- ---------------------------------------------------------------------------
+select is(
+  (
+    select log.performed_by_user_id
+      from public.activity_logs log
+      join public.task_occurrences occurrence on occurrence.id = log.task_occurrence_id
+      join public.task_rules rule on rule.id = occurrence.task_rule_id
+     where rule.title = '完了フロー確認用'
+       and log.action = 'completed'
+  ),
+  '00000000-0000-0000-0000-0000000a1001'::uuid,
+  '追加入力なしでは操作主体が実施者になる'
+);
+
+select isnt_empty(
+  $$ select public.complete_maintenance_task(
+       (
+         select occurrence.id
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '実施者指定確認用'
+       ),
+       '00000000-0000-0000-0000-0000000e0010',
+       null,
+       '00000000-0000-0000-0000-0000000a1002'
+     ) $$,
+  '同じ家庭の別メンバーを実施者に指定して完了できる'
+);
+
+select results_eq(
+  $$ select log.actor_user_id, log.performed_by_user_id
+       from public.activity_logs log
+       join public.task_occurrences occurrence on occurrence.id = log.task_occurrence_id
+       join public.task_rules rule on rule.id = occurrence.task_rule_id
+      where rule.title = '実施者指定確認用'
+        and log.action = 'completed' $$,
+  $$ values (
+       '00000000-0000-0000-0000-0000000a1001'::uuid,
+       '00000000-0000-0000-0000-0000000a1002'::uuid
+     ) $$,
+  '操作主体(actor_user_id)と実施者(performed_by_user_id)を区別して保持する'
+);
+
+select throws_ok(
+  $$ select public.complete_maintenance_task(
+       (
+         select occurrence.id
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '衝突確認用'
+       ),
+       '00000000-0000-0000-0000-0000000e0011',
+       null,
+       '00000000-0000-0000-0000-0000000b1001'
+     ) $$,
+  'P0001',
+  'Performer not found',
+  '他家庭の利用者を実施者に指定できない'
+);
+
+select throws_ok(
+  $$ select public.complete_maintenance_task(
+       (
+         select occurrence.id
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '衝突確認用'
+       ),
+       '00000000-0000-0000-0000-0000000e0012',
+       null,
+       '00000000-0000-0000-0000-00000000ffff'
+     ) $$,
+  'P0001',
+  'Performer not found',
+  '存在しない利用者IDも同一のエラーにする(所属を推測させない)'
+);
+
+select is(
+  (
+    select occurrence.status
+      from public.task_occurrences occurrence
+      join public.task_rules rule on rule.id = occurrence.task_rule_id
+     where rule.title = '衝突確認用'
+  ),
+  'pending'::text,
+  '実施者検証で失敗した場合、Occurrenceはpendingのまま残る(部分更新なし)'
+);
+
+-- ---------------------------------------------------------------------------
 -- 同じ冪等性キーの再送は最初の結果を返し、重複作成しない
 -- ---------------------------------------------------------------------------
 select results_eq(
@@ -241,6 +354,28 @@ select is(
   ),
   1::bigint,
   '再送してもActivityLogを重複作成しない'
+);
+
+-- ---------------------------------------------------------------------------
+-- 同じ冪等性キーを異なる実施者で再送すると、保存済みの値を黙って優先せず
+-- 「異なる内容の再送」として拒否する(YDR-020)
+-- ---------------------------------------------------------------------------
+select throws_ok(
+  $$ select public.complete_maintenance_task(
+       (
+         select occurrence.id
+           from public.task_occurrences occurrence
+           join public.task_rules rule on rule.id = occurrence.task_rule_id
+          where rule.title = '完了フロー確認用'
+            and occurrence.status = 'completed'
+       ),
+       '00000000-0000-0000-0000-0000000e0001',
+       null,
+       '00000000-0000-0000-0000-0000000a1002'
+     ) $$,
+  'P0001',
+  'Idempotency key was already used for a different occurrence',
+  '同じ冪等性キーを保存済みと異なる実施者で再送すると拒否する'
 );
 
 -- ---------------------------------------------------------------------------

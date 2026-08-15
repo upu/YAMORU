@@ -94,9 +94,9 @@ export type PendingOccurrenceRow = {
 };
 
 export type RecentCompletionRow = {
-  actor_user_id: string;
   id: string;
   occurred_at: string;
+  performed_by_user_id: string | null;
   task_occurrences: {
     status: string;
     task_rules: {
@@ -141,7 +141,7 @@ export function buildReminderItems(
 
 export function buildRecentItems(
   rows: RecentCompletionRow[],
-  actorNames: Map<string, string>,
+  performerNames: Map<string, string>,
 ): HomeItem[] {
   return rows
     // 完了取消(Issue #37, YDR-015)でOccurrenceの状態がpendingへ戻った場合、
@@ -151,8 +151,13 @@ export function buildRecentItems(
       detail: row.task_occurrences.task_rules.managed_items.name,
       detailHref: `/managed-items/${row.task_occurrences.task_rules.managed_items.id}`,
       id: row.id,
+      // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
+      // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
+      // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
       meta: `${formatTokyoDate(row.occurred_at)} ・ ${
-        actorNames.get(row.actor_user_id) ?? FALLBACK_OTHER_MEMBER_NAME
+        (row.performed_by_user_id === null
+          ? null
+          : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
       }が実施`,
       title: row.task_occurrences.task_rules.title,
       tone: "done" as const,
@@ -202,7 +207,7 @@ async function loadHomeSections(
     supabase
       .from("activity_logs")
       .select(
-        "id, occurred_at, actor_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))",
+        "id, occurred_at, performed_by_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))",
       )
       .eq("action", "completed")
       .order("occurred_at", { ascending: false })
@@ -213,30 +218,40 @@ async function loadHomeSections(
     throw new Error("ホームの予定を取得できませんでした。");
   }
 
-  const actorIds = [...new Set(activityRows.map((row) => row.actor_user_id))];
+  // 「最近の実施」に表示するのは実施者(performed_by_user_id)。操作主体
+  // (actor_user_id)は表示しない(Issue #18, YDR-020)。
+  const performerIds = [
+    ...new Set(
+      activityRows
+        .map((row) => row.performed_by_user_id)
+        .filter((userId): userId is string => userId !== null),
+    ),
+  ];
   const { data: profileRows, error: profileError } =
-    actorIds.length === 0
+    performerIds.length === 0
       ? { data: [] as { nickname: string; user_id: string }[], error: null }
-      : await supabase.from("profiles").select("user_id, nickname").in("user_id", actorIds);
+      : await supabase.from("profiles").select("user_id, nickname").in("user_id", performerIds);
 
   if (profileError !== null) {
     throw new Error("実施者を取得できませんでした。");
   }
 
-  const actorNames = new Map(profileRows.map((row) => [row.user_id, row.nickname]));
+  const performerNames = new Map(profileRows.map((row) => [row.user_id, row.nickname]));
 
   return buildHomeSections(
     buildReminderItems(occurrenceRows, nowIso),
-    buildRecentItems(activityRows, actorNames),
+    buildRecentItems(activityRows, performerNames),
   );
 }
 
 function TaskCard({
   actorName,
+  currentUserId,
   item,
   members,
 }: {
   actorName: string;
+  currentUserId: string;
   item: HomeItem;
   members: HouseholdMemberOption[];
 }) {
@@ -265,7 +280,9 @@ function TaskCard({
             />
             <CompleteTodoPanel
               actorName={actorName}
+              currentUserId={currentUserId}
               managedItemId={item.managedItemId}
+              members={members}
               occurrenceId={item.id}
               taskTitle={item.title}
             />
@@ -278,10 +295,12 @@ function TaskCard({
 
 function HomeSectionView({
   actorName,
+  currentUserId,
   members,
   section,
 }: {
   actorName: string;
+  currentUserId: string;
   members: HouseholdMemberOption[];
   section: HomeSection;
 }) {
@@ -299,7 +318,13 @@ function HomeSectionView({
 
       <div className="card-list">
         {section.items.map((item) => (
-          <TaskCard actorName={actorName} item={item} key={item.id} members={members} />
+          <TaskCard
+            actorName={actorName}
+            currentUserId={currentUserId}
+            item={item}
+            key={item.id}
+            members={members}
+          />
         ))}
       </div>
     </section>
@@ -377,10 +402,12 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
 
 function HomeSectionList({
   actorName,
+  currentUserId,
   members,
   sections,
 }: {
   actorName: string;
+  currentUserId: string;
   members: HouseholdMemberOption[];
   sections: HomeSection[];
 }) {
@@ -389,6 +416,7 @@ function HomeSectionList({
       {sections.map((section) => (
         <HomeSectionView
           actorName={actorName}
+          currentUserId={currentUserId}
           key={section.id}
           members={members}
           section={section}
@@ -400,12 +428,14 @@ function HomeSectionList({
 
 export function HomeContent({
   actorName,
+  currentUserId,
   heroDateLabel,
   household,
   members,
   sections,
 }: {
   actorName: string;
+  currentUserId: string;
   heroDateLabel: string;
   household: HomeHouseholdSummary | null;
   members: HouseholdMemberOption[];
@@ -433,7 +463,12 @@ export function HomeContent({
       ) : visibleSections.length === 0 ? (
         <HomeEmptyState householdName={household.name} />
       ) : (
-        <HomeSectionList actorName={actorName} members={members} sections={visibleSections} />
+        <HomeSectionList
+          actorName={actorName}
+          currentUserId={currentUserId}
+          members={members}
+          sections={visibleSections}
+        />
       )}
 
       <footer>
@@ -469,6 +504,7 @@ export default async function Home() {
     return (
       <HomeContent
         actorName={actorName}
+        currentUserId={user.id}
         heroDateLabel={heroDateLabel}
         household={null}
         members={[]}
@@ -479,13 +515,14 @@ export default async function Home() {
 
   const [sections, members] = await Promise.all([
     loadHomeSections(supabase, nowIso),
-    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
+    // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(supabase, household.id),
   ]);
 
   return (
     <HomeContent
       actorName={actorName}
+      currentUserId={user.id}
       heroDateLabel={heroDateLabel}
       household={household}
       members={members}

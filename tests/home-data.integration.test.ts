@@ -8,7 +8,7 @@ import { getLocalSupabaseEnv } from "./local-supabase-env";
 const PENDING_OCCURRENCES_SELECT =
   "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, managed_items(id, name))";
 const RECENT_ACTIVITY_SELECT =
-  "id, occurred_at, actor_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))";
+  "id, occurred_at, performed_by_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))";
 
 function asString(value: unknown, message: string): string {
   if (typeof value !== "string") throw new Error(message);

@@ -78,6 +78,7 @@ describe("登録済みManagedItem詳細", () => {
   it("名前、種類、複数の安全な外部リンクを表示する", () => {
     const item: ManagedItemDetailData = {
       actorName: "家族A",
+      currentUserId: "user-1",
       externalLinks: [
         { id: "link-1", url: "https://example.com/product" },
         { id: "link-2", url: "http://example.com/manual" },
@@ -107,6 +108,7 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           actorName: "家族A",
+          currentUserId: "user-1",
           externalLinks: [],
           lastActivity: null,
           members: [],
@@ -125,6 +127,7 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           actorName: "家族A",
+          currentUserId: "user-1",
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
           lastActivity: null,
           members: [],
@@ -144,8 +147,9 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           actorName: "家族A",
+          currentUserId: "user-1",
           externalLinks: [],
-          lastActivity: { actorName: "たろう", occurredAt: "2026-08-10T00:00:00.000Z" },
+          lastActivity: { occurredAt: "2026-08-10T00:00:00.000Z", performerName: "たろう" },
           members: [],
           pendingTodos: [],
           recentCompletions: [],
@@ -164,6 +168,7 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           actorName: "家族A",
+          currentUserId: "user-1",
           externalLinks: [],
           lastActivity: null,
           members: [],

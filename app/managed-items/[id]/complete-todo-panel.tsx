@@ -2,17 +2,22 @@
 
 import { useState, useTransition } from "react";
 
+import type { HouseholdMemberOption } from "../../../lib/supabase/profile";
 import { CompletionPanel } from "../../completion-panel";
 import { completeMaintenanceTask } from "./actions";
 
 export function CompleteTodoPanel({
   actorName,
+  currentUserId,
   managedItemId,
+  members,
   occurrenceId,
   taskTitle,
 }: {
   actorName: string;
+  currentUserId: string;
   managedItemId: string;
+  members: HouseholdMemberOption[];
   occurrenceId: string;
   taskTitle: string;
 }) {
@@ -24,7 +29,10 @@ export function CompleteTodoPanel({
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  function handleComplete(occurredOn: string | null) {
+  function handleComplete(
+    occurredOn: string | null,
+    performedByUserId: string | null,
+  ) {
     setErrorMessage(null);
     startTransition(async () => {
       const result = await completeMaintenanceTask(
@@ -32,6 +40,7 @@ export function CompleteTodoPanel({
         occurrenceId,
         idempotencyKey,
         occurredOn,
+        performedByUserId,
       );
       if (result.status === "error") setErrorMessage(result.message);
     });
@@ -41,6 +50,8 @@ export function CompleteTodoPanel({
     <div className="complete-todo-panel">
       <CompletionPanel
         actorName={actorName}
+        currentUserId={currentUserId}
+        members={members}
         onComplete={handleComplete}
         taskTitle={taskTitle}
       />
