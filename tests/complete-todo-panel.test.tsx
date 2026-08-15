@@ -62,6 +62,29 @@ describe("CompleteTodoPanel", () => {
     ).toBe("user-self");
   });
 
+  it("membersに現在の利用者が含まれない場合でも、既定値は自分になる(先頭optionの暗黙選択を防ぐ)", () => {
+    render(
+      <CompleteTodoPanel
+        actorName="ぽっぷ"
+        currentUserId="user-self"
+        managedItemId="item-1"
+        members={[{ nickname: "家族B", userId: "user-other" }]}
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を記録" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "詳しく記録する" }));
+
+    expect(
+      screen.getByRole<HTMLSelectElement>("combobox", { name: "実施した人" })
+        .value,
+    ).toBe("user-self");
+  });
+
   it("完了を選ぶと同じOccurrenceへ完了アクションを呼び、ダイアログを閉じる", () => {
     completeMaintenanceTaskMock.mockResolvedValue({
       message: "完了を記録しました。",

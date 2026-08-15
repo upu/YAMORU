@@ -127,6 +127,19 @@ function CompletionDetails({
   );
 }
 
+// 実施者<select>のdefaultValueは常にcurrentUserId。membersに現在の利用者の
+// optionが無いと、ブラウザは代わりに先頭optionを暗黙選択してしまい、変更操作
+// なしで別人が実施者として送信されうる。householdMembersは通常currentUserId
+// を含むはずだが、その前提が崩れた場合の安全側として自分の選択肢を補う。
+function ensureSelfOption(
+  members: HouseholdMemberOption[],
+  currentUserId: string,
+  actorName: string,
+): HouseholdMemberOption[] {
+  if (members.some((member) => member.userId === currentUserId)) return members;
+  return [{ nickname: actorName, userId: currentUserId }, ...members];
+}
+
 // 「この内容で記録する」の送信内容を取り出す。実施日・実施した人のどちらかが
 // 欠けていれば(ブラウザのバリデーションを回避された場合の防御)nullを返す。
 function parseCompletionDetailsForm(
@@ -225,6 +238,8 @@ export function CompletionPanel({
   const dateInputRef = useRef<HTMLInputElement>(null);
   const today = formatDateInput(new Date());
 
+  const performerOptions = ensureSelfOption(members, currentUserId, actorName);
+
   useEffect(() => {
     if (view === "choice") quickCompleteRef.current?.focus();
     if (view === "details") dateInputRef.current?.focus();
@@ -249,7 +264,7 @@ export function CompletionPanel({
           currentUserId={currentUserId}
           dateInputRef={dateInputRef}
           inputId={inputId}
-          members={members}
+          members={performerOptions}
           onBack={() => { setView("choice"); }}
           onClose={() => { setView("closed"); triggerRef.current?.focus(); }}
           onComplete={() => {

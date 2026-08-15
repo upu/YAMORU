@@ -376,15 +376,18 @@ export default async function RegisteredManagedItemDetail({
   const [lastActivityPerformerName, members] = await Promise.all([
     // performed_by_user_idはaction='completed'の行にのみ設定される
     // (CHECK制約、YDR-020)。findLatestCompletionLogはcompletedの行だけを
-    // 対象にするため、ここでは常に非nullのはずだが、フォールバック名で
-    // 安全側に倒す。
-    latestCompletionLog === null || latestCompletionLog.performed_by_user_id === null
+    // 対象にするため、ここでは常に非nullのはずだが、万一nullの場合も
+    // 「完了の記録がない」扱いにはせず、ホーム(app/page.tsx)と同じ
+    // フォールバック名で表示する(表示方針を画面間でそろえる)。
+    latestCompletionLog === null
       ? Promise.resolve(null)
-      : loadActorName(
-          supabase,
-          latestCompletionLog.performed_by_user_id,
-          FALLBACK_OTHER_MEMBER_NAME,
-        ),
+      : latestCompletionLog.performed_by_user_id === null
+        ? Promise.resolve(FALLBACK_OTHER_MEMBER_NAME)
+        : loadActorName(
+            supabase,
+            latestCompletionLog.performed_by_user_id,
+            FALLBACK_OTHER_MEMBER_NAME,
+          ),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(supabase, data.household_id),
   ]);
