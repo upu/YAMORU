@@ -5,7 +5,7 @@ import {
   envWorkdir,
   getStatusEnv,
   readProjectId,
-  runSupabase,
+  startSupabase,
   writeDerivedConfig,
 } from "./supabase-cli.ts";
 import { syncMigrationsInto } from "./supabase-env-sync.ts";
@@ -67,7 +67,7 @@ function restoreToVerify(backupFile: string): void {
   syncMigrationsInto(join(verifyWorkdir(), "supabase"));
 
   console.log("一時検証スタックを起動します(migrationsのみ適用、seedなし)...");
-  runSupabase(["start"], { workdir: verifyWorkdir() });
+  startSupabase(verifyWorkdir());
 
   console.log(`バックアップを読み込みます: ${backupFile}`);
   loadDumpIntoContainer(VERIFY_PROJECT_ID, backupFile);
