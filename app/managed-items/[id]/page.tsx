@@ -21,11 +21,20 @@ import { CompleteTodoPanel } from "./complete-todo-panel";
 import { MaintenanceTodoForm } from "./maintenance-todo-form";
 import { PostponePanel } from "./postpone-panel";
 import { UndoCompletionPanel } from "./undo-completion-panel";
-import { MAINTENANCE_DISPLAY_COPY, toDeadlineKind, type TodoTone } from "../../task-schedule";
+import {
+  MAINTENANCE_DISPLAY_COPY,
+  STRICT_DISPLAY_COPY,
+  toDeadlineKind,
+  toRecurrenceBasis,
+  type RecurrenceBasis,
+  type TodoTone,
+} from "../../task-schedule";
 import {
   describeMaintenanceWindowFromIso,
+  describeStrictScheduleFromIso,
   formatTokyoDate,
   getMaintenanceDisplayStateFromIso,
+  getStrictDisplayStateFromIso,
 } from "../../time-zone";
 
 type ExternalLinkData = { id: string; url: string };
@@ -35,6 +44,7 @@ type PendingTodoData = {
   dueAt: string;
   id: string;
   meta: string;
+  recurrenceBasis: RecurrenceBasis;
   scheduledFor: string;
   title: string;
   tone: TodoTone;
@@ -74,6 +84,7 @@ type TaskOccurrenceRow = {
 };
 type TaskRuleRow = {
   deadline_kind: string;
+  recurrence_basis: string;
   task_occurrences: TaskOccurrenceRow[];
   title: string;
 };
@@ -88,14 +99,34 @@ function buildPendingTodos(
 ): PendingTodoData[] {
   return taskRules
     .flatMap((rule) => {
-      toDeadlineKind(rule.deadline_kind);
+      const deadlineKind = toDeadlineKind(rule.deadline_kind);
+      const recurrenceBasis = toRecurrenceBasis(rule.recurrence_basis);
       return rule.task_occurrences
         .filter((occurrence) => occurrence.status === "pending")
         .map((occurrence) => {
-          const window = {
-            dueAt: occurrence.due_at,
-            scheduledFor: occurrence.scheduled_for,
-          };
+          if (recurrenceBasis === "once") {
+            if (deadlineKind !== "strict") {
+              throw new Error("一回限りTodoの期限方式が不正です。");
+            }
+            const state = getStrictDisplayStateFromIso(occurrence.due_at, nowIso);
+            const copy = STRICT_DISPLAY_COPY[state];
+            return {
+              assigneeUserId: occurrence.assignee_user_id,
+              badge: copy.badge,
+              dueAt: occurrence.due_at,
+              id: occurrence.id,
+              meta: describeStrictScheduleFromIso(state, occurrence.due_at),
+              recurrenceBasis,
+              scheduledFor: occurrence.scheduled_for,
+              title: rule.title,
+              tone: copy.tone,
+            };
+          }
+
+          if (deadlineKind !== "maintenance") {
+            throw new Error("完了日基準Todoの期限方式が不正です。");
+          }
+          const window = { dueAt: occurrence.due_at, scheduledFor: occurrence.scheduled_for };
           const state = getMaintenanceDisplayStateFromIso(window, nowIso);
           const copy = MAINTENANCE_DISPLAY_COPY[state];
           return {
@@ -104,6 +135,7 @@ function buildPendingTodos(
             dueAt: occurrence.due_at,
             id: occurrence.id,
             meta: describeMaintenanceWindowFromIso(state, window),
+            recurrenceBasis,
             scheduledFor: occurrence.scheduled_for,
             title: rule.title,
             tone: copy.tone,
@@ -185,6 +217,9 @@ function PendingTodoSection({
                 <strong>{todo.title}</strong>
                 <span className={`tone-label tone-${todo.tone}`}>{todo.badge}</span>
               </div>
+              <span className="input-help">
+                {todo.recurrenceBasis === "once" ? "繰り返しなし" : "繰り返し"}
+              </span>
               <span>{todo.meta}</span>
               <AssigneePanel
                 assigneeUserId={todo.assigneeUserId}
@@ -316,7 +351,7 @@ export function ManagedItemDetailContent({
             {MANAGED_ITEM_KIND_LABELS[item.kind]}
           </span>
         </div>
-        <p>登録した管理対象と、現在のメンテナンスTodoを確認できます。</p>
+        <p>登録した管理対象と、現在のTodoを確認できます。</p>
       </header>
 
       <LastActivitySummary lastActivity={item.lastActivity} />
@@ -332,9 +367,9 @@ export function ManagedItemDetailContent({
 
         <section aria-labelledby="register-todo-title" className="detail-card">
           <p className="detail-kicker">ADD TODO</p>
-          <h2 id="register-todo-title">メンテナンスTodoを登録</h2>
+          <h2 id="register-todo-title">Todoを登録</h2>
           <p className="detail-note">
-            完了した日から次回の目安を計算するTodoを登録します。
+            繰り返しなし、または完了した日から繰り返すTodoを登録します。
           </p>
           <MaintenanceTodoForm managedItemId={item.id} />
         </section>
@@ -363,7 +398,7 @@ export default async function RegisteredManagedItemDetail({
     supabase
       .from("managed_items")
       .select(
-        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, performed_by_user_id)))",
+        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, recurrence_basis, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, performed_by_user_id)))",
       )
       .eq("id", id)
       .maybeSingle(),

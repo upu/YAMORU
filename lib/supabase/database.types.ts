@@ -569,6 +569,10 @@ export type Database = {
         Args: { external_url?: string; item_kind: string; item_name: string }
         Returns: string
       }
+      create_one_time_task: {
+        Args: { item_id: string; scheduled_for: string; task_title: string }
+        Returns: string
+      }
       is_household_member: {
         Args: { target_household_id: string }
         Returns: boolean

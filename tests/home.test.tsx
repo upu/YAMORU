@@ -16,6 +16,7 @@ vi.mock("../app/managed-items/[id]/actions", () => ({
 import {
   buildReminderItems,
   buildRecentItems,
+  buildStrictItems,
   HomeContent,
   type HomeSection,
   type PendingOccurrenceRow,
@@ -223,6 +224,7 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
       task_rules: {
         deadline_kind: "maintenance",
         managed_items: { id: "item-1", name: "猫の浄水器" },
+        recurrence_basis: "completion",
         title: "フィルター交換",
       },
       ...overrides,
@@ -272,6 +274,43 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
         "2026-08-12T00:00:00.000Z",
       ),
     ).toThrow();
+  });
+});
+
+describe("一回限りTodoの分類(buildStrictItems)", () => {
+  function onceRow(
+    id: string,
+    scheduledFor: string,
+  ): PendingOccurrenceRow {
+    return {
+      assignee_user_id: null,
+      due_at: scheduledFor,
+      id,
+      scheduled_for: scheduledFor,
+      task_rules: {
+        deadline_kind: "strict",
+        managed_items: { id: "item-1", name: "猫の浄水器" },
+        recurrence_basis: "once",
+        title: "今回だけ点検",
+      },
+    };
+  }
+
+  it("予定日を期限切れ・今日・近日へ分け、遠い予定はホームへ出さない", () => {
+    const items = buildStrictItems(
+      [
+        onceRow("overdue", "2026-08-10T15:00:00.000Z"),
+        onceRow("today", "2026-08-11T15:00:00.000Z"),
+        onceRow("upcoming", "2026-08-14T15:00:00.000Z"),
+        onceRow("later", "2026-08-29T15:00:00.000Z"),
+      ],
+      "2026-08-12T00:00:00.000Z",
+    );
+
+    expect(items.overdue.map((item) => item.id)).toEqual(["overdue"]);
+    expect(items.today.map((item) => item.id)).toEqual(["today"]);
+    expect(items.upcoming.map((item) => item.id)).toEqual(["upcoming"]);
+    expect(items.upcoming[0].meta).toBe("8月15日の予定です ・ 繰り返しなし");
   });
 });
 

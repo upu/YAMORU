@@ -24,6 +24,8 @@ function maintenanceTodoForm({
   intervalMax = "2",
   intervalMin = "1",
   intervalUnit = "week",
+  plannedDate = "2026-10-10",
+  recurrenceBasis = "completion",
   title = "フィルター交換",
 }: {
   anchorDate?: string;
@@ -31,6 +33,8 @@ function maintenanceTodoForm({
   intervalMax?: string;
   intervalMin?: string;
   intervalUnit?: string;
+  plannedDate?: string;
+  recurrenceBasis?: string;
   title?: string;
 } = {}) {
   const formData = new FormData();
@@ -40,6 +44,8 @@ function maintenanceTodoForm({
   formData.set("intervalUnit", intervalUnit);
   formData.set("initialDateMode", initialDateMode);
   formData.set("anchorDate", anchorDate);
+  formData.set("plannedDate", plannedDate);
+  formData.set("recurrenceBasis", recurrenceBasis);
   return formData;
 }
 
@@ -91,6 +97,28 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
         first_scheduled_for: "2026-10-08T15:00:00.000Z",
       }),
     );
+  });
+
+  it("一回限りでは予定日を限定RPCへ渡し、完了日基準の間隔を送らない", async () => {
+    const result = await createMaintenanceTodo(
+      "managed-item-id",
+      INITIAL_STATE,
+      maintenanceTodoForm({
+        plannedDate: "2026-10-10",
+        recurrenceBasis: "once",
+        title: "  今回だけ点検  ",
+      }),
+    );
+
+    expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
+      item_id: "managed-item-id",
+      scheduled_for: "2026-10-09T15:00:00.000Z",
+      task_title: "今回だけ点検",
+    });
+    expect(result).toEqual({
+      message: "繰り返しなしのTodoを登録しました。",
+      status: "success",
+    });
   });
 
   it.each(["", "   ", "あ".repeat(101)])(
@@ -160,6 +188,37 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
     expect(createClientMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "初回の決め方を選択してください。",
+      status: "error",
+    });
+  });
+
+  it.each(["", "2026-02-30"])(
+    "一回限りの無効な予定日(%s)はRPCへ送らない",
+    async (plannedDate) => {
+      const result = await createMaintenanceTodo(
+        "managed-item-id",
+        INITIAL_STATE,
+        maintenanceTodoForm({ plannedDate, recurrenceBasis: "once" }),
+      );
+
+      expect(createClientMock).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        message: "予定日を正しく入力してください。",
+        status: "error",
+      });
+    },
+  );
+
+  it("未定義の繰り返し方はRPCへ送らない", async () => {
+    const result = await createMaintenanceTodo(
+      "managed-item-id",
+      INITIAL_STATE,
+      maintenanceTodoForm({ recurrenceBasis: "secret_mode" }),
+    );
+
+    expect(createClientMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "繰り返し方を選択してください。",
       status: "error",
     });
   });
