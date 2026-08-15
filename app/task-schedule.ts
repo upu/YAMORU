@@ -24,12 +24,10 @@ export type MaintenanceDisplayState =
 
 export type StrictDisplayState = "upcoming" | "due-today" | "overdue";
 
-// task_rules.deadline_kindはCHECK制約付きのtextであり、生成された型では
-// `string`になる(lib/supabase/database.types.ts)。現在のDBはIssue #34の
-// 範囲である'maintenance'しか許可しないため、strictはまだ実データに現れない
-// (strictの実装はYDR-017が見込む将来のIssue)。制約とのズレを黙って通さず、
-// 未知の値はその場で失敗させる(managed-items/model.tsのtoManagedItemKindと同じ方針)。
-export const DEADLINE_KINDS = ["maintenance"] as const;
+// task_rulesの方式列はCHECK制約付きのtextであり、生成された型では`string`に
+// なる。DB制約とのズレを黙って通さず、未知の値はその場で失敗させる
+// (managed-items/model.tsのtoManagedItemKindと同じ方針)。
+export const DEADLINE_KINDS = ["maintenance", "strict"] as const;
 
 export type DeadlineKind = (typeof DEADLINE_KINDS)[number];
 
@@ -40,6 +38,22 @@ export function isDeadlineKind(value: string): value is DeadlineKind {
 export function toDeadlineKind(value: string): DeadlineKind {
   if (!isDeadlineKind(value)) {
     throw new Error(`未知のdeadline_kindです: ${value}`);
+  }
+
+  return value;
+}
+
+export const RECURRENCE_BASES = ["completion", "once"] as const;
+
+export type RecurrenceBasis = (typeof RECURRENCE_BASES)[number];
+
+export function isRecurrenceBasis(value: string): value is RecurrenceBasis {
+  return RECURRENCE_BASES.some((basis) => basis === value);
+}
+
+export function toRecurrenceBasis(value: string): RecurrenceBasis {
+  if (!isRecurrenceBasis(value)) {
+    throw new Error(`未知のrecurrence_basisです: ${value}`);
   }
 
   return value;

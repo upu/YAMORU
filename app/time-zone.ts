@@ -1,4 +1,7 @@
-import type { MaintenanceDisplayState } from "./task-schedule";
+import type {
+  MaintenanceDisplayState,
+  StrictDisplayState,
+} from "./task-schedule";
 
 export const PHASE_ONE_TIME_ZONE = "Asia/Tokyo";
 
@@ -59,6 +62,39 @@ function toTokyoDateString(iso: string): string {
     timeZone: PHASE_ONE_TIME_ZONE,
     year: "numeric",
   }).format(new Date(iso));
+}
+
+export function getStrictDisplayStateFromIso(
+  dueAt: string,
+  nowIso: string,
+): StrictDisplayState {
+  const today = toTokyoDateString(nowIso);
+  const due = toTokyoDateString(dueAt);
+
+  if (today > due) return "overdue";
+  if (today === due) return "due-today";
+  return "upcoming";
+}
+
+export function getTokyoDayDistance(fromIso: string, toIso: string): number {
+  const from = Date.parse(`${toTokyoDateString(fromIso)}T00:00:00Z`);
+  const to = Date.parse(`${toTokyoDateString(toIso)}T00:00:00Z`);
+  return Math.round((to - from) / 86_400_000);
+}
+
+export function describeStrictScheduleFromIso(
+  state: StrictDisplayState,
+  dueAt: string,
+): string {
+  const date = formatTokyoMonthDay(dueAt);
+  switch (state) {
+    case "overdue":
+      return `${date}が予定日でした`;
+    case "due-today":
+      return `今日（${date}）の予定です`;
+    case "upcoming":
+      return `${date}の予定です`;
+  }
 }
 
 // task-schedule.tsのgetMaintenanceDisplayStateと同じ3状態判定(YDR-017)を、

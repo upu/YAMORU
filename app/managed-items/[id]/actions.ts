@@ -32,18 +32,59 @@ type MaintenanceTodoInput = {
   recommendedStartOffset: number;
   recommendedUntilOffset: number;
   title: string;
+  recurrenceBasis: "completion";
+};
+type OneTimeTodoInput = {
+  recurrenceBasis: "once";
+  scheduledFor: string;
+  title: string;
 };
 type RecommendedOffsets = {
   recommendedStartOffset: number;
   recommendedUntilOffset: number;
 };
 type FirstWindow = { firstDueAt: string; firstScheduledFor: string };
+type TodoBasics = {
+  recurrenceBasis: "completion" | "once";
+  title: string;
+};
 
 function invalidTitle(): MaintenanceTodoActionState {
   return {
     message: "Todo名は1文字以上100文字以内で入力してください。",
     status: "error",
   };
+}
+
+function parseTodoBasics(
+  formData: FormData,
+): TodoBasics | MaintenanceTodoActionState {
+  const rawTitle = formData.get("title");
+  if (typeof rawTitle !== "string") return invalidTitle();
+
+  const title = rawTitle.trim();
+  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) {
+    return invalidTitle();
+  }
+
+  const recurrenceBasis = formData.get("recurrenceBasis");
+  if (recurrenceBasis !== "completion" && recurrenceBasis !== "once") {
+    return { message: "繰り返し方を選択してください。", status: "error" };
+  }
+  return { recurrenceBasis, title };
+}
+
+function parseOneTimeTodoInput(
+  formData: FormData,
+  title: string,
+): OneTimeTodoInput | MaintenanceTodoActionState {
+  const plannedDate = formData.get("plannedDate");
+  const scheduledFor =
+    typeof plannedDate === "string" ? tokyoDateToUtcIso(plannedDate) : null;
+  if (scheduledFor === null) {
+    return { message: "予定日を正しく入力してください。", status: "error" };
+  }
+  return { recurrenceBasis: "once", scheduledFor, title };
 }
 
 function parseOffset(value: FormDataEntryValue | null): number | null {
@@ -104,13 +145,11 @@ function parseFirstWindow(
 
 function parseMaintenanceTodoInput(
   formData: FormData,
-): MaintenanceTodoInput | MaintenanceTodoActionState {
-  const rawTitle = formData.get("title");
-  if (typeof rawTitle !== "string") return invalidTitle();
-
-  const title = rawTitle.trim();
-  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) {
-    return invalidTitle();
+): MaintenanceTodoInput | OneTimeTodoInput | MaintenanceTodoActionState {
+  const basics = parseTodoBasics(formData);
+  if ("status" in basics) return basics;
+  if (basics.recurrenceBasis === "once") {
+    return parseOneTimeTodoInput(formData, basics.title);
   }
 
   const offsets = parseRecommendedOffsets(formData);
@@ -121,7 +160,8 @@ function parseMaintenanceTodoInput(
   return {
     ...firstWindow,
     ...offsets,
-    title,
+    recurrenceBasis: "completion",
+    title: basics.title,
   };
 }
 
@@ -134,14 +174,20 @@ export async function createMaintenanceTodo(
   if ("status" in input) return input;
 
   const supabase = await createClient();
-  const response = await supabase.rpc("create_maintenance_task", {
-    first_due_at: input.firstDueAt,
-    first_scheduled_for: input.firstScheduledFor,
-    item_id: managedItemId,
-    recommended_start_offset: input.recommendedStartOffset,
-    recommended_until_offset: input.recommendedUntilOffset,
-    task_title: input.title,
-  });
+  const response = input.recurrenceBasis === "once"
+    ? await supabase.rpc("create_one_time_task", {
+        item_id: managedItemId,
+        scheduled_for: input.scheduledFor,
+        task_title: input.title,
+      })
+    : await supabase.rpc("create_maintenance_task", {
+        first_due_at: input.firstDueAt,
+        first_scheduled_for: input.firstScheduledFor,
+        item_id: managedItemId,
+        recommended_start_offset: input.recommendedStartOffset,
+        recommended_until_offset: input.recommendedUntilOffset,
+        task_title: input.title,
+      });
   const data: unknown = response.data;
   const error: unknown = response.error;
 
@@ -152,9 +198,11 @@ export async function createMaintenanceTodo(
     };
   }
 
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  revalidateManagedItemAndHome(managedItemId);
   return {
-    message: "メンテナンスTodoを登録しました。",
+    message: input.recurrenceBasis === "once"
+      ? "繰り返しなしのTodoを登録しました。"
+      : "メンテナンスTodoを登録しました。",
     status: "success",
   };
 }

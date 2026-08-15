@@ -27,6 +27,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
       id: "occurrence-1",
       meta: "11月6日までが推奨期間です",
       scheduledFor: "2026-10-08T15:00:00.000Z",
+      recurrenceBasis: "completion",
       title: "フィルター交換",
       tone: "reminder",
     },
@@ -39,13 +40,14 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
     const form = screen.getByRole("region", {
-      name: "メンテナンスTodoを登録",
+      name: "Todoを登録",
     });
     expect(within(form).getByLabelText("Todo名")).toHaveAttribute(
       "maxLength",
       "100",
     );
-    expect(within(form).getByText("完了した日から繰り返す")).toBeInTheDocument();
+    expect(within(form).getByLabelText("完了した日から繰り返す")).toBeChecked();
+    expect(within(form).getByLabelText("繰り返しなし")).not.toBeChecked();
     expect(within(form).getByLabelText("最短")).toHaveValue(1);
     expect(within(form).getByLabelText("最長")).toHaveValue(2);
     expect(within(form).getByLabelText("単位")).toHaveValue("week");
@@ -64,18 +66,55 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(within(form).getByText(/Asia\/Tokyo/)).toBeInTheDocument();
   });
 
+  it("一回限りを選ぶと間隔入力を隠し、予定日を直接入力できる", () => {
+    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
+
+    fireEvent.click(screen.getByLabelText("繰り返しなし"));
+
+    expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
+    expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("前回実施日から計算する")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("完了しても次のTodoは作成されません。"),
+    ).toBeInTheDocument();
+  });
+
   it("現在のpending Todo名と推奨期間の分類(YDR-017)を表示する", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
     const todoList = screen.getByRole("region", { name: "現在のTodo" });
     expect(within(todoList).getByText("フィルター交換")).toBeInTheDocument();
     expect(within(todoList).getByText("そろそろ")).toBeInTheDocument();
+    expect(within(todoList).getByText("繰り返し")).toBeInTheDocument();
     expect(
       within(todoList).getByText("11月6日までが推奨期間です"),
     ).toBeInTheDocument();
     expect(
       within(todoList).getByRole("button", { name: "フィルター交換を記録" }),
     ).toBeInTheDocument();
+  });
+
+  it("一回限りTodoを詳細画面で見分けられる", () => {
+    const onceTodo = {
+      ...ITEM_WITH_TODO.pendingTodos[0],
+      badge: "予定",
+      dueAt: "2026-10-08T15:00:00.000Z",
+      meta: "10月9日の予定です",
+      recurrenceBasis: "once" as const,
+      scheduledFor: "2026-10-08T15:00:00.000Z",
+      title: "今回だけ点検",
+      tone: "upcoming" as const,
+    };
+
+    render(
+      <ManagedItemDetailContent
+        item={{ ...ITEM_WITH_TODO, pendingTodos: [onceTodo] }}
+      />,
+    );
+
+    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    expect(within(todoList).getByText("繰り返しなし")).toBeInTheDocument();
+    expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
 
   it("次回の目安開始日を選ぶと日付項目と自動計算の説明を切り替える", () => {

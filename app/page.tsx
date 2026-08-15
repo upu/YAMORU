@@ -13,14 +13,19 @@ import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
+  STRICT_DISPLAY_COPY,
   toDeadlineKind,
+  toRecurrenceBasis,
   type TodoTone,
 } from "./task-schedule";
 import {
   describeMaintenanceWindowFromIso,
+  describeStrictScheduleFromIso,
   formatTokyoDate,
   formatTokyoMonthDay,
   getMaintenanceDisplayStateFromIso,
+  getStrictDisplayStateFromIso,
+  getTokyoDayDistance,
   PHASE_ONE_TIME_ZONE,
 } from "./time-zone";
 
@@ -89,6 +94,7 @@ export type PendingOccurrenceRow = {
   task_rules: {
     deadline_kind: string;
     managed_items: { id: string; name: string };
+    recurrence_basis: string;
     title: string;
   };
 };
@@ -114,9 +120,12 @@ export function buildReminderItems(
     .slice()
     .sort((left, right) => left.due_at.localeCompare(right.due_at))
     .flatMap((row) => {
-      // 現在のDBはdeadline_kind='maintenance'しか作成できない(YDR-017, Issue #34)。
-      // strictの区分ロジックはまだ実装しないため、未知の値は握りつぶさず失敗させる。
-      toDeadlineKind(row.task_rules.deadline_kind);
+      const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
+      const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
+      if (recurrenceBasis === "once") return [];
+      if (deadlineKind !== "maintenance") {
+        throw new Error("完了日基準Todoの期限方式が不正です。");
+      }
 
       const window = { dueAt: row.due_at, scheduledFor: row.scheduled_for };
       const state = getMaintenanceDisplayStateFromIso(window, nowIso);
@@ -137,6 +146,46 @@ export function buildReminderItems(
         },
       ];
     });
+}
+
+type StrictItems = Record<"overdue" | "today" | "upcoming", HomeItem[]>;
+
+export function buildStrictItems(
+  rows: PendingOccurrenceRow[],
+  nowIso: string,
+): StrictItems {
+  const result: StrictItems = { overdue: [], today: [], upcoming: [] };
+
+  rows
+    .slice()
+    .sort((left, right) => left.due_at.localeCompare(right.due_at))
+    .forEach((row) => {
+      const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
+      const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
+      if (recurrenceBasis === "completion") return;
+      if (deadlineKind !== "strict") {
+        throw new Error("一回限りTodoの期限方式が不正です。");
+      }
+
+      const state = getStrictDisplayStateFromIso(row.due_at, nowIso);
+      if (state === "upcoming" && getTokyoDayDistance(nowIso, row.due_at) > 7) {
+        return;
+      }
+      const sectionId = state === "due-today" ? "today" : state;
+      const copy = STRICT_DISPLAY_COPY[state];
+      result[sectionId].push({
+        assigneeUserId: row.assignee_user_id,
+        detail: row.task_rules.managed_items.name,
+        detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
+        id: row.id,
+        managedItemId: row.task_rules.managed_items.id,
+        meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ 繰り返しなし`,
+        title: row.task_rules.title,
+        tone: copy.tone,
+      });
+    });
+
+  return result;
 }
 
 export function buildRecentItems(
@@ -167,13 +216,14 @@ export function buildRecentItems(
 function buildHomeSections(
   reminderItems: HomeItem[],
   recentItems: HomeItem[],
+  strictItems: StrictItems,
 ): HomeSection[] {
   const itemsBySectionId: Record<HomeSectionId, HomeItem[]> = {
-    overdue: [],
+    overdue: strictItems.overdue,
     reminder: reminderItems,
     recent: recentItems,
-    today: [],
-    upcoming: [],
+    today: strictItems.today,
+    upcoming: strictItems.upcoming,
   };
 
   return HOME_SECTION_SKELETON.map((section) => ({
@@ -201,7 +251,7 @@ async function loadHomeSections(
     supabase
       .from("task_occurrences")
       .select(
-        "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, managed_items(id, name))",
+        "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, recurrence_basis, managed_items(id, name))",
       )
       .eq("status", "pending"),
     supabase
@@ -241,6 +291,7 @@ async function loadHomeSections(
   return buildHomeSections(
     buildReminderItems(occurrenceRows, nowIso),
     buildRecentItems(activityRows, performerNames),
+    buildStrictItems(occurrenceRows, nowIso),
   );
 }
 

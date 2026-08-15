@@ -17,7 +17,7 @@ function SubmitButton() {
       disabled={pending}
       type="submit"
     >
-      {pending ? "登録中…" : "メンテナンスTodoを登録"}
+      {pending ? "登録中…" : "Todoを登録"}
     </button>
   );
 }
@@ -171,10 +171,57 @@ function InitialDateFields() {
   );
 }
 
+function RecurrenceBasisFields({
+  recurrenceBasis,
+  setRecurrenceBasis,
+}: {
+  recurrenceBasis: "completion" | "once";
+  setRecurrenceBasis: (value: "completion" | "once") => void;
+}) {
+  return (
+    <fieldset className="todo-fieldset">
+      <legend>繰り返し方</legend>
+      <label className="radio-option">
+        <input
+          checked={recurrenceBasis === "completion"}
+          name="recurrenceBasis"
+          onChange={() => { setRecurrenceBasis("completion"); }}
+          type="radio"
+          value="completion"
+        />
+        完了した日から繰り返す
+      </label>
+      <label className="radio-option">
+        <input
+          checked={recurrenceBasis === "once"}
+          name="recurrenceBasis"
+          onChange={() => { setRecurrenceBasis("once"); }}
+          type="radio"
+          value="once"
+        />
+        繰り返しなし
+      </label>
+    </fieldset>
+  );
+}
+
+function OneTimeFields() {
+  return (
+    <div className="todo-fieldset">
+      <label htmlFor="planned-date">予定日</label>
+      <input id="planned-date" name="plannedDate" required type="date" />
+      <p className="input-help">完了しても次のTodoは作成されません。</p>
+    </div>
+  );
+}
+
 export function MaintenanceTodoForm({ managedItemId }: { managedItemId: string }) {
   const [intervalMin, setIntervalMin] = useState("1");
   const [intervalMax, setIntervalMax] = useState("2");
   const [intervalUnit, setIntervalUnit] = useState<"day" | "week">("week");
+  const [recurrenceBasis, setRecurrenceBasis] = useState<"completion" | "once">(
+    "completion",
+  );
   const action = createMaintenanceTodo.bind(null, managedItemId);
   const [state, formAction] = useActionState(
     action,
@@ -194,23 +241,27 @@ export function MaintenanceTodoForm({ managedItemId }: { managedItemId: string }
         type="text"
       />
 
-      <div className="repeat-summary">
-        <span>繰り返し方</span>
-        <strong>完了した日から繰り返す</strong>
-      </div>
-
-      <IntervalFields
-        intervalMax={intervalMax}
-        intervalMin={intervalMin}
-        intervalUnit={intervalUnit}
-        setIntervalMax={setIntervalMax}
-        setIntervalMin={setIntervalMin}
-        setIntervalUnit={setIntervalUnit}
+      <RecurrenceBasisFields
+        recurrenceBasis={recurrenceBasis}
+        setRecurrenceBasis={setRecurrenceBasis}
       />
-      <InitialDateFields />
+
+      {recurrenceBasis === "completion" ? (
+        <>
+          <IntervalFields
+            intervalMax={intervalMax}
+            intervalMin={intervalMin}
+            intervalUnit={intervalUnit}
+            setIntervalMax={setIntervalMax}
+            setIntervalMin={setIntervalMin}
+            setIntervalUnit={setIntervalUnit}
+          />
+          <InitialDateFields />
+        </>
+      ) : <OneTimeFields />}
 
       <p>
-        Phase 1では家庭のタイムゾーンを{PHASE_ONE_TIME_ZONE}（日本時間）として保存・表示します。
+        家庭のタイムゾーンは{PHASE_ONE_TIME_ZONE}（日本時間）として保存・表示します。
       </p>
 
       <SubmitButton />
