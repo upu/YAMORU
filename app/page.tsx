@@ -100,17 +100,13 @@ export type PendingOccurrenceRow = {
 };
 
 export type RecentCompletionRow = {
-  id: string;
+  activity_log_id: string;
+  managed_item_id: string | null;
+  managed_item_name: string | null;
   occurred_at: string;
   performed_by_user_id: string | null;
-  task_occurrences: {
-    id: string;
-    status: string;
-    task_rules: {
-      managed_items: { id: string; name: string } | null;
-      title: string;
-    };
-  };
+  task_occurrence_id: string;
+  task_rule_title: string;
 };
 
 export function buildReminderItems(
@@ -201,21 +197,25 @@ export function buildRecentItems(
   rows: RecentCompletionRow[],
   performerNames: Map<string, string>,
 ): HomeItem[] {
+  const displayedOccurrences = new Set<string>();
   return rows
-    // 完了取消(Issue #37, YDR-015)でOccurrenceの状態がpendingへ戻った場合、
-    // 完了ActivityLog自体は削除しないため、ここで「最近の実施」から除く。
-    .filter((row) => row.task_occurrences.status === "completed")
+    // RPC側でOccurrenceごとの有効な完了を一件へ絞る。ここでも重複を除き、
+    // 取得契約の崩れで取消済み完了を二重表示しないようにする。
+    .filter((row) => {
+      if (displayedOccurrences.has(row.task_occurrence_id)) return false;
+      displayedOccurrences.add(row.task_occurrence_id);
+      return true;
+    })
     .map((row) => {
-      const managedItem = row.task_occurrences.task_rules.managed_items;
       return {
         completedAt: row.occurred_at,
-        completedOccurrenceId: row.task_occurrences.id,
-        detail: managedItem?.name ?? "管理対象なし",
-        ...(managedItem === null
+        completedOccurrenceId: row.task_occurrence_id,
+        detail: row.managed_item_name ?? "管理対象なし",
+        ...(row.managed_item_id === null
           ? {}
-          : { detailHref: `/managed-items/${managedItem.id}` }),
-        id: row.id,
-        managedItemId: managedItem?.id ?? null,
+          : { detailHref: `/managed-items/${row.managed_item_id}` }),
+        id: row.activity_log_id,
+        managedItemId: row.managed_item_id,
         // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
         // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
         // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
@@ -224,7 +224,7 @@ export function buildRecentItems(
             ? null
             : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
         }が実施`,
-        title: row.task_occurrences.task_rules.title,
+        title: row.task_rule_title,
         tone: "done" as const,
       };
     });
@@ -271,14 +271,9 @@ async function loadHomeSections(
         "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, recurrence_basis, managed_items(id, name))",
       )
       .eq("status", "pending"),
-    supabase
-      .from("activity_logs")
-      .select(
-        "id, occurred_at, performed_by_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))",
-      )
-      .eq("action", "completed")
-      .order("occurred_at", { ascending: false })
-      .limit(RECENT_COMPLETIONS_LIMIT),
+    supabase.rpc("list_recent_active_completions", {
+      max_results: RECENT_COMPLETIONS_LIMIT,
+    }),
   ]);
 
   if (occurrenceError !== null || activityError !== null) {
@@ -288,11 +283,7 @@ async function loadHomeSections(
   // 「最近の実施」に表示するのは実施者(performed_by_user_id)。操作主体
   // (actor_user_id)は表示しない(Issue #18, YDR-020)。
   const performerIds = [
-    ...new Set(
-      activityRows
-        .map((row) => row.performed_by_user_id)
-        .filter((userId): userId is string => userId !== null),
-    ),
+    ...new Set(activityRows.map((row) => row.performed_by_user_id)),
   ];
   const { data: profileRows, error: profileError } =
     performerIds.length === 0

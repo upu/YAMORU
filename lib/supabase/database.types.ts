@@ -634,6 +634,19 @@ export type Database = {
           status: string
         }[]
       }
+      list_recent_active_completions: {
+        Args: { max_results?: number }
+        Returns: {
+          activity_log_id: string
+          managed_item_id: string
+          managed_item_name: string
+          occurred_at: string
+          performed_by_user_id: string
+          recorded_at: string
+          task_occurrence_id: string
+          task_rule_title: string
+        }[]
+      }
       open_invitation_claim: {
         Args: { invitation_token: string; p_client_ip: string }
         Returns: {
