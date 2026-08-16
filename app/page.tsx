@@ -340,9 +340,7 @@ function TaskActions({
   item: HomeItem;
   members: HouseholdMemberOption[];
 }) {
-  const pendingOccurrenceId =
-    item.occurrenceId ??
-    (typeof item.managedItemId === "string" ? item.id : undefined);
+  const pendingOccurrenceId = item.occurrenceId;
   if (pendingOccurrenceId !== undefined) {
     return (
       <>
