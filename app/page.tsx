@@ -74,10 +74,8 @@ const TONE_LABELS: Record<TodoTone, string> = {
   urgent: "要対応",
 };
 
-// 期限切れ/今日/近日はdeadline_kind='strict'向けの区分。現在のDBは
-// 'maintenance'しか作成できない(Issue #34)ため、この3区分は実データでは
-// 常に0件になる。既存の情報構造(YDR-017見直し時に備えた5区分)は保つが、
-// 0件の区分は画面へ過剰に並べない(Issue #36 設計メモ)。
+// 期限切れ/今日/近日はdeadline_kind='strict'向けの区分。一回限りと
+// 定例日基準を同じ日付分類へ載せるが、繰り返し方式は表示で区別する。
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
@@ -125,7 +123,7 @@ export function buildReminderItems(
     .flatMap((row) => {
       const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
       const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
-      if (recurrenceBasis === "once") return [];
+      if (recurrenceBasis !== "completion") return [];
       if (deadlineKind !== "maintenance") {
         throw new Error("完了日基準Todoの期限方式が不正です。");
       }
@@ -170,7 +168,7 @@ export function buildStrictItems(
       const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
       if (recurrenceBasis === "completion") return;
       if (deadlineKind !== "strict") {
-        throw new Error("一回限りTodoの期限方式が不正です。");
+        throw new Error("厳密な期限Todoの期限方式が不正です。");
       }
 
       const state = getStrictDisplayStateFromIso(row.due_at, nowIso);
@@ -187,7 +185,9 @@ export function buildStrictItems(
           : { detailHref: `/managed-items/${row.task_rules.managed_items.id}` }),
         id: row.id,
         managedItemId: row.task_rules.managed_items?.id ?? null,
-        meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ 繰り返しなし`,
+        meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ ${
+          recurrenceBasis === "calendar" ? "定例日から繰り返す" : "繰り返しなし"
+        }`,
         occurrenceId: row.id,
         title: row.task_rules.title,
         tone: copy.tone,

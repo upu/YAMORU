@@ -54,6 +54,11 @@ type RecentCompletionData = {
   title: string;
 };
 type LastActivityData = { occurredAt: string; performerName: string };
+const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
+  calendar: "定例日から繰り返す",
+  completion: "繰り返し",
+  once: "繰り返しなし",
+};
 
 export type ManagedItemDetailData = {
   actorName: string;
@@ -103,9 +108,9 @@ function buildPendingTodos(
       return rule.task_occurrences
         .filter((occurrence) => occurrence.status === "pending")
         .map((occurrence) => {
-          if (recurrenceBasis === "once") {
+          if (recurrenceBasis !== "completion") {
             if (deadlineKind !== "strict") {
-              throw new Error("一回限りTodoの期限方式が不正です。");
+              throw new Error("厳密な期限Todoの期限方式が不正です。");
             }
             const state = getStrictDisplayStateFromIso(occurrence.due_at, nowIso);
             const copy = STRICT_DISPLAY_COPY[state];
@@ -217,7 +222,7 @@ function PendingTodoSection({
                 <span className={`tone-label tone-${todo.tone}`}>{todo.badge}</span>
               </div>
               <span className="input-help">
-                {todo.recurrenceBasis === "once" ? "繰り返しなし" : "繰り返し"}
+                {RECURRENCE_LABELS[todo.recurrenceBasis]}
               </span>
               <span>{todo.meta}</span>
               <AssigneePanel

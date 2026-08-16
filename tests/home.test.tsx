@@ -420,6 +420,19 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     });
     expect(items.today[0].detailHref).toBeUndefined();
   });
+
+  it("定例日基準Todoをstrict日付で分類し、繰り返し方式を見分けられる", () => {
+    const row = onceRow("calendar", "2026-08-14T15:00:00.000Z");
+    row.task_rules.recurrence_basis = "calendar";
+    row.task_rules.title = "毎週の家族会議";
+
+    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+
+    expect(items.upcoming[0]).toMatchObject({
+      meta: "8月15日の予定です ・ 定例日から繰り返す",
+      title: "毎週の家族会議",
+    });
+  });
 });
 
 describe("最近の実施の組み立て(buildRecentItems)", () => {

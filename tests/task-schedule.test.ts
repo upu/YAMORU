@@ -10,7 +10,12 @@ import {
   MAINTENANCE_RECOMMENDED_UPPER_DAYS,
   parseDateOnly,
   STRICT_DISPLAY_COPY,
+  toRecurrenceBasis,
 } from "../app/task-schedule";
+
+it("定例日基準を既知の繰り返し方式として扱う", () => {
+  expect(toRecurrenceBasis("calendar")).toBe("calendar");
+});
 
 describe("推奨期間の計算", () => {
   it("完了から4週間後を推奨開始、8週間後を推奨上限とする", () => {

@@ -31,6 +31,7 @@ describe("Todo登録ページ", () => {
     expect(screen.getByRole("link", { name: /ホームへ戻る/ })).toHaveAttribute("href", "/");
     expect(screen.getByLabelText("繰り返しなし")).toBeChecked();
     expect(screen.getByLabelText("完了した日から繰り返す")).not.toBeChecked();
+    expect(screen.getByLabelText("定例日から繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
@@ -73,6 +74,40 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("単位")).toHaveValue("week");
     expect(screen.getByLabelText("前回実施日")).toHaveAttribute("type", "date");
     expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+  });
+
+  it("定例日基準で週次・月次日付・月次第N曜日・年次を構造化して選べる", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("定例日から繰り返す"));
+
+    expect(screen.getByLabelText("定例パターン")).toHaveValue("weekly");
+    expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "monthly_day" },
+    });
+    expect(screen.getByLabelText("日付")).toHaveAttribute("max", "31");
+
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "monthly_nth_weekday" },
+    });
+    expect(screen.getByLabelText("第何週")).toHaveValue("1");
+    expect(screen.getByLabelText("曜日")).toHaveValue("1");
+
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "yearly" },
+    });
+    expect(screen.getByLabelText("月")).toHaveValue("1");
+    expect(screen.getByLabelText("日付")).toHaveValue(1);
   });
 
   it("管理対象詳細から来た場合はその管理対象を選んだ状態にする", () => {

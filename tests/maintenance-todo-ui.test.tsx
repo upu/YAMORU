@@ -84,6 +84,29 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
 
+  it("定例日基準Todoを詳細画面で見分けられる", () => {
+    const calendarTodo = {
+      ...ITEM_WITH_TODO.pendingTodos[0],
+      badge: "予定",
+      dueAt: "2026-10-08T15:00:00.000Z",
+      meta: "10月9日の予定です",
+      recurrenceBasis: "calendar" as const,
+      scheduledFor: "2026-10-08T15:00:00.000Z",
+      title: "毎月の点検",
+      tone: "upcoming" as const,
+    };
+
+    render(
+      <ManagedItemDetailContent
+        item={{ ...ITEM_WITH_TODO, pendingTodos: [calendarTodo] }}
+      />,
+    );
+
+    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    expect(within(todoList).getByText("定例日から繰り返す")).toBeInTheDocument();
+    expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
+  });
+
   it("未完了Todoがない場合は空状態を表示する", () => {
     render(
       <ManagedItemDetailContent item={{ ...ITEM_WITH_TODO, pendingTodos: [] }} />,
