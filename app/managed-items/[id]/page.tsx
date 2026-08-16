@@ -55,7 +55,7 @@ type RecentCompletionData = {
 };
 type LastActivityData = { occurredAt: string; performerName: string };
 const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
-  calendar: "定例日から繰り返す",
+  calendar: "曜日・日付で繰り返す",
   completion: "繰り返し",
   once: "繰り返しなし",
 };

@@ -429,7 +429,7 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.upcoming[0]).toMatchObject({
-      meta: "8月15日の予定です ・ 定例日から繰り返す",
+      meta: "8月15日の予定です ・ 曜日・日付で繰り返す",
       title: "毎週の家族会議",
     });
   });

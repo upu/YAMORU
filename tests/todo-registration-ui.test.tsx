@@ -31,7 +31,7 @@ describe("Todo登録ページ", () => {
     expect(screen.getByRole("link", { name: /ホームへ戻る/ })).toHaveAttribute("href", "/");
     expect(screen.getByLabelText("繰り返しなし")).toBeChecked();
     expect(screen.getByLabelText("完了した日から繰り返す")).not.toBeChecked();
-    expect(screen.getByLabelText("定例日から繰り返す")).not.toBeChecked();
+    expect(screen.getByLabelText("曜日・日付で繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("Todo登録ページ", () => {
       />,
     );
 
-    fireEvent.click(screen.getByLabelText("定例日から繰り返す"));
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
 
     expect(screen.getByLabelText("定例パターン")).toHaveValue("weekly");
     expect(screen.getByLabelText("曜日")).toHaveValue("1");
@@ -95,19 +95,59 @@ describe("Todo登録ページ", () => {
     fireEvent.change(screen.getByLabelText("定例パターン"), {
       target: { value: "monthly_day" },
     });
-    expect(screen.getByLabelText("日付")).toHaveAttribute("max", "31");
+    const monthlyDayInput = screen.getByLabelText("日付");
+    expect(monthlyDayInput).toHaveAttribute("max", "31");
+    expect(monthlyDayInput).toHaveAttribute("min", "1");
+    expect(monthlyDayInput).toHaveAttribute("inputmode", "numeric");
+    expect(monthlyDayInput).toHaveAttribute("step", "1");
+    expect(monthlyDayInput).toHaveAccessibleDescription(
+      "1〜31の日付を入力してください。存在しない日は、その月の月末に合わせます。",
+    );
+    expect(screen.getByText("日")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("定例パターン"), {
       target: { value: "monthly_nth_weekday" },
     });
     expect(screen.getByLabelText("第何週")).toHaveValue("1");
     expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    expect(
+      screen.getByText("第5曜日がない月は、その月をスキップします。"),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("定例パターン"), {
       target: { value: "yearly" },
     });
     expect(screen.getByLabelText("月")).toHaveValue("1");
     expect(screen.getByLabelText("日付")).toHaveValue(1);
+  });
+
+  it("毎月の日付が範囲外なら入力欄の近くに関連付いたエラーを表示する", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "monthly_day" },
+    });
+    const dayInput = screen.getByLabelText("日付");
+
+    fireEvent.change(dayInput, { target: { value: "32" } });
+    fireEvent.blur(dayInput);
+
+    expect(dayInput).toHaveAttribute("aria-invalid", "true");
+    expect(dayInput).toHaveAccessibleErrorMessage("1〜31の整数で入力してください。");
+    expect(screen.getByRole("alert")).toHaveTextContent("1〜31の整数で入力してください。");
+
+    fireEvent.change(dayInput, { target: { value: "31" } });
+    fireEvent.blur(dayInput);
+
+    expect(dayInput).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("管理対象詳細から来た場合はその管理対象を選んだ状態にする", () => {

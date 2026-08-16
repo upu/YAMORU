@@ -934,6 +934,27 @@ footer p {
   font-size: 0.7rem;
 }
 
+.calendar-day-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-form .calendar-day-input input {
+  width: 5.5rem;
+}
+
+.calendar-day-input span {
+  font-weight: 800;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--orange);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .radio-option {
   display: flex;
   align-items: center;

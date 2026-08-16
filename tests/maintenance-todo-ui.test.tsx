@@ -103,7 +103,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     );
 
     const todoList = screen.getByRole("region", { name: "現在のTodo" });
-    expect(within(todoList).getByText("定例日から繰り返す")).toBeInTheDocument();
+    expect(within(todoList).getByText("曜日・日付で繰り返す")).toBeInTheDocument();
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
 
