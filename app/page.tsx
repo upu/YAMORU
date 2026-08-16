@@ -186,7 +186,7 @@ export function buildStrictItems(
         id: row.id,
         managedItemId: row.task_rules.managed_items?.id ?? null,
         meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ ${
-          recurrenceBasis === "calendar" ? "定例日から繰り返す" : "繰り返しなし"
+          recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
         }`,
         occurrenceId: row.id,
         title: row.task_rules.title,

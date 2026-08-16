@@ -184,7 +184,7 @@ function RecurrenceFields({
           type="radio"
           value="calendar"
         />
-        定例日から繰り返す
+        曜日・日付で繰り返す
       </label>
     </fieldset>
   );
@@ -203,17 +203,53 @@ function WeekdaySelect() {
   );
 }
 
+function DayOfMonthInput({ helpText }: { helpText: string }) {
+  const [hasError, setHasError] = useState(false);
+  const helpId = "todo-schedule-day-help";
+  const errorId = "todo-schedule-day-error";
+
+  return (
+    <>
+      <label htmlFor="todo-schedule-day">日付</label>
+      <div className="calendar-day-input">
+        <input
+          aria-describedby={helpId}
+          aria-errormessage={hasError ? errorId : undefined}
+          aria-invalid={hasError || undefined}
+          defaultValue={1}
+          id="todo-schedule-day"
+          inputMode="numeric"
+          max={31}
+          min={1}
+          name="scheduleDayOfMonth"
+          onBlur={(event) => { setHasError(!event.currentTarget.validity.valid); }}
+          onChange={(event) => {
+            if (hasError) setHasError(!event.currentTarget.validity.valid);
+          }}
+          onInvalid={() => { setHasError(true); }}
+          required
+          step={1}
+          type="number"
+        />
+        <span aria-hidden="true">日</span>
+      </div>
+      <p className="input-help" id={helpId}>{helpText}</p>
+      {hasError ? (
+        <p className="field-error" id={errorId} role="alert">
+          1〜31の整数で入力してください。
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind }) {
   switch (scheduleKind) {
     case "weekly":
       return <WeekdaySelect />;
     case "monthly_day":
       return (
-        <>
-          <label htmlFor="todo-schedule-day">日付</label>
-          <input defaultValue={1} id="todo-schedule-day" max={31} min={1} name="scheduleDayOfMonth" required type="number" />
-          <p className="input-help">存在しない日は、その月の月末に合わせます。</p>
-        </>
+        <DayOfMonthInput helpText="1〜31の日付を入力してください。存在しない日は、その月の月末に合わせます。" />
       );
     case "monthly_nth_weekday":
       return (
@@ -225,7 +261,7 @@ function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind })
             ))}
           </select>
           <WeekdaySelect />
-          <p className="input-help">第5曜日がない月は、次に成立する月まで進めます。</p>
+          <p className="input-help">第5曜日がない月は、その月をスキップします。</p>
         </>
       );
     case "yearly":
@@ -237,9 +273,7 @@ function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind })
               <option key={month} value={month}>{month}月</option>
             ))}
           </select>
-          <label htmlFor="todo-schedule-day">日付</label>
-          <input defaultValue={1} id="todo-schedule-day" max={31} min={1} name="scheduleDayOfMonth" required type="number" />
-          <p className="input-help">2月29日は、平年には2月28日に合わせます。</p>
+          <DayOfMonthInput helpText="1〜31の日付を入力してください。2月29日は、平年には2月28日に合わせます。" />
         </>
       );
   }
