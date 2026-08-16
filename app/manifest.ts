@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-export function pwaManifest(): MetadataRoute.Manifest {
+export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "YAMORU",
     short_name: "YAMORU",
@@ -23,13 +23,4 @@ export function pwaManifest(): MetadataRoute.Manifest {
       },
     ],
   };
-}
-
-export function GET() {
-  return Response.json(pwaManifest(), {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "application/manifest+json",
-    },
-  });
 }
