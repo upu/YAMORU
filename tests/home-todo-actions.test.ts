@@ -14,7 +14,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: revalidatePathMock,
 }));
 
-import { createOneTimeTodo } from "../app/actions";
+import { createTodo } from "../app/todos/new/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
@@ -31,10 +31,11 @@ function todoForm({
   formData.set("title", title);
   formData.set("plannedDate", plannedDate);
   formData.set("managedItemId", managedItemId);
+  formData.set("recurrenceBasis", "once");
   return formData;
 }
 
-describe("ホームの一回限りTodo登録操作", () => {
+describe("専用ページの一回限りTodo登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createClientMock.mockResolvedValue({ rpc: rpcMock });
@@ -42,7 +43,7 @@ describe("ホームの一回限りTodo登録操作", () => {
   });
 
   it("管理対象なしでは一回限りTodoを家庭へ登録する", async () => {
-    const result = await createOneTimeTodo(INITIAL_STATE, todoForm());
+    const result = await createTodo(INITIAL_STATE, todoForm());
 
     expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
       scheduled_for: "2026-10-09T15:00:00.000Z",
@@ -56,7 +57,7 @@ describe("ホームの一回限りTodo登録操作", () => {
   });
 
   it("管理対象を選ぶと同じ入口から関連付けて登録する", async () => {
-    await createOneTimeTodo(
+    await createTodo(
       INITIAL_STATE,
       todoForm({ managedItemId: "managed-item-id", title: "今回だけ点検" }),
     );
@@ -72,7 +73,7 @@ describe("ホームの一回限りTodo登録操作", () => {
   it.each(["", "   ", "あ".repeat(101)])(
     "無効なTodo名(%s)はRPCへ送らない",
     async (title) => {
-      const result = await createOneTimeTodo(INITIAL_STATE, todoForm({ title }));
+      const result = await createTodo(INITIAL_STATE, todoForm({ title }));
 
       expect(createClientMock).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -85,7 +86,7 @@ describe("ホームの一回限りTodo登録操作", () => {
   it.each(["", "2026-02-30"])(
     "無効な予定日(%s)はRPCへ送らない",
     async (plannedDate) => {
-      const result = await createOneTimeTodo(
+      const result = await createTodo(
         INITIAL_STATE,
         todoForm({ plannedDate }),
       );
@@ -104,7 +105,7 @@ describe("ホームの一回限りTodo登録操作", () => {
       error: new Error("sensitive database detail"),
     });
 
-    const result = await createOneTimeTodo(INITIAL_STATE, todoForm());
+    const result = await createTodo(INITIAL_STATE, todoForm());
 
     expect(result).toEqual({
       message: "Todoを登録できませんでした。時間をおいて再度お試しください。",

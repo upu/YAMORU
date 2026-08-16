@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -36,47 +36,14 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
 };
 
 describe("ManagedItem詳細のメンテナンスTodo", () => {
-  it("1〜2週間後と前回実施日だけで登録できるフォームを表示する", () => {
+  it("専用登録ページへ管理対象を引き継いで移動できる", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
-    const form = screen.getByRole("region", {
-      name: "Todoを登録",
-    });
-    expect(within(form).getByLabelText("Todo名")).toHaveAttribute(
-      "maxLength",
-      "100",
+    expect(screen.queryByLabelText("Todo名")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
+      "href",
+      "/todos/new?managedItemId=item-1",
     );
-    expect(within(form).getByLabelText("完了した日から繰り返す")).toBeChecked();
-    expect(within(form).getByLabelText("繰り返しなし")).not.toBeChecked();
-    expect(within(form).getByLabelText("最短")).toHaveValue(1);
-    expect(within(form).getByLabelText("最長")).toHaveValue(2);
-    expect(within(form).getByLabelText("単位")).toHaveValue("week");
-    expect(within(form).getByRole("option", { name: "日後" })).toBeInTheDocument();
-    expect(within(form).getByRole("option", { name: "週間後" })).toBeInTheDocument();
-    expect(
-      within(form).getByText("完了すると、その日から1〜2週間後が次回の目安になります。"),
-    ).toBeInTheDocument();
-    expect(within(form).getByLabelText("前回実施日から計算する")).toBeChecked();
-    expect(within(form).getByLabelText("次回の目安開始日を指定する")).not.toBeChecked();
-    expect(within(form).getByLabelText("前回実施日")).toHaveAttribute(
-      "type",
-      "date",
-    );
-    expect(within(form).queryByLabelText("最初の推奨上限日")).not.toBeInTheDocument();
-    expect(within(form).getByText(/Asia\/Tokyo/)).toBeInTheDocument();
-  });
-
-  it("一回限りを選ぶと間隔入力を隠し、予定日を直接入力できる", () => {
-    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
-
-    fireEvent.click(screen.getByLabelText("繰り返しなし"));
-
-    expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
-    expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("前回実施日から計算する")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("完了しても次のTodoは作成されません。"),
-    ).toBeInTheDocument();
   });
 
   it("現在のpending Todo名と推奨期間の分類(YDR-017)を表示する", () => {
@@ -115,33 +82,6 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     const todoList = screen.getByRole("region", { name: "現在のTodo" });
     expect(within(todoList).getByText("繰り返しなし")).toBeInTheDocument();
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
-  });
-
-  it("次回の目安開始日を選ぶと日付項目と自動計算の説明を切り替える", () => {
-    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
-
-    fireEvent.click(screen.getByLabelText("次回の目安開始日を指定する"));
-
-    expect(screen.getByLabelText("次回の目安開始日")).toHaveAttribute(
-      "type",
-      "date",
-    );
-    expect(
-      screen.getByText("目安の上限日は、指定した開始日から自動計算します。"),
-    ).toBeInTheDocument();
-    expect(screen.queryByLabelText("前回実施日")).not.toBeInTheDocument();
-  });
-
-  it("日単位へ切り替えると説明にも反映する", () => {
-    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
-
-    fireEvent.change(screen.getByLabelText("単位"), {
-      target: { value: "day" },
-    });
-
-    expect(
-      screen.getByText("完了すると、その日から1〜2日後が次回の目安になります。"),
-    ).toBeInTheDocument();
   });
 
   it("未完了Todoがない場合は空状態を表示する", () => {

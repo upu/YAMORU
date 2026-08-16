@@ -18,7 +18,6 @@ import {
 } from "../model";
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
-import { MaintenanceTodoForm } from "./maintenance-todo-form";
 import { PostponePanel } from "./postpone-panel";
 import { UndoCompletionPanel } from "./undo-completion-panel";
 import {
@@ -367,11 +366,16 @@ export function ManagedItemDetailContent({
 
         <section aria-labelledby="register-todo-title" className="detail-card">
           <p className="detail-kicker">ADD TODO</p>
-          <h2 id="register-todo-title">Todoを登録</h2>
+          <h2 id="register-todo-title">関連するTodoを追加</h2>
           <p className="detail-note">
-            繰り返しなし、または完了した日から繰り返すTodoを登録します。
+            専用の登録ページで、この管理対象を選んだ状態から追加できます。
           </p>
-          <MaintenanceTodoForm managedItemId={item.id} />
+          <Link
+            className="ledger-primary-link"
+            href={`/todos/new?managedItemId=${encodeURIComponent(item.id)}`}
+          >
+            Todoを追加
+          </Link>
         </section>
 
         <RecentCompletionSection

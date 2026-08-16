@@ -10,14 +10,14 @@ select plan(46);
 select has_function(
   'public',
   'create_maintenance_task',
-  array['uuid', 'text', 'integer', 'integer', 'timestamp with time zone', 'timestamp with time zone'],
+  array['text', 'integer', 'integer', 'timestamp with time zone', 'timestamp with time zone', 'uuid'],
   'TaskRuleと最初のOccurrenceを原子的に作成するRPCが存在する'
 );
 
 select ok(
   has_function_privilege(
     'authenticated',
-    'public.create_maintenance_task(uuid,text,integer,integer,timestamp with time zone,timestamp with time zone)',
+    'public.create_maintenance_task(text,integer,integer,timestamp with time zone,timestamp with time zone,uuid)',
     'execute'
   ),
   'authenticatedだけが作成RPCを実行できる'
@@ -26,7 +26,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'public.create_maintenance_task(uuid,text,integer,integer,timestamp with time zone,timestamp with time zone)',
+    'public.create_maintenance_task(text,integer,integer,timestamp with time zone,timestamp with time zone,uuid)',
     'execute'
   ),
   'anonは作成RPCを実行できない'
@@ -35,7 +35,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'service_role',
-    'public.create_maintenance_task(uuid,text,integer,integer,timestamp with time zone,timestamp with time zone)',
+    'public.create_maintenance_task(text,integer,integer,timestamp with time zone,timestamp with time zone,uuid)',
     'execute'
   ),
   'Service Roleにも作成RPCを公開しない'
@@ -134,12 +134,12 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 
 select isnt_empty(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '  フィルター交換  ',
        28,
        56,
        '2026-10-08 15:00:00+00',
-       '2026-11-05 15:00:00+00'
+       '2026-11-05 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '家庭AのManagedItemへメンテナンスTodoを登録できる'
 );
@@ -240,9 +240,9 @@ select throws_ok(
 
 select throws_ok(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '他家庭への登録', 28, 56,
-       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00'
+       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   'P0001',
   'Managed item not found',
@@ -260,9 +260,9 @@ select throws_ok(
 );
 select throws_ok(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '未認証', 28, 56,
-       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00'
+       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '42501',
   null,
@@ -275,9 +275,9 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000c1001", 
 
 select throws_ok(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '家庭未所属', 28, 56,
-       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00'
+       '2026-10-08 15:00:00+00', '2026-11-05 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   'P0001',
   'Household membership required',
@@ -459,9 +459,9 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 
 select throws_ok(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '原子性テスト', 28, 56,
-       '2099-12-30 15:00:00+00', '2099-12-31 15:00:00+00'
+       '2099-12-30 15:00:00+00', '2099-12-31 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   'P0001',
   'atomicity test failure',

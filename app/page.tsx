@@ -29,7 +29,6 @@ import {
   getTokyoDayDistance,
   PHASE_ONE_TIME_ZONE,
 } from "./time-zone";
-import { TodoForm, type TodoManagedItemOption } from "./todo-form";
 
 export type HomeItem = {
   // pending Todoにだけ設定する。未設定(誰でも可)はnull。
@@ -446,10 +445,12 @@ function HomeSectionView({
 }
 
 function HomeHero({
+  canAddTodo,
   heroDateLabel,
   openItemCount,
   overdueItemCount,
 }: {
+  canAddTodo: boolean;
   heroDateLabel: string;
   openItemCount: number;
   overdueItemCount: number;
@@ -463,6 +464,11 @@ function HomeHero({
         </div>
         <div className="hero-actions">
           <span className="date-badge">{heroDateLabel}</span>
+          {canAddTodo ? (
+            <Link className="account-link" href="/todos/new">
+              Todoを追加
+            </Link>
+          ) : null}
           <Link className="account-link" href="/managed-items">
             家の台帳
           </Link>
@@ -505,8 +511,11 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
       <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
       <p>
         {householdName}
-        には、まだTodoや完了記録がありません。上のフォームから最初のTodoを追加できます。
+        には、まだTodoや完了記録がありません。
       </p>
+      <Link className="ledger-primary-link" href="/todos/new">
+        最初のTodoを追加
+      </Link>
       <Link className="ledger-primary-link" href="/managed-items">
         家の台帳を開く
       </Link>
@@ -545,7 +554,6 @@ export function HomeContent({
   currentUserId,
   heroDateLabel,
   household,
-  managedItems,
   members,
   sections,
 }: {
@@ -553,7 +561,6 @@ export function HomeContent({
   currentUserId: string;
   heroDateLabel: string;
   household: HomeHouseholdSummary | null;
-  managedItems: TodoManagedItemOption[];
   members: HouseholdMemberOption[];
   sections: HomeSection[];
 }) {
@@ -569,6 +576,7 @@ export function HomeContent({
   return (
     <main>
       <HomeHero
+        canAddTodo={household !== null}
         heroDateLabel={heroDateLabel}
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}
@@ -578,7 +586,6 @@ export function HomeContent({
         <HouseholdRequiredNotice />
       ) : (
         <div className="home-flow">
-          <TodoForm managedItems={managedItems} />
           {visibleSections.length === 0 ? (
             <HomeEmptyState householdName={household.name} />
           ) : (
@@ -628,27 +635,17 @@ export default async function Home() {
         currentUserId={user.id}
         heroDateLabel={heroDateLabel}
         household={null}
-        managedItems={[]}
         members={[]}
         sections={[]}
       />
     );
   }
 
-  const [sections, members, { data: managedItems, error: managedItemsError }] = await Promise.all([
+  const [sections, members] = await Promise.all([
     loadHomeSections(supabase, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(supabase, household.id),
-    supabase
-      .from("managed_items")
-      .select("id, name")
-      .eq("household_id", household.id)
-      .order("name", { ascending: true }),
   ]);
-
-  if (managedItemsError !== null) {
-    throw new Error("Todoに関連付ける管理対象を取得できませんでした。");
-  }
 
   return (
     <HomeContent
@@ -656,7 +653,6 @@ export default async function Home() {
       currentUserId={user.id}
       heroDateLabel={heroDateLabel}
       household={household}
-      managedItems={managedItems}
       members={members}
       sections={sections}
     />

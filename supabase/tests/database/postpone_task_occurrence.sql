@@ -60,25 +60,25 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 
 select isnt_empty(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '延期確認用', 28, 56,
-       now() - interval '10 days', now() + interval '5 days'
+       now() - interval '10 days', now() + interval '5 days',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '検証用TaskRule(延期確認用)を作成できる'
 );
 select isnt_empty(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '完了取消相互作用確認用', 0, 0,
-       '2020-05-01 00:00:00+00', '2020-05-01 00:00:00+00'
+       '2020-05-01 00:00:00+00', '2020-05-01 00:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '検証用TaskRule(完了取消相互作用確認用)を作成できる'
 );
 select isnt_empty(
   $$ select public.create_maintenance_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '推奨期間前確認用', 28, 56,
-       now() + interval '20 days', now() + interval '40 days'
+       now() + interval '20 days', now() + interval '40 days',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '検証用TaskRule(推奨期間前確認用、scheduled_forが未来)を作成できる'
 );
