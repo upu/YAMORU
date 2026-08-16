@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { metadata, viewport } from "../app/layout";
-import manifest from "../app/manifest";
+import { GET, pwaManifest } from "../app/manifest.webmanifest/route";
 import { config as proxyConfig } from "../proxy";
 
 function readPng(path: string) {
@@ -32,7 +32,7 @@ function isHandledByAuthProxy(pathname: string) {
 
 describe("PWA manifest", () => {
   it("ホーム画面からYAMORUのルートを独立表示で起動する", () => {
-    expect(manifest()).toMatchObject({
+    expect(pwaManifest()).toMatchObject({
       name: "YAMORU",
       short_name: "YAMORU",
       description: "暮らしの「いつだっけ？」をなくす。",
@@ -45,23 +45,23 @@ describe("PWA manifest", () => {
   });
 
   it("Androidのホーム画面追加に必要なPNGアイコンを公開する", () => {
-    expect(manifest().icons).toEqual(
+    expect(pwaManifest().icons).toEqual(
       expect.arrayContaining([
         {
-          src: "/pwa/icon-192x192.png",
+          src: "/pwa/yamoru-icon-v3-192x192.png",
           sizes: "192x192",
           type: "image/png",
         },
         {
-          src: "/pwa/icon-512x512.png",
+          src: "/pwa/yamoru-icon-v3-512x512.png",
           sizes: "512x512",
           type: "image/png",
         },
       ]),
     );
 
-    expectPngSize("public/pwa/icon-192x192.png", 192, 192);
-    expectPngSize("public/pwa/icon-512x512.png", 512, 512);
+    expectPngSize("public/pwa/yamoru-icon-v3-192x192.png", 192, 192);
+    expectPngSize("public/pwa/yamoru-icon-v3-512x512.png", 512, 512);
   });
 });
 
@@ -75,11 +75,13 @@ describe("PWA metadata", () => {
     expect(metadata.other).toMatchObject({
       "apple-mobile-web-app-capable": "yes",
     });
+    expect(metadata.manifest).toBe("/manifest.webmanifest?v=3");
+    expect(existsSync(join(process.cwd(), "app/manifest.ts"))).toBe(false);
     expect(metadata.icons).toMatchObject({
       apple: [
         {
-          url: "/apple-touch-icon.png?v=2",
-          sizes: "180x180",
+          url: "/pwa/yamoru-icon-v3-512x512.png",
+          sizes: "512x512",
           type: "image/png",
         },
       ],
@@ -100,6 +102,12 @@ describe("PWA metadata", () => {
       expectOpaqueRgbPng(path);
     });
     expect(readPng(iconPaths[1])).toEqual(readPng(iconPaths[0]));
+    expectPngSize("public/pwa/yamoru-icon-v3-512x512.png", 512, 512);
+    expectOpaqueRgbPng("public/pwa/yamoru-icon-v3-512x512.png");
+
+    const response = GET();
+    expect(response.headers.get("Content-Type")).toBe("application/manifest+json");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache, must-revalidate");
   });
 
   it("ブラウザのテーマ色をmanifestと揃える", () => {

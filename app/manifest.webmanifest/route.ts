@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
+export function pwaManifest(): MetadataRoute.Manifest {
   return {
     name: "YAMORU",
     short_name: "YAMORU",
@@ -12,15 +12,24 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#315c49",
     icons: [
       {
-        src: "/pwa/icon-192x192.png",
+        src: "/pwa/yamoru-icon-v3-192x192.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/pwa/icon-512x512.png",
+        src: "/pwa/yamoru-icon-v3-512x512.png",
         sizes: "512x512",
         type: "image/png",
       },
     ],
   };
+}
+
+export function GET() {
+  return Response.json(pwaManifest(), {
+    headers: {
+      "Cache-Control": "no-cache, must-revalidate",
+      "Content-Type": "application/manifest+json",
+    },
+  });
 }
