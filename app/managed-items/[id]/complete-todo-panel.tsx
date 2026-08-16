@@ -17,7 +17,7 @@ export function CompleteTodoPanel({
 }: {
   actorName: string;
   currentUserId: string;
-  managedItemId: string;
+  managedItemId: string | null;
   members: HouseholdMemberOption[];
   occurrenceId: string;
   taskTitle: string;

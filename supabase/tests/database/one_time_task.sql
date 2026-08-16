@@ -10,14 +10,14 @@ select plan(20);
 select has_function(
   'public',
   'create_one_time_task',
-  array['uuid', 'text', 'timestamp with time zone'],
+  array['text', 'timestamp with time zone', 'uuid'],
   '一回限りTaskRuleと最初のOccurrenceを原子的に作成するRPCが存在する'
 );
 
 select ok(
   has_function_privilege(
     'authenticated',
-    'public.create_one_time_task(uuid,text,timestamp with time zone)',
+    'public.create_one_time_task(text,timestamp with time zone,uuid)',
     'execute'
   ),
   'authenticatedだけが一回限りTodo作成RPCを実行できる'
@@ -26,7 +26,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'public.create_one_time_task(uuid,text,timestamp with time zone)',
+    'public.create_one_time_task(text,timestamp with time zone,uuid)',
     'execute'
   ),
   'anonは一回限りTodo作成RPCを実行できない'
@@ -35,7 +35,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'service_role',
-    'public.create_one_time_task(uuid,text,timestamp with time zone)',
+    'public.create_one_time_task(text,timestamp with time zone,uuid)',
     'execute'
   ),
   'Service Roleにも一回限りTodo作成RPCを公開しない'
@@ -76,9 +76,9 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000a1001", 
 
 select isnt_empty(
   $$ select public.create_one_time_task(
-       '00000000-0000-0000-0000-0000000aa001',
        '  今回だけ点検  ',
-       '2026-10-09 15:00:00+00'
+       '2026-10-09 15:00:00+00',
+       '00000000-0000-0000-0000-0000000aa001'
      ) $$,
   '自家庭のManagedItemへ一回限りTodoを登録できる'
 );

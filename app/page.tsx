@@ -11,6 +11,7 @@ import {
 import { createClient } from "../lib/supabase/server";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
+import { UndoCompletionPanel } from "./managed-items/[id]/undo-completion-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
   STRICT_DISPLAY_COPY,
@@ -28,19 +29,21 @@ import {
   getTokyoDayDistance,
   PHASE_ONE_TIME_ZONE,
 } from "./time-zone";
+import { TodoForm, type TodoManagedItemOption } from "./todo-form";
 
 export type HomeItem = {
-  // managedItemIdと同じ条件(pending Todoにだけ設定)で、担当者選択パネル
-  // (AssigneePanel)を表示するかどうかを決める。未設定(誰でも可)はnull。
+  // pending Todoにだけ設定する。未設定(誰でも可)はnull。
   assigneeUserId?: string | null;
+  completedAt?: string;
+  completedOccurrenceId?: string;
   detail: string;
-  detailHref: string;
+  detailHref?: string;
   id: string;
-  // pending Todo(現在はreminder区分)にだけ設定する。設定されている場合、
-  // TaskCardは「やったよ」ボタン(CompleteTodoPanel)を表示する。
-  // 「最近の実施」など完了済みの項目には設定しない。
-  managedItemId?: string;
+  // Todoに関連する管理対象。家庭共通Todoではnull、完了・未完了のどちらにも設定する。
+  managedItemId?: string | null;
   meta: string;
+  // pending Todoにだけ設定し、ホームの担当・完了操作を有効にする。
+  occurrenceId?: string;
   title: string;
   tone: TodoTone;
 };
@@ -93,7 +96,7 @@ export type PendingOccurrenceRow = {
   scheduled_for: string;
   task_rules: {
     deadline_kind: string;
-    managed_items: { id: string; name: string };
+    managed_items: { id: string; name: string } | null;
     recurrence_basis: string;
     title: string;
   };
@@ -104,9 +107,10 @@ export type RecentCompletionRow = {
   occurred_at: string;
   performed_by_user_id: string | null;
   task_occurrences: {
+    id: string;
     status: string;
     task_rules: {
-      managed_items: { id: string; name: string };
+      managed_items: { id: string; name: string } | null;
       title: string;
     };
   };
@@ -136,11 +140,14 @@ export function buildReminderItems(
       return [
         {
           assigneeUserId: row.assignee_user_id,
-          detail: row.task_rules.managed_items.name,
-          detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
+          detail: row.task_rules.managed_items?.name ?? "管理対象なし",
+          ...(row.task_rules.managed_items === null
+            ? {}
+            : { detailHref: `/managed-items/${row.task_rules.managed_items.id}` }),
           id: row.id,
-          managedItemId: row.task_rules.managed_items.id,
+          managedItemId: row.task_rules.managed_items?.id ?? null,
           meta: describeMaintenanceWindowFromIso(state, window),
+          occurrenceId: row.id,
           title: row.task_rules.title,
           tone: copy.tone,
         },
@@ -175,11 +182,14 @@ export function buildStrictItems(
       const copy = STRICT_DISPLAY_COPY[state];
       result[sectionId].push({
         assigneeUserId: row.assignee_user_id,
-        detail: row.task_rules.managed_items.name,
-        detailHref: `/managed-items/${row.task_rules.managed_items.id}`,
+        detail: row.task_rules.managed_items?.name ?? "管理対象なし",
+        ...(row.task_rules.managed_items === null
+          ? {}
+          : { detailHref: `/managed-items/${row.task_rules.managed_items.id}` }),
         id: row.id,
-        managedItemId: row.task_rules.managed_items.id,
+        managedItemId: row.task_rules.managed_items?.id ?? null,
         meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ 繰り返しなし`,
+        occurrenceId: row.id,
         title: row.task_rules.title,
         tone: copy.tone,
       });
@@ -196,21 +206,29 @@ export function buildRecentItems(
     // 完了取消(Issue #37, YDR-015)でOccurrenceの状態がpendingへ戻った場合、
     // 完了ActivityLog自体は削除しないため、ここで「最近の実施」から除く。
     .filter((row) => row.task_occurrences.status === "completed")
-    .map((row) => ({
-      detail: row.task_occurrences.task_rules.managed_items.name,
-      detailHref: `/managed-items/${row.task_occurrences.task_rules.managed_items.id}`,
-      id: row.id,
-      // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
-      // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
-      // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
-      meta: `${formatTokyoDate(row.occurred_at)} ・ ${
-        (row.performed_by_user_id === null
-          ? null
-          : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
-      }が実施`,
-      title: row.task_occurrences.task_rules.title,
-      tone: "done" as const,
-    }));
+    .map((row) => {
+      const managedItem = row.task_occurrences.task_rules.managed_items;
+      return {
+        completedAt: row.occurred_at,
+        completedOccurrenceId: row.task_occurrences.id,
+        detail: managedItem?.name ?? "管理対象なし",
+        ...(managedItem === null
+          ? {}
+          : { detailHref: `/managed-items/${managedItem.id}` }),
+        id: row.id,
+        managedItemId: managedItem?.id ?? null,
+        // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
+        // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
+        // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
+        meta: `${formatTokyoDate(row.occurred_at)} ・ ${
+          (row.performed_by_user_id === null
+            ? null
+            : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
+        }が実施`,
+        title: row.task_occurrences.task_rules.title,
+        tone: "done" as const,
+      };
+    });
 }
 
 function buildHomeSections(
@@ -295,6 +313,71 @@ async function loadHomeSections(
   );
 }
 
+function TaskTitle({ item }: { item: HomeItem }) {
+  return (
+    <div className="task-title-row">
+      <h3>
+        {item.detailHref === undefined ? (
+          item.title
+        ) : (
+          <Link href={item.detailHref}>{item.title}</Link>
+        )}
+      </h3>
+      <span className={`tone-label tone-${item.tone}`}>
+        {TONE_LABELS[item.tone]}
+      </span>
+    </div>
+  );
+}
+
+function TaskActions({
+  actorName,
+  currentUserId,
+  item,
+  members,
+}: {
+  actorName: string;
+  currentUserId: string;
+  item: HomeItem;
+  members: HouseholdMemberOption[];
+}) {
+  const pendingOccurrenceId =
+    item.occurrenceId ??
+    (typeof item.managedItemId === "string" ? item.id : undefined);
+  if (pendingOccurrenceId !== undefined) {
+    return (
+      <>
+        <AssigneePanel
+          assigneeUserId={item.assigneeUserId ?? null}
+          managedItemId={item.managedItemId ?? null}
+          members={members}
+          occurrenceId={pendingOccurrenceId}
+          taskTitle={item.title}
+        />
+        <CompleteTodoPanel
+          actorName={actorName}
+          currentUserId={currentUserId}
+          managedItemId={item.managedItemId ?? null}
+          members={members}
+          occurrenceId={pendingOccurrenceId}
+          taskTitle={item.title}
+        />
+      </>
+    );
+  }
+  if (item.completedAt === undefined || item.completedOccurrenceId === undefined) {
+    return null;
+  }
+  return (
+    <UndoCompletionPanel
+      managedItemId={item.managedItemId ?? null}
+      occurredAt={item.completedAt}
+      occurrenceId={item.completedOccurrenceId}
+      taskTitle={item.title}
+    />
+  );
+}
+
 function TaskCard({
   actorName,
   currentUserId,
@@ -310,35 +393,15 @@ function TaskCard({
     <article className="task-card">
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
       <div className="task-copy">
-        <div className="task-title-row">
-          <h3>
-            <Link href={item.detailHref}>{item.title}</Link>
-          </h3>
-          <span className={`tone-label tone-${item.tone}`}>
-            {TONE_LABELS[item.tone]}
-          </span>
-        </div>
+        <TaskTitle item={item} />
         <p className="item-detail">{item.detail}</p>
         <p className="item-meta">{item.meta}</p>
-        {item.managedItemId === undefined ? null : (
-          <>
-            <AssigneePanel
-              assigneeUserId={item.assigneeUserId ?? null}
-              managedItemId={item.managedItemId}
-              members={members}
-              occurrenceId={item.id}
-              taskTitle={item.title}
-            />
-            <CompleteTodoPanel
-              actorName={actorName}
-              currentUserId={currentUserId}
-              managedItemId={item.managedItemId}
-              members={members}
-              occurrenceId={item.id}
-              taskTitle={item.title}
-            />
-          </>
-        )}
+        <TaskActions
+          actorName={actorName}
+          currentUserId={currentUserId}
+          item={item}
+          members={members}
+        />
       </div>
     </article>
   );
@@ -442,7 +505,7 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
       <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
       <p>
         {householdName}
-        には、まだメンテナンスTodoの記録がありません。家の台帳から管理対象を登録すると、ここに表示されます。
+        には、まだTodoや完了記録がありません。上のフォームから最初のTodoを追加できます。
       </p>
       <Link className="ledger-primary-link" href="/managed-items">
         家の台帳を開く
@@ -482,6 +545,7 @@ export function HomeContent({
   currentUserId,
   heroDateLabel,
   household,
+  managedItems,
   members,
   sections,
 }: {
@@ -489,6 +553,7 @@ export function HomeContent({
   currentUserId: string;
   heroDateLabel: string;
   household: HomeHouseholdSummary | null;
+  managedItems: TodoManagedItemOption[];
   members: HouseholdMemberOption[];
   sections: HomeSection[];
 }) {
@@ -511,15 +576,20 @@ export function HomeContent({
 
       {household === null ? (
         <HouseholdRequiredNotice />
-      ) : visibleSections.length === 0 ? (
-        <HomeEmptyState householdName={household.name} />
       ) : (
-        <HomeSectionList
-          actorName={actorName}
-          currentUserId={currentUserId}
-          members={members}
-          sections={visibleSections}
-        />
+        <div className="home-flow">
+          <TodoForm managedItems={managedItems} />
+          {visibleSections.length === 0 ? (
+            <HomeEmptyState householdName={household.name} />
+          ) : (
+            <HomeSectionList
+              actorName={actorName}
+              currentUserId={currentUserId}
+              members={members}
+              sections={visibleSections}
+            />
+          )}
+        </div>
       )}
 
       <footer>
@@ -558,17 +628,27 @@ export default async function Home() {
         currentUserId={user.id}
         heroDateLabel={heroDateLabel}
         household={null}
+        managedItems={[]}
         members={[]}
         sections={[]}
       />
     );
   }
 
-  const [sections, members] = await Promise.all([
+  const [sections, members, { data: managedItems, error: managedItemsError }] = await Promise.all([
     loadHomeSections(supabase, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(supabase, household.id),
+    supabase
+      .from("managed_items")
+      .select("id, name")
+      .eq("household_id", household.id)
+      .order("name", { ascending: true }),
   ]);
+
+  if (managedItemsError !== null) {
+    throw new Error("Todoに関連付ける管理対象を取得できませんでした。");
+  }
 
   return (
     <HomeContent
@@ -576,6 +656,7 @@ export default async function Home() {
       currentUserId={user.id}
       heroDateLabel={heroDateLabel}
       household={household}
+      managedItems={managedItems}
       members={members}
       sections={sections}
     />

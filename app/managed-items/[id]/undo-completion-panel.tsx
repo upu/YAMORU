@@ -53,7 +53,7 @@ function UndoConfirmDialog({
       titleId={titleId}
     >
       <p>
-        {formatTokyoDate(occurredAt)}の完了を取り消します。未完了のTodoに戻り、自動生成された次回の予定は削除されます。
+        {formatTokyoDate(occurredAt)}の完了を取り消します。未完了のTodoに戻り、次回の予定が作られている場合は未変更のものだけ削除されます。
       </p>
       <div className="completion-choice-list">
         <button className="dialog-primary-button" onClick={onConfirm} type="button">
@@ -76,7 +76,7 @@ export function UndoCompletionPanel({
   occurrenceId,
   taskTitle,
 }: {
-  managedItemId: string;
+  managedItemId: string | null;
   occurredAt: string;
   occurrenceId: string;
   taskTitle: string;

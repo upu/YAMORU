@@ -458,7 +458,7 @@ export type Database = {
           deadline_kind: string
           household_id: string
           id: string
-          managed_item_id: string
+          managed_item_id: string | null
           recommended_start_offset: number
           recommended_until_offset: number
           recurrence_basis: string
@@ -470,7 +470,7 @@ export type Database = {
           deadline_kind?: string
           household_id: string
           id?: string
-          managed_item_id: string
+          managed_item_id?: string | null
           recommended_start_offset: number
           recommended_until_offset: number
           recurrence_basis?: string
@@ -482,7 +482,7 @@ export type Database = {
           deadline_kind?: string
           household_id?: string
           id?: string
-          managed_item_id?: string
+          managed_item_id?: string | null
           recommended_start_offset?: number
           recommended_until_offset?: number
           recurrence_basis?: string
@@ -570,7 +570,7 @@ export type Database = {
         Returns: string
       }
       create_one_time_task: {
-        Args: { item_id: string; scheduled_for: string; task_title: string }
+        Args: { item_id?: string; scheduled_for: string; task_title: string }
         Returns: string
       }
       is_household_member: {
