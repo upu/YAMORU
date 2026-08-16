@@ -5,13 +5,29 @@ import { describe, expect, it } from "vitest";
 
 import { metadata, viewport } from "../app/layout";
 import manifest from "../app/manifest";
+import { config as proxyConfig } from "../proxy";
 
-function expectPngSize(path: string, width: number, height: number) {
+function readPng(path: string) {
   const png = readFileSync(join(process.cwd(), path));
 
   expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+  return png;
+}
+
+function expectPngSize(path: string, width: number, height: number) {
+  const png = readPng(path);
+
   expect(png.readUInt32BE(16)).toBe(width);
   expect(png.readUInt32BE(20)).toBe(height);
+}
+
+function expectOpaqueRgbPng(path: string) {
+  // PNGのIHDR color type 2はalpha channelを持たないtruecolor RGB。
+  expect(readPng(path)[25]).toBe(2);
+}
+
+function isHandledByAuthProxy(pathname: string) {
+  return new RegExp(`^${proxyConfig.matcher[0]}$`, "u").test(pathname);
 }
 
 describe("PWA manifest", () => {
@@ -61,6 +77,23 @@ describe("PWA metadata", () => {
     });
 
     expectPngSize("app/apple-icon.png", 180, 180);
+  });
+
+  it("未認証でもmanifestと標準Appleアイコンを取得できる", () => {
+    expect(isHandledByAuthProxy("/manifest.webmanifest")).toBe(false);
+    expect(isHandledByAuthProxy("/account")).toBe(true);
+
+    const iconPaths = [
+      "app/apple-icon.png",
+      "public/apple-touch-icon.png",
+      "public/apple-touch-icon-precomposed.png",
+    ];
+    iconPaths.forEach((path) => {
+      expectPngSize(path, 180, 180);
+      expectOpaqueRgbPng(path);
+    });
+    expect(readPng(iconPaths[1])).toEqual(readPng(iconPaths[0]));
+    expect(readPng(iconPaths[2])).toEqual(readPng(iconPaths[0]));
   });
 
   it("ブラウザのテーマ色をmanifestと揃える", () => {
