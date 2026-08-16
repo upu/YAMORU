@@ -131,6 +131,7 @@ describe("ホーム画面(HomeContent)", () => {
           id: "occurrence-1",
           managedItemId: "item-1",
           meta: "9月4日までが推奨期間です",
+          occurrenceId: "occurrence-1",
           title: "フィルター交換",
           tone: "reminder",
         },
@@ -154,6 +155,7 @@ describe("ホーム画面(HomeContent)", () => {
           id: "occurrence-1",
           managedItemId: "item-1",
           meta: "9月4日までが推奨期間です",
+          occurrenceId: "occurrence-1",
           title: "猫の浄水器のフィルター交換",
           tone: "reminder",
         },
@@ -184,6 +186,7 @@ describe("ホームのTodo操作", () => {
           id: "occurrence-1",
           managedItemId: "item-1",
           meta: "9月4日までが推奨期間です",
+          occurrenceId: "occurrence-1",
           title: "猫の浄水器のフィルター交換",
           tone: "reminder",
         },
@@ -284,24 +287,39 @@ describe("ホームのTodo操作", () => {
     );
   });
 
-  it("最近の実施区分に実施日と実施者名を表示し、「やったよ」ボタンは表示しない", () => {
-    const sections = emptySections({
-      recent: [
+  it("実際の最近の実施データには担当・完了操作を出さず、完了取消だけを表示する", () => {
+    const recentItems = buildRecentItems(
+      [
         {
-          detail: "猫の浄水器",
-          detailHref: "/managed-items/item-1",
           id: "activity-1",
-          meta: "8月10日 ・ たろうが実施",
-          title: "フィルター交換",
-          tone: "done",
+          occurred_at: "2026-08-10T00:00:00.000Z",
+          performed_by_user_id: "user-2",
+          task_occurrences: {
+            id: "occurrence-1",
+            status: "completed",
+            task_rules: {
+              managed_items: { id: "item-1", name: "猫の浄水器" },
+              title: "フィルター交換",
+            },
+          },
         },
       ],
-    });
+      new Map([["user-2", "たろう"]]),
+    );
+    const sections = emptySections({ recent: recentItems });
     renderHome(sections);
 
     const recentSection = screen.getByRole("region", { name: "最近の実施" });
-    expect(within(recentSection).getByText("8月10日 ・ たろうが実施")).toBeInTheDocument();
-    expect(within(recentSection).queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      within(recentSection).getByText("2026年8月10日 ・ たろうが実施"),
+    ).toBeInTheDocument();
+    expect(within(recentSection).queryByLabelText("フィルター交換の担当")).not.toBeInTheDocument();
+    expect(
+      within(recentSection).queryByRole("button", { name: "フィルター交換を記録" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(recentSection).getByRole("button", { name: "フィルター交換の完了を取り消す" }),
+    ).toBeInTheDocument();
     // 完了済みは対応状況の「件の予定」には数えない。
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件の予定");
   });
