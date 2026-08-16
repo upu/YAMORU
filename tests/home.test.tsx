@@ -291,17 +291,13 @@ describe("ホームのTodo操作", () => {
     const recentItems = buildRecentItems(
       [
         {
-          id: "activity-1",
+          activity_log_id: "activity-1",
+          managed_item_id: "item-1",
+          managed_item_name: "猫の浄水器",
           occurred_at: "2026-08-10T00:00:00.000Z",
           performed_by_user_id: "user-2",
-          task_occurrences: {
-            id: "occurrence-1",
-            status: "completed",
-            task_rules: {
-              managed_items: { id: "item-1", name: "猫の浄水器" },
-              title: "フィルター交換",
-            },
-          },
+          task_occurrence_id: "occurrence-1",
+          task_rule_title: "フィルター交換",
         },
       ],
       new Map([["user-2", "たろう"]]),
@@ -456,17 +452,13 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
 describe("最近の実施の組み立て(buildRecentItems)", () => {
   function completionRow(overrides: Partial<RecentCompletionRow> = {}): RecentCompletionRow {
     return {
-      id: "activity-1",
+      activity_log_id: "activity-1",
+      managed_item_id: "item-1",
+      managed_item_name: "猫の浄水器",
       occurred_at: "2026-08-10T00:00:00.000Z",
       performed_by_user_id: "user-1",
-      task_occurrences: {
-        id: "occurrence-1",
-        status: "completed",
-        task_rules: {
-          managed_items: { id: "item-1", name: "猫の浄水器" },
-          title: "フィルター交換",
-        },
-      },
+      task_occurrence_id: "occurrence-1",
+      task_rule_title: "フィルター交換",
       ...overrides,
     };
   }
@@ -499,21 +491,29 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     expect(items[0].meta).toContain("メンバーが実施");
   });
 
-  it("Occurrenceの状態がcompleted以外(取消後を想定)なら除外する", () => {
-    const items = buildRecentItems(
-      [
-        completionRow({
-          task_occurrences: { ...completionRow().task_occurrences, status: "pending" },
-        }),
-      ],
-      new Map(),
-    );
-    expect(items).toHaveLength(0);
+  it("取消後に再完了したOccurrenceは最新の完了だけを表示する", () => {
+    const latest = completionRow({
+      activity_log_id: "activity-latest",
+      occurred_at: "2026-08-09T00:00:00.000Z",
+    });
+    const cancelled = completionRow({
+      activity_log_id: "activity-cancelled",
+      occurred_at: "2026-08-10T00:00:00.000Z",
+    });
+
+    const items = buildRecentItems([latest, cancelled], new Map());
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      completedAt: "2026-08-09T00:00:00.000Z",
+      id: "activity-latest",
+    });
   });
 
   it("管理対象なしの完了履歴も表示し、取消に必要なOccurrence情報を保持する", () => {
     const row = completionRow();
-    row.task_occurrences.task_rules.managed_items = null;
+    row.managed_item_id = null;
+    row.managed_item_name = null;
 
     const items = buildRecentItems([row], new Map([["user-1", "たろう"]]));
 

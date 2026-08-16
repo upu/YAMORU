@@ -10,6 +10,7 @@ import {
   loadHouseholdMembers,
 } from "../../../lib/supabase/profile";
 import { createClient } from "../../../lib/supabase/server";
+import { selectActiveCompletionLogs } from "../../active-completion";
 import {
   isSafeExternalUrl,
   MANAGED_ITEM_KIND_LABELS,
@@ -75,8 +76,10 @@ export type ManagedItemDetailData = {
 
 type ActivityLogRow = {
   action: string;
+  id: string;
   occurred_at: string;
   performed_by_user_id: string | null;
+  recorded_at: string;
 };
 type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
@@ -153,12 +156,8 @@ function buildPendingTodos(
 // (YDR-012)。「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
 // (Issue #18, YDR-020)。
 function findLatestCompletionLog(taskRules: TaskRuleRow[]): ActivityLogRow | null {
-  const logs = taskRules.flatMap((rule) =>
-    rule.task_occurrences
-      .filter((occurrence) => occurrence.status === "completed")
-      .flatMap((occurrence) =>
-        occurrence.activity_logs.filter((log) => log.action === "completed"),
-      ),
+  const logs = selectActiveCompletionLogs(
+    taskRules.flatMap((rule) => rule.task_occurrences),
   );
   if (logs.length === 0) return null;
 
@@ -172,17 +171,13 @@ function buildRecentCompletions(
 ): RecentCompletionData[] {
   return taskRules
     .flatMap((rule) => {
-      const completions = rule.task_occurrences
-        .filter((occurrence) => occurrence.status === "completed")
-        .flatMap((occurrence) =>
-          occurrence.activity_logs
-            .filter((log) => log.action === "completed")
-            .map((log) => ({
-              id: occurrence.id,
-              occurredAt: log.occurred_at,
-              title: rule.title,
-            })),
-        );
+      const completions = rule.task_occurrences.flatMap((occurrence) =>
+        selectActiveCompletionLogs([occurrence]).map((log) => ({
+          id: occurrence.id,
+          occurredAt: log.occurred_at,
+          title: rule.title,
+        })),
+      );
       if (completions.length === 0) return [];
       // TaskRuleごとに最新の完了だけを「直近の完了」として表示する。
       return [
@@ -407,7 +402,7 @@ export default async function RegisteredManagedItemDetail({
     supabase
       .from("managed_items")
       .select(
-        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, recurrence_basis, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(action, occurred_at, performed_by_user_id)))",
+        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, recurrence_basis, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(id, action, occurred_at, recorded_at, performed_by_user_id)))",
       )
       .eq("id", id)
       .maybeSingle(),

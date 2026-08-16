@@ -1,14 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
+import type { Database } from "../lib/supabase/database.types";
 import { getLocalSupabaseEnv } from "./local-supabase-env";
 
-// app/page.tsxのloadHomeSectionsが実際に使うクエリと同じ埋め込み指定・フィルタで、
-// 家庭間のRLS分離を実Auth・実DBで検証する(Issue #36)。
+// app/page.tsxのloadHomeSectionsが実際に使うクエリとRPCで、家庭間のRLS分離と
+// 取消後の再完了表示を実Auth・実DBで検証する(Issue #36, #106)。
 const PENDING_OCCURRENCES_SELECT =
   "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, managed_items(id, name))";
-const RECENT_ACTIVITY_SELECT =
-  "id, occurred_at, performed_by_user_id, task_occurrences!activity_logs_occurrence_household_fkey(id, status, task_rules(id, title, managed_items(id, name)))";
 
 function asString(value: unknown, message: string): string {
   if (typeof value !== "string") throw new Error(message);
@@ -30,35 +29,12 @@ function pendingOccurrenceTitle(row: unknown): string {
   return row.task_rules.title;
 }
 
-function completedActivityEntry(row: unknown): { status: string; title: string } {
-  if (
-    row === null ||
-    typeof row !== "object" ||
-    !("task_occurrences" in row) ||
-    row.task_occurrences === null ||
-    typeof row.task_occurrences !== "object" ||
-    !("status" in row.task_occurrences) ||
-    typeof row.task_occurrences.status !== "string" ||
-    !("task_rules" in row.task_occurrences) ||
-    row.task_occurrences.task_rules === null ||
-    typeof row.task_occurrences.task_rules !== "object" ||
-    !("title" in row.task_occurrences.task_rules) ||
-    typeof row.task_occurrences.task_rules.title !== "string"
-  ) {
-    throw new Error("activity_logの形が不正です。");
-  }
-  return {
-    status: row.task_occurrences.status,
-    title: row.task_occurrences.task_rules.title,
-  };
-}
-
 async function createHouseholdWithMaintenanceTask(
   url: string,
   publishableKey: string,
   suffix: string,
 ) {
-  const supabase = createClient(url, publishableKey, {
+  const supabase = createClient<Database>(url, publishableKey, {
     auth: { autoRefreshToken: false, detectSessionInUrl: false, persistSession: false },
   });
 
@@ -75,7 +51,6 @@ async function createHouseholdWithMaintenanceTask(
 
   const taskRuleTitle = `フィルター交換${suffix}`;
   const itemResult = await supabase.rpc("create_managed_item", {
-    external_url: null,
     item_kind: "pet_supplies",
     item_name: `猫の浄水器${suffix}`,
   });
@@ -97,8 +72,8 @@ async function createHouseholdWithMaintenanceTask(
   return { itemId, supabase, taskRuleTitle };
 }
 
-describe("ホーム画面クエリの実Auth・実DB接続(Issue #36)", () => {
-  it("pendingなTaskOccurrenceとactivity_logsの完了履歴が、自家庭分だけRLS経由で見える", async () => {
+describe("ホーム画面クエリの実Auth・実DB接続(Issue #36, #106)", () => {
+  it("取消後の再完了だけを最近の実施へ返し、家庭間をRLSで分離する", async () => {
     const { publishableKey, url } = getLocalSupabaseEnv();
     const suffixA = crypto.randomUUID();
     const suffixB = crypto.randomUUID();
@@ -144,23 +119,59 @@ describe("ホーム画面クエリの実Auth・実DB接続(Issue #36)", () => {
     expect(pendingTitlesAsB).toContain(householdB.taskRuleTitle);
     expect(pendingTitlesAsB).not.toContain(householdA.taskRuleTitle);
 
-    // ---- 完了履歴(activity_logs): 家庭Aだけに完了記録が見える ----
-    const recentAsA = await householdA.supabase
-      .from("activity_logs")
-      .select(RECENT_ACTIVITY_SELECT)
-      .eq("action", "completed");
+    // ---- 最近の実施: 家庭Aだけに現在有効な完了が見える ----
+    const recentAsA = await householdA.supabase.rpc("list_recent_active_completions", {
+      max_results: 10,
+    });
     expect(recentAsA.error).toBeNull();
     expect(recentAsA.data).toHaveLength(1);
-    const recentEntry = completedActivityEntry(recentAsA.data?.[0]);
-    expect(recentEntry.status).toBe("completed");
-    expect(recentEntry.title).toBe(householdA.taskRuleTitle);
+    expect(recentAsA.data?.[0]?.task_rule_title).toBe(householdA.taskRuleTitle);
 
-    const recentAsB = await householdB.supabase
-      .from("activity_logs")
-      .select(RECENT_ACTIVITY_SELECT)
-      .eq("action", "completed");
+    const recentAsB = await householdB.supabase.rpc("list_recent_active_completions", {
+      max_results: 10,
+    });
     expect(recentAsB.error).toBeNull();
     expect(recentAsB.data).toHaveLength(0);
+
+    const undoResult = await householdA.supabase.rpc("undo_maintenance_task_completion", {
+      idempotency_key: crypto.randomUUID(),
+      occurrence_id: occurrenceId,
+    });
+    expect(undoResult.error).toBeNull();
+
+    const recentAfterUndo = await householdA.supabase.rpc(
+      "list_recent_active_completions",
+      { max_results: 10 },
+    );
+    expect(recentAfterUndo.error).toBeNull();
+    expect(recentAfterUndo.data).toHaveLength(0);
+
+    const recompletionResult = await householdA.supabase.rpc("complete_maintenance_task", {
+      idempotency_key: crypto.randomUUID(),
+      occurred_at: "2026-07-30T00:00:00.000Z",
+      occurrence_id: occurrenceId,
+    });
+    expect(recompletionResult.error).toBeNull();
+
+    const recentAfterRecompletion = await householdA.supabase.rpc(
+      "list_recent_active_completions",
+      { max_results: 10 },
+    );
+    expect(recentAfterRecompletion.error).toBeNull();
+    expect(recentAfterRecompletion.data).toHaveLength(1);
+    expect(recentAfterRecompletion.data?.[0]).toMatchObject({
+      occurred_at: "2026-07-30T00:00:00+00:00",
+      task_occurrence_id: occurrenceId,
+      task_rule_title: householdA.taskRuleTitle,
+    });
+
+    const completionHistory = await householdA.supabase
+      .from("activity_logs")
+      .select("id")
+      .eq("task_occurrence_id", occurrenceId)
+      .eq("action", "completed");
+    expect(completionHistory.error).toBeNull();
+    expect(completionHistory.data).toHaveLength(2);
 
     await expect(householdA.supabase.auth.signOut()).resolves.toMatchObject({ error: null });
     await expect(householdB.supabase.auth.signOut()).resolves.toMatchObject({ error: null });
