@@ -233,8 +233,10 @@ const STATE_CHANGED_ERROR: MaintenanceTodoActionState = {
 // メンテナンスTodoの状態を表示する画面(詳細・ホーム、Issue #36)を両方
 // 再検証する。完了・担当変更・延期・完了取消はいずれも両画面へ反映されるため
 // 同じペアを呼ぶ(createMaintenanceTodoは新規追加のためホームの対象外)。
-function revalidateManagedItemAndHome(managedItemId: string): void {
-  revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+function revalidateManagedItemAndHome(managedItemId: string | null): void {
+  if (managedItemId !== null) {
+    revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
+  }
   revalidatePath("/");
 }
 
@@ -279,7 +281,7 @@ function mapCompleteMaintenanceTaskError(message: string): MaintenanceTodoAction
 // performedByUserIdはnull(実施者=操作主体、既定)か、同じ家庭のメンバーのuser_id
 // (「詳しく記録する」で選択した実施者、Issue #18, YDR-020)。
 export async function completeMaintenanceTask(
-  managedItemId: string,
+  managedItemId: string | null,
   occurrenceId: string,
   idempotencyKey: string,
   occurredOn: string | null,
@@ -316,7 +318,7 @@ const ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT = "Assignee not found";
 // nullの場合は「誰でも可」へ解除する。scheduled_for, due_at, status, 次回
 // Occurrenceの生成は行わない(set_task_occurrence_assignee RPCの契約、YDR-020)。
 export async function setTaskOccurrenceAssignee(
-  managedItemId: string,
+  managedItemId: string | null,
   occurrenceId: string,
   assigneeUserId: string | null,
 ): Promise<MaintenanceTodoActionState> {
@@ -365,7 +367,7 @@ const INVALID_DUE_DATE: MaintenanceTodoActionState = {
 // 操作日時だけをActivityLogへ記録する(YDR-020)。dueOnはYYYY-MM-DD形式で、
 // メンテナンスTodo登録・完了記録と同じくAsia/Tokyoの日付として解釈する。
 export async function postponeTaskOccurrence(
-  managedItemId: string,
+  managedItemId: string | null,
   occurrenceId: string,
   dueOn: string,
 ): Promise<MaintenanceTodoActionState> {
@@ -408,7 +410,7 @@ const NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT = "Next occurrence has been modi
 
 // Issue #37: 直近の完了を取り消す。取消自体はバックデートしない(YDR-004は完了だけを対象とする)。
 export async function undoMaintenanceTaskCompletion(
-  managedItemId: string,
+  managedItemId: string | null,
   occurrenceId: string,
   idempotencyKey: string,
 ): Promise<MaintenanceTodoActionState> {

@@ -3,14 +3,26 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeMaintenanceTaskMock, setTaskOccurrenceAssigneeMock } = vi.hoisted(() => ({
+const {
+  completeMaintenanceTaskMock,
+  createOneTimeTodoMock,
+  setTaskOccurrenceAssigneeMock,
+  undoMaintenanceTaskCompletionMock,
+} = vi.hoisted(() => ({
   completeMaintenanceTaskMock: vi.fn(),
+  createOneTimeTodoMock: vi.fn(),
   setTaskOccurrenceAssigneeMock: vi.fn(),
+  undoMaintenanceTaskCompletionMock: vi.fn(),
+}));
+
+vi.mock("../app/actions", () => ({
+  createOneTimeTodo: createOneTimeTodoMock,
 }));
 
 vi.mock("../app/managed-items/[id]/actions", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
   setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
+  undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
 
 import {
@@ -28,6 +40,10 @@ const ACTOR_NAME = "ぽっぷ";
 const MEMBERS = [
   { nickname: "ぽっぷ", userId: "user-1" },
   { nickname: "たろう", userId: "user-2" },
+];
+const MANAGED_ITEMS = [
+  { id: "item-1", name: "猫の浄水器" },
+  { id: "item-2", name: "コーヒーマシーン" },
 ];
 
 beforeEach(() => {
@@ -53,6 +69,7 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
       currentUserId="user-1"
       heroDateLabel="8月13日 木"
       household={household}
+      managedItems={household === null ? [] : MANAGED_ITEMS}
       members={MEMBERS}
       sections={sections}
     />,
@@ -87,6 +104,22 @@ describe("ホーム画面(HomeContent)", () => {
       "href",
       "/account",
     );
+    expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
+  });
+
+  it("ホームのTodo追加フォームで管理対象なしを既定にし、一回限りであることを案内する", () => {
+    renderHome(emptySections());
+
+    const region = screen.getByRole("region", { name: "Todoを追加" });
+    expect(within(region).getByLabelText("Todo名")).toHaveAttribute("maxLength", "100");
+    expect(within(region).getByLabelText("予定日")).toHaveAttribute("type", "date");
+    const managedItem = within(region).getByRole<HTMLSelectElement>("combobox", {
+      name: "関連する管理対象",
+    });
+    expect(managedItem).toHaveValue("");
+    expect(within(managedItem).getByRole("option", { name: "なし" })).toBeInTheDocument();
+    expect(within(managedItem).getByRole("option", { name: "猫の浄水器" })).toBeInTheDocument();
+    expect(within(region).getByText("今回は繰り返しなしで登録します。")).toBeInTheDocument();
   });
 
   it("家庭は存在するが表示できるTodo・履歴が0件のときは空状態と登録導線を表示する", () => {
@@ -151,6 +184,10 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件が期限切れ");
   });
 
+});
+
+describe("ホームのTodo操作", () => {
+
   it("そろそろ区分のTodoに「やったよ」ボタンを表示し、押すとそのOccurrenceを完了操作する", () => {
     const sections = emptySections({
       reminder: [
@@ -189,6 +226,75 @@ describe("ホーム画面(HomeContent)", () => {
     ];
     expect(managedItemId).toBe("item-1");
     expect(occurrenceId).toBe("occurrence-1");
+  });
+
+  it("管理対象なしのTodoもリンクなしで表示し、ホームから完了・バックデートできる", () => {
+    const sections = emptySections({
+      today: [
+        {
+          detail: "管理対象なし",
+          id: "occurrence-unlinked",
+          managedItemId: null,
+          meta: "今日が予定日です ・ 繰り返しなし",
+          occurrenceId: "occurrence-unlinked",
+          title: "家族会議",
+          tone: "today",
+        },
+      ],
+    });
+    completeMaintenanceTaskMock.mockResolvedValue({
+      message: "完了を記録しました。",
+      status: "success",
+    });
+    renderHome(sections);
+
+    const todaySection = screen.getByRole("region", { name: "今日" });
+    expect(within(todaySection).queryByRole("link", { name: "家族会議" })).not.toBeInTheDocument();
+    fireEvent.click(within(todaySection).getByRole("button", { name: "家族会議を記録" }));
+    fireEvent.click(within(todaySection).getByRole("button", { name: "詳しく記録する" }));
+    fireEvent.change(within(todaySection).getByLabelText("実施日"), {
+      target: { value: "2026-08-10" },
+    });
+    fireEvent.click(within(todaySection).getByRole("button", { name: "この内容で記録する" }));
+
+    expect(completeMaintenanceTaskMock).toHaveBeenCalledWith(
+      null,
+      "occurrence-unlinked",
+      expect.any(String),
+      "2026-08-10",
+      "user-1",
+    );
+  });
+
+  it("管理対象なしの完了もホームから取り消せる", () => {
+    const sections = emptySections({
+      recent: [
+        {
+          completedAt: "2026-08-10T00:00:00.000Z",
+          completedOccurrenceId: "occurrence-unlinked",
+          detail: "管理対象なし",
+          id: "activity-unlinked",
+          managedItemId: null,
+          meta: "8月10日 ・ ぽっぷが実施",
+          title: "家族会議",
+          tone: "done",
+        },
+      ],
+    });
+    undoMaintenanceTaskCompletionMock.mockResolvedValue({
+      message: "完了の取消を記録しました。",
+      status: "success",
+    });
+    renderHome(sections);
+
+    fireEvent.click(screen.getByRole("button", { name: "家族会議の完了を取り消す" }));
+    fireEvent.click(screen.getByRole("button", { name: "この完了を取り消す" }));
+
+    expect(undoMaintenanceTaskCompletionMock).toHaveBeenCalledWith(
+      null,
+      "occurrence-unlinked",
+      expect.any(String),
+    );
   });
 
   it("最近の実施区分に実施日と実施者名を表示し、「やったよ」ボタンは表示しない", () => {
@@ -312,6 +418,21 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     expect(items.upcoming.map((item) => item.id)).toEqual(["upcoming"]);
     expect(items.upcoming[0].meta).toBe("8月15日の予定です ・ 繰り返しなし");
   });
+
+  it("管理対象なしでも同じ日付基準で分類し、ホーム操作用のOccurrenceを保持する", () => {
+    const row = onceRow("unlinked", "2026-08-11T15:00:00.000Z");
+    row.task_rules.managed_items = null;
+
+    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+
+    expect(items.today[0]).toMatchObject({
+      detail: "管理対象なし",
+      managedItemId: null,
+      occurrenceId: "unlinked",
+      title: "今回だけ点検",
+    });
+    expect(items.today[0].detailHref).toBeUndefined();
+  });
 });
 
 describe("最近の実施の組み立て(buildRecentItems)", () => {
@@ -321,6 +442,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
       occurred_at: "2026-08-10T00:00:00.000Z",
       performed_by_user_id: "user-1",
       task_occurrences: {
+        id: "occurrence-1",
         status: "completed",
         task_rules: {
           managed_items: { id: "item-1", name: "猫の浄水器" },
@@ -331,7 +453,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     };
   }
 
-  it("実施者名をperformerNamesから解決して表示し、managedItemIdは持たない(完了操作の対象外)", () => {
+  it("実施者名を解決し、ホームからの完了取消に必要な情報を保持する", () => {
     const items = buildRecentItems(
       [completionRow()],
       new Map([["user-1", "たろう"]]),
@@ -339,7 +461,11 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     expect(items).toHaveLength(1);
     expect(items[0].meta).toContain("たろうが実施");
     expect(items[0].tone).toBe("done");
-    expect(items[0].managedItemId).toBeUndefined();
+    expect(items[0]).toMatchObject({
+      completedAt: "2026-08-10T00:00:00.000Z",
+      completedOccurrenceId: "occurrence-1",
+      managedItemId: "item-1",
+    });
   });
 
   it("実施者名が解決できない場合はフォールバック表示にする", () => {
@@ -365,5 +491,20 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
       new Map(),
     );
     expect(items).toHaveLength(0);
+  });
+
+  it("管理対象なしの完了履歴も表示し、取消に必要なOccurrence情報を保持する", () => {
+    const row = completionRow();
+    row.task_occurrences.task_rules.managed_items = null;
+
+    const items = buildRecentItems([row], new Map([["user-1", "たろう"]]));
+
+    expect(items[0]).toMatchObject({
+      completedAt: "2026-08-10T00:00:00.000Z",
+      completedOccurrenceId: "occurrence-1",
+      detail: "管理対象なし",
+      managedItemId: null,
+    });
+    expect(items[0].detailHref).toBeUndefined();
   });
 });

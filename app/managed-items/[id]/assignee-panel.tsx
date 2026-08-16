@@ -20,7 +20,7 @@ export function AssigneePanel({
   taskTitle,
 }: {
   assigneeUserId: string | null;
-  managedItemId: string;
+  managedItemId: string | null;
   members: AssigneeOption[];
   occurrenceId: string;
   taskTitle: string;

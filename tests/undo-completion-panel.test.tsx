@@ -44,7 +44,7 @@ describe("UndoCompletionPanel", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(
       screen.getByText(
-        "2026年9月2日の完了を取り消します。未完了のTodoに戻り、自動生成された次回の予定は削除されます。",
+        "2026年9月2日の完了を取り消します。未完了のTodoに戻り、次回の予定が作られている場合は未変更のものだけ削除されます。",
       ),
     ).toBeInTheDocument();
   });
