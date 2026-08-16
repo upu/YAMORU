@@ -23,7 +23,7 @@ const INVALID_WINDOW: MaintenanceTodoActionState = {
 
 type TodoBasics = {
   managedItemId: string | null;
-  recurrenceBasis: "completion" | "once";
+  recurrenceBasis: "calendar" | "completion" | "once";
   title: string;
 };
 type OneTimeTodoInput = TodoBasics & {
@@ -40,6 +40,18 @@ type CompletionTodoInput = TodoBasics & {
 type RecommendedOffsets = {
   recommendedStartOffset: number;
   recommendedUntilOffset: number;
+};
+type CalendarTodoInput = TodoBasics & {
+  recurrenceBasis: "calendar";
+  scheduleDayOfMonth?: number;
+  scheduleDayOfWeek?: number;
+  scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
+  scheduleMonth?: number;
+  scheduleWeekOfMonth?: number;
+};
+const INVALID_CALENDAR_SCHEDULE: MaintenanceTodoActionState = {
+  message: "定例日の指定を正しく入力してください。",
+  status: "error",
 };
 
 function invalidTitle(): MaintenanceTodoActionState {
@@ -61,7 +73,11 @@ function parseTodoBasics(
   }
 
   const recurrenceBasis = formData.get("recurrenceBasis");
-  if (recurrenceBasis !== "completion" && recurrenceBasis !== "once") {
+  if (
+    recurrenceBasis !== "calendar" &&
+    recurrenceBasis !== "completion" &&
+    recurrenceBasis !== "once"
+  ) {
     return { message: "繰り返し方を選択してください。", status: "error" };
   }
 
@@ -70,6 +86,63 @@ function parseTodoBasics(
     ? rawManagedItemId.trim() || null
     : null;
   return { managedItemId, recurrenceBasis, title };
+}
+
+function parseBoundedInteger(
+  value: FormDataEntryValue | null,
+  minimum: number,
+  maximum: number,
+): number | null {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : null;
+}
+
+function isValidYearlyDate(month: number, day: number): boolean {
+  const candidate = new Date(Date.UTC(2000, month - 1, day));
+  return candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
+}
+
+function parseCalendarTodo(
+  basics: TodoBasics,
+  formData: FormData,
+): CalendarTodoInput | MaintenanceTodoActionState {
+  const scheduleKind = formData.get("scheduleKind");
+  const dayOfWeek = parseBoundedInteger(formData.get("scheduleDayOfWeek"), 1, 7);
+  const dayOfMonth = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
+  const weekOfMonth = parseBoundedInteger(formData.get("scheduleWeekOfMonth"), 1, 5);
+  const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
+
+  if (scheduleKind === "weekly" && dayOfWeek !== null) {
+    return { ...basics, recurrenceBasis: "calendar", scheduleDayOfWeek: dayOfWeek, scheduleKind };
+  }
+  if (scheduleKind === "monthly_day" && dayOfMonth !== null) {
+    return { ...basics, recurrenceBasis: "calendar", scheduleDayOfMonth: dayOfMonth, scheduleKind };
+  }
+  if (scheduleKind === "monthly_nth_weekday" && dayOfWeek !== null && weekOfMonth !== null) {
+    return {
+      ...basics,
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: dayOfWeek,
+      scheduleKind,
+      scheduleWeekOfMonth: weekOfMonth,
+    };
+  }
+  if (
+    scheduleKind === "yearly" && month !== null && dayOfMonth !== null &&
+    isValidYearlyDate(month, dayOfMonth)
+  ) {
+    return {
+      ...basics,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: dayOfMonth,
+      scheduleKind,
+      scheduleMonth: month,
+    };
+  }
+  return INVALID_CALENDAR_SCHEDULE;
 }
 
 function parseOneTimeTodo(
@@ -153,12 +226,35 @@ function parseCompletionTodo(
 
 function parseTodo(
   formData: FormData,
-): CompletionTodoInput | OneTimeTodoInput | MaintenanceTodoActionState {
+): CalendarTodoInput | CompletionTodoInput | OneTimeTodoInput | MaintenanceTodoActionState {
   const basics = parseTodoBasics(formData);
   if ("status" in basics) return basics;
-  return basics.recurrenceBasis === "once"
-    ? parseOneTimeTodo(basics, formData)
-    : parseCompletionTodo(basics, formData);
+  if (basics.recurrenceBasis === "once") return parseOneTimeTodo(basics, formData);
+  if (basics.recurrenceBasis === "completion") {
+    return parseCompletionTodo(basics, formData);
+  }
+  return parseCalendarTodo(basics, formData);
+}
+
+function calendarRpcArguments(input: CalendarTodoInput) {
+  switch (input.scheduleKind) {
+    case "weekly":
+      return { schedule_day_of_week: input.scheduleDayOfWeek, schedule_kind: input.scheduleKind };
+    case "monthly_day":
+      return { schedule_day_of_month: input.scheduleDayOfMonth, schedule_kind: input.scheduleKind };
+    case "monthly_nth_weekday":
+      return {
+        schedule_day_of_week: input.scheduleDayOfWeek,
+        schedule_kind: input.scheduleKind,
+        schedule_week_of_month: input.scheduleWeekOfMonth,
+      };
+    case "yearly":
+      return {
+        schedule_day_of_month: input.scheduleDayOfMonth,
+        schedule_kind: input.scheduleKind,
+        schedule_month: input.scheduleMonth,
+      };
+  }
 }
 
 function revalidateTodoPages(managedItemId: string | null): void {
@@ -180,13 +276,15 @@ export async function createTodo(
   const itemArgument = input.managedItemId === null
     ? {}
     : { item_id: input.managedItemId };
-  const response = input.recurrenceBasis === "once"
-    ? await supabase.rpc("create_one_time_task", {
+  let response;
+  if (input.recurrenceBasis === "once") {
+    response = await supabase.rpc("create_one_time_task", {
         ...itemArgument,
         scheduled_for: input.scheduledFor,
         task_title: input.title,
-      })
-    : await supabase.rpc("create_maintenance_task", {
+      });
+  } else if (input.recurrenceBasis === "completion") {
+    response = await supabase.rpc("create_maintenance_task", {
         ...itemArgument,
         first_due_at: input.firstDueAt,
         first_scheduled_for: input.firstScheduledFor,
@@ -194,6 +292,13 @@ export async function createTodo(
         recommended_until_offset: input.recommendedUntilOffset,
         task_title: input.title,
       });
+  } else {
+    response = await supabase.rpc("create_calendar_task", {
+      ...itemArgument,
+      ...calendarRpcArguments(input),
+      task_title: input.title,
+    });
+  }
 
   const data: unknown = response.data;
   const error: unknown = response.error;

@@ -8,7 +8,18 @@ import { PHASE_ONE_TIME_ZONE } from "../../time-zone";
 import { createTodo } from "./actions";
 
 export type TodoManagedItemOption = { id: string; name: string };
+type RecurrenceBasis = "calendar" | "completion" | "once";
+type ScheduleKind = "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
 const MANAGED_ITEM_RESULT_LIMIT = 10;
+const WEEKDAYS = [
+  [1, "月曜日"],
+  [2, "火曜日"],
+  [3, "水曜日"],
+  [4, "木曜日"],
+  [5, "金曜日"],
+  [6, "土曜日"],
+  [7, "日曜日"],
+] as const;
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -139,8 +150,8 @@ function RecurrenceFields({
   recurrenceBasis,
   setRecurrenceBasis,
 }: {
-  recurrenceBasis: "completion" | "once";
-  setRecurrenceBasis: (value: "completion" | "once") => void;
+  recurrenceBasis: RecurrenceBasis;
+  setRecurrenceBasis: (value: RecurrenceBasis) => void;
 }) {
   return (
     <fieldset className="todo-fieldset">
@@ -165,6 +176,94 @@ function RecurrenceFields({
         />
         完了した日から繰り返す
       </label>
+      <label className="radio-option">
+        <input
+          checked={recurrenceBasis === "calendar"}
+          name="recurrenceBasis"
+          onChange={() => { setRecurrenceBasis("calendar"); }}
+          type="radio"
+          value="calendar"
+        />
+        定例日から繰り返す
+      </label>
+    </fieldset>
+  );
+}
+
+function WeekdaySelect() {
+  return (
+    <>
+      <label htmlFor="todo-schedule-weekday">曜日</label>
+      <select defaultValue="1" id="todo-schedule-weekday" name="scheduleDayOfWeek">
+        {WEEKDAYS.map(([value, label]) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
+    </>
+  );
+}
+
+function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind }) {
+  switch (scheduleKind) {
+    case "weekly":
+      return <WeekdaySelect />;
+    case "monthly_day":
+      return (
+        <>
+          <label htmlFor="todo-schedule-day">日付</label>
+          <input defaultValue={1} id="todo-schedule-day" max={31} min={1} name="scheduleDayOfMonth" required type="number" />
+          <p className="input-help">存在しない日は、その月の月末に合わせます。</p>
+        </>
+      );
+    case "monthly_nth_weekday":
+      return (
+        <>
+          <label htmlFor="todo-schedule-week">第何週</label>
+          <select defaultValue="1" id="todo-schedule-week" name="scheduleWeekOfMonth">
+            {[1, 2, 3, 4, 5].map((week) => (
+              <option key={week} value={week}>第{week}週</option>
+            ))}
+          </select>
+          <WeekdaySelect />
+          <p className="input-help">第5曜日がない月は、次に成立する月まで進めます。</p>
+        </>
+      );
+    case "yearly":
+      return (
+        <>
+          <label htmlFor="todo-schedule-month">月</label>
+          <select defaultValue="1" id="todo-schedule-month" name="scheduleMonth">
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+              <option key={month} value={month}>{month}月</option>
+            ))}
+          </select>
+          <label htmlFor="todo-schedule-day">日付</label>
+          <input defaultValue={1} id="todo-schedule-day" max={31} min={1} name="scheduleDayOfMonth" required type="number" />
+          <p className="input-help">2月29日は、平年には2月28日に合わせます。</p>
+        </>
+      );
+  }
+}
+
+function CalendarFields() {
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("weekly");
+  return (
+    <fieldset className="todo-fieldset">
+      <legend>定例日</legend>
+      <label htmlFor="todo-schedule-kind">定例パターン</label>
+      <select
+        id="todo-schedule-kind"
+        name="scheduleKind"
+        onChange={(event) => { setScheduleKind(event.currentTarget.value as ScheduleKind); }}
+        value={scheduleKind}
+      >
+        <option value="weekly">毎週</option>
+        <option value="monthly_day">毎月の日付</option>
+        <option value="monthly_nth_weekday">毎月の第N曜日</option>
+        <option value="yearly">毎年の月日</option>
+      </select>
+      <CalendarPatternFields scheduleKind={scheduleKind} />
+      <p className="input-help">登録日を含め、最初に当てはまる日からTodoを作ります。</p>
     </fieldset>
   );
 }
@@ -279,7 +378,7 @@ export function TodoRegistrationForm({
   initialManagedItemId: string | null;
   managedItems: TodoManagedItemOption[];
 }) {
-  const [recurrenceBasis, setRecurrenceBasis] = useState<"completion" | "once">("once");
+  const [recurrenceBasis, setRecurrenceBasis] = useState<RecurrenceBasis>("once");
   const [state, formAction] = useActionState(
     createTodo,
     INITIAL_MAINTENANCE_TODO_STATE,
@@ -302,14 +401,14 @@ export function TodoRegistrationForm({
         recurrenceBasis={recurrenceBasis}
         setRecurrenceBasis={setRecurrenceBasis}
       />
-      {recurrenceBasis === "once" ? (
-        <OneTimeFields />
-      ) : (
+      {recurrenceBasis === "once" ? <OneTimeFields /> : null}
+      {recurrenceBasis === "completion" ? (
         <>
           <IntervalFields />
           <InitialDateFields />
         </>
-      )}
+      ) : null}
+      {recurrenceBasis === "calendar" ? <CalendarFields /> : null}
       <ManagedItemSearch
         initialManagedItemId={initialManagedItemId}
         managedItems={managedItems}

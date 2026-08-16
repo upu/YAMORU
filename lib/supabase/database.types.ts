@@ -462,6 +462,11 @@ export type Database = {
           recommended_start_offset: number
           recommended_until_offset: number
           recurrence_basis: string
+          schedule_day_of_month: number | null
+          schedule_day_of_week: number | null
+          schedule_kind: string | null
+          schedule_month: number | null
+          schedule_week_of_month: number | null
           title: string
           unresolved_policy: string
         }
@@ -474,6 +479,11 @@ export type Database = {
           recommended_start_offset: number
           recommended_until_offset: number
           recurrence_basis?: string
+          schedule_day_of_month?: number | null
+          schedule_day_of_week?: number | null
+          schedule_kind?: string | null
+          schedule_month?: number | null
+          schedule_week_of_month?: number | null
           title: string
           unresolved_policy?: string
         }
@@ -486,6 +496,11 @@ export type Database = {
           recommended_start_offset?: number
           recommended_until_offset?: number
           recurrence_basis?: string
+          schedule_day_of_month?: number | null
+          schedule_day_of_week?: number | null
+          schedule_kind?: string | null
+          schedule_month?: number | null
+          schedule_week_of_month?: number | null
           title?: string
           unresolved_policy?: string
         }
@@ -511,6 +526,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _calendar_scheduled_for_on_or_after: {
+        Args: {
+          on_or_after: string
+          schedule_day_of_month: number
+          schedule_day_of_week: number
+          schedule_kind: string
+          schedule_month: number
+          schedule_week_of_month: number
+        }
+        Returns: string
+      }
       _security_event_log: {
         Args: {
           p_actor: string
@@ -547,6 +573,18 @@ export type Database = {
           occurred_at?: string
           occurrence_id: string
           performed_by_user_id?: string
+        }
+        Returns: string
+      }
+      create_calendar_task: {
+        Args: {
+          item_id?: string
+          schedule_day_of_month?: number
+          schedule_day_of_week?: number
+          schedule_kind: string
+          schedule_month?: number
+          schedule_week_of_month?: number
+          task_title: string
         }
         Returns: string
       }

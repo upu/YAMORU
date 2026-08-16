@@ -43,7 +43,7 @@ export function toDeadlineKind(value: string): DeadlineKind {
   return value;
 }
 
-export const RECURRENCE_BASES = ["completion", "once"] as const;
+export const RECURRENCE_BASES = ["calendar", "completion", "once"] as const;
 
 export type RecurrenceBasis = (typeof RECURRENCE_BASES)[number];
 
