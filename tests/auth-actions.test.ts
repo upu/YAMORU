@@ -30,7 +30,6 @@ vi.mock("next/navigation", () => ({
 
 import { login, signup } from "../app/login/actions";
 import { POST as signOut } from "../app/auth/signout/route";
-import { NextRequest } from "next/server";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
@@ -139,13 +138,11 @@ describe("認証操作", () => {
       },
     });
 
-    const response = await signOut(
-      new NextRequest("http://localhost/auth/signout", { method: "POST" }),
-    );
+    const response = await signOut();
 
     expect(signOutMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("http://localhost/login");
+    expect(response.headers.get("location")).toBe("/login");
   });
 
   it("未認証の場合はAuthのログアウト処理を呼ばない", async () => {
@@ -156,9 +153,7 @@ describe("認証操作", () => {
       },
     });
 
-    await signOut(
-      new NextRequest("http://localhost/auth/signout", { method: "POST" }),
-    );
+    await signOut();
 
     expect(signOutMock).not.toHaveBeenCalled();
   });

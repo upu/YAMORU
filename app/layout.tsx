@@ -12,6 +12,15 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "YAMORU",
   },
+  icons: {
+    apple: [
+      {
+        url: "/apple-touch-icon.png?v=2",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   other: {
     "apple-mobile-web-app-capable": "yes",
   },

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -75,8 +75,16 @@ describe("PWA metadata", () => {
     expect(metadata.other).toMatchObject({
       "apple-mobile-web-app-capable": "yes",
     });
-
-    expectPngSize("app/apple-icon.png", 180, 180);
+    expect(metadata.icons).toMatchObject({
+      apple: [
+        {
+          url: "/apple-touch-icon.png?v=2",
+          sizes: "180x180",
+          type: "image/png",
+        },
+      ],
+    });
+    expect(existsSync(join(process.cwd(), "app/apple-icon.png"))).toBe(false);
   });
 
   it("未認証でもmanifestと標準Appleアイコンを取得できる", () => {
@@ -84,7 +92,6 @@ describe("PWA metadata", () => {
     expect(isHandledByAuthProxy("/account")).toBe(true);
 
     const iconPaths = [
-      "app/apple-icon.png",
       "public/apple-touch-icon.png",
       "public/apple-touch-icon-precomposed.png",
     ];
@@ -93,7 +100,6 @@ describe("PWA metadata", () => {
       expectOpaqueRgbPng(path);
     });
     expect(readPng(iconPaths[1])).toEqual(readPng(iconPaths[0]));
-    expect(readPng(iconPaths[2])).toEqual(readPng(iconPaths[0]));
   });
 
   it("ブラウザのテーマ色をmanifestと揃える", () => {
