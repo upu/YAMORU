@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { metadata, viewport } from "../app/layout";
-import { GET, pwaManifest } from "../app/manifest.webmanifest/route";
+import manifest from "../app/manifest";
 import { config as proxyConfig } from "../proxy";
 
 function readPng(path: string) {
@@ -32,7 +32,7 @@ function isHandledByAuthProxy(pathname: string) {
 
 describe("PWA manifest", () => {
   it("ホーム画面からYAMORUのルートを独立表示で起動する", () => {
-    expect(pwaManifest()).toMatchObject({
+    expect(manifest()).toMatchObject({
       name: "YAMORU",
       short_name: "YAMORU",
       description: "暮らしの「いつだっけ？」をなくす。",
@@ -45,7 +45,7 @@ describe("PWA manifest", () => {
   });
 
   it("Androidのホーム画面追加に必要なPNGアイコンを公開する", () => {
-    expect(pwaManifest().icons).toEqual(
+    expect(manifest().icons).toEqual(
       expect.arrayContaining([
         {
           src: "/pwa/yamoru-icon-v3-192x192.png",
@@ -66,6 +66,19 @@ describe("PWA manifest", () => {
 });
 
 describe("PWA metadata", () => {
+  it("Next.jsのファイル規約で一般用とApple用のアイコンを公開する", () => {
+    expect(existsSync(join(process.cwd(), "app/icon.png"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "app/apple-icon.png"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "app/manifest.ts"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "app/manifest.webmanifest/route.ts"))).toBe(false);
+    expect(metadata.icons).toBeUndefined();
+    expect(metadata.manifest).toBeUndefined();
+
+    expectPngSize("app/icon.png", 512, 512);
+    expectPngSize("app/apple-icon.png", 180, 180);
+    expectOpaqueRgbPng("app/apple-icon.png");
+  });
+
   it("iOSのホーム画面からYAMORUとして独立表示で起動する", () => {
     expect(metadata.appleWebApp).toEqual({
       capable: true,
@@ -75,18 +88,8 @@ describe("PWA metadata", () => {
     expect(metadata.other).toMatchObject({
       "apple-mobile-web-app-capable": "yes",
     });
-    expect(metadata.manifest).toBe("/manifest.webmanifest?v=3");
-    expect(existsSync(join(process.cwd(), "app/manifest.ts"))).toBe(false);
-    expect(metadata.icons).toMatchObject({
-      apple: [
-        {
-          url: "/pwa/yamoru-icon-v3-512x512.png",
-          sizes: "512x512",
-          type: "image/png",
-        },
-      ],
-    });
-    expect(existsSync(join(process.cwd(), "app/apple-icon.png"))).toBe(false);
+    expect(metadata.icons).toBeUndefined();
+    expect(metadata.manifest).toBeUndefined();
   });
 
   it("未認証でもmanifestと標準Appleアイコンを取得できる", () => {
@@ -102,12 +105,6 @@ describe("PWA metadata", () => {
       expectOpaqueRgbPng(path);
     });
     expect(readPng(iconPaths[1])).toEqual(readPng(iconPaths[0]));
-    expectPngSize("public/pwa/yamoru-icon-v3-512x512.png", 512, 512);
-    expectOpaqueRgbPng("public/pwa/yamoru-icon-v3-512x512.png");
-
-    const response = GET();
-    expect(response.headers.get("Content-Type")).toBe("application/manifest+json");
-    expect(response.headers.get("Cache-Control")).toBe("no-cache, must-revalidate");
   });
 
   it("ブラウザのテーマ色をmanifestと揃える", () => {
