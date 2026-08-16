@@ -5,18 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   completeMaintenanceTaskMock,
-  createOneTimeTodoMock,
   setTaskOccurrenceAssigneeMock,
   undoMaintenanceTaskCompletionMock,
 } = vi.hoisted(() => ({
   completeMaintenanceTaskMock: vi.fn(),
-  createOneTimeTodoMock: vi.fn(),
   setTaskOccurrenceAssigneeMock: vi.fn(),
   undoMaintenanceTaskCompletionMock: vi.fn(),
-}));
-
-vi.mock("../app/actions", () => ({
-  createOneTimeTodo: createOneTimeTodoMock,
 }));
 
 vi.mock("../app/managed-items/[id]/actions", () => ({
@@ -41,11 +35,6 @@ const MEMBERS = [
   { nickname: "ぽっぷ", userId: "user-1" },
   { nickname: "たろう", userId: "user-2" },
 ];
-const MANAGED_ITEMS = [
-  { id: "item-1", name: "猫の浄水器" },
-  { id: "item-2", name: "コーヒーマシーン" },
-];
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -69,7 +58,6 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
       currentUserId="user-1"
       heroDateLabel="8月13日 木"
       household={household}
-      managedItems={household === null ? [] : MANAGED_ITEMS}
       members={MEMBERS}
       sections={sections}
     />,
@@ -107,19 +95,14 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
   });
 
-  it("ホームのTodo追加フォームで管理対象なしを既定にし、一回限りであることを案内する", () => {
+  it("ホームではTodo登録フォームを表示せず、専用登録ページへのリンクだけを表示する", () => {
     renderHome(emptySections());
 
-    const region = screen.getByRole("region", { name: "Todoを追加" });
-    expect(within(region).getByLabelText("Todo名")).toHaveAttribute("maxLength", "100");
-    expect(within(region).getByLabelText("予定日")).toHaveAttribute("type", "date");
-    const managedItem = within(region).getByRole<HTMLSelectElement>("combobox", {
-      name: "関連する管理対象",
-    });
-    expect(managedItem).toHaveValue("");
-    expect(within(managedItem).getByRole("option", { name: "なし" })).toBeInTheDocument();
-    expect(within(managedItem).getByRole("option", { name: "猫の浄水器" })).toBeInTheDocument();
-    expect(within(region).getByText("今回は繰り返しなしで登録します。")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
+      "href",
+      "/todos/new",
+    );
   });
 
   it("家庭は存在するが表示できるTodo・履歴が0件のときは空状態と登録導線を表示する", () => {
@@ -131,6 +114,10 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByRole("link", { name: "家の台帳を開く" })).toHaveAttribute(
       "href",
       "/managed-items",
+    );
+    expect(screen.getByRole("link", { name: "最初のTodoを追加" })).toHaveAttribute(
+      "href",
+      "/todos/new",
     );
     expect(screen.queryByRole("region", { name: "期限切れ" })).not.toBeInTheDocument();
   });

@@ -558,7 +558,7 @@ export type Database = {
         Args: {
           first_due_at: string
           first_scheduled_for: string
-          item_id: string
+          item_id?: string
           recommended_start_offset: number
           recommended_until_offset: number
           task_title: string

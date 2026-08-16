@@ -873,6 +873,25 @@ footer p {
   font-size: 0.76rem;
 }
 
+.todo-registration-card {
+  max-width: 720px;
+}
+
+.managed-item-picker {
+  padding-top: 4px;
+}
+
+.managed-item-results {
+  display: grid;
+  gap: 7px;
+  max-height: 280px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+}
+
 .repeat-summary {
   display: grid;
   gap: 3px;

@@ -20,13 +20,12 @@ select ok(
 );
 
 select ok(
-  exists (
+  not exists (
     select 1 from pg_catalog.pg_constraint
      where conrelid = 'public.task_rules'::regclass
        and conname = 'task_rules_unlinked_once_check'
-       and contype = 'c'
   ),
-  '管理対象なしを一回限りだけに制限するCHECK制約がある'
+  '管理対象の有無で繰り返し方式を制限しない'
 );
 
 select has_function(
@@ -87,17 +86,15 @@ select throws_ok(
 
 reset role;
 
-select throws_ok(
+select lives_ok(
   $$ insert into public.task_rules (
        household_id, managed_item_id, title, recurrence_basis,
        deadline_kind, recommended_start_offset, recommended_until_offset
      ) values (
        '00000000-0000-0000-0000-00000000a001', null,
-       '不正な繰り返し', 'completion', 'maintenance', 28, 56
+       '管理対象なしの繰り返し', 'completion', 'maintenance', 28, 56
      ) $$,
-  '23514',
-  null,
-  'ManagedItemなしの繰り返しTodoをDB制約が拒否する'
+  'ManagedItemなしでも完了日基準のTaskRuleを保存できる'
 );
 
 set local role authenticated;
