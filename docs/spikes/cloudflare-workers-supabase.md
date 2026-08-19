@@ -36,7 +36,7 @@ issue #116の検証項目のうち、A案に関わる項目について。Worker
 |---|---|
 | Next.jsをWorkers上で起動できる | B案と同じく**条件付き**(`proxy.ts`を除けば起動できる)。DBをD1にするかSupabaseのままにするかは、この制約に影響しない。 |
 | ローカル環境で実行できる | 確認済み。実Supabase(ローカル)に接続した状態で`wrangler dev`が正常動作。 |
-| 現在使用しているNext.js機能に互換性問題がない | B案と同じ`proxy.ts`の問題は残るが、**Server Actions(ログインフォームの送信)・Supabase Authへの実際のログイン・RLS経由のデータ取得は、Workers上で問題なく動作することを実機で確認した**(後述)。 |
+| 現在使用しているNext.js機能に互換性問題がない | **問題あり(実害を確認)**。Server Actions・Supabase Authログイン・RLS経由のデータ取得はWorkers上で動作するが、`proxy.ts`が無いとアクセストークン期限切れ(既定1時間)のたびに再ログインを強制されることをAuth API直接検証で確認した(後述)。 |
 | household単位のアクセス制御を実装・テストする | A案はRLSをそのまま使うため新規実装は不要。既存のRLSスパイク([supabase-rls-household-isolation.md](supabase-rls-household-isolation.md))の検証結果がそのまま適用できる。 |
 | 現在のSupabase構成との複雑さを比較する | 実施(後述) |
 | 無料枠・将来有料化した場合のコストを比較する | 実施(後述) |
@@ -56,7 +56,26 @@ issue #116の検証項目のうち、A案に関わる項目について。Worker
 また、B案スパイクの[cloudflare-workers-d1.mdの「判明した制約」](cloudflare-workers-d1.md)で指摘した`proxy.ts`の影響範囲を、この検証で以下のように具体化できた。
 
 - **未認証アクセスのリダイレクトは、`proxy.ts`が無くても機能する。** YAMORUの保護対象ページ(`/`, `/account`, `/account/invitations`, `/managed-items`, `/managed-items/[id]`, `/todos/new`)は、いずれも`requireUser()`(`lib/auth/current-user.ts`)をページ側で個別に呼んでおり、`proxy.ts`の認可チェックと二重の防御になっている。実際に`proxy.ts`を外した状態でこれら全ページへ未認証アクセスしたところ、すべて`/login`へ307リダイレクトされることを確認した。
-- **`proxy.ts`だけが担っているのは、Supabaseセッション(アクセストークン)のサイレントリフレッシュ結果をCookieへ書き戻す処理。** ログイン自体はServer Action経由でCookieを書き込めるため`proxy.ts`が無くても成立する(確認済み)。一方、ログイン後にアクセストークンが期限切れになった際の自動更新結果を持続的にCookieへ反映する処理は、`lib/supabase/server.ts`のコメントが明示するとおりServer Componentの中では書き込めず、`proxy.ts`(またはRoute Handler)でしか行えない。この経路が失われた場合の実際の挙動(トークン期限切れ後に再ログインを求められる頻度が増えるだけか、途中でエラーになるか)は、トークンの有効期限(既定1時間)まで待つ必要があるため本セッションでは未検証。
+- **`proxy.ts`だけが担っているのは、Supabaseセッション(アクセストークン)のサイレントリフレッシュ結果をCookieへ書き戻す処理。** ログイン自体はServer Action経由でCookieを書き込めるため`proxy.ts`が無くても成立する(確認済み)。一方、ログイン後にアクセストークンが期限切れになった際の自動更新結果を持続的にCookieへ反映する処理は、`lib/supabase/server.ts`のコメントが明示するとおりServer Componentの中では書き込めず、`proxy.ts`(またはRoute Handler)でしか行えない。この経路が失われた場合の実際の挙動は、Supabase Auth REST API(`/auth/v1/token`)へ直接リクエストして検証した(次項)。
+
+## `proxy.ts`が無い場合、セッションは実際にどう壊れるか
+
+トークンの有効期限(既定1時間)まで待たずに、Auth API(GoTrue)を直接呼んでリフレッシュトークンのローテーション挙動を検証した。`environments/test/supabase/config.toml`の設定は次のとおり。
+
+```
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10  # 秒
+```
+
+検証手順と結果:
+
+1. テスト利用者でログインし、初回のrefresh_token(`token1`)を取得。
+2. `token1`で`/auth/v1/token?grant_type=refresh_token`を呼び、新しいrefresh_token(`token2`)を取得。**これが「Server Componentがアクセストークン期限切れを検知して自動リフレッシュするが、Cookieへ書き戻せず結果を捨てる」状況の再現。** ブラウザのCookieには古い`token1`が残ったままになる。
+3. `token1`を再度使ってリフレッシュ→**成功**(`token2`が返る)。`refresh_token_reuse_interval`は、直前に払い出した結果と同一トークンへ同じ古いトークンで複数回リクエストしても安全に同じ結果を返すための猶予であり、「古いトークンが一定時間使える」という意味ではないことが分かった。
+4. `token2`で改めてリフレッシュし、3世代目のrefresh_token(`token3`)を取得(=通常の運用でその後さらに時間が経ち、次のリフレッシュが起きた状態を再現)。
+5. この状態で`token1`(2世代前)を使ってリフレッシュを試みると、**`400 refresh_token_already_used`(Invalid Refresh Token: Already Used)で失敗した。**
+
+**結論: `proxy.ts`が無いと、アクセストークンが一度でも期限切れになった後は、ブラウザのCookieに残った(rotate済みの)refresh_tokenが次の別リクエストで使われた時点で確実に失敗し、再ログインを強制される。** これは「まれに起きる不具合」ではなく、YAMORUの既定のトークン有効期限(1時間)が経過するたびに機械的に発生する。家族が日中を通してYAMORUを使う場合、実用上は数時間おきに強制ログアウトされることになり、`proxy.ts`の代替が無いままではA案・B案とも本番投入は現実的ではない。
 
 ## 複雑さの比較(現状 vs A案)
 
@@ -82,7 +101,7 @@ A案はB案と異なり、RLS・認可・Auth周りの実装コストの増加�
 
 ## このスパイクで扱わなかったこと
 
-- `proxy.ts`が担うセッションのサイレントリフレッシュが実際に失われた場合の挙動(トークン期限切れまで待つ実機検証)
+- `proxy.ts`が担うセッションのサイレントリフレッシュ喪失の代替手段(移行する場合にどう解決するか)の設計・実装
 - Supabase Cloud(またはリモートSupabase)への実際の移行・接続検証。本検証はローカルSupabaseへWorkers経由で接続しただけで、リモートSupabaseとの往復レイテンシ・接続制限等は未検証。
 - Cloudflareのリモート環境(実際のWorkers)へのデプロイ
 - 最終的な採用判断(Cloudflare Workersを採用するか、Supabaseを継続するか、D1へ移行するか)とそれに伴うYDRの起票。A案・B案双方のスパイク結果が揃った次のステップとして扱う。
