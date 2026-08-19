@@ -1,7 +1,7 @@
 ---
 type: Spike Report
 title: Cloudflare Workers + Supabase継続の技術スパイク(A案)
-description: 既存のSupabase(Auth/RLS)構成を維持したままNext.jsをCloudflare Workersでホストできるかを、実際のログインフローまで含めて検証した
+description: 既存のSupabase(Auth/RLS)構成を維持したままNext.jsをCloudflare Workersでホストできるかを、実際のログインフローとproxy.ts非互換の回避策(middleware.tsへの切り戻し)まで含めて検証した
 tags: [yamoru, spike, cloudflare, workers, supabase]
 status: stable
 ---
@@ -26,6 +26,8 @@ B案スパイクで追加した`wrangler.jsonc` / `open-next.config.ts`をその
 - `wrangler dev`でローカル起動し、Supabase Admin APIでテスト用利用者を1名作成。
 - ブラウザ(claude-in-chrome)で実際に`/login`からログインフォームを送信し、ホーム画面・アカウント画面まで遷移できるかを確認。
 - `proxy.ts`を外した状態で、未認証のまま保護対象ページ(`/`, `/account`, `/account/invitations`, `/managed-items`, `/todos/new`)へアクセスし、リダイレクトされるかをcurlで確認。
+- Supabase Auth API(GoTrue)を直接呼び、`refresh_token_rotation`環境下でのリフレッシュトークンの挙動を検証した(`environments/test/supabase/config.toml`の設定を使用)。
+- `proxy.ts`を`middleware.ts`(旧規約)+Edgeランタイムへ置き換える回避策を試し、OpenNextのビルドが通ること、および期限切れに見せかけたセッションCookieを使って保護ページへアクセスした際に、実際にセッションがリフレッシュされ`Set-Cookie`で書き戻されることを確認した。検証後は`proxy.ts`へ戻し、恒久的な変更はしていない。
 - 検証後、作成したテスト利用者はSupabase Admin APIで削除した。実データ・実クレデンシャルは`.env.local`(gitignore対象)にのみ置き、コミットしていない。
 
 ## 結果
@@ -34,9 +36,9 @@ issue #116の検証項目のうち、A案に関わる項目について。Worker
 
 | 検証項目 | 結果 |
 |---|---|
-| Next.jsをWorkers上で起動できる | B案と同じく**条件付き**(`proxy.ts`を除けば起動できる)。DBをD1にするかSupabaseのままにするかは、この制約に影響しない。 |
+| Next.jsをWorkers上で起動できる | B案と同じく**条件付きで可能**。`proxy.ts`のままでは不可だが、`middleware.ts`(旧規約)+Edgeランタイムへ切り戻せば起動できる。DBをD1にするかSupabaseのままにするかは、この制約に影響しない。 |
 | ローカル環境で実行できる | 確認済み。実Supabase(ローカル)に接続した状態で`wrangler dev`が正常動作。 |
-| 現在使用しているNext.js機能に互換性問題がない | **問題あり(実害を確認)**。Server Actions・Supabase Authログイン・RLS経由のデータ取得はWorkers上で動作するが、`proxy.ts`が無いとアクセストークン期限切れ(既定1時間)のたびに再ログインを強制されることをAuth API直接検証で確認した(後述)。 |
+| 現在使用しているNext.js機能に互換性問題がない | **条件付きで解決**。Server Actions・Supabase Authログイン・RLS経由のデータ取得はWorkers上で動作する。`proxy.ts`のままだとアクセストークン期限切れ(既定1時間)のたびに再ログインを強制される実害を確認したが、`middleware.ts`への切り戻しでこの実害自体が解消することも実証した(後述)。 |
 | household単位のアクセス制御を実装・テストする | A案はRLSをそのまま使うため新規実装は不要。既存のRLSスパイク([supabase-rls-household-isolation.md](supabase-rls-household-isolation.md))の検証結果がそのまま適用できる。 |
 | 現在のSupabase構成との複雑さを比較する | 実施(後述) |
 | 無料枠・将来有料化した場合のコストを比較する | 実施(後述) |
@@ -75,7 +77,27 @@ refresh_token_reuse_interval = 10  # 秒
 4. `token2`で改めてリフレッシュし、3世代目のrefresh_token(`token3`)を取得(=通常の運用でその後さらに時間が経ち、次のリフレッシュが起きた状態を再現)。
 5. この状態で`token1`(2世代前)を使ってリフレッシュを試みると、**`400 refresh_token_already_used`(Invalid Refresh Token: Already Used)で失敗した。**
 
-**結論: `proxy.ts`が無いと、アクセストークンが一度でも期限切れになった後は、ブラウザのCookieに残った(rotate済みの)refresh_tokenが次の別リクエストで使われた時点で確実に失敗し、再ログインを強制される。** これは「まれに起きる不具合」ではなく、YAMORUの既定のトークン有効期限(1時間)が経過するたびに機械的に発生する。家族が日中を通してYAMORUを使う場合、実用上は数時間おきに強制ログアウトされることになり、`proxy.ts`の代替が無いままではA案・B案とも本番投入は現実的ではない。
+**結論: `proxy.ts`が無いと、アクセストークンが一度でも期限切れになった後は、ブラウザのCookieに残った(rotate済みの)refresh_tokenが次の別リクエストで使われた時点で確実に失敗し、再ログインを強制される。** これは「まれに起きる不具合」ではなく、YAMORUの既定のトークン有効期限(1時間)が経過するたびに機械的に発生する。
+
+## 回避策: `middleware.ts`(旧規約)への切り戻しで解決することを実証した
+
+OpenNext for Cloudflareのissue([opennextjs-cloudflare#1082](https://github.com/opennextjs/opennextjs-cloudflare/issues/1082))で、メンテナが案内している回避策を試した。要点は次のとおり。
+
+- Next.js 16の新しい`proxy.ts`規約(Node.jsランタイム限定、Edgeへの切り替え不可)は、OpenNextでは今後も(Adapters APIが来るまで)サポートされない。
+- 一方、Next.js 16でも**旧`middleware.ts`規約はdeprecatedとして引き続き動作し**、`export const config = { runtime: "experimental-edge" }`を指定すればEdgeランタイムとして扱える。
+- OpenNextはEdgeミドルウェアを正式サポートしているため、`middleware.ts`+Edgeランタイムの組み合わせならビルドが通る。
+
+実際に`lib/supabase/proxy.ts`の`updateSession()`をそのまま流用し、ファイルを`proxy.ts`から`middleware.ts`(`export function middleware(...)`、`runtime: "experimental-edge"`)に置き換えたところ、`opennextjs-cloudflare build`が`Bundling middleware function...`まで到達して成功した。
+
+続けて、この構成でセッションリフレッシュが実際に機能するかを検証した。
+
+1. Supabase Auth APIから正規のセッション(access_token・refresh_token)を取得。
+2. `expires_at`を過去の時刻に書き換え、期限切れに見せかけたセッションをSupabase SSRのCookie形式(`sb-<ref>-auth-token`、`base64-`+base64url(JSON)化)で自前エンコード。
+3. このCookieを付けて`curl`で保護ページ(`/account`)へリクエスト。
+
+結果、**200 OKで認証済みページの内容(登録メールアドレス・ログアウトボタン等)が返り、レスポンスに新しい`Set-Cookie: sb-127-auth-token=...`が含まれていた。** 中身をデコードすると、refresh_tokenが元の値から新しい値へ実際にローテーションされていることを確認した。つまり`middleware.ts`は`proxy.ts`と全く同じCookie書き込みAPI(`NextResponse`)を使っており、機能的に完全な代替になっている。
+
+**この回避策には留保が要る。** `middleware.ts`規約自体と`runtime: "experimental-edge"`はいずれもNext.js側で非推奨(ビルド時に警告が出る)であり、将来のNext.jsバージョンで削除される可能性がある。OpenNext側の恒久対応(Node.jsミドルウェアの正式サポート)は「Adapters API」という別リポジトリで開発中だが、2026年8月時点でも具体的な時期は示されていない。したがって、A案・B案どちらを採用する場合も「当面は`middleware.ts`切り戻しで動く」という前提で進めることになり、Next.jsの将来バージョンで`middleware.ts`が完全に削除された場合の対応(Adapters APIへの乗り換え、または当時のOpenNextの対応状況次第で別の回避策)を継続的にウォッチする必要がある。
 
 ## 複雑さの比較(現状 vs A案)
 
@@ -86,7 +108,7 @@ YAMORUは現在、クラウドへのデプロイ実績がなく、各利用者�
 | 認可・DB層 | 変化なし(RLS) | 変化なし(RLS) |
 | 認証 | 変化なし(Supabase Auth) | 変化なし(Supabase Auth) |
 | ホスティング | 各利用者の自宅端末 | Cloudflare Workers(共有の常時稼働環境) |
-| `proxy.ts`との相性 | 制約なし | Node.jsミドルウェア非対応(要対応、後述) |
+| `proxy.ts`との相性 | 制約なし | `proxy.ts`は非対応だが`middleware.ts`(deprecated)への切り戻しで回避可能(前述) |
 | 追加で必要なツール | なし | wrangler, `@opennextjs/cloudflare`(Windows非公式サポート) |
 | Supabase自体のホスティング | ローカル(Docker) | 未決定(Supabase Cloudへ移行するか、リモートSupabaseを別途用意するかは本スパイクの範囲外) |
 
@@ -101,7 +123,8 @@ A案はB案と異なり、RLS・認可・Auth周りの実装コストの増加�
 
 ## このスパイクで扱わなかったこと
 
-- `proxy.ts`が担うセッションのサイレントリフレッシュ喪失の代替手段(移行する場合にどう解決するか)の設計・実装
+- `middleware.ts`切り戻し以外の恒久対応(OpenNextのAdapters APIによる正式なNode.jsミドルウェア対応)の検証。本スパイクで確認したのは当面の回避策のみ。
+- `middleware.ts`切り戻しをYAMORUの実コードへ本採用する場合の実装(本セッションでは検証後に`proxy.ts`へ戻し、恒久的な変更はしていない)
 - Supabase Cloud(またはリモートSupabase)への実際の移行・接続検証。本検証はローカルSupabaseへWorkers経由で接続しただけで、リモートSupabaseとの往復レイテンシ・接続制限等は未検証。
 - Cloudflareのリモート環境(実際のWorkers)へのデプロイ
 - 最終的な採用判断(Cloudflare Workersを採用するか、Supabaseを継続するか、D1へ移行するか)とそれに伴うYDRの起票。A案・B案双方のスパイク結果が揃った次のステップとして扱う。

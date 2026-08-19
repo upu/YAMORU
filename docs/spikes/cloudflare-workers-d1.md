@@ -39,9 +39,9 @@ issue #116の検証項目のうち、B案に関わる項目について。
 
 | 検証項目 | 結果 |
 |---|---|
-| Next.jsをWorkers上で起動できる | **条件付き**。既存アプリ全体では不可(後述の`proxy.ts`の非互換のため)。`proxy.ts`を除けば起動・SSR可能。 |
+| Next.jsをWorkers上で起動できる | **条件付きで可能**。`proxy.ts`(Next 16の新ミドルウェア規約)のままでは不可だが、旧`middleware.ts`規約+Edgeランタイムへ切り戻せば起動できることを実証した(後述)。 |
 | ローカル環境で実行できる | 確認済み(`wrangler dev`。`/login`・`/icon.png`・`/manifest.webmanifest`のSSR/静的配信をcurlで確認) |
-| 現在使用しているNext.js機能に互換性問題がない | **問題あり**。`proxy.ts`(Next 16のミドルウェア、Supabaseセッション更新に使用)がOpenNext for CloudflareでNode.jsランタイムミドルウェアとして扱われ、ビルド時にエラーになる。かつNext.js 16自体が`proxy.ts`でのEdgeランタイム指定を許可しない。回避策なし(後述)。 |
+| 現在使用しているNext.js機能に互換性問題がない | **条件付き**。`proxy.ts`(Next 16のミドルウェア、Supabaseセッション更新に使用)はOpenNext for CloudflareでNode.jsランタイムミドルウェアとして扱われ、ビルド時にエラーになる。ただし`middleware.ts`(旧規約、deprecated)+`runtime: "experimental-edge"`へ切り戻せば回避できることを実証した(後述)。 |
 | D1のローカル開発を確認する | 確認済み(`wrangler d1 migrations apply DB --local`) |
 | 基本的なCRUDをD1で実装する | 確認済み(CLI経由のINSERT/UPDATE/DELETE/SELECTに加え、アプリコード`lib/d1-spike/authorization.ts`としても実装) |
 | 認証方式を検討する | Auth.js(Credentialsプロバイダー+JWTセッション戦略)で実装可能。Adapterは不要(OAuth/DBセッション戦略の場合のみ必要)。ただしAuth.js v5は本検証時点でもbeta(5.0.0-beta.32)。 |
@@ -53,7 +53,9 @@ issue #116の検証項目のうち、B案に関わる項目について。
 
 ## 判明した制約・後続実装への注意点
 
-- **`proxy.ts`(Next.js 16のミドルウェア)がOpenNext for Cloudflareで動かない。** Next.js 16は`proxy.ts`を既定でNode.jsランタイムで実行するが、`@opennextjs/cloudflare`(1.20.2時点)はNode.jsランタイムのミドルウェアを検出すると`ERROR Node.js middleware is not currently supported. Consider switching to Edge Middleware.`でビルドを止める。回避しようと`export const config = { runtime: "edge" }`を指定すると、今度はNext.js自身が`Error: Next.js can't recognize the exported config field... Proxy does not support Edge runtime.`でビルドエラーになる。つまり**現時点でNext.js 16 + OpenNext for Cloudflareの組み合わせでは、`proxy.ts`をそのまま使う手段がない**。影響範囲はA案の検証([cloudflare-workers-supabase.md](cloudflare-workers-supabase.md))で特定した。未認証アクセスのリダイレクトは各ページの`requireUser()`(`lib/auth/current-user.ts`)が既に多層防御として担っており、`proxy.ts`を外しても認可の穴は生じない。一方、`proxy.ts`だけが担っているSupabaseセッション(アクセストークン)のサイレントリフレッシュ結果のCookie書き戻しは代替できず、**アクセストークンの期限切れ(既定1時間)のたびにリフレッシュトークンが再利用不能(`refresh_token_already_used`)になって強制的に再ログインを求められることをAuth API直接検証で確認した**。「まれな不具合」ではなく、既定設定のままなら数時間おきに機械的に発生する。Workers採用にはこの解決策(OpenNextのNode.jsミドルウェア対応を待つ、Route Handler経由でセッションを更新する仕組みを別途作る等)が前提条件になる。
+- **`proxy.ts`(Next.js 16のミドルウェア)はOpenNext for Cloudflareで動かないが、旧`middleware.ts`規約への切り戻しで回避できる。** Next.js 16は`proxy.ts`を既定でNode.jsランタイムで実行するが、`@opennextjs/cloudflare`(1.20.2時点)はNode.jsランタイムのミドルウェアを検出すると`ERROR Node.js middleware is not currently supported. Consider switching to Edge Middleware.`でビルドを止める。`export const config = { runtime: "edge" }`をproxy.tsに指定してEdge化しようとしても、Next.js自身が`Proxy does not support Edge runtime.`で拒否する。**この制約はOpenNext側で意図的なもので、Node.jsミドルウェアは「Adapters API」という別リポジトリでの対応を待つ必要があり、現時点(2026年8月)でも時期未定**([opennextjs-cloudflare#1082](https://github.com/opennextjs/opennextjs-cloudflare/issues/1082)、OpenNext開発者のコメント参照)。ただし同issueで案内されている回避策どおり、同じ`updateSession()`ロジックを、ファイル名を`proxy.ts`から**`middleware.ts`(deprecatedな旧規約)に戻し**、`export const config = { runtime: "experimental-edge", ... }`を指定するだけで、OpenNextのビルドが成功することを確認した(`Bundling middleware function...`のステップまで到達し、Node.jsミドルウェア扱いのエラーが出ない)。
+- **上記の`middleware.ts`切り戻しで、セッションリフレッシュのCookie書き戻しも実際に機能することを実証した。** わざと期限切れに見せかけたSupabaseセッションCookieを持たせて保護ページへアクセスしたところ、`middleware.ts`が正しくリフレッシュトークンをローテーションし、新しいセッションを`Set-Cookie`でブラウザへ書き戻したうえで、認証済みページの内容を200 OKで返した(詳細は[cloudflare-workers-supabase.md](cloudflare-workers-supabase.md))。つまり`middleware.ts`は`proxy.ts`と全く同じCookie API(`NextResponse`)を使っているため、機能的な代替として成立する。
+- **ただしこの回避策はdeprecatedな規約に依存しており、恒久的な解決ではない。** `middleware.ts`規約自体がNext.js側で非推奨(ビルド時に警告、将来のバージョンで削除される可能性がある)で、`runtime: "experimental-edge"`も同様に非推奨警告が出る。OpenNext側の正式なNode.jsミドルウェア対応(Adapters API)が来るまでの「今は動く」回避策と位置づけるべきで、YAMORUが本移行する場合はどちらの方針を取るか(deprecated規約に依存し続けるか、Adapters APIのリリースを待つか)を判断する必要がある。
 - **`npx wrangler types`が生成する型が、既存アプリのDOM lib型と衝突する。** Cloudflare Workersのバインディング型(`D1Database`等)を得るために`wrangler types`を実行すると、Workersランタイム全体の型が`worker-configuration.d.ts`にグローバル展開される。この中の型定義がDOM libの`Element`/`HTMLElement`等と衝突し、既存のjsdomベースのコンポーネントテスト(`tests/complete-todo-panel.test.tsx`)の`npm run typecheck`を壊すことを確認した。本スパイクでは`wrangler types`を使わず、実際に使う分だけの最小限の型(`lib/d1-spike/cloudflare-types.d.ts`)を手書きして回避した。1つのNext.jsプロジェクト内にブラウザ向けコードとWorkersランタイム向けコードを同居させる場合、型システムの分離に継続的なコストがかかる。
 - **Workersランタイム専用のテストファイルを、既存のtsc型検査・vitest実行から分離する必要がある。** `@cloudflare/vitest-pool-workers`が提供する`"cloudflare:workers"`のようなWorkers組み込みモジュールの型は、本プロジェクトの`tsconfig.json`(`moduleResolution: "bundler"`)の下では、手書きのambientモジュール宣言(`declare module "cloudflare:workers" {...}`)を用意しても解決できなかった(原因未特定)。そのため`lib/d1-spike/**/*.spike.test.ts`を`tsconfig.json`の`exclude`とESLintの型検査対象(`disableTypeChecked`)の両方から除外し、専用の`vitest.d1-spike.config.ts`(`npm run spike:cf:d1:test`)でのみ実行・検証する構成にした。
 - **`D1Database#exec()`は複数行・コメント入りのSQLをそのまま実行できない。** `-- コメント`や空行を含むマイグレーションSQLをそのまま`db.exec(sql)`に渡すと`D1_EXEC_ERROR: SQL code did not contain a statement`で失敗する。`wrangler d1 migrations apply`(CLIのマイグレーション適用)は内部でこれを吸収するが、テストコード側で直接スキーマを流し込む場合は、コメント除去とステートメント分割を自前で行い、`db.batch(...)`で適用する必要がある。
@@ -70,10 +72,10 @@ issue #116の検証項目のうち、B案に関わる項目について。
 | 認可の検証方法 | pgTAPでポリシーそのものを宣言的に検証できる | アプリコードの単体テストで、呼び出し漏れがないことを愚直に確認するしかない |
 | 型システムの独立性 | Node.js/ブラウザ向けTypeScript構成のみで完結 | Workersランタイム向けの型とDOM libの型が衝突するため、tsconfig・ESLint設定・テスト実行系列を分離する必要がある |
 | ローカル開発ツールの成熟度 | Supabase CLIは既存プロジェクトで長期運用実績あり | wrangler/OpenNext/vitest-pool-workersはいずれも本検証時点でAPIや挙動の変化が大きく、Windows対応も限定的 |
-| Next.jsミドルウェアとの相性 | 制約なし(現行構成で稼働中) | Next 16の`proxy.ts`(Node.jsランタイム)がOpenNextで動かず、設計変更が必要 |
+| Next.jsミドルウェアとの相性 | 制約なし(現行構成で稼働中) | Next 16の`proxy.ts`はOpenNextで動かないが、deprecatedな`middleware.ts`規約への切り戻しで回避可能(恒久対応はOpenNext側のAdapters API待ち) |
 | 認証まわりの周辺機能 | Supabase Authがメール確認・パスワードリセット等を提供済み | Auth.js Credentialsを使う場合、これらを自前実装する必要がある |
 
-総じて、B案(D1+アプリ層認可)は「RLSを持たない」ことによる実装・運用コストが、DBのポリシー1つを書くこととは比較にならないほど大きい。加えて、Next.js 16 + OpenNext for Cloudflareの組み合わせ自体に、現時点で回避策のない非互換(`proxy.ts`)がある。
+総じて、B案(D1+アプリ層認可)は「RLSを持たない」ことによる実装・運用コストが、DBのポリシー1つを書くこととは比較にならないほど大きい。Next.js 16 + OpenNext for Cloudflareの`proxy.ts`非互換は、deprecatedな`middleware.ts`規約への切り戻しで当面回避できることを確認したが、これはA案にも共通する制約でありB案固有の弱みではない。
 
 ## コストの比較(2026年8月時点の公式料金ページに基づく)
 
@@ -103,7 +105,7 @@ issue #116の検証項目のうち、B案に関わる項目について。
 - **休止の有無**: Supabase Freeは1週間操作がないと自動停止し、再開に手動操作が要る。個人開発で使用頻度に波がある運用とは相性が悪い。Cloudflare Workers/D1の無料枠には休止の概念がない。
 - **有料化時の最低額**: 無料枠を超えて有料化が必要になった場合、Cloudflareは$5/月から、Supabaseは$25/月から。
 
-コストだけを見ればCloudflare Workers + D1に分があるが、「判明した制約」「複雑さの比較」で述べた実装・運用コスト(特に`proxy.ts`の非互換とRLS代替の負担)を踏まえずに判断すべきではない。
+コストだけを見ればCloudflare Workers + D1に分があるが、「判明した制約」「複雑さの比較」で述べた実装・運用コスト(特にRLS代替の負担)を踏まえずに判断すべきではない。
 
 ## このスパイクで扱わなかったこと
 
@@ -112,7 +114,7 @@ Issueのスコープ外、または本セッションの範囲外として、以
 - A案(Cloudflare Workers + Supabase継続)の実機検証(別途[cloudflare-workers-supabase.md](cloudflare-workers-supabase.md)で実施)
 - 最終的な採用判断(Cloudflare Workersを採用するか、Supabaseを継続するか、D1へ移行するか、採用するAuth方式、本移行時の変更範囲)とそれに伴うYDRの起票
 - Cloudflareのリモート環境(実際のWorkers/D1)へのデプロイ。本スパイクはローカル検証のみ。
-- `proxy.ts`が担うセッションのサイレントリフレッシュ+Cookie書き戻しの代替手段の実装・検証
+- `middleware.ts`切り戻し以外の恒久対応(OpenNextのAdapters APIによる正式なNode.jsミドルウェア対応)の検証。本スパイクで確認したのは当面の回避策のみ。
 - Auth.jsでのメール確認・パスワードリセット・アカウント復旧等の周辺機能
 - household作成・招待受諾等のライフサイクル全体(今回はmanaged_itemsの読み書きに絞った最小スキーマのみ)
 - ログイン画面等のUI実装(APIハンドラとデータアクセス層のみを検証した)
