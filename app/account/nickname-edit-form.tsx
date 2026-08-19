@@ -92,11 +92,14 @@ export function NicknameEditForm({ nickname }: { nickname: string }) {
   // 保存に成功したら表示モードへ戻す。レンダー中にstateの変化を検知して
   // 調整する(Reactの「前の値と比較してstateを調整する」パターン)ことで、
   // 保存完了とキャンセルを取り違えないようにする(useEffectでのsetState連鎖を
-  // 避ける)。親から渡されるnicknameもrevalidatePathによるルート再取得で
-  // 新しい値に置き換わる。
-  const [handledStatus, setHandledStatus] = useState(state.status);
-  if (state.status !== handledStatus) {
-    setHandledStatus(state.status);
+  // 避ける)。比較はstate.statusという文字列ではなくstateオブジェクトの参照で
+  // 行う。statusの値(例:"success")だけを比較すると、2回目以降の連続した
+  // 成功時にhandledStatusが既に"success"のままで「変化なし」と誤判定され、
+  // 編集モードから抜けられなくなるため。useActionStateは呼び出しのたびに
+  // 新しいオブジェクトを返すため、参照比較なら毎回検知できる。
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
     if (state.status === "success") setIsEditing(false);
   }
 
