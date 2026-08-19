@@ -27,22 +27,30 @@
     "test:stop": "supabase stop --workdir environments/test",
     "test:db:reset": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase db reset --workdir environments/test",
     "test:db": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase test db --workdir environments/test",
-    "test:auth:local": "vitest run --config vitest.auth.config.ts"
+    "test:auth:local": "vitest run --config vitest.auth.config.ts",
+    "spike:cf:build": "opennextjs-cloudflare build",
+    "spike:cf:preview": "npm run spike:cf:build && wrangler dev",
+    "spike:cf:d1:migrate": "wrangler d1 migrations apply DB --local",
+    "spike:cf:d1:test": "vitest run --config vitest.d1-spike.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.112.3",
     "next": "16.3.0",
+    "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
     "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "esbuild": "^0.28.2",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.0",
     "eslint-plugin-sonarjs": "^4.2.0",
@@ -50,6 +58,14 @@
     "supabase": "2.113.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.67.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "wrangler": "^4.124.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.4": true,
+    "esbuild@0.28.1": true,
+    "unrs-resolver@1.12.2": true,
+    "workerd@1.20260815.1": true,
+    "esbuild@0.28.2": true
   }
 }

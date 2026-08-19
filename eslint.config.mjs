@@ -46,6 +46,15 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Issue #116スパイク: `*.spike.test.ts`はWorkersランタイム専用の
+    // vitest.d1-spike.config.tsでのみ実行され、"cloudflare:workers"のような
+    // Workers組み込みモジュールを使うためtsconfig.json(DOM libを使う既存app用)の
+    // 型検査対象から意図的に除外している(判明した制約としてdocs/spikes/参照)。
+    // そのため型情報を要求するprojectServiceの対象からも外す。
+    files: ["lib/d1-spike/**/*.spike.test.ts"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   globalIgnores([
     ".next/**",
     "out/**",
@@ -54,5 +63,10 @@ export default defineConfig([
     // Supabase CLIが出力する生成物(Issue #45)。手で直せないため整形規則の
     // 対象外とする。型としての正しさはnpm run typecheckが引き続き検査する。
     "lib/supabase/database.types.ts",
+    // Issue #116スパイク: opennextjs-cloudflare buildとwrangler devが出力する
+    // バンドル済みWorkerスクリプト・ローカルD1状態(生成物)。
+    ".open-next/**",
+    ".wrangler/**",
+    "d1/.wrangler-state/**",
   ]),
 ]);
