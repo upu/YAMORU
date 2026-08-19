@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 
 import { toSafeRedirectPath } from "../../lib/auth/safe-redirect";
 import { createClient } from "../../lib/supabase/server";
-import type { HouseholdActionState, NicknameActionState } from "./state";
+import type {
+  HouseholdActionState,
+  NicknameActionState,
+  NicknameEditActionState,
+} from "./state";
 
 const HOUSEHOLD_NAME_MAX_LENGTH = 100;
 const NICKNAME_MAX_LENGTH = 20;
@@ -85,4 +89,40 @@ export async function registerNickname(
 
   revalidatePath("/account");
   redirect(next ?? "/account");
+}
+
+export async function updateNickname(
+  _previousState: NicknameEditActionState,
+  formData: FormData,
+): Promise<NicknameEditActionState> {
+  const rawNickname = formData.get("nickname");
+  if (typeof rawNickname !== "string") return invalidNickname();
+
+  const nickname = rawNickname.trim();
+  if (
+    nickname.length === 0 ||
+    Array.from(nickname).length > NICKNAME_MAX_LENGTH
+  ) {
+    return invalidNickname();
+  }
+
+  const supabase = await createClient();
+  // 対象行を絞る条件をクライアント側では指定しない。登録時にuser_idを
+  // 送らないのと同じ方針(Issue #30)で、RLS(profiles_update_own)のUSING句が
+  // auth.uid() = user_idへ絞るため、これだけで自分の行以外は更新されない。
+  const { error } = await supabase.from("profiles").update({ nickname });
+
+  if (error !== null) {
+    return {
+      message: "ニックネームを変更できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    };
+  }
+
+  // 変更後の名前は同じ家庭の履歴・メンバー表示(実施者名、担当者選択肢など)にも
+  // 反映される必要がある(Issue #76)ため、/accountだけでなくアプリ全体を
+  // 再検証する(ログイン・招待受諾と同じ方針)。
+  revalidatePath("/", "layout");
+
+  return { message: "ニックネームを変更しました。", status: "success" };
 }

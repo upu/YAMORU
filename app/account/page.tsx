@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireUser } from "../../lib/auth/current-user";
 import { createClient } from "../../lib/supabase/server";
 import { HouseholdForm } from "./household-form";
+import { NicknameEditForm } from "./nickname-edit-form";
 import { NicknameForm } from "./nickname-form";
 
 type Household = { id: string; name: string };
@@ -53,6 +54,12 @@ export default async function AccountPage() {
         <h1>アカウント</h1>
         <p>{user.email ?? "メールアドレス未設定"}</p>
       </header>
+      {profile !== null ? (
+        <section aria-labelledby="nickname-section-title" className="detail-card">
+          <h2 id="nickname-section-title">ニックネーム</h2>
+          <NicknameEditForm nickname={profile.nickname} />
+        </section>
+      ) : null}
       <section aria-labelledby="household-state-title" className="detail-card">
         {household !== null ? (
           <>

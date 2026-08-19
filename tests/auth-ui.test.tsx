@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { createClientMock, requireUserMock } = vi.hoisted(() => ({
@@ -130,7 +130,14 @@ describe("アカウント画面", () => {
     expect(
       within(householdSection).getByRole("button", { name: "家庭を作成" }),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("ニックネーム")).not.toBeInTheDocument();
+    const nicknameSection = screen.getByRole("region", { name: "ニックネーム" });
+    expect(within(nicknameSection).getByText("たろう")).toBeInTheDocument();
+    expect(
+      within(nicknameSection).getByRole("button", { name: "編集" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "ニックネームを登録" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "ログアウト" }),
     ).toBeInTheDocument();
@@ -151,9 +158,40 @@ describe("アカウント画面", () => {
     expect(screen.getByRole("heading", { name: "所属している家庭" })).toBeInTheDocument();
     expect(screen.getByText("テスト家庭")).toBeInTheDocument();
     expect(screen.queryByLabelText("家庭名")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("ニックネーム")).not.toBeInTheDocument();
+    const nicknameSection = screen.getByRole("region", { name: "ニックネーム" });
+    expect(within(nicknameSection).getByText("はなこ")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "家庭を作成" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("「編集」を押すと現在のニックネームを初期値とした編集フォームへ切り替わり、「キャンセル」で表示へ戻る(Issue #76)", async () => {
+    requireUserMock.mockResolvedValue({
+      email: "member@example.test",
+      id: "member-id",
+    });
+    mockAccountQueries({
+      household: { id: "household-id", name: "テスト家庭" },
+      profile: { nickname: "はなこ" },
+    });
+
+    render(await AccountPage());
+
+    const nicknameSection = screen.getByRole("region", { name: "ニックネーム" });
+    fireEvent.click(within(nicknameSection).getByRole("button", { name: "編集" }));
+
+    const nicknameInput = within(nicknameSection).getByLabelText("ニックネーム");
+    expect(nicknameInput).toHaveValue("はなこ");
+    expect(nicknameInput).toHaveAttribute("maxLength", "20");
+    expect(
+      within(nicknameSection).getByRole("button", { name: "変更を保存" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(nicknameSection).getByRole("button", { name: "キャンセル" }));
+
+    expect(within(nicknameSection).getByText("はなこ")).toBeInTheDocument();
+    expect(
+      within(nicknameSection).queryByLabelText("ニックネーム"),
     ).not.toBeInTheDocument();
   });
 });
