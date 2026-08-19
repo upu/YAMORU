@@ -18,7 +18,7 @@ YAMORUは個人開発の家庭内タスク管理アプリで、現在はSupabase
 - A案: Cloudflare Workers + Supabase継続(Auth/RLSはそのまま)
 - B案: Cloudflare Workers + D1 + アプリ層認可(RLSを持たない)
 
-本スパイクはB案を優先して検証した。A案の実機検証と、最終的な採用判断(YDR起票)は次のステップとして扱う(「このスパイクで扱わなかったこと」参照)。
+本スパイクはB案を優先して検証した。A案の実機検証は[cloudflare-workers-supabase.md](cloudflare-workers-supabase.md)を参照。最終的な採用判断(YDR起票)は次のステップとして扱う。
 
 ## 検証方法
 
@@ -53,7 +53,7 @@ issue #116の検証項目のうち、B案に関わる項目について。
 
 ## 判明した制約・後続実装への注意点
 
-- **`proxy.ts`(Next.js 16のミドルウェア)がOpenNext for Cloudflareで動かない。** Next.js 16は`proxy.ts`を既定でNode.jsランタイムで実行するが、`@opennextjs/cloudflare`(1.20.2時点)はNode.jsランタイムのミドルウェアを検出すると`ERROR Node.js middleware is not currently supported. Consider switching to Edge Middleware.`でビルドを止める。回避しようと`export const config = { runtime: "edge" }`を指定すると、今度はNext.js自身が`Error: Next.js can't recognize the exported config field... Proxy does not support Edge runtime.`でビルドエラーになる。つまり**現時点でNext.js 16 + OpenNext for Cloudflareの組み合わせでは、`proxy.ts`によるSupabaseセッション更新(`lib/supabase/proxy.ts`)を成立させる手段がない**。Workers採用時は、認可チェックをmiddlewareから各layout/pageのサーバーコンポーネント側へ移す設計変更が必要になる可能性が高いが、本スパイクでは未検証。
+- **`proxy.ts`(Next.js 16のミドルウェア)がOpenNext for Cloudflareで動かない。** Next.js 16は`proxy.ts`を既定でNode.jsランタイムで実行するが、`@opennextjs/cloudflare`(1.20.2時点)はNode.jsランタイムのミドルウェアを検出すると`ERROR Node.js middleware is not currently supported. Consider switching to Edge Middleware.`でビルドを止める。回避しようと`export const config = { runtime: "edge" }`を指定すると、今度はNext.js自身が`Error: Next.js can't recognize the exported config field... Proxy does not support Edge runtime.`でビルドエラーになる。つまり**現時点でNext.js 16 + OpenNext for Cloudflareの組み合わせでは、`proxy.ts`をそのまま使う手段がない**。ただし影響範囲はA案の検証([cloudflare-workers-supabase.md](cloudflare-workers-supabase.md))で判明したとおり部分的で、未認証アクセスのリダイレクトは各ページの`requireUser()`(`lib/auth/current-user.ts`)が既に多層防御として担っており、`proxy.ts`を外しても認可の穴は生じない。`proxy.ts`だけが担っているのはSupabaseセッション(アクセストークン)のサイレントリフレッシュ結果をCookieへ書き戻す処理で、これはServer Component側では代替できない(`lib/supabase/server.ts`のコメント参照)。
 - **`npx wrangler types`が生成する型が、既存アプリのDOM lib型と衝突する。** Cloudflare Workersのバインディング型(`D1Database`等)を得るために`wrangler types`を実行すると、Workersランタイム全体の型が`worker-configuration.d.ts`にグローバル展開される。この中の型定義がDOM libの`Element`/`HTMLElement`等と衝突し、既存のjsdomベースのコンポーネントテスト(`tests/complete-todo-panel.test.tsx`)の`npm run typecheck`を壊すことを確認した。本スパイクでは`wrangler types`を使わず、実際に使う分だけの最小限の型(`lib/d1-spike/cloudflare-types.d.ts`)を手書きして回避した。1つのNext.jsプロジェクト内にブラウザ向けコードとWorkersランタイム向けコードを同居させる場合、型システムの分離に継続的なコストがかかる。
 - **Workersランタイム専用のテストファイルを、既存のtsc型検査・vitest実行から分離する必要がある。** `@cloudflare/vitest-pool-workers`が提供する`"cloudflare:workers"`のようなWorkers組み込みモジュールの型は、本プロジェクトの`tsconfig.json`(`moduleResolution: "bundler"`)の下では、手書きのambientモジュール宣言(`declare module "cloudflare:workers" {...}`)を用意しても解決できなかった(原因未特定)。そのため`lib/d1-spike/**/*.spike.test.ts`を`tsconfig.json`の`exclude`とESLintの型検査対象(`disableTypeChecked`)の両方から除外し、専用の`vitest.d1-spike.config.ts`(`npm run spike:cf:d1:test`)でのみ実行・検証する構成にした。
 - **`D1Database#exec()`は複数行・コメント入りのSQLをそのまま実行できない。** `-- コメント`や空行を含むマイグレーションSQLをそのまま`db.exec(sql)`に渡すと`D1_EXEC_ERROR: SQL code did not contain a statement`で失敗する。`wrangler d1 migrations apply`(CLIのマイグレーション適用)は内部でこれを吸収するが、テストコード側で直接スキーマを流し込む場合は、コメント除去とステートメント分割を自前で行い、`db.batch(...)`で適用する必要がある。
@@ -109,10 +109,10 @@ issue #116の検証項目のうち、B案に関わる項目について。
 
 Issueのスコープ外、または本セッションの範囲外として、以下は未検証。
 
-- A案(Cloudflare Workers + Supabase継続)の実機検証
+- A案(Cloudflare Workers + Supabase継続)の実機検証(別途[cloudflare-workers-supabase.md](cloudflare-workers-supabase.md)で実施)
 - 最終的な採用判断(Cloudflare Workersを採用するか、Supabaseを継続するか、D1へ移行するか、採用するAuth方式、本移行時の変更範囲)とそれに伴うYDRの起票
 - Cloudflareのリモート環境(実際のWorkers/D1)へのデプロイ。本スパイクはローカル検証のみ。
-- `proxy.ts`非互換の回避策(認可チェックをmiddlewareから各ページへ移す設計)の実装・検証
+- `proxy.ts`が担うセッションのサイレントリフレッシュ+Cookie書き戻しの代替手段の実装・検証
 - Auth.jsでのメール確認・パスワードリセット・アカウント復旧等の周辺機能
 - household作成・招待受諾等のライフサイクル全体(今回はmanaged_itemsの読み書きに絞った最小スキーマのみ)
 - ログイン画面等のUI実装(APIハンドラとデータアクセス層のみを検証した)
