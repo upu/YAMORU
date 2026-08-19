@@ -73,7 +73,8 @@ RLSポリシーカタログも同様に、CIの`RLS policy catalog is up to date
 
 ## 4. 参照
 
-- [ローカルSupabase(prod・test環境)](../../README.md#ローカルsupabaseprodtest環境) - 環境の起動、バックアップと復旧、型生成コマンドの詳細
+- [ローカルSupabase(prod・test環境)](../../README.md#ローカルsupabaseprodtest環境) - 環境の起動、型生成コマンドの詳細
+- [ローカルprod環境の利用・運用手順](local-prod-operations.md) - `git pull`後の更新の取り込み、バックアップと復旧の手順
 - [現在有効なRLSポリシー一覧](rls-policy-catalog.md) - `pg_policy`と`comment on policy`から生成したRLSポリシーカタログ
 - [RLSスパイク結果](../spikes/supabase-rls-household-isolation.md) - 家庭間データ分離をRLSで実現できるかの検証
 - [招待受諾スパイク結果](../spikes/household-invitation-acceptance.md) - 期限付き・一回限りの招待受諾とRLSの両立
