@@ -782,6 +782,43 @@ footer p {
   font-weight: 800;
 }
 
+.nickname-display {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.nickname-value {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.nickname-display .auth-feedback {
+  flex-basis: 100%;
+}
+
+.nickname-toggle-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--green);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.nickname-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .signout-form {
   display: flex;
   justify-content: flex-end;

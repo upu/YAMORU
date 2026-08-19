@@ -9,7 +9,7 @@ create extension if not exists pgtap with schema extensions;
 
 begin;
 
-select plan(22);
+select plan(29);
 
 insert into auth.users (
   instance_id, id, aud, role, email,
@@ -88,21 +88,58 @@ select is_empty(
 );
 
 -- ---------------------------------------------------------------------------
--- 更新: UPDATEポリシーを一切作らないため、自分の行も他人の行も更新できない
--- (このIssueでは登録のみを扱い、変更は将来Issueとする)
+-- 更新: 本人は自分のニックネームを編集できる(Issue #76)。他利用者の行を
+-- 対象にしたUPDATEはUSING句で対象外になり、エラーにはならず0件で終わる。
 -- ---------------------------------------------------------------------------
+select lives_ok(
+  $$ update public.profiles set nickname = 'たろう二世' where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  '利用者Aは自分のニックネームを更新できる'
+);
+
+select results_eq(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  $$ values ('たろう二世'::text) $$,
+  '更新後のニックネームがAの行に反映されている'
+);
+
+select lives_ok(
+  $$ update public.profiles set nickname = '改名' where user_id = '00000000-0000-0000-0000-0000000f1002' $$,
+  '利用者Aが利用者Bのuser_idを条件にUPDATEしてもエラーにはならない(RLSのUSING句で対象外になるため)'
+);
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1002", "role": "authenticated"}';
+
+select results_eq(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1002' $$,
+  $$ values ('はなこ'::text) $$,
+  '利用者Aの操作では利用者Bのニックネームは変更されない'
+);
+
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000f1001", "role": "authenticated"}';
+
 select throws_ok(
-  $$ update public.profiles set nickname = '改名' where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
-  '42501',
+  $$ update public.profiles set nickname = '' where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  '23514',
   null,
-  '利用者は自分のニックネームも更新できない(UPDATEポリシー未作成のため権限エラーで拒否される)'
+  '空文字への更新は登録時と同じCHECK制約で拒否される'
 );
 
 select throws_ok(
-  $$ update public.profiles set nickname = '改名' where user_id = '00000000-0000-0000-0000-0000000f1002' $$,
-  '42501',
+  $$ update public.profiles set nickname = repeat('あ', 21) where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  '23514',
   null,
-  '利用者は他利用者のニックネームを更新できない(権限エラーで拒否される)'
+  '20文字を超える値への更新は登録時と同じCHECK制約で拒否される'
+);
+
+select lives_ok(
+  $$ update public.profiles set nickname = '  たろう三世  ' where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  '前後空白を含む値へも更新できる'
+);
+
+select results_eq(
+  $$ select nickname from public.profiles where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  $$ values ('たろう三世'::text) $$,
+  '更新後も前後空白がトリガーで取り除かれている'
 );
 
 -- ---------------------------------------------------------------------------
@@ -209,6 +246,13 @@ select throws_ok(
   '42501',
   null,
   '未認証利用者はニックネームを登録できない(権限エラーで拒否される)'
+);
+
+select throws_ok(
+  $$ update public.profiles set nickname = '未認証' where user_id = '00000000-0000-0000-0000-0000000f1001' $$,
+  '42501',
+  null,
+  '未認証利用者はニックネームを更新できない(権限エラーで拒否される)'
 );
 
 select * from finish();

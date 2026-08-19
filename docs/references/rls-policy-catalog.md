@@ -36,5 +36,6 @@ generated: true
 | profiles | profiles_insert_own | INSERT | authenticated | 自分のuser_idでのみプロフィール行を作成できる。他利用者のuser_idを指定した挿入はWITH CHECKで拒否する(Issue #30)。 |
 | profiles | profiles_select_household_member | SELECT | authenticated | 呼び出し利用者と同じ家庭に属する利用者のニックネームを参照できる(Issue #36)。 |
 | profiles | profiles_select_own | SELECT | authenticated | 自分のプロフィール行だけ参照できる。他利用者のニックネームはprofiles_select_household_memberが別途扱う(Issue #30)。 |
+| profiles | profiles_update_own | UPDATE | authenticated | 自分のプロフィール行(ニックネーム)だけ更新できる。他利用者の行はUSING句で対象外になる(Issue #76)。 |
 | task_occurrences | task_occurrences_select_member | SELECT | authenticated | 家庭メンバー全員が同じ権限でTodoの現在状態(TaskOccurrence)を参照できる(Issue #34)。 |
 | task_rules | task_rules_select_member | SELECT | authenticated | 家庭メンバー全員が同じ権限でメンテナンスTodoの定義(TaskRule)を参照できる(Issue #34)。 |

@@ -1,13 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, redirectMock, revalidatePathMock, insertMock } = vi.hoisted(
-  () => ({
-    createClientMock: vi.fn(),
-    redirectMock: vi.fn(),
-    revalidatePathMock: vi.fn(),
-    insertMock: vi.fn(),
-  }),
-);
+const {
+  createClientMock,
+  redirectMock,
+  revalidatePathMock,
+  insertMock,
+  updateMock,
+  eqMock,
+  getUserMock,
+} = vi.hoisted(() => ({
+  createClientMock: vi.fn(),
+  redirectMock: vi.fn(),
+  revalidatePathMock: vi.fn(),
+  insertMock: vi.fn(),
+  updateMock: vi.fn(),
+  eqMock: vi.fn(),
+  getUserMock: vi.fn(),
+}));
 
 vi.mock("../lib/supabase/server", () => ({
   createClient: createClientMock,
@@ -21,9 +30,10 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { registerNickname } from "../app/account/actions";
+import { registerNickname, updateNickname } from "../app/account/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
+const CURRENT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 function nicknameForm(nickname: string) {
   const formData = new FormData();
@@ -105,5 +115,79 @@ describe("ニックネーム登録操作", () => {
     });
     expect(result.message).not.toContain("sensitive database detail");
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ニックネーム編集操作(Issue #76)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const fromMock = vi.fn().mockReturnValue({ update: updateMock });
+    updateMock.mockReturnValue({ eq: eqMock });
+    eqMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({
+      data: { user: { id: CURRENT_USER_ID } },
+    });
+    createClientMock.mockResolvedValue({
+      auth: { getUser: getUserMock },
+      from: fromMock,
+    });
+  });
+
+  it("ニックネームの前後空白を除き、現在の利用者IDに絞ってupdateへ渡す(PostgRESTはWHERE句のないUPDATEを拒否するため必須)", async () => {
+    await updateNickname(INITIAL_STATE, nicknameForm("  たろう二世  "));
+
+    expect(updateMock).toHaveBeenCalledWith({ nickname: "たろう二世" });
+    expect(eqMock).toHaveBeenCalledWith("user_id", CURRENT_USER_ID);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("更新成功時は成功状態と案内メッセージを返す(リダイレクトはしない)", async () => {
+    const result = await updateNickname(INITIAL_STATE, nicknameForm("たろう二世"));
+
+    expect(result).toEqual({
+      message: "ニックネームを変更しました。",
+      status: "success",
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "   ", "あ".repeat(21)])(
+    "無効なニックネーム(%s)はupdateを呼び出さない",
+    async (nickname) => {
+      const result = await updateNickname(INITIAL_STATE, nicknameForm(nickname));
+
+      expect(createClientMock).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        message: "ニックネームは1文字以上20文字以内で入力してください。",
+        status: "error",
+      });
+    },
+  );
+
+  it("未ログインの場合はログイン画面へ戻す", async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } });
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+
+    await expect(
+      updateNickname(INITIAL_STATE, nicknameForm("たろう二世")),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/login");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("更新失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {
+    eqMock.mockResolvedValue({ error: new Error("sensitive database detail") });
+
+    const result = await updateNickname(INITIAL_STATE, nicknameForm("たろう二世"));
+
+    expect(result).toEqual({
+      message: "ニックネームを変更できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
+    expect(result.message).not.toContain("sensitive database detail");
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
