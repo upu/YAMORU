@@ -6,12 +6,16 @@ const {
   revalidatePathMock,
   insertMock,
   updateMock,
+  eqMock,
+  getUserMock,
 } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
   redirectMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   insertMock: vi.fn(),
   updateMock: vi.fn(),
+  eqMock: vi.fn(),
+  getUserMock: vi.fn(),
 }));
 
 vi.mock("../lib/supabase/server", () => ({
@@ -29,6 +33,7 @@ vi.mock("next/navigation", () => ({
 import { registerNickname, updateNickname } from "../app/account/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
+const CURRENT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 function nicknameForm(nickname: string) {
   const formData = new FormData();
@@ -117,14 +122,22 @@ describe("ニックネーム編集操作(Issue #76)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const fromMock = vi.fn().mockReturnValue({ update: updateMock });
-    createClientMock.mockResolvedValue({ from: fromMock });
-    updateMock.mockResolvedValue({ error: null });
+    updateMock.mockReturnValue({ eq: eqMock });
+    eqMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({
+      data: { user: { id: CURRENT_USER_ID } },
+    });
+    createClientMock.mockResolvedValue({
+      auth: { getUser: getUserMock },
+      from: fromMock,
+    });
   });
 
-  it("ニックネームの前後空白を除いてupdateへ渡す(対象行はRLSのUSING句が絞るため、クライアント側でuser_idを指定しない)", async () => {
+  it("ニックネームの前後空白を除き、現在の利用者IDに絞ってupdateへ渡す(PostgRESTはWHERE句のないUPDATEを拒否するため必須)", async () => {
     await updateNickname(INITIAL_STATE, nicknameForm("  たろう二世  "));
 
     expect(updateMock).toHaveBeenCalledWith({ nickname: "たろう二世" });
+    expect(eqMock).toHaveBeenCalledWith("user_id", CURRENT_USER_ID);
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
   });
 
@@ -151,8 +164,22 @@ describe("ニックネーム編集操作(Issue #76)", () => {
     },
   );
 
+  it("未ログインの場合はログイン画面へ戻す", async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } });
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+
+    await expect(
+      updateNickname(INITIAL_STATE, nicknameForm("たろう二世")),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith("/login");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
   it("更新失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {
-    updateMock.mockResolvedValue({ error: new Error("sensitive database detail") });
+    eqMock.mockResolvedValue({ error: new Error("sensitive database detail") });
 
     const result = await updateNickname(INITIAL_STATE, nicknameForm("たろう二世"));
 

@@ -107,10 +107,19 @@ export async function updateNickname(
   }
 
   const supabase = await createClient();
-  // 対象行を絞る条件をクライアント側では指定しない。登録時にuser_idを
-  // 送らないのと同じ方針(Issue #30)で、RLS(profiles_update_own)のUSING句が
-  // auth.uid() = user_idへ絞るため、これだけで自分の行以外は更新されない。
-  const { error } = await supabase.from("profiles").update({ nickname });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user === null) redirect("/login");
+
+  // PostgRESTはWHERE句のないUPDATEを拒否する(db-safe-update)ため、対象行を
+  // 絞るeqが必須。user_idはAuthセッションから決定し、クライアントが送る
+  // user_idを信用しない(登録時と同じ方針、Issue #30)。RLS(profiles_update_own)
+  // のUSING/WITH CHECK句が同じ条件を独立に強制するため、二重の防御になる。
+  const { error } = await supabase
+    .from("profiles")
+    .update({ nickname })
+    .eq("user_id", user.id);
 
   if (error !== null) {
     return {
