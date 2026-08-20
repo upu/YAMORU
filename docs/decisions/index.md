@@ -16,7 +16,7 @@
 | YDR-002 | Phase 1に最小限の管理対象を残す | Accepted | [ydr-002-minimal-managed-item.md](ydr-002-minimal-managed-item.md) |
 | YDR-003 | MVPから在庫・添付・支払い・買い替えを外す | Accepted | [ydr-003-defer-inventory-attachments-payments-replacement.md](ydr-003-defer-inventory-attachments-payments-replacement.md) |
 | YDR-004 | バックデート完了と完了取消をMVPに含める | Accepted | [ydr-004-backdate-and-undo-completion.md](ydr-004-backdate-and-undo-completion.md) |
-| YDR-005 | Realtimeと細かな権限区別をMVPで作らない | Accepted | [ydr-005-no-realtime-no-fine-grained-permissions.md](ydr-005-no-realtime-no-fine-grained-permissions.md) |
+| YDR-005 | Realtimeと細かな権限区別をMVPで作らない | Superseded by YDR-022(household_idとRLS必須の部分のみ) | [ydr-005-no-realtime-no-fine-grained-permissions.md](ydr-005-no-realtime-no-fine-grained-permissions.md) |
 | YDR-006 | 担当者未設定を既定にする | Accepted | [ydr-006-unassigned-by-default.md](ydr-006-unassigned-by-default.md) |
 | YDR-007 | 通知を長期間実機検証し、結果だけでネイティブ化しない | Superseded by YDR-009 | [ydr-007-notification-field-trial.md](ydr-007-notification-field-trial.md) |
 | YDR-008 | AIを正しさの基盤にしない | Accepted | [ydr-008-ai-not-source-of-truth.md](ydr-008-ai-not-source-of-truth.md) |
@@ -33,6 +33,7 @@
 | YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Accepted | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
 | YDR-020 | 担当者・実施者・操作主体を区別し、保存先を固定する | Accepted | [ydr-020-assignee-performer-actor.md](ydr-020-assignee-performer-actor.md) |
 | YDR-021 | 定例日基準Todoの暦規則とタイムゾーンを固定する | Accepted | [ydr-021-recurring-calendar-rules.md](ydr-021-recurring-calendar-rules.md) |
+| YDR-022 | Cloudflare Workers + D1へ移行し、家庭間分離をアプリ層で実装する | Accepted | [ydr-022-cloudflare-workers-d1-migration.md](ydr-022-cloudflare-workers-d1-migration.md) |
 
 ## 新しい意思決定の追加
 
