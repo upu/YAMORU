@@ -13,7 +13,7 @@
     "lint:fix": "eslint . --fix --max-warnings=0",
     "test": "vitest run",
     "test:e2e:install": "playwright install chromium",
-    "test:e2e:local": "node scripts/e2e-environment.ts && playwright test",
+    "test:e2e:local": "npm run d1:migrate:e2e && playwright test",
     "typecheck": "tsc --noEmit",
     "gen:types": "node scripts/supabase-gen-types.ts",
     "gen:types:check": "node scripts/supabase-gen-types.ts --check",
@@ -29,15 +29,15 @@
     "test:stop": "supabase stop --workdir environments/test",
     "test:db:reset": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase db reset --workdir environments/test",
     "test:db": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase test db --workdir environments/test",
-    "test:auth:local": "vitest run --config vitest.auth.config.ts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && wrangler dev",
     "d1:migrate": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
-    "test:d1": "node --env-file=scripts/d1-test.env ./node_modules/vitest/vitest.mjs run --config vitest.d1.config.ts"
+    "d1:migrate:e2e": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local --env e2e",
+    "test:d1": "node --env-file=scripts/d1-test.env ./node_modules/vitest/vitest.mjs run --config vitest.d1.config.ts",
+    "auth:bootstrap": "node scripts/auth-admin.ts bootstrap",
+    "auth:reset-password": "node scripts/auth-admin.ts reset-password"
   },
   "dependencies": {
-    "@supabase/ssr": "0.12.4",
-    "@supabase/supabase-js": "2.112.3",
     "next": "16.3.0",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",

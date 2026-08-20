@@ -1,17 +1,10 @@
 import { D1ForbiddenError, D1UnauthorizedError } from "./errors";
 
-export type D1Session = { email: string | null; userId: string } | null;
+export type D1Session = { userId: string } | null;
 
 export function requireD1Session(session: D1Session): NonNullable<D1Session> {
   if (session === null) throw new D1UnauthorizedError("認証が必要です。");
   return session;
-}
-
-export async function ensureD1User(db: D1Database, session: NonNullable<D1Session>): Promise<void> {
-  const email = session.email?.trim().toLowerCase();
-  if (email === undefined || email.length === 0) throw new D1UnauthorizedError("メールアドレスが必要です。");
-  await db.prepare("INSERT INTO users (id, email) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET email = excluded.email")
-    .bind(session.userId, email).run();
 }
 
 export async function requireHouseholdMembership(db: D1Database, session: D1Session, householdId: string): Promise<void> {

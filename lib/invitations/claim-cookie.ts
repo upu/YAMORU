@@ -1,4 +1,4 @@
-// Issue #69 (YDR-019): 招待claim secretを認証フロー(ログイン・新規登録・
+// 招待claim secretを認証フロー(ログイン・招待登録・
 // ニックネーム登録)の間だけ引き継ぐための一時cookie。
 //
 // pathを/invitations/acceptに絞ることで、claim secretは招待受諾に関係する
@@ -10,6 +10,5 @@ export const INVITE_CLAIM_COOKIE_NAME = "yamoru_invite_claim";
 export const INVITE_CLAIM_COOKIE_PATH = "/invitations/accept";
 export const INVITE_CLAIM_RESUME_PATH = "/invitations/accept/resume";
 
-// 交換RPC(open_invitation_claim)のexpires_atが返らない異常系のための保険。
-// 正常系はRPCが返す実際の残り期限(招待自体の残り期限でキャップ済み)を使う。
+// D1 claimの残り期限が異常な場合にもcookieを30分より長くしないための上限。
 export const INVITE_CLAIM_FALLBACK_MAX_AGE_SECONDS = 30 * 60;

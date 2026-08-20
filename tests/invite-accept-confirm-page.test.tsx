@@ -3,114 +3,93 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cookiesMock, createClientMock, getCurrentUserMock, redirectMock } = vi.hoisted(
-  () => ({
-    cookiesMock: vi.fn(),
-    createClientMock: vi.fn(),
-    getCurrentUserMock: vi.fn(),
-    redirectMock: vi.fn(),
-  }),
-);
-
 vi.mock("server-only", () => ({}));
 
-vi.mock("../lib/auth/current-user", () => ({
-  getCurrentUser: getCurrentUserMock,
-  requireUser: vi.fn(),
+const {
+  cookiesMock,
+  getCurrentUserMock,
+  getD1DatabaseMock,
+  getInvitationClaimStateMock,
+  redirectMock,
+} = vi.hoisted(() => ({
+  cookiesMock: vi.fn(),
+  getCurrentUserMock: vi.fn(),
+  getD1DatabaseMock: vi.fn(),
+  getInvitationClaimStateMock: vi.fn(),
+  redirectMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../auth", () => ({ signIn: vi.fn() }));
+vi.mock("../lib/auth/current-user", () => ({ getCurrentUser: getCurrentUserMock }));
+vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../lib/d1/invitations", () => ({
+  getInvitationClaimState: getInvitationClaimStateMock,
 }));
-
-vi.mock("next/headers", () => ({
-  cookies: cookiesMock,
-}));
-
-vi.mock("next/navigation", () => ({
-  redirect: redirectMock,
-}));
+vi.mock("next/headers", () => ({ cookies: cookiesMock }));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
 import AcceptInvitationConfirmPage from "../app/invitations/accept/confirm/page";
 
-function cookieStoreWithClaim(hasClaim: boolean) {
-  return {
-    get: vi.fn().mockReturnValue(hasClaim ? { value: "claim-secret" } : undefined),
-  };
+function cookieStore(claimSecret?: string) {
+  return { get: vi.fn().mockReturnValue(claimSecret === undefined ? undefined : { value: claimSecret }) };
 }
 
-function mockProfileQuery(profile: { nickname: string } | null) {
-  const overrideTypesResult = Object.assign(
-    Promise.resolve({ data: profile, error: null }),
-    { overrideTypes: () => Promise.resolve({ data: profile, error: null }) },
-  );
-  const maybeSingle = vi.fn().mockReturnValue(overrideTypesResult);
-  const eq = vi.fn().mockReturnValue({ maybeSingle });
-  const select = vi.fn().mockReturnValue({ eq });
-  createClientMock.mockResolvedValue({ from: vi.fn().mockReturnValue({ select }) });
-}
-
-describe("招待受諾確認画面", () => {
+describe("D1招待受諾確認画面", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getD1DatabaseMock.mockResolvedValue("db");
+    getCurrentUserMock.mockResolvedValue(null);
   });
 
-  afterEach(() => {
+  afterEach(cleanup);
+
+  it("claimなし・無効claimは同じ共通エラーを表示する", async () => {
+    cookiesMock.mockResolvedValueOnce(cookieStore());
+    render(await AcceptInvitationConfirmPage());
+    expect(screen.getByRole("heading", { name: "この招待は開けません" })).toBeInTheDocument();
+
     cleanup();
+    cookiesMock.mockResolvedValueOnce(cookieStore("invalid-claim"));
+    getInvitationClaimStateMock.mockResolvedValue(null);
+    render(await AcceptInvitationConfirmPage());
+    expect(screen.getByRole("heading", { name: "この招待は開けません" })).toBeInTheDocument();
   });
 
-  it("claim cookieがない場合は共通エラーを表示し、認証状態を確認しない", async () => {
-    cookiesMock.mockResolvedValue(cookieStoreWithClaim(false));
+  it("未登録メールの有効claimでは招待限定登録フォームを表示する", async () => {
+    cookiesMock.mockResolvedValue(cookieStore("claim-secret"));
+    getInvitationClaimStateMock.mockResolvedValue({ email: "new@example.test", kind: "new" });
 
     render(await AcceptInvitationConfirmPage());
 
-    expect(
-      screen.getByRole("heading", { name: "この招待は開けません" }),
-    ).toBeInTheDocument();
-    expect(getCurrentUserMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "招待からアカウントを作成" })).toBeInTheDocument();
+    expect(screen.getByLabelText("メールアドレス")).toHaveValue("new@example.test");
+    expect(screen.getByLabelText("ニックネーム")).toBeInTheDocument();
+    expect(screen.getByLabelText("パスワード")).toHaveAttribute("minLength", "12");
+    expect(screen.getByRole("button", { name: "アカウントを作成して参加" })).toBeInTheDocument();
   });
 
-  it("未ログインの場合は招待受諾画面へ戻るnext付きでログイン画面へリダイレクトする", async () => {
-    cookiesMock.mockResolvedValue(cookieStoreWithClaim(true));
-    getCurrentUserMock.mockResolvedValue(null);
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT");
-    });
+  it("既存メールの有効claimではログイン後に戻る", async () => {
+    cookiesMock.mockResolvedValue(cookieStore("claim-secret"));
+    getInvitationClaimStateMock.mockResolvedValue({ email: "existing@example.test", kind: "existing" });
+    redirectMock.mockImplementation(() => { throw new Error("NEXT_REDIRECT"); });
 
     await expect(AcceptInvitationConfirmPage()).rejects.toThrow("NEXT_REDIRECT");
-
     expect(redirectMock).toHaveBeenCalledWith(
       "/login?next=%2Finvitations%2Faccept%2Fresume",
     );
   });
 
-  it("ニックネーム未登録の場合は受諾ボタンの代わりにニックネーム登録フォームを表示する", async () => {
-    cookiesMock.mockResolvedValue(cookieStoreWithClaim(true));
-    getCurrentUserMock.mockResolvedValue({ id: "user-1" });
-    mockProfileQuery(null);
-
-    const { container } = render(await AcceptInvitationConfirmPage());
-
-    expect(
-      screen.getByRole("heading", { name: "ニックネーム登録" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "招待を受諾する" }),
-    ).not.toBeInTheDocument();
-    expect(container.querySelector('input[name="next"]')).toHaveValue(
-      "/invitations/accept/resume",
-    );
-  });
-
-  it("ニックネーム登録済みの場合は受諾ボタンを表示する", async () => {
-    cookiesMock.mockResolvedValue(cookieStoreWithClaim(true));
-    getCurrentUserMock.mockResolvedValue({ id: "user-1" });
-    mockProfileQuery({ nickname: "たろう" });
+  it("ログイン済み利用者には受諾ボタンを表示し、commit時にメール一致を検証させる", async () => {
+    cookiesMock.mockResolvedValue(cookieStore("claim-secret"));
+    getInvitationClaimStateMock.mockResolvedValue({ email: "existing@example.test", kind: "existing" });
+    getCurrentUserMock.mockResolvedValue({
+      email: "existing@example.test",
+      id: "existing-user",
+      sessionVersion: 0,
+    });
 
     render(await AcceptInvitationConfirmPage());
 
-    expect(
-      screen.getByRole("button", { name: "招待を受諾する" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "招待を受諾する" })).toBeInTheDocument();
   });
 });

@@ -28,8 +28,9 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 
 ## Database
 
-- [ローカルprod環境の利用・運用手順](references/local-prod-operations.md) - 実データを使ってYAMORUを自分の家で動かす人向けの、初回セットアップから更新の取り込み、バックアップ・復旧までの手順
+- [旧Supabaseローカルprod環境の利用・運用手順](references/local-prod-operations.md) - D1移行前の運用を確認する履歴資料
 - [データベースに影響する変更の手順](references/database-change-playbook.md) - 現在のスキーマをどこで確認するか、スキーマを変更するときに何を実行するか
+- [Auth.js初回bootstrapとパスワード再設定](references/auth-admin-operations.md) - ローカルD1で最初のアカウントを作成し、運用者がパスワードを再設定する手順
 
 ## Reading rules
 

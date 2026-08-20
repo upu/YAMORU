@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { AuthError } from "@auth/core/errors";
 
+import { signIn } from "../../auth";
+import { MIN_PASSWORD_LENGTH } from "../../lib/auth/password-policy";
 import { toSafeRedirectPath } from "../../lib/auth/safe-redirect";
-import { createClient } from "../../lib/supabase/server";
 import type { AuthActionState } from "./state";
 
 type Credentials = { email: string; password: string };
@@ -17,7 +18,7 @@ function readCredentials(formData: FormData): Credentials | null {
     typeof email !== "string" ||
     typeof password !== "string" ||
     !email.includes("@") ||
-    password.length < 6
+    password.length < MIN_PASSWORD_LENGTH
   ) {
     return null;
   }
@@ -27,7 +28,7 @@ function readCredentials(formData: FormData): Credentials | null {
 
 function invalidInput(): AuthActionState {
   return {
-    message: "メールアドレスと6文字以上のパスワードを入力してください。",
+    message: `メールアドレスと${String(MIN_PASSWORD_LENGTH)}文字以上のパスワードを入力してください。`,
     status: "error",
   };
 }
@@ -40,36 +41,18 @@ export async function login(
   if (credentials === null) return invalidInput();
   const next = toSafeRedirectPath(formData.get("next"));
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(credentials);
-  if (error !== null) {
+  revalidatePath("/", "layout");
+  try {
+    await signIn("credentials", {
+      ...credentials,
+      redirectTo: next ?? "/",
+    });
+  } catch (error) {
+    if (!(error instanceof AuthError)) throw error;
     return {
       message: "メールアドレスまたはパスワードを確認してください。",
       status: "error",
     };
   }
-
-  revalidatePath("/", "layout");
-  redirect(next ?? "/");
-}
-
-export async function signup(
-  _previousState: AuthActionState,
-  formData: FormData,
-): Promise<AuthActionState> {
-  const credentials = readCredentials(formData);
-  if (credentials === null) return invalidInput();
-  const next = toSafeRedirectPath(formData.get("next"));
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signUp(credentials);
-  if (error !== null) {
-    return {
-      message: "登録できませんでした。入力内容を確認してください。",
-      status: "error",
-    };
-  }
-
-  revalidatePath("/", "layout");
-  redirect(next ?? "/");
+  return { message: "", status: "idle" };
 }

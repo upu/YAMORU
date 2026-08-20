@@ -21,7 +21,7 @@ export function isManagedItemKind(value: string): value is ManagedItemKind {
 }
 
 // managed_items.kindはCHECK制約付きのtextであり、生成された型では`string`になる
-// (lib/supabase/database.types.ts)。DBから読んだ値をこのunionへ落とす際に、
+// D1のmanaged_items.kind。DBから読んだ値をこのunionへ落とす際に、
 // 制約とMANAGED_ITEM_KINDSのズレを黙って通さず、その場で失敗させる。
 export function toManagedItemKind(value: string): ManagedItemKind {
   if (!isManagedItemKind(value)) {

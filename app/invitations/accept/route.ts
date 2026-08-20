@@ -1,31 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getClientIp } from "../../../lib/http/client-ip";
+import { getD1Database } from "../../../lib/d1/client";
+import { openInvitationClaim } from "../../../lib/d1/invitations";
 import {
   INVITE_CLAIM_COOKIE_NAME,
   INVITE_CLAIM_COOKIE_PATH,
   INVITE_CLAIM_FALLBACK_MAX_AGE_SECONDS,
 } from "../../../lib/invitations/claim-cookie";
-import { createServiceRoleClient } from "../../../lib/supabase/service-role";
 
 const CONFIRM_PATH = "/invitations/accept/confirm";
 
-// Issue #69 (YDR-019): 招待リンクの最初の到達点。
-//
-// ?tokenを持つ場合(招待リンクそのもの)は、生トークンを一時状態(claim)へ
-// 交換してhttpOnly cookieへ格納し、tokenを含まないURLへリダイレクトする
-// (YDR-019「生の招待トークンをURLに含めたまま認証フローを回さない」)。
-// ?tokenを持たない場合(ログイン・ニックネーム登録からの復帰)は、既存の
-// claim cookieをそのまま確認ページへ引き継ぐ。
-//
-// 交換RPC(open_invitation_claim)はトークンの有効性によらず常に成功する
-// 設計のため、ここで失敗するのは想定外の障害時だけである。その場合はcookieを
-// 設定せず、確認ページの共通エラー表示に委ねる(有効・無効で応答を変えない)。
-//
-// Issue #70: このRPCはservice_role専用境界に移した。anon/authenticatedキーの
-// クライアントからは呼べない(直接RPC呼び出しでのバイパスを塞ぐ)。この
-// Route Handlerだけがservice-roleクライアントで呼び、IPアドレス単位の試行
-// 回数を判断する。
+// 生tokenは最初の到達でD1上の短命claimへ交換し、URLから必ず除去する。
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
   const response = NextResponse.redirect(new URL(CONFIRM_PATH, request.url), {
@@ -36,27 +21,24 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const supabase = createServiceRoleClient();
-  const clientIp = getClientIp(request.headers);
-  const { data, error } = await supabase.rpc("open_invitation_claim", {
-    invitation_token: token,
-    p_client_ip: clientIp,
-  });
-
-  const claim = data?.[0];
-  if (error !== null || claim === undefined) {
+  let claim;
+  try {
+    const db = await getD1Database();
+    claim = await openInvitationClaim(db, token);
+  } catch {
     return response;
   }
+  if (claim === null) return response;
 
   const remainingSeconds = Math.floor(
-    (new Date(claim.expires_at).getTime() - Date.now()) / 1000,
+    (new Date(claim.expiresAt).getTime() - Date.now()) / 1000,
   );
   const maxAgeSeconds = Math.min(
     INVITE_CLAIM_FALLBACK_MAX_AGE_SECONDS,
     Math.max(1, remainingSeconds),
   );
 
-  response.cookies.set(INVITE_CLAIM_COOKIE_NAME, claim.claim_secret, {
+  response.cookies.set(INVITE_CLAIM_COOKIE_NAME, claim.claimSecret, {
     httpOnly: true,
     maxAge: maxAgeSeconds,
     path: INVITE_CLAIM_COOKIE_PATH,

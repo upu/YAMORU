@@ -12,14 +12,21 @@ export default async function LoginPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const next = toSafeRedirectPath(firstSearchParamValue(resolvedSearchParams.next));
+  const passwordChanged =
+    firstSearchParamValue(resolvedSearchParams.passwordChanged) === "1";
 
   return (
     <main className="auth-page">
       <header className="auth-hero">
-        <p className="eyebrow">LOCAL AUTH</p>
+        <p className="eyebrow">FAMILY AUTH</p>
         <h1>YAMORUへログイン</h1>
-        <p>ローカルSupabaseで、登録とログインを確認します。</p>
+        <p>招待された家族のアカウントでログインしてください。</p>
       </header>
+      {passwordChanged ? (
+        <p className="auth-feedback" role="status">
+          パスワードを変更しました。新しいパスワードでログインしてください。
+        </p>
+      ) : null}
       <LoginForm next={next ?? undefined} />
     </main>
   );

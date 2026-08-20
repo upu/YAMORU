@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const { createTodoMock } = vi.hoisted(() => ({ createTodoMock: vi.fn() }));
 
 vi.mock("../app/todos/new/actions", () => ({ createTodo: createTodoMock }));
+vi.mock("../auth", () => ({ auth: vi.fn() }));
 
 import { TodoRegistrationContent } from "../app/todos/new/page";
 
