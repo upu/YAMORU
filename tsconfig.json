@@ -33,6 +33,6 @@
   ],
   "exclude": [
     "node_modules",
-    "lib/d1-spike/**/*.spike.test.ts"
+    "lib/d1/**/*.d1-test.ts"
   ]
 }

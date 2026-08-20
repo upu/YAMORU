@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, revalidatePathMock, rpcMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+const { createOneTimeTaskMock, getD1ContextMock, revalidatePathMock } = vi.hoisted(() => ({
+  createOneTimeTaskMock: vi.fn(),
+  getD1ContextMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  rpcMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../lib/d1/todos", () => ({
+  createCalendarTask: vi.fn(),
+  createMaintenanceTask: vi.fn(),
+  createOneTimeTask: createOneTimeTaskMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -38,16 +41,18 @@ function todoForm({
 describe("専用ページの一回限りTodo登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
-    rpcMock.mockResolvedValue({ data: "task-rule-id", error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createOneTimeTaskMock.mockResolvedValue("task-rule-id");
   });
 
   it("管理対象なしでは一回限りTodoを家庭へ登録する", async () => {
     const result = await createTodo(INITIAL_STATE, todoForm());
 
-    expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
-      scheduled_for: "2026-10-09T15:00:00.000Z",
-      task_title: "家族会議",
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "once",
+      scheduledFor: "2026-10-09T15:00:00.000Z",
+      title: "家族会議",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(result).toEqual({
@@ -62,10 +67,11 @@ describe("専用ページの一回限りTodo登録操作", () => {
       todoForm({ managedItemId: "managed-item-id", title: "今回だけ点検" }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
-      item_id: "managed-item-id",
-      scheduled_for: "2026-10-09T15:00:00.000Z",
-      task_title: "今回だけ点検",
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: "managed-item-id",
+      recurrenceBasis: "once",
+      scheduledFor: "2026-10-09T15:00:00.000Z",
+      title: "今回だけ点検",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
   });
@@ -75,7 +81,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
     async (title) => {
       const result = await createTodo(INITIAL_STATE, todoForm({ title }));
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "Todo名は1文字以上100文字以内で入力してください。",
         status: "error",
@@ -91,7 +97,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
         todoForm({ plannedDate }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "予定日を正しく入力してください。",
         status: "error",
@@ -100,10 +106,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
   );
 
   it("保存失敗では内部詳細を表示せず再試行を案内する", async () => {
-    rpcMock.mockResolvedValue({
-      data: null,
-      error: new Error("sensitive database detail"),
-    });
+    createOneTimeTaskMock.mockRejectedValue(new Error("sensitive database detail"));
 
     const result = await createTodo(INITIAL_STATE, todoForm());
 

@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "../../../lib/supabase/server";
+import { getD1Context } from "../../../lib/d1/context";
+import {
+  completeTask,
+  postponeTaskOccurrence as postponeTaskOccurrenceInD1,
+  setTaskOccurrenceAssignee as setTaskOccurrenceAssigneeInD1,
+  undoTaskCompletion,
+} from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "./state";
 import {
   formatTokyoDate,
@@ -14,6 +20,10 @@ import {
 // if文の連なりを重複させない(complete/assignee/postpone/undoの4箇所で
 // 同じ形のマッピングが必要になるため)。
 type RpcErrorRule = { fragment: string; response: MaintenanceTodoActionState };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "";
+}
 
 function mapRpcError(
   message: string,
@@ -95,17 +105,17 @@ export async function completeMaintenanceTask(
     if (occurredAtIso === null) return INVALID_OCCURRED_ON;
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("complete_maintenance_task", {
-    idempotency_key: idempotencyKey,
-    occurrence_id: occurrenceId,
-    ...(occurredAtIso === null ? {} : { occurred_at: occurredAtIso }),
-    // 省略時はRPC側のdefault nullが操作主体を実施者として使う
-    // (setTaskOccurrenceAssigneeのnew_assignee_user_idと同じ回避方法)。
-    ...(performedByUserId === null ? {} : { performed_by_user_id: performedByUserId }),
-  });
-
-  if (error !== null) return mapCompleteMaintenanceTaskError(error.message);
+  try {
+    const { db, session } = await getD1Context();
+    await completeTask(db, session, {
+      idempotencyKey,
+      occurredAt: occurredAtIso,
+      occurrenceId,
+      performedByUserId,
+    });
+  } catch (error) {
+    return mapCompleteMaintenanceTaskError(errorMessage(error));
+  }
 
   revalidateManagedItemAndHome(managedItemId);
   return {
@@ -124,18 +134,12 @@ export async function setTaskOccurrenceAssignee(
   occurrenceId: string,
   assigneeUserId: string | null,
 ): Promise<MaintenanceTodoActionState> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("set_task_occurrence_assignee", {
-    occurrence_id: occurrenceId,
-    // assigneeUserIdがnull(解除)の場合はキー自体を省略する。RPC側の
-    // default nullが同じ意味になり、生成された型はnull非許容のため
-    // (complete_maintenance_taskのoccurred_atと同じ回避方法)。
-    ...(assigneeUserId === null ? {} : { new_assignee_user_id: assigneeUserId }),
-  });
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await setTaskOccurrenceAssigneeInD1(db, session, occurrenceId, assigneeUserId);
+  } catch (error) {
     return mapRpcError(
-      error.message,
+      errorMessage(error),
       [
         {
           fragment: ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT,
@@ -176,15 +180,12 @@ export async function postponeTaskOccurrence(
   const dueAtIso = tokyoDateToUtcIso(dueOn);
   if (dueAtIso === null) return INVALID_DUE_DATE;
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("postpone_task_occurrence", {
-    new_due_at: dueAtIso,
-    occurrence_id: occurrenceId,
-  });
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await postponeTaskOccurrenceInD1(db, session, occurrenceId, dueAtIso);
+  } catch (error) {
     return mapRpcError(
-      error.message,
+      errorMessage(error),
       [
         {
           fragment: NOT_IN_FUTURE_MESSAGE_FRAGMENT,
@@ -216,15 +217,12 @@ export async function undoMaintenanceTaskCompletion(
   occurrenceId: string,
   idempotencyKey: string,
 ): Promise<MaintenanceTodoActionState> {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("undo_maintenance_task_completion", {
-    idempotency_key: idempotencyKey,
-    occurrence_id: occurrenceId,
-  });
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await undoTaskCompletion(db, session, occurrenceId, idempotencyKey);
+  } catch (error) {
     return mapRpcError(
-      error.message,
+      errorMessage(error),
       [
         {
           fragment: NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT,

@@ -8,9 +8,9 @@ export default defineConfig({
       ".claude/worktrees/**",
       "e2e/**",
       "tests/**/*.integration.test.ts",
-      // Issue #116スパイク: Workersランタイム(D1バインディング)が必要なため、
-      // vitest.d1-spike.config.ts(npm run spike:cf:d1:test)側だけで実行する。
-      "lib/d1-spike/**/*.spike.test.ts",
+      // Workersランタイム(D1バインディング)が必要なため、
+      // vitest.d1.config.ts(npm run test:d1)側だけで実行する。
+      "lib/d1/**/*.d1-test.ts",
     ],
   },
 });

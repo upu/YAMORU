@@ -1,48 +1,18 @@
 import Link from "next/link";
 
 import { requireUser } from "../../lib/auth/current-user";
-import { createClient } from "../../lib/supabase/server";
+import { getD1Context } from "../../lib/d1/context";
+import { loadAccountState as loadD1AccountState } from "../../lib/d1/households";
 import { HouseholdForm } from "./household-form";
 import { NicknameEditForm } from "./nickname-edit-form";
 import { NicknameForm } from "./nickname-form";
 
-type Household = { id: string; name: string };
-type Profile = { nickname: string };
-
-async function loadAccountState(userId: string) {
-  const supabase = await createClient();
-  const [
-    { data: household, error: householdError },
-    { data: profile, error: profileError },
-  ] = await Promise.all([
-    supabase
-      .from("households")
-      .select("id, name")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle()
-      .overrideTypes<Household, { merge: false }>(),
-    supabase
-      .from("profiles")
-      .select("nickname")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .overrideTypes<Profile, { merge: false }>(),
-  ]);
-
-  if (householdError !== null) {
-    throw new Error("家庭情報を取得できませんでした。");
-  }
-  if (profileError !== null) {
-    throw new Error("ニックネーム情報を取得できませんでした。");
-  }
-
-  return { household, profile };
-}
-
 export default async function AccountPage() {
   const user = await requireUser();
-  const { household, profile } = await loadAccountState(user.id);
+  const { db, session } = await getD1Context(user);
+  const accountState = await loadD1AccountState(db, session);
+  const household = accountState.household;
+  const profile = accountState.nickname === null ? null : { nickname: accountState.nickname };
 
   return (
     <main className="detail-page account-page">

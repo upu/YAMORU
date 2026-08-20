@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { requireUser } from "../../lib/auth/current-user";
-import { createClient } from "../../lib/supabase/server";
+import { getD1Context } from "../../lib/d1/context";
+import { listManagedItems } from "../../lib/d1/managed-items";
+import { loadAccountState } from "../../lib/d1/households";
 import { ManagedItemForm } from "./managed-item-form";
 import {
   MANAGED_ITEM_KIND_LABELS,
@@ -76,33 +78,15 @@ export function ManagedItemsContent({
 }
 
 export default async function ManagedItemsPage() {
-  await requireUser();
-  const supabase = await createClient();
-  const { data: householdData, error: householdError } = await supabase
-    .from("households")
-    .select("id, name")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (householdError !== null) {
-    throw new Error("家庭情報を取得できませんでした。");
-  }
-
-  const household: HouseholdSummary | null = householdData;
+  const user = await requireUser();
+  const { db, session } = await getD1Context(user);
+  const accountState = await loadAccountState(db, session);
+  const household: HouseholdSummary | null = accountState.household;
   if (household === null) {
     return <ManagedItemsContent household={null} items={[]} />;
   }
 
-  const { data: itemData, error: itemError } = await supabase
-    .from("managed_items")
-    .select("id, name, kind")
-    .order("created_at", { ascending: false });
-
-  if (itemError !== null) {
-    throw new Error("台帳を取得できませんでした。");
-  }
-
+  const itemData = await listManagedItems(db, session);
   const items: ManagedItemSummary[] = itemData.map((item) => ({
     id: item.id,
     kind: toManagedItemKind(item.kind),

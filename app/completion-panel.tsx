@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-import type { HouseholdMemberOption } from "../lib/supabase/profile";
+import type { HouseholdMemberOption } from "../lib/d1/profiles";
 import { DialogShell } from "./dialog-shell";
 import { formatDateInput } from "./time-zone";
 

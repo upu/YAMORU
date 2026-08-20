@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, redirectMock, revalidatePathMock, rpcMock } = vi.hoisted(
+const { createManagedItemInD1Mock, getD1ContextMock, redirectMock, revalidatePathMock } = vi.hoisted(
   () => ({
-    createClientMock: vi.fn(),
+    createManagedItemInD1Mock: vi.fn(),
+    getD1ContextMock: vi.fn(),
     redirectMock: vi.fn(),
     revalidatePathMock: vi.fn(),
-    rpcMock: vi.fn(),
   }),
 );
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({
+  getD1Context: getD1ContextMock,
+}));
+
+vi.mock("../lib/d1/managed-items", () => ({
+  createManagedItem: createManagedItemInD1Mock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -44,8 +48,8 @@ function managedItemForm({
 describe("ManagedItem登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
-    rpcMock.mockResolvedValue({ data: "managed-item-id", error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createManagedItemInD1Mock.mockResolvedValue("managed-item-id");
   });
 
   it("家庭IDを受け取らず、整形済み入力を限定RPCへ渡す", async () => {
@@ -58,10 +62,10 @@ describe("ManagedItem登録操作", () => {
       }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_managed_item", {
-      external_url: "https://example.com/product",
-      item_kind: "pet_supplies",
-      item_name: "猫の浄水器",
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      externalUrl: "https://example.com/product",
+      kind: "pet_supplies",
+      name: "猫の浄水器",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items");
     expect(redirectMock).toHaveBeenCalledWith(
@@ -72,11 +76,10 @@ describe("ManagedItem登録操作", () => {
   it("空の外部リンクはリンクなしとして登録する", async () => {
     await createManagedItem(INITIAL_STATE, managedItemForm());
 
-    // 引数を省くとSQL関数側の`default null`が使われ、リンクなしになる。
-    expect(rpcMock).toHaveBeenCalledWith("create_managed_item", {
-      external_url: undefined,
-      item_kind: "pet_supplies",
-      item_name: "猫の浄水器",
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      externalUrl: null,
+      kind: "pet_supplies",
+      name: "猫の浄水器",
     });
   });
 
@@ -88,7 +91,7 @@ describe("ManagedItem登録操作", () => {
         managedItemForm({ name }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "名前は1文字以上100文字以内で入力してください。",
         status: "error",
@@ -102,7 +105,7 @@ describe("ManagedItem登録操作", () => {
       managedItemForm({ kind: "secret_kind" }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "種類を選択してください。",
       status: "error",
@@ -120,7 +123,7 @@ describe("ManagedItem登録操作", () => {
       managedItemForm({ externalUrl }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "外部リンクはhttpまたはhttpsの絶対URLで入力してください。",
       status: "error",
@@ -128,10 +131,9 @@ describe("ManagedItem登録操作", () => {
   });
 
   it("保存失敗の内部詳細を表示せず再試行できる案内を返す", async () => {
-    rpcMock.mockResolvedValue({
-      data: null,
-      error: new Error("sensitive database detail"),
-    });
+    createManagedItemInD1Mock.mockRejectedValue(
+      new Error("sensitive database detail"),
+    );
 
     const result = await createManagedItem(
       INITIAL_STATE,

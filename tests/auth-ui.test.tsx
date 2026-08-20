@@ -3,8 +3,9 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, requireUserMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+const { getD1ContextMock, loadAccountStateMock, requireUserMock } = vi.hoisted(() => ({
+  getD1ContextMock: vi.fn(),
+  loadAccountStateMock: vi.fn(),
   requireUserMock: vi.fn(),
 }));
 
@@ -12,8 +13,12 @@ vi.mock("../lib/auth/current-user", () => ({
   requireUser: requireUserMock,
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({
+  getD1Context: getD1ContextMock,
+}));
+
+vi.mock("../lib/d1/households", () => ({
+  loadAccountState: loadAccountStateMock,
 }));
 
 import AccountPage from "../app/account/page";
@@ -53,13 +58,6 @@ describe("ログイン画面", () => {
 });
 
 describe("アカウント画面", () => {
-  function overrideTypesResult<T>(data: T, error: unknown) {
-    const result = Promise.resolve({ data, error });
-    return Object.assign(result, {
-      overrideTypes: () => result,
-    });
-  }
-
   function mockAccountQueries({
     household,
     profile,
@@ -67,25 +65,10 @@ describe("アカウント画面", () => {
     household: { id: string; name: string } | null;
     profile: { nickname: string } | null;
   }) {
-    const householdMaybeSingle = vi
-      .fn()
-      .mockReturnValue(overrideTypesResult(household, null));
-    const limit = vi.fn().mockReturnValue({ maybeSingle: householdMaybeSingle });
-    const order = vi.fn().mockReturnValue({ limit });
-    const householdSelect = vi.fn().mockReturnValue({ order });
-
-    const profileMaybeSingle = vi
-      .fn()
-      .mockReturnValue(overrideTypesResult(profile, null));
-    const eq = vi.fn().mockReturnValue({ maybeSingle: profileMaybeSingle });
-    const profileSelect = vi.fn().mockReturnValue({ eq });
-
-    createClientMock.mockResolvedValue({
-      from: vi.fn().mockImplementation((table: string) => {
-        if (table === "households") return { select: householdSelect };
-        if (table === "profiles") return { select: profileSelect };
-        throw new Error(`unexpected table: ${table}`);
-      }),
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    loadAccountStateMock.mockResolvedValue({
+      household,
+      nickname: profile?.nickname ?? null,
     });
   }
 

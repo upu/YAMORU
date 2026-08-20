@@ -8,8 +8,9 @@ import {
   type HouseholdMemberOption,
   loadActorName,
   loadHouseholdMembers,
-} from "../../../lib/supabase/profile";
-import { createClient } from "../../../lib/supabase/server";
+} from "../../../lib/d1/profiles";
+import { getD1Context } from "../../../lib/d1/context";
+import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
 import { selectActiveCompletionLogs } from "../../active-completion";
 import {
   isSafeExternalUrl,
@@ -396,22 +397,12 @@ export default async function RegisteredManagedItemDetail({
 }) {
   const user = await requireUser();
   const { id } = await params;
-  const supabase = await createClient();
+  const { db, session } = await getD1Context(user);
   const nowIso = new Date().toISOString();
-  const [{ data, error }, actorName] = await Promise.all([
-    supabase
-      .from("managed_items")
-      .select(
-        "id, name, kind, household_id, external_links(id, url), task_rules(id, title, deadline_kind, recurrence_basis, task_occurrences(id, status, scheduled_for, due_at, assignee_user_id, activity_logs!activity_logs_occurrence_household_fkey(id, action, occurred_at, recorded_at, performed_by_user_id)))",
-      )
-      .eq("id", id)
-      .maybeSingle(),
-    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
+  const [data, actorName] = await Promise.all([
+    loadManagedItemDetail(db, session, id),
+    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
   ]);
-
-  if (error !== null) {
-    throw new Error("管理対象を取得できませんでした。");
-  }
 
   if (data === null) notFound();
 
@@ -429,12 +420,13 @@ export default async function RegisteredManagedItemDetail({
       : latestCompletionLog.performed_by_user_id === null
         ? Promise.resolve(FALLBACK_OTHER_MEMBER_NAME)
         : loadActorName(
-            supabase,
+            db,
+            session,
             latestCompletionLog.performed_by_user_id,
             FALLBACK_OTHER_MEMBER_NAME,
           ),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
-    loadHouseholdMembers(supabase, data.household_id),
+    loadHouseholdMembers(db, session),
   ]);
   const lastActivity =
     latestCompletionLog === null || lastActivityPerformerName === null

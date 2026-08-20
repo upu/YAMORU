@@ -34,7 +34,7 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 ## Reading rules
 
 - まずこの索引を読み、作業に関係する文書だけを開く。
-- データベースのテーブル・カラム・RPC関数を確認するときは、`supabase/migrations/`を通読せず、生成物である`lib/supabase/database.types.ts`を読む。RLSポリシーは型に含まれないため、一覧と意図は`docs/references/rls-policy-catalog.md`、境界が実際に効いていることは`supabase/tests/database/`のpgTAPテストを併せて読む。
+- 現在のデータベース定義は`d1/migrations/`、アプリ層の家庭間分離は`lib/d1/`、実D1上の境界・原子性テストは`lib/d1/**/*.d1-test.ts`を正本として読む。詳細な変更手順は`docs/references/database-change-playbook.md`を参照する。
 - 概念文書の`status: deprecated`は、現在の仕様ではなく過去の経緯として扱う。`status`がなければ`stable`として扱う。
 - 意思決定は各YDR本文の状態を確認し、`Accepted`かつ後続のYDRで置き換えられていないものだけを現在有効として扱う。
 - 外部情報を扱う概念文書に`stale_after`がある場合は、期限と出典を確認する。

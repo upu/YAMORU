@@ -6,18 +6,18 @@ YAMORUは、家族のTodo、家電や契約などの管理対象、定期メン�
 
 ## 現在の段階
 
-Phase 1(猫の浄水器ユースケースを一人で端から端まで動かす最小縦切り)が完了しています。ローカルSupabase(`prod`環境)へ接続した家庭の実データで、次を確認できます(詳細は[ローカルSupabase(prod・test環境)](#ローカルsupabaseprodtest環境)を参照)。
+Phase 1(猫の浄水器ユースケースを一人で端から端まで動かす最小縦切り)が完了しています。[YDR-022](docs/decisions/ydr-022-cloudflare-workers-d1-migration.md)に基づき、家庭・台帳・Todo・履歴・招待発行の保存先はCloudflare D1へ移行済みです。認証と招待受諾はIssue #122でAuth.jsへ置き換えるまでSupabase互換経路を残しています。
 
 - 登録・ログイン・ログアウト
 - ニックネームと最初の家庭の作成
 - 名前・種類・外部リンクを持つManagedItem(「家の台帳」)の登録・一覧・詳細
 - 完了日基準のメンテナンスTodo登録
 - 通常完了と、過去日時を指定するバックデート完了
-- ActivityLogと次回Occurrenceの永続化。再読み込みや再ログイン後もSupabase上のデータとして保持される
+- ActivityLogと次回OccurrenceのD1への原子的な永続化
 - ホームとManagedItem詳細での実データ表示
 - 自動生成された次回Todoが未変更の場合に限る、直近完了の取消
 - iOS SafariとAndroid Chromeからホーム画面へ追加できるオンライン専用PWA
-- RLSによる家庭間データ分離、冪等性、同時完了時の排他制御、取消の安全性を検証するDBテスト(`supabase/tests/database/`)
+- アプリ層認可による家庭間データ分離、IDOR耐性、冪等性、完了・取消の原子性を実D1で検証するテスト
 
 家族招待、二人以上でのデータ共有、一回限りTodo、固定日基準Todo、延期はPhase 2のスコープです。詳細は[プロダクト計画](docs/product/yamoru-project-plan.md)の該当Phaseを参照してください。
 
@@ -29,6 +29,7 @@ Node.js 24 LTSと[mkcert](https://github.com/FiloSottile/mkcert)を用意し、�
 
 ```powershell
 npm install
+npm run d1:migrate
 npm run dev
 ```
 
@@ -45,21 +46,24 @@ npm run lint
 npm run lint:fix
 npm run typecheck
 npm test
+npm run test:d1
 npm run build
 ```
 
-Pull Requestと`main`へのpushでは、GitHub Actionsの`Quality checks`が同じlint、型チェック、テスト、プロダクションビルドを自動で確認します。
+Pull Requestと`main`へのpushでは、GitHub Actionsの`Quality checks`に加えて、空のローカルD1へのマイグレーション適用と家庭間分離・原子性テストを自動で確認します。
 
-## ローカルSupabase(prod・test環境)
+## 移行期間中のローカルSupabase(Auth・招待受諾のみ)
 
-ローカルのSupabaseは、実データを保存する`prod`環境と、自動テスト専用の`test`環境に物理的に分離しています。project ID・ポート・Dockerボリュームがそれぞれ独立しているため、`test`側の初期化操作が`prod`のデータへ影響することはありません。マイグレーション・seed・pgTAPテストの正本は`supabase/`配下の1か所だけで管理し、各環境のワークディレクトリへは`npm run prod:start`や`npm run test:start`などの実行時に`scripts/supabase-env-sync.ts`が自動で複製します。手動でのファイルコピーは不要です。
+以下はIssue #122が完了するまでの認証互換環境です。家庭・台帳・Todo・履歴・招待発行のアプリデータはSupabase PostgreSQLではなくローカルD1へ保存されます。Supabaseの旧マイグレーション、型、RLSカタログ、DBテストは現在のD1スキーマの正本ではありません。D1変更時は[データベースに影響する変更の手順](docs/references/database-change-playbook.md)に従ってください。
+
+ローカルのSupabaseは、移行期間中のAuth・招待受諾を手動確認する`prod`環境と、その互換テスト専用の`test`環境に物理的に分離しています。project ID・ポート・Dockerボリュームは独立しており、`test`側の初期化操作が`prod`へ影響することはありません。
 
 | 環境 | 用途 | project ID | reset | API | Studio |
 |---|---|---|---|---|---|
-| `prod` | 開発者本人が手動確認で使う実データ。永続・バックアップ対象 | `YAMORU-prod-local` | 用意していません | http://127.0.0.1:55321 | http://127.0.0.1:55323 |
-| `test` | 自動テスト専用。架空fixtureのみを扱い、いつでも初期化してよい | `YAMORU-test` | `npm run test:db:reset` | http://127.0.0.1:58321 | http://127.0.0.1:58323 |
+| `prod` | 移行期間中のSupabase Auth手動確認 | `YAMORU-prod-local` | 用意していません | http://127.0.0.1:55321 | http://127.0.0.1:55323 |
+| `test` | Auth・招待受諾の互換テスト。架空fixtureのみ | `YAMORU-test` | `npm run test:db:reset` | http://127.0.0.1:58321 | http://127.0.0.1:58323 |
 
-ローカルの`prod`は、開発者本人の手元での動作確認のために実データを永続化する個人用途の環境であり、外部に公開できる本番基盤ではありません。Hosted Supabaseへの移行やVercel公開、外部ネットワークへの公開は別途必要です。
+ローカルの`prod`は外部に公開できる本番基盤ではありません。Cloudflareへの本番デプロイと既存実データ移行はIssue #123で扱います。
 
 事前に[Docker Desktop](https://www.docker.com/products/docker-desktop/)を起動します。Supabase CLIは`devDependencies`に固定バージョンで含まれているため、追加インストールは不要です。
 
@@ -147,26 +151,33 @@ iOSとAndroidのどちらかでメニューが表示されない、独立表示�
 
 ### test: 自動テストで使う
 
-家庭間データ分離、最初の家庭作成、期限付き・一回限りの招待受諾をRow Level Security(RLS)と両立できるか検証するため、ローカル専用のDBテストも用意しています([YDR-005](docs/decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)、[RLSスパイク結果](docs/spikes/supabase-rls-household-isolation.md)、[招待受諾スパイク結果](docs/spikes/household-invitation-acceptance.md)を参照)。自動テストはすべて`test`環境だけに接続し、`prod`のURLやキーを使いません。
+D1の家庭間分離・IDOR・原子性はSupabaseを起動せずに確認できます。
+
+```powershell
+npm run d1:migrate
+npm run test:d1
+```
+
+下記のSupabase `test`環境は、Issue #122で置き換えるAuthと招待受諾の互換テストだけに使います。`prod`のURLやキーは使いません。
 
 ```powershell
 npm run test:start      # test環境を起動(初回はDockerイメージ取得で時間がかかります)
 npm run test:db:reset   # マイグレーションとseed.sqlを最初から再適用。いつ実行してもprodへ影響しません
-npm run test:db         # pgTAPによるRLS分離・家庭作成・招待受諾テストを実行(supabase test db)
-npm run test:auth:local # 登録・ログイン・最初の家庭作成のAuth接続をvitestで自動確認
+npm run test:db         # 移行中の招待受諾pgTAPテストを実行
+npm run test:auth:local # Supabase Auth互換経路を自動確認
 npm run test:e2e:install # 初回だけ、E2E用のChromiumをインストール
 npm run test:e2e:local   # 二アカウント共有と家庭間分離をPlaywrightで確認
 npm run test:stop       # test環境を停止
 ```
 
 - `test:db:reset`・`test:db`は、実行前に接続先の`project_id`が`YAMORU-test`であることを検証し、一致しない場合は破壊的操作を開始せずに停止します(`scripts/supabase-destructive-guard.ts`)。
-- `test:e2e:local`も、ブラウザーやDBへ接続する前に`project_id`とSupabase URLがtest環境専用の値であることを検証します。独立したブラウザーコンテキストで架空の家庭A・Bと複数アカウントを作成し、招待、共有Todo・履歴、フォーカス復帰、同時完了、URL・ID・RPCの家庭間分離を確認します。
+- `test:e2e:local`は#122のAuth.js移行に合わせてD1対応を完了するまで、旧Supabaseデータ経路を前提とした互換テストです。
 - `supabase/seed.sql`が投入するのは、ローカル専用の架空データ(家庭A・家庭B、テスト用ユーザー、テスト用管理対象)だけです。家庭の実データは含めません。
 - `test:auth:local`は毎回、`example.test`の一意な架空利用者を作成します。手動起動用の`.env.local`はGit管理対象外です。パスワード、アクセストークン、Service Roleキー、実在するメールアドレスはコミットしません。公開可能なキーも環境変数から読み、ブラウザへService Role権限を渡しません。認証済みであっても、家庭への所属が確認できるまでは家庭データへアクセス可能とは扱いません。
 
-### スキーマの最新仕様(型生成)
+### 旧Supabaseスキーマの履歴資料(移行互換用)
 
-`supabase/migrations/`を積み上げた結果の最終スキーマは、`lib/supabase/database.types.ts`が正本です。テーブル・カラム・RLS関数の引数と戻り値が機械可読な形で入っており、全マイグレーションを時系列に読まなくても現在の仕様を確認できます。手で書いた要約文書は置きません(更新を忘れれば実装とずれるため)。
+現在のアプリデータ仕様の正本は`d1/migrations/`です。以下の型生成は、Issue #122まで残るSupabase Auth・招待受諾互換経路を保守するときだけ使用します。
 
 ```powershell
 npm run gen:types       # マイグレーションから型を再生成する
@@ -174,13 +185,13 @@ npm run gen:types:check # コミット済みの型がマイグレーションと
 ```
 
 - 生成には使い捨てのSupabaseスタック(`environments/gen-types`、`prod`・`test`とは別のproject ID・ポート)を毎回起動し、`supabase/migrations/`だけを適用します。稼働中の`prod`・`test`から生成しないのは、それらに未コミットのマイグレーションが適用されていたり手動操作でずれていたりする可能性があり、「コミット済みマイグレーションだけから再現できる」という前提が崩れるためです。実行後、使い捨てスタックはデータ量ごと破棄されます。
-- マイグレーションを追加したら`npm run gen:types`を実行し、生成結果を同じコミットに含めてください。忘れた場合はCIの`Supabase schema types are up to date`が失敗します。
+- Supabase互換経路のマイグレーションを追加した場合だけ`npm run gen:types`を実行します。D1のCIは`npm run d1:migrate`と`npm run test:d1`を使用します。
 - `lib/supabase/database.types.ts`は生成物です。手で編集せず、スキーマ側を直してから再生成してください。
 - アプリの`createClient()`はこの型を適用済みです。`.from()`・`.rpc()`のテーブル名・カラム名・引数の誤りは`npm run typecheck`で検出されます。
 
-### 現在有効なRLSポリシー一覧(自動生成)
+### 旧RLSポリシー一覧(履歴資料)
 
-RLSポリシーは上記の型生成の対象外です(テーブルの形と関数のシグネチャだけが対象で、「誰がどの行を読めるか」は含まれません)。`docs/references/rls-policy-catalog.md`が、`public`スキーマの`pg_policy`と各ポリシーへ付けた`comment on policy`から生成する一覧です。
+`docs/references/rls-policy-catalog.md`はD1移行前の構成を確認する履歴資料です。現在の家庭間分離は`lib/d1/`と実D1テストで担保します。
 
 ```powershell
 npm run gen:policies       # マイグレーションからカタログを再生成する

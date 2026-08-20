@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { createClient } from "../../lib/supabase/server";
+import { getD1Context } from "../../lib/d1/context";
+import { createManagedItem as createManagedItemInD1 } from "../../lib/d1/managed-items";
 import { isManagedItemKind, isSafeExternalUrl } from "./model";
 import type { ManagedItemActionState } from "./state";
 
@@ -51,17 +52,15 @@ export async function createManagedItem(
     };
   }
 
-  const supabase = await createClient();
-  const response = await supabase.rpc("create_managed_item", {
-    // 未入力時は引数自体を省き、SQL関数側の`default null`に委ねる。
-    external_url: externalUrl.length === 0 ? undefined : externalUrl,
-    item_kind: rawKind,
-    item_name: name,
-  });
-  const data: unknown = response.data;
-  const error: unknown = response.error;
-
-  if (error !== null || typeof data !== "string") {
+  let itemId: string;
+  try {
+    const { db, session } = await getD1Context();
+    itemId = await createManagedItemInD1(db, session, {
+      externalUrl: externalUrl.length === 0 ? null : externalUrl,
+      kind: rawKind,
+      name,
+    });
+  } catch {
     return {
       message: "管理対象を登録できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -69,5 +68,5 @@ export async function createManagedItem(
   }
 
   revalidatePath("/managed-items");
-  redirect(`/managed-items/${encodeURIComponent(data)}`);
+  redirect(`/managed-items/${encodeURIComponent(itemId)}`);
 }

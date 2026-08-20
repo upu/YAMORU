@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, redirectMock, revalidatePathMock, rpcMock } = vi.hoisted(
+const { createFirstHouseholdInD1Mock, getD1ContextMock, redirectMock, revalidatePathMock } = vi.hoisted(
   () => ({
-    createClientMock: vi.fn(),
+    createFirstHouseholdInD1Mock: vi.fn(),
+    getD1ContextMock: vi.fn(),
     redirectMock: vi.fn(),
     revalidatePathMock: vi.fn(),
-    rpcMock: vi.fn(),
   }),
 );
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({
+  getD1Context: getD1ContextMock,
+}));
+
+vi.mock("../lib/d1/households", () => ({
+  createFirstHousehold: createFirstHouseholdInD1Mock,
+  createProfile: vi.fn(),
+  updateProfile: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -34,16 +40,18 @@ function householdForm(name: string) {
 describe("最初の家庭作成操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
-    rpcMock.mockResolvedValue({ data: "household-id", error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createFirstHouseholdInD1Mock.mockResolvedValue(undefined);
   });
 
   it("家庭名の前後空白を除き、限定RPCだけへ渡す", async () => {
     await createFirstHousehold(INITIAL_STATE, householdForm("  テスト家庭  "));
 
-    expect(rpcMock).toHaveBeenCalledWith("create_first_household", {
-      household_name: "テスト家庭",
-    });
+    expect(createFirstHouseholdInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "テスト家庭",
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/account");
     expect(redirectMock).toHaveBeenCalledWith("/account");
   });
@@ -53,7 +61,7 @@ describe("最初の家庭作成操作", () => {
     async (name) => {
       const result = await createFirstHousehold(INITIAL_STATE, householdForm(name));
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "家庭名は1文字以上100文字以内で入力してください。",
         status: "error",
@@ -62,10 +70,9 @@ describe("最初の家庭作成操作", () => {
   );
 
   it("作成失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {
-    rpcMock.mockResolvedValue({
-      data: null,
-      error: new Error("sensitive database detail"),
-    });
+    createFirstHouseholdInD1Mock.mockRejectedValue(
+      new Error("sensitive database detail"),
+    );
 
     const result = await createFirstHousehold(
       INITIAL_STATE,

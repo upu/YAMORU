@@ -30,10 +30,10 @@
     "test:db:reset": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase db reset --workdir environments/test",
     "test:db": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase test db --workdir environments/test",
     "test:auth:local": "vitest run --config vitest.auth.config.ts",
-    "spike:cf:build": "opennextjs-cloudflare build",
-    "spike:cf:preview": "npm run spike:cf:build && wrangler dev",
-    "spike:cf:d1:migrate": "wrangler d1 migrations apply DB --local",
-    "spike:cf:d1:test": "vitest run --config vitest.d1-spike.config.ts"
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "npm run cf:build && wrangler dev",
+    "d1:migrate": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
+    "test:d1": "node --env-file=scripts/d1-test.env ./node_modules/vitest/vitest.mjs run --config vitest.d1.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",

@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "../../../lib/supabase/server";
+import { getD1Context } from "../../../lib/d1/context";
+import {
+  createCalendarTask,
+  createMaintenanceTask,
+  createOneTimeTask,
+} from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import {
   addDaysToTokyoDateUtcIso,
@@ -236,27 +241,6 @@ function parseTodo(
   return parseCalendarTodo(basics, formData);
 }
 
-function calendarRpcArguments(input: CalendarTodoInput) {
-  switch (input.scheduleKind) {
-    case "weekly":
-      return { schedule_day_of_week: input.scheduleDayOfWeek, schedule_kind: input.scheduleKind };
-    case "monthly_day":
-      return { schedule_day_of_month: input.scheduleDayOfMonth, schedule_kind: input.scheduleKind };
-    case "monthly_nth_weekday":
-      return {
-        schedule_day_of_week: input.scheduleDayOfWeek,
-        schedule_kind: input.scheduleKind,
-        schedule_week_of_month: input.scheduleWeekOfMonth,
-      };
-    case "yearly":
-      return {
-        schedule_day_of_month: input.scheduleDayOfMonth,
-        schedule_kind: input.scheduleKind,
-        schedule_month: input.scheduleMonth,
-      };
-  }
-}
-
 function revalidateTodoPages(managedItemId: string | null): void {
   revalidatePath("/");
   revalidatePath("/todos/new");
@@ -272,37 +256,22 @@ export async function createTodo(
   const input = parseTodo(formData);
   if ("status" in input) return input;
 
-  const supabase = await createClient();
-  const itemArgument = input.managedItemId === null
-    ? {}
-    : { item_id: input.managedItemId };
-  let response;
-  if (input.recurrenceBasis === "once") {
-    response = await supabase.rpc("create_one_time_task", {
-        ...itemArgument,
-        scheduled_for: input.scheduledFor,
-        task_title: input.title,
+  try {
+    const { db, session } = await getD1Context();
+    if (input.recurrenceBasis === "once") {
+      await createOneTimeTask(db, session, input);
+    } else if (input.recurrenceBasis === "completion") {
+      await createMaintenanceTask(db, session, input);
+    } else {
+      await createCalendarTask(db, session, {
+        ...input,
+        scheduleDayOfMonth: input.scheduleDayOfMonth ?? null,
+        scheduleDayOfWeek: input.scheduleDayOfWeek ?? null,
+        scheduleMonth: input.scheduleMonth ?? null,
+        scheduleWeekOfMonth: input.scheduleWeekOfMonth ?? null,
       });
-  } else if (input.recurrenceBasis === "completion") {
-    response = await supabase.rpc("create_maintenance_task", {
-        ...itemArgument,
-        first_due_at: input.firstDueAt,
-        first_scheduled_for: input.firstScheduledFor,
-        recommended_start_offset: input.recommendedStartOffset,
-        recommended_until_offset: input.recommendedUntilOffset,
-        task_title: input.title,
-      });
-  } else {
-    response = await supabase.rpc("create_calendar_task", {
-      ...itemArgument,
-      ...calendarRpcArguments(input),
-      task_title: input.title,
-    });
-  }
-
-  const data: unknown = response.data;
-  const error: unknown = response.error;
-  if (error !== null || typeof data !== "string") {
+    }
+  } catch {
     return {
       message: "Todoを登録できませんでした。時間をおいて再度お試しください。",
       status: "error",

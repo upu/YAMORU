@@ -341,18 +341,17 @@ MVP後に追加を検討する概念は、Consumable、StockMovement、ShoppingI
 
 ### バックエンド
 
-- Supabase
-  - PostgreSQL
-  - Auth
-  - Row Level Security
-  - Edge Functions
+- Cloudflare Workers
+- Cloudflare D1
+- Auth.js Credentials + JWTセッション
+- household_idを必須にしたデータアクセス層とアプリ層認可
 
 Realtime、Storage、CronはMVPでは使用しない。家族の更新は、画面表示時・フォーカス復帰時・明示的な再読み込みで取得する。ファイル添付を追加する段階でStorageを導入する。
 
 ### 配信・運用
 
-- Vercelを第一候補とする
-- Supabaseのマイグレーションをリポジトリ管理する
+- Cloudflare Workersを配信先とする
+- D1のマイグレーションをリポジトリ管理する
 - 開発、ステージング、本番を分離する
 - エラー監視と構造化ログを導入する
 - 定期的なエクスポートまたはバックアップ方針を設ける
@@ -362,7 +361,7 @@ Realtime、Storage、CronはMVPでは使用しない。家族の更新は、画�
 - 単体テスト: Vitest
 - UIテスト: Testing Library
 - E2E: Playwright
-- データベース権限: RLSポリシーテスト
+- データベース権限: 実D1上の家庭A/B・非メンバー・未認証・IDOR境界テスト
 - 周期計算: 前倒し・遅延・バックデート、タイムゾーン、月末、うるう年、延期、スキップを重点的に検証
 
 ### ネイティブ化の判断条件
@@ -379,7 +378,7 @@ Realtime、Storage、CronはMVPでは使用しない。家族の更新は、画�
 YAMORUには家族構成、所有物、契約、税金、写真、説明書など、生活に密接なデータが入る。
 
 - すべての家庭データにhousehold_idを持たせる。
-- すべての公開スキーマにRLSを適用する。
+- 家庭データへ触れるすべてのデータアクセス関数でmembershipを検証し、更新・削除SQLにもhousehold_id条件を含める。
 - 将来Storageを導入する場合も、家庭メンバー以外からアクセスできないよう制御する。
 - 招待リンクは期限付き・一回限りとする。
 - Service Roleキーをクライアントへ公開しない。
@@ -414,7 +413,7 @@ YAMORUには家族構成、所有物、契約、税金、写真、説明書な�
 
 目的: 猫の浄水器ユースケースを一人で端から端まで動かす。
 
-- Next.js / Supabase基盤
+- Next.js / Cloudflare Workers / D1基盤
 - 認証
 - 名前、種類、外部リンクだけを持つManagedItem
 - TaskRuleとTaskOccurrence

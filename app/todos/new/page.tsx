@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { requireUser } from "../../../lib/auth/current-user";
-import { createClient } from "../../../lib/supabase/server";
+import { getD1Context } from "../../../lib/d1/context";
+import { listManagedItems } from "../../../lib/d1/managed-items";
+import { loadAccountState } from "../../../lib/d1/households";
 import {
   TodoRegistrationForm,
   type TodoManagedItemOption,
@@ -56,18 +58,9 @@ export default async function TodoRegistrationPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
-  const supabase = await createClient();
-  const { data: household, error: householdError } = await supabase
-    .from("households")
-    .select("id, name")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (householdError !== null) {
-    throw new Error("家庭情報を取得できませんでした。");
-  }
+  const user = await requireUser();
+  const { db, session } = await getD1Context(user);
+  const household = (await loadAccountState(db, session)).household;
   if (household === null) {
     return (
       <TodoRegistrationContent
@@ -78,14 +71,7 @@ export default async function TodoRegistrationPage({
     );
   }
 
-  const { data: managedItems, error: managedItemsError } = await supabase
-    .from("managed_items")
-    .select("id, name")
-    .eq("household_id", household.id)
-    .order("name", { ascending: true });
-  if (managedItemsError !== null) {
-    throw new Error("Todoに関連付ける管理対象を取得できませんでした。");
-  }
+  const managedItems = (await listManagedItems(db, session)).sort((left, right) => left.name.localeCompare(right.name));
 
   const resolvedSearchParams = await searchParams;
   const requestedManagedItemId = resolvedSearchParams.managedItemId;
