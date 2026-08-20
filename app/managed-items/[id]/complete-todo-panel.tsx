@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import type { HouseholdMemberOption } from "../../../lib/supabase/profile";
+import type { HouseholdMemberOption } from "../../../lib/d1/profiles";
 import { CompletionPanel } from "../../completion-panel";
 import { OperationFeedback } from "../../operation-feedback";
 import { completeMaintenanceTask } from "./actions";

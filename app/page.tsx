@@ -7,8 +7,15 @@ import {
   type HouseholdMemberOption,
   loadActorName,
   loadHouseholdMembers,
-} from "../lib/supabase/profile";
-import { createClient } from "../lib/supabase/server";
+  loadProfileNames,
+} from "../lib/d1/profiles";
+import { getD1Context } from "../lib/d1/context";
+import {
+  listPendingOccurrences,
+  listRecentActiveCompletions,
+} from "../lib/d1/home";
+import { loadAccountState } from "../lib/d1/households";
+import type { D1Session } from "../lib/d1/authorization";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import { UndoCompletionPanel } from "./managed-items/[id]/undo-completion-panel";
@@ -258,43 +265,21 @@ function formatHeroDate(nowIso: string): string {
 }
 
 async function loadHomeSections(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  db: D1Database,
+  session: D1Session,
   nowIso: string,
 ): Promise<HomeSection[]> {
-  const [
-    { data: occurrenceRows, error: occurrenceError },
-    { data: activityRows, error: activityError },
-  ] = await Promise.all([
-    supabase
-      .from("task_occurrences")
-      .select(
-        "id, scheduled_for, due_at, assignee_user_id, task_rules(id, title, deadline_kind, recurrence_basis, managed_items(id, name))",
-      )
-      .eq("status", "pending"),
-    supabase.rpc("list_recent_active_completions", {
-      max_results: RECENT_COMPLETIONS_LIMIT,
-    }),
+  const [occurrenceRows, activityRows] = await Promise.all([
+    listPendingOccurrences(db, session),
+    listRecentActiveCompletions(db, session, RECENT_COMPLETIONS_LIMIT),
   ]);
-
-  if (occurrenceError !== null || activityError !== null) {
-    throw new Error("ホームの予定を取得できませんでした。");
-  }
 
   // 「最近の実施」に表示するのは実施者(performed_by_user_id)。操作主体
   // (actor_user_id)は表示しない(Issue #18, YDR-020)。
   const performerIds = [
     ...new Set(activityRows.map((row) => row.performed_by_user_id)),
-  ];
-  const { data: profileRows, error: profileError } =
-    performerIds.length === 0
-      ? { data: [] as { nickname: string; user_id: string }[], error: null }
-      : await supabase.from("profiles").select("user_id, nickname").in("user_id", performerIds);
-
-  if (profileError !== null) {
-    throw new Error("実施者を取得できませんでした。");
-  }
-
-  const performerNames = new Map(profileRows.map((row) => [row.user_id, row.nickname]));
+  ].filter((userId): userId is string => userId !== null);
+  const performerNames = await loadProfileNames(db, session, performerIds);
 
   return buildHomeSections(
     buildReminderItems(occurrenceRows, nowIso),
@@ -598,25 +583,15 @@ export function HomeContent({
 
 export default async function Home() {
   const user = await requireUser();
-  const supabase = await createClient();
+  const { db, session } = await getD1Context(user);
   const nowIso = new Date().toISOString();
   const heroDateLabel = formatHeroDate(nowIso);
 
-  const [{ data: householdData, error: householdError }, actorName] = await Promise.all([
-    supabase
-      .from("households")
-      .select("id, name")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    loadActorName(supabase, user.id, FALLBACK_SELF_ACTOR_NAME),
+  const [accountState, actorName] = await Promise.all([
+    loadAccountState(db, session),
+    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
   ]);
-
-  if (householdError !== null) {
-    throw new Error("家庭情報を取得できませんでした。");
-  }
-
-  const household: HomeHouseholdSummary | null = householdData;
+  const household: HomeHouseholdSummary | null = accountState.household;
   if (household === null) {
     return (
       <HomeContent
@@ -631,9 +606,9 @@ export default async function Home() {
   }
 
   const [sections, members] = await Promise.all([
-    loadHomeSections(supabase, nowIso),
+    loadHomeSections(db, session, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
-    loadHouseholdMembers(supabase, household.id),
+    loadHouseholdMembers(db, session),
   ]);
 
   return (

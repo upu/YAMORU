@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { toSafeRedirectPath } from "../../lib/auth/safe-redirect";
-import { createClient } from "../../lib/supabase/server";
+import { getD1Context } from "../../lib/d1/context";
+import {
+  createFirstHousehold as createFirstHouseholdInD1,
+  createProfile,
+  updateProfile,
+} from "../../lib/d1/households";
 import type {
   HouseholdActionState,
   NicknameActionState,
@@ -13,7 +18,6 @@ import type {
 
 const HOUSEHOLD_NAME_MAX_LENGTH = 100;
 const NICKNAME_MAX_LENGTH = 20;
-const UNIQUE_VIOLATION = "23505";
 
 function invalidHouseholdName(): HouseholdActionState {
   return {
@@ -44,12 +48,10 @@ export async function createFirstHousehold(
     return invalidHouseholdName();
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("create_first_household", {
-    household_name: householdName,
-  });
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await createFirstHouseholdInD1(db, session, householdName);
+  } catch {
     return {
       message: "家庭を作成できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -76,11 +78,10 @@ export async function registerNickname(
     return invalidNickname();
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("profiles").insert({ nickname });
-
-  // 23505(一意制約違反)は二重送信などで既に登録済みの場合。冪等に成功として扱う。
-  if (error !== null && error.code !== UNIQUE_VIOLATION) {
+  try {
+    const { db, session } = await getD1Context();
+    await createProfile(db, session, nickname);
+  } catch {
     return {
       message: "ニックネームを登録できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -106,22 +107,10 @@ export async function updateNickname(
     return invalidNickname();
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user === null) redirect("/login");
-
-  // PostgRESTはWHERE句のないUPDATEを拒否する(db-safe-update)ため、対象行を
-  // 絞るeqが必須。user_idはAuthセッションから決定し、クライアントが送る
-  // user_idを信用しない(登録時と同じ方針、Issue #30)。RLS(profiles_update_own)
-  // のUSING/WITH CHECK句が同じ条件を独立に強制するため、二重の防御になる。
-  const { error } = await supabase
-    .from("profiles")
-    .update({ nickname })
-    .eq("user_id", user.id);
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await updateProfile(db, session, nickname);
+  } catch {
     return {
       message: "ニックネームを変更できませんでした。時間をおいて再度お試しください。",
       status: "error",

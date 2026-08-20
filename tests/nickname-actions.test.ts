@@ -1,25 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  createClientMock,
+  createProfileMock,
+  getD1ContextMock,
   redirectMock,
   revalidatePathMock,
-  insertMock,
-  updateMock,
-  eqMock,
-  getUserMock,
+  updateProfileMock,
 } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+  createProfileMock: vi.fn(),
+  getD1ContextMock: vi.fn(),
   redirectMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  insertMock: vi.fn(),
-  updateMock: vi.fn(),
-  eqMock: vi.fn(),
-  getUserMock: vi.fn(),
+  updateProfileMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({
+  getD1Context: getD1ContextMock,
+}));
+
+vi.mock("../lib/d1/households", () => ({
+  createFirstHousehold: vi.fn(),
+  createProfile: createProfileMock,
+  updateProfile: updateProfileMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -33,8 +35,6 @@ vi.mock("next/navigation", () => ({
 import { registerNickname, updateNickname } from "../app/account/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
-const CURRENT_USER_ID = "00000000-0000-0000-0000-000000000001";
-
 function nicknameForm(nickname: string) {
   const formData = new FormData();
   formData.set("nickname", nickname);
@@ -44,15 +44,14 @@ function nicknameForm(nickname: string) {
 describe("ニックネーム登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const fromMock = vi.fn().mockReturnValue({ insert: insertMock });
-    createClientMock.mockResolvedValue({ from: fromMock });
-    insertMock.mockResolvedValue({ error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createProfileMock.mockResolvedValue(undefined);
   });
 
   it("ニックネームの前後空白を除き、insertへ渡す", async () => {
     await registerNickname(INITIAL_STATE, nicknameForm("  たろう  "));
 
-    expect(insertMock).toHaveBeenCalledWith({ nickname: "たろう" });
+    expect(createProfileMock).toHaveBeenCalledWith("db", "session", "たろう");
     expect(revalidatePathMock).toHaveBeenCalledWith("/account");
     expect(redirectMock).toHaveBeenCalledWith("/account");
   });
@@ -62,7 +61,7 @@ describe("ニックネーム登録操作", () => {
     async (nickname) => {
       const result = await registerNickname(INITIAL_STATE, nicknameForm(nickname));
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "ニックネームは1文字以上20文字以内で入力してください。",
         status: "error",
@@ -92,9 +91,7 @@ describe("ニックネーム登録操作", () => {
   );
 
   it("一意制約違反(二重送信)は成功として扱う", async () => {
-    insertMock.mockResolvedValue({
-      error: { code: "23505", message: "duplicate key value" },
-    });
+    createProfileMock.mockResolvedValue(undefined);
 
     await registerNickname(INITIAL_STATE, nicknameForm("たろう"));
 
@@ -103,9 +100,7 @@ describe("ニックネーム登録操作", () => {
   });
 
   it("登録失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {
-    insertMock.mockResolvedValue({
-      error: new Error("sensitive database detail"),
-    });
+    createProfileMock.mockRejectedValue(new Error("sensitive database detail"));
 
     const result = await registerNickname(INITIAL_STATE, nicknameForm("たろう"));
 
@@ -121,23 +116,18 @@ describe("ニックネーム登録操作", () => {
 describe("ニックネーム編集操作(Issue #76)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    const fromMock = vi.fn().mockReturnValue({ update: updateMock });
-    updateMock.mockReturnValue({ eq: eqMock });
-    eqMock.mockResolvedValue({ error: null });
-    getUserMock.mockResolvedValue({
-      data: { user: { id: CURRENT_USER_ID } },
-    });
-    createClientMock.mockResolvedValue({
-      auth: { getUser: getUserMock },
-      from: fromMock,
-    });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    updateProfileMock.mockResolvedValue(undefined);
   });
 
   it("ニックネームの前後空白を除き、現在の利用者IDに絞ってupdateへ渡す(PostgRESTはWHERE句のないUPDATEを拒否するため必須)", async () => {
     await updateNickname(INITIAL_STATE, nicknameForm("  たろう二世  "));
 
-    expect(updateMock).toHaveBeenCalledWith({ nickname: "たろう二世" });
-    expect(eqMock).toHaveBeenCalledWith("user_id", CURRENT_USER_ID);
+    expect(updateProfileMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "たろう二世",
+    );
     expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
   });
 
@@ -156,7 +146,7 @@ describe("ニックネーム編集操作(Issue #76)", () => {
     async (nickname) => {
       const result = await updateNickname(INITIAL_STATE, nicknameForm(nickname));
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "ニックネームは1文字以上20文字以内で入力してください。",
         status: "error",
@@ -165,21 +155,16 @@ describe("ニックネーム編集操作(Issue #76)", () => {
   );
 
   it("未ログインの場合はログイン画面へ戻す", async () => {
-    getUserMock.mockResolvedValue({ data: { user: null } });
-    redirectMock.mockImplementation(() => {
-      throw new Error("NEXT_REDIRECT");
-    });
+    getD1ContextMock.mockRejectedValue(new Error("Authentication required"));
 
-    await expect(
-      updateNickname(INITIAL_STATE, nicknameForm("たろう二世")),
-    ).rejects.toThrow("NEXT_REDIRECT");
+    const result = await updateNickname(INITIAL_STATE, nicknameForm("たろう二世"));
 
-    expect(redirectMock).toHaveBeenCalledWith("/login");
-    expect(updateMock).not.toHaveBeenCalled();
+    expect(result.status).toBe("error");
+    expect(updateProfileMock).not.toHaveBeenCalled();
   });
 
   it("更新失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {
-    eqMock.mockResolvedValue({ error: new Error("sensitive database detail") });
+    updateProfileMock.mockRejectedValue(new Error("sensitive database detail"));
 
     const result = await updateNickname(INITIAL_STATE, nicknameForm("たろう二世"));
 

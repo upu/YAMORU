@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { createClient } from "../../../lib/supabase/server";
+import { getD1Context } from "../../../lib/d1/context";
+import {
+  cancelHouseholdInvitation,
+  issueHouseholdInvitation,
+} from "../../../lib/d1/invitations";
 import type { CancelInvitationState, IssueInvitationState } from "./state";
 
 const INVITED_EMAIL_MIN_LENGTH = 3;
@@ -51,13 +55,11 @@ export async function issueInvitation(
   const invitedEmail = rawEmail.trim();
   if (!isPlausibleEmail(invitedEmail)) return invalidInvitedEmail();
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("issue_household_invitation", {
-    invited_email: invitedEmail,
-  });
-
-  const issued = data?.[0];
-  if (error !== null || issued === undefined) {
+  let issued;
+  try {
+    const { db, session } = await getD1Context();
+    issued = await issueHouseholdInvitation(db, session, invitedEmail);
+  } catch {
     return {
       message: "招待を発行できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -67,8 +69,8 @@ export async function issueInvitation(
   revalidatePath("/account/invitations");
 
   return {
-    expiresAt: issued.expires_at,
-    invitedEmail: issued.invitation_email,
+    expiresAt: issued.expiresAt,
+    invitedEmail: issued.invitedEmail,
     link: await buildAcceptInvitationLink(issued.token),
     status: "issued",
   };
@@ -86,12 +88,10 @@ export async function cancelInvitation(
     };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_household_invitation", {
-    invitation_id: invitationId,
-  });
-
-  if (error !== null) {
+  try {
+    const { db, session } = await getD1Context();
+    await cancelHouseholdInvitation(db, session, invitationId);
+  } catch {
     return {
       message: "招待を取消できませんでした。時間をおいて再度お試しください。",
       status: "error",

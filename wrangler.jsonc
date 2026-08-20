@@ -1,6 +1,6 @@
 {
-	// Issue #116: Cloudflare Workers + D1 移行可否スパイク用の設定。
-	// 本番デプロイ用ではなく、`npx wrangler dev`によるローカル検証のみを対象とする。
+	// YAMORUのCloudflare Workers / D1ローカル開発設定。
+	// リモートdatabase_idと本番デプロイ設定はIssue #123で確定する。
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "yamoru",
@@ -10,12 +10,11 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
-	// D1: household単位のアクセス制御スパイク(app/_spikes/cloudflare-d1)専用のローカルDB。
 	// database_id はローカル開発では未使用(--local実行時はwrangler側で無視される)。
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "yamoru-spike",
+			"database_name": "yamoru-local",
 			"database_id": "local-only-placeholder",
 			"migrations_dir": "d1/migrations"
 		}

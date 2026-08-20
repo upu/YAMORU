@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, revalidatePathMock, rpcMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+const { createMaintenanceTaskMock, createOneTimeTaskMock, getD1ContextMock, revalidatePathMock } = vi.hoisted(() => ({
+  createMaintenanceTaskMock: vi.fn(),
+  createOneTimeTaskMock: vi.fn(),
+  getD1ContextMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  rpcMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../lib/d1/todos", () => ({
+  createCalendarTask: vi.fn(),
+  createMaintenanceTask: createMaintenanceTaskMock,
+  createOneTimeTask: createOneTimeTaskMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -55,8 +59,9 @@ function maintenanceTodoForm({
 describe("完了日基準メンテナンスTodo登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
-    rpcMock.mockResolvedValue({ data: "task-rule-id", error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
+    createOneTimeTaskMock.mockResolvedValue("task-rule-id");
   });
 
   it("1〜2週間と前回実施日から初回期間を計算して限定RPCへ渡す", async () => {
@@ -65,13 +70,14 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       maintenanceTodoForm({ title: "  フィルター交換  " }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_maintenance_task", {
-      first_due_at: "2026-10-14T15:00:00.000Z",
-      first_scheduled_for: "2026-10-07T15:00:00.000Z",
-      item_id: "managed-item-id",
-      recommended_start_offset: 7,
-      recommended_until_offset: 14,
-      task_title: "フィルター交換",
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith("db", "session", {
+      firstDueAt: "2026-10-14T15:00:00.000Z",
+      firstScheduledFor: "2026-10-07T15:00:00.000Z",
+      managedItemId: "managed-item-id",
+      recurrenceBasis: "completion",
+      recommendedStartOffset: 7,
+      recommendedUntilOffset: 14,
+      title: "フィルター交換",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/managed-items/managed-item-id",
@@ -91,11 +97,12 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith(
-      "create_maintenance_task",
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
       expect.objectContaining({
-        first_due_at: "2026-10-15T15:00:00.000Z",
-        first_scheduled_for: "2026-10-08T15:00:00.000Z",
+        firstDueAt: "2026-10-15T15:00:00.000Z",
+        firstScheduledFor: "2026-10-08T15:00:00.000Z",
       }),
     );
   });
@@ -110,10 +117,11 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
-      item_id: "managed-item-id",
-      scheduled_for: "2026-10-09T15:00:00.000Z",
-      task_title: "今回だけ点検",
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: "managed-item-id",
+      recurrenceBasis: "once",
+      scheduledFor: "2026-10-09T15:00:00.000Z",
+      title: "今回だけ点検",
     });
     expect(result).toEqual({
       message: "Todoを登録しました。",
@@ -129,7 +137,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
         maintenanceTodoForm({ title }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "Todo名は1文字以上100文字以内で入力してください。",
         status: "error",
@@ -151,7 +159,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
         maintenanceTodoForm({ intervalMax, intervalMin, intervalUnit }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "次回の目安は0以上の整数で、短い方を長い方以下にしてください。",
         status: "error",
@@ -167,7 +175,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
         maintenanceTodoForm({ anchorDate }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "初回の計算に使う有効な日付を入力してください。",
         status: "error",
@@ -181,7 +189,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       maintenanceTodoForm({ initialDateMode: "secret_mode" }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "初回の決め方を選択してください。",
       status: "error",
@@ -196,7 +204,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
         maintenanceTodoForm({ plannedDate, recurrenceBasis: "once" }),
       );
 
-      expect(createClientMock).not.toHaveBeenCalled();
+      expect(getD1ContextMock).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: "予定日を正しく入力してください。",
         status: "error",
@@ -210,7 +218,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       maintenanceTodoForm({ recurrenceBasis: "secret_mode" }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "繰り返し方を選択してください。",
       status: "error",
@@ -218,10 +226,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
   });
 
   it("保存失敗の内部詳細を表示せず再試行できる案内を返す", async () => {
-    rpcMock.mockResolvedValue({
-      data: null,
-      error: new Error("sensitive database detail"),
-    });
+    createMaintenanceTaskMock.mockRejectedValue(new Error("sensitive database detail"));
 
     const result = await createTodo(
       INITIAL_STATE,

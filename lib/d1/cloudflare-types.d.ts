@@ -1,10 +1,4 @@
-// Issue #116スパイク: `npx wrangler types`はWorkersランタイム全体の型を
-// グローバルに生成するが、そのdeclareがDOM lib(Element/HTMLElement等)と衝突し、
-// 既存の`npm run typecheck`(jsdomを使うコンポーネントテスト)を壊すことを確認した。
-// そのため`wrangler types`の生成物は使わず、このスパイクで実際に使う分だけの
-// 最小限の型をここに手書きする(判明した制約としてdocs/spikes/cloudflare-workers-d1.md
-// に記録)。
-
+// Workers全体の生成型はDOM型と衝突するため、アプリが使うD1バインディングだけを宣言する。
 declare global {
   interface D1Result<T = unknown> {
     results: T[];
@@ -28,9 +22,7 @@ declare global {
 
   interface D1Database {
     prepare(query: string): D1PreparedStatement;
-    batch<T = unknown>(
-      statements: D1PreparedStatement[],
-    ): Promise<D1Result<T>[]>;
+    batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
     exec(query: string): Promise<{ count: number; duration: number }>;
   }
 

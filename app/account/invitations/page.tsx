@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { requireUser } from "../../../lib/auth/current-user";
-import { createClient } from "../../../lib/supabase/server";
+import { getD1Context } from "../../../lib/d1/context";
+import { loadAccountState } from "../../../lib/d1/households";
+import { listHouseholdInvitations } from "../../../lib/d1/invitations";
 import { CancelInvitationButton } from "./cancel-invitation-button";
 import { IssueInvitationForm } from "./issue-invitation-form";
 import {
@@ -122,34 +124,17 @@ export default async function InvitationsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const resolvedSearchParams = await searchParams;
   const defaultInviteEmail = firstSearchParamValue(resolvedSearchParams.reissue);
 
-  const supabase = await createClient();
-  const { data: householdData, error: householdError } = await supabase
-    .from("households")
-    .select("id, name")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (householdError !== null) {
-    throw new Error("家庭情報を取得できませんでした。");
-  }
-
-  const household: Household | null = householdData;
+  const { db, session } = await getD1Context(user);
+  const household: Household | null = (await loadAccountState(db, session)).household;
   if (household === null) {
     return <InvitationsContent household={null} invitations={[]} />;
   }
 
-  const { data: invitationData, error: invitationError } = await supabase.rpc(
-    "list_household_invitations",
-  );
-
-  if (invitationError !== null) {
-    throw new Error("招待の一覧を取得できませんでした。");
-  }
+  const invitationData = await listHouseholdInvitations(db, session);
 
   const invitations: InvitationSummary[] = invitationData.map((invitation) => ({
     createdAt: invitation.created_at,

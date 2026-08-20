@@ -1,12 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createClientMock, revalidatePathMock, rpcMock } = vi.hoisted(() => ({
-  createClientMock: vi.fn(),
+const {
+  createCalendarTaskMock,
+  createMaintenanceTaskMock,
+  createOneTimeTaskMock,
+  getD1ContextMock,
+  revalidatePathMock,
+} = vi.hoisted(() => ({
+  createCalendarTaskMock: vi.fn(),
+  createMaintenanceTaskMock: vi.fn(),
+  createOneTimeTaskMock: vi.fn(),
+  getD1ContextMock: vi.fn(),
   revalidatePathMock: vi.fn(),
-  rpcMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/server", () => ({ createClient: createClientMock }));
+vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../lib/d1/todos", () => ({
+  createCalendarTask: createCalendarTaskMock,
+  createMaintenanceTask: createMaintenanceTaskMock,
+  createOneTimeTask: createOneTimeTaskMock,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 import { createTodo } from "../app/todos/new/actions";
@@ -45,16 +58,20 @@ function todoForm(overrides: Record<string, string> = {}) {
 describe("専用ページのTodo登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ rpc: rpcMock });
-    rpcMock.mockResolvedValue({ data: "task-rule-id", error: null });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createCalendarTaskMock.mockResolvedValue("task-rule-id");
+    createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
+    createOneTimeTaskMock.mockResolvedValue("task-rule-id");
   });
 
   it("管理対象なしの一回限りTodoを登録する", async () => {
     const result = await createTodo(INITIAL_STATE, todoForm());
 
-    expect(rpcMock).toHaveBeenCalledWith("create_one_time_task", {
-      scheduled_for: "2026-10-09T15:00:00.000Z",
-      task_title: "家族会議",
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "once",
+      scheduledFor: "2026-10-09T15:00:00.000Z",
+      title: "家族会議",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(revalidatePathMock).toHaveBeenCalledWith("/todos/new");
@@ -67,12 +84,14 @@ describe("専用ページのTodo登録操作", () => {
       todoForm({ recurrenceBasis: "completion", title: "換気扇の掃除" }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_maintenance_task", {
-      first_due_at: "2026-10-14T15:00:00.000Z",
-      first_scheduled_for: "2026-10-07T15:00:00.000Z",
-      recommended_start_offset: 7,
-      recommended_until_offset: 14,
-      task_title: "換気扇の掃除",
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith("db", "session", {
+      firstDueAt: "2026-10-14T15:00:00.000Z",
+      firstScheduledFor: "2026-10-07T15:00:00.000Z",
+      managedItemId: null,
+      recurrenceBasis: "completion",
+      recommendedStartOffset: 7,
+      recommendedUntilOffset: 14,
+      title: "換気扇の掃除",
     });
   });
 
@@ -82,9 +101,10 @@ describe("専用ページのTodo登録操作", () => {
       todoForm({ managedItemId: "item-1", recurrenceBasis: "completion" }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith(
-      "create_maintenance_task",
-      expect.objectContaining({ item_id: "item-1" }),
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ managedItemId: "item-1" }),
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
   });
@@ -95,20 +115,25 @@ describe("専用ページのTodo登録操作", () => {
       todoForm({ recurrenceBasis: "calendar", scheduleDayOfWeek: "3" }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_calendar_task", {
-      schedule_day_of_week: 3,
-      schedule_kind: "weekly",
-      task_title: "家族会議",
+    expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: null,
+      scheduleDayOfWeek: 3,
+      scheduleKind: "weekly",
+      scheduleMonth: null,
+      scheduleWeekOfMonth: null,
+      title: "家族会議",
     });
   });
 
   it.each([
-    ["monthly_day", { schedule_day_of_month: 31 }],
+    ["monthly_day", { scheduleDayOfMonth: 31 }],
     [
       "monthly_nth_weekday",
-      { schedule_day_of_week: 2, schedule_week_of_month: 5 },
+      { scheduleDayOfWeek: 2, scheduleWeekOfMonth: 5 },
     ],
-    ["yearly", { schedule_day_of_month: 29, schedule_month: 2 }],
+    ["yearly", { scheduleDayOfMonth: 29, scheduleMonth: 2 }],
   ])("%sの構造化された暦規則をRPCへ渡す", async (scheduleKind, expected) => {
     await createTodo(
       INITIAL_STATE,
@@ -122,10 +147,16 @@ describe("専用ページのTodo登録操作", () => {
       }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith("create_calendar_task", {
+    expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: null,
+      scheduleDayOfWeek: null,
+      scheduleKind,
+      scheduleMonth: null,
+      scheduleWeekOfMonth: null,
+      title: "家族会議",
       ...expected,
-      schedule_kind: scheduleKind,
-      task_title: "家族会議",
     });
   });
 
@@ -138,9 +169,10 @@ describe("専用ページのTodo登録操作", () => {
       }),
     );
 
-    expect(rpcMock).toHaveBeenCalledWith(
-      "create_calendar_task",
-      expect.objectContaining({ item_id: "item-1" }),
+    expect(createCalendarTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ managedItemId: "item-1" }),
     );
   });
 
@@ -150,7 +182,7 @@ describe("専用ページのTodo登録操作", () => {
       todoForm({ recurrenceBasis: "calendar", ...overrides }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "定例日の指定を正しく入力してください。",
       status: "error",
@@ -163,7 +195,7 @@ describe("専用ページのTodo登録操作", () => {
       todoForm({ recurrenceBasis: "secret_mode" }),
     );
 
-    expect(createClientMock).not.toHaveBeenCalled();
+    expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "繰り返し方を選択してください。",
       status: "error",
