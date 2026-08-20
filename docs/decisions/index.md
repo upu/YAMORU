@@ -30,10 +30,11 @@
 | YDR-016 | 「回ごとに残す」方式の導入時に過去分を自動生成しない | Accepted | [ydr-016-no-backfill-on-per-occurrence-mode.md](ydr-016-no-backfill-on-per-occurrence-mode.md) |
 | YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Accepted | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
 | YDR-018 | アカウント単位のニックネームを家庭内Member表示名と同一概念として扱う | Accepted | [ydr-018-account-nickname-as-member-display-name.md](ydr-018-account-nickname-as-member-display-name.md) |
-| YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Accepted | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
+| YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Superseded by YDR-023 | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
 | YDR-020 | 担当者・実施者・操作主体を区別し、保存先を固定する | Accepted | [ydr-020-assignee-performer-actor.md](ydr-020-assignee-performer-actor.md) |
 | YDR-021 | 定例日基準Todoの暦規則とタイムゾーンを固定する | Accepted | [ydr-021-recurring-calendar-rules.md](ydr-021-recurring-calendar-rules.md) |
 | YDR-022 | Cloudflare Workers + D1へ移行し、家庭間分離をアプリ層で実装する | Accepted | [ydr-022-cloudflare-workers-d1-migration.md](ydr-022-cloudflare-workers-d1-migration.md) |
+| YDR-023 | 公開登録を閉じ、招待限定のアカウント作成と最小のパスワード運用を採用する | Accepted | [ydr-023-invitation-only-account-lifecycle.md](ydr-023-invitation-only-account-lifecycle.md) |
 
 ## 新しい意思決定の追加
 
