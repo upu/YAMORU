@@ -2,12 +2,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "../../../../lib/auth/current-user";
-import { INVITE_CLAIM_COOKIE_NAME } from "../../../../lib/invitations/claim-cookie";
+import {
+  INVITE_CLAIM_COOKIE_NAME,
+  INVITE_CLAIM_RESUME_PATH,
+} from "../../../../lib/invitations/claim-cookie";
 import { createClient } from "../../../../lib/supabase/server";
 import { NicknameForm } from "../../../account/nickname-form";
 import { AcceptInvitationButton } from "./accept-invitation-button";
-
-const CONFIRM_PATH = "/invitations/accept/confirm";
 
 type Profile = { nickname: string };
 
@@ -41,7 +42,10 @@ export default async function AcceptInvitationConfirmPage() {
 
   const user = await getCurrentUser();
   if (user === null) {
-    redirect(`/login?next=${encodeURIComponent(CONFIRM_PATH)}`);
+    // claim cookieは招待パスだけへ送出する。ログインのServer Actionから
+    // 確認画面へ直接戻すと、そのPOSTにはcookieが含まれず共通エラーを
+    // 描画し得るため、cookieを受け取れる交換エントリーポイントを経由する。
+    redirect(`/login?next=${encodeURIComponent(INVITE_CLAIM_RESUME_PATH)}`);
   }
 
   const supabase = await createClient();
@@ -67,7 +71,7 @@ export default async function AcceptInvitationConfirmPage() {
           <>
             <h2 id="invitation-confirm-title">ニックネーム登録</h2>
             <p>招待を受諾する前に、あなたのニックネームを登録してください。</p>
-            <NicknameForm next={CONFIRM_PATH} />
+            <NicknameForm next={INVITE_CLAIM_RESUME_PATH} />
           </>
         ) : (
           <>

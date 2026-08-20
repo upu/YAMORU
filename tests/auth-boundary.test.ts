@@ -64,6 +64,20 @@ describe("Supabase認証境界", () => {
     expect(getClaimsMock).toHaveBeenCalledOnce();
   });
 
+  it("招待入口と確認画面は未認証でも各Route・Pageの認証フローへ進める", async () => {
+    getClaimsMock.mockResolvedValue({ data: null, error: null });
+
+    const entryResponse = await updateSession(
+      new NextRequest("http://localhost/invitations/accept?token=secret"),
+    );
+    const confirmResponse = await updateSession(
+      new NextRequest("http://localhost/invitations/accept/confirm"),
+    );
+
+    expect(entryResponse.headers.get("location")).toBeNull();
+    expect(confirmResponse.headers.get("location")).toBeNull();
+  });
+
   it("ログイン画面は未認証でも表示できる", async () => {
     getClaimsMock.mockResolvedValue({ data: null, error: null });
 

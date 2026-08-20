@@ -12,6 +12,8 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix --max-warnings=0",
     "test": "vitest run",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:local": "node scripts/e2e-environment.ts && playwright test",
     "typecheck": "tsc --noEmit",
     "gen:types": "node scripts/supabase-gen-types.ts",
     "gen:types:check": "node scripts/supabase-gen-types.ts --check",
@@ -45,6 +47,7 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@opennextjs/cloudflare": "^1.20.2",
+    "@playwright/test": "1.62.1",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
     "@types/node": "26.2.0",
