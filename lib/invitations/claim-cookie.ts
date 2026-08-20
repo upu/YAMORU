@@ -8,6 +8,7 @@
 
 export const INVITE_CLAIM_COOKIE_NAME = "yamoru_invite_claim";
 export const INVITE_CLAIM_COOKIE_PATH = "/invitations/accept";
+export const INVITE_CLAIM_RESUME_PATH = "/invitations/accept/resume";
 
 // 交換RPC(open_invitation_claim)のexpires_atが返らない異常系のための保険。
 // 正常系はRPCが返す実際の残り期限(招待自体の残り期限でキャップ済み)を使う。

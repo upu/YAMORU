@@ -5,7 +5,12 @@ import type { Database } from "./database.types";
 import { getSupabasePublicEnv } from "./env";
 
 function isPublicPath(pathname: string) {
-  return pathname === "/login" || pathname.startsWith("/auth/");
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/invitations/accept" ||
+    pathname.startsWith("/invitations/accept/")
+  );
 }
 
 export async function updateSession(request: NextRequest) {

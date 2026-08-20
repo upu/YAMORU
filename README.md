@@ -154,10 +154,13 @@ npm run test:start      # test環境を起動(初回はDockerイメージ取得�
 npm run test:db:reset   # マイグレーションとseed.sqlを最初から再適用。いつ実行してもprodへ影響しません
 npm run test:db         # pgTAPによるRLS分離・家庭作成・招待受諾テストを実行(supabase test db)
 npm run test:auth:local # 登録・ログイン・最初の家庭作成のAuth接続をvitestで自動確認
+npm run test:e2e:install # 初回だけ、E2E用のChromiumをインストール
+npm run test:e2e:local   # 二アカウント共有と家庭間分離をPlaywrightで確認
 npm run test:stop       # test環境を停止
 ```
 
 - `test:db:reset`・`test:db`は、実行前に接続先の`project_id`が`YAMORU-test`であることを検証し、一致しない場合は破壊的操作を開始せずに停止します(`scripts/supabase-destructive-guard.ts`)。
+- `test:e2e:local`も、ブラウザーやDBへ接続する前に`project_id`とSupabase URLがtest環境専用の値であることを検証します。独立したブラウザーコンテキストで架空の家庭A・Bと複数アカウントを作成し、招待、共有Todo・履歴、フォーカス復帰、同時完了、URL・ID・RPCの家庭間分離を確認します。
 - `supabase/seed.sql`が投入するのは、ローカル専用の架空データ(家庭A・家庭B、テスト用ユーザー、テスト用管理対象)だけです。家庭の実データは含めません。
 - `test:auth:local`は毎回、`example.test`の一意な架空利用者を作成します。手動起動用の`.env.local`はGit管理対象外です。パスワード、アクセストークン、Service Roleキー、実在するメールアドレスはコミットしません。公開可能なキーも環境変数から読み、ブラウザへService Role権限を渡しません。認証済みであっても、家庭への所属が確認できるまでは家庭データへアクセス可能とは扱いません。
 

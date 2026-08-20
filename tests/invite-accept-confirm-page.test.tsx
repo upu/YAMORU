@@ -80,7 +80,7 @@ describe("招待受諾確認画面", () => {
     await expect(AcceptInvitationConfirmPage()).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith(
-      "/login?next=%2Finvitations%2Faccept%2Fconfirm",
+      "/login?next=%2Finvitations%2Faccept%2Fresume",
     );
   });
 
@@ -89,7 +89,7 @@ describe("招待受諾確認画面", () => {
     getCurrentUserMock.mockResolvedValue({ id: "user-1" });
     mockProfileQuery(null);
 
-    render(await AcceptInvitationConfirmPage());
+    const { container } = render(await AcceptInvitationConfirmPage());
 
     expect(
       screen.getByRole("heading", { name: "ニックネーム登録" }),
@@ -97,6 +97,9 @@ describe("招待受諾確認画面", () => {
     expect(
       screen.queryByRole("button", { name: "招待を受諾する" }),
     ).not.toBeInTheDocument();
+    expect(container.querySelector('input[name="next"]')).toHaveValue(
+      "/invitations/accept/resume",
+    );
   });
 
   it("ニックネーム登録済みの場合は受諾ボタンを表示する", async () => {
