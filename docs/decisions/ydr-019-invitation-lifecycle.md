@@ -5,14 +5,17 @@ title: 家族招待の発行・受諾・失効ライフサイクルを固定す�
 description: 手動共有・メール一致必須・7日間一回限りの招待契約と、未ログイン時の認証後受諾、取消・再発行時の旧リンク失効、一人一家庭制約下での結果表示、試行制限とセキュリティログの原則を定める
 tags: [yamoru, decisions, ydr, invitations, security]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-14
+superseded_by: YDR-023
 ---
 
 # YDR-019: 家族招待の発行・受諾・失効ライフサイクルを固定する
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-023](ydr-023-invitation-only-account-lifecycle.md)
 - 決定日: 2026-08-14
+
+Auth.js Credentialsへの移行後も継続する招待契約を含め、YDR-023が本決定の全体を再定義する。
 
 ## 背景
 
