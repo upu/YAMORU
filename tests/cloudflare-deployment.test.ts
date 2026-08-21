@@ -14,6 +14,12 @@ function readWranglerConfig(): unknown {
   return JSON.parse(readFileSync(join(process.cwd(), "wrangler.jsonc"), "utf8"));
 }
 
+function readAuthAdminWranglerConfig(): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(join(process.cwd(), "wrangler.auth-admin.jsonc"), "utf8"),
+  ) as Record<string, unknown>;
+}
+
 describe("Cloudflare環境分離", () => {
   it("local / preview / productionを別名・別D1として固定する", () => {
     const config = readWranglerConfig() as Record<string, unknown>;
@@ -116,5 +122,38 @@ describe("Cloudflare環境分離", () => {
       database_name: "yamoru-production",
       remote: true,
     }]);
+  });
+
+  it("Auth管理専用設定はlocal / preview / productionのD1だけを分離して公開する", () => {
+    const targets = parseCloudflareTargets(readWranglerConfig());
+    const config = readAuthAdminWranglerConfig() as {
+      main: string;
+      d1_databases: Array<Record<string, unknown>>;
+      env: Record<string, { d1_databases: Array<Record<string, unknown>> }>;
+    };
+
+    expect(config.main).toBe("scripts/auth-admin-platform.ts");
+    expect(config.d1_databases).toEqual([{
+      binding: "DB",
+      database_id: "local-only-placeholder",
+      database_name: "yamoru-local",
+      migrations_dir: "d1/migrations",
+      remote: false,
+    }]);
+    expect(config.env.preview.d1_databases).toEqual([{
+      binding: "DB",
+      database_id: targets.preview.databaseId,
+      database_name: "yamoru-preview",
+      remote: true,
+    }]);
+    expect(config.env.production.d1_databases).toEqual([{
+      binding: "DB",
+      database_id: targets.production.databaseId,
+      database_name: "yamoru-production",
+      remote: true,
+    }]);
+    expect(config).not.toHaveProperty("assets");
+    expect(config).not.toHaveProperty("secrets");
+    expect(config).not.toHaveProperty("services");
   });
 });

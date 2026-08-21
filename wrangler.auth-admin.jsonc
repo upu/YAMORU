@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": "scripts/auth-admin-platform.ts",
+  "name": "yamoru-auth-admin",
+  "compatibility_date": "2026-08-19",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yamoru-local",
+      "database_id": "local-only-placeholder",
+      "migrations_dir": "d1/migrations",
+      "remote": false
+    }
+  ],
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-preview",
+          "database_id": "a70517df-e320-405e-a91e-2c2e726d3f75",
+          "remote": true
+        }
+      ]
+    },
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-production",
+          "database_id": "89fb968e-c899-4af7-b279-dd5d27b2cc6f",
+          "remote": true
+        }
+      ]
+    }
+  }
+}
