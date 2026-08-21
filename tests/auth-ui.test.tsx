@@ -13,6 +13,10 @@ vi.mock("../lib/auth/current-user", () => ({
   requireUser: requireUserMock,
 }));
 
+vi.mock("../auth", () => ({
+  signIn: vi.fn(),
+}));
+
 vi.mock("../lib/d1/context", () => ({
   getD1Context: getD1ContextMock,
 }));
@@ -30,7 +34,7 @@ afterEach(() => {
 });
 
 describe("ログイン画面", () => {
-  it("登録とログインをキーボードや支援技術から識別できる", async () => {
+  it("公開登録を表示せず、ログインだけをキーボードや支援技術から識別できる", async () => {
     render(await LoginPage({ searchParams: Promise.resolve({}) }));
 
     expect(
@@ -50,10 +54,18 @@ describe("ログイン画面", () => {
       within(login).getByRole("button", { name: "ログイン" }),
     ).toBeInTheDocument();
 
-    const signup = screen.getByRole("region", { name: "新規登録" });
-    expect(
-      within(signup).getByRole("button", { name: "新規登録" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "新規登録" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "新規登録" })).not.toBeInTheDocument();
+  });
+
+  it("パスワード変更後は再ログインが必要だと案内する", async () => {
+    render(await LoginPage({
+      searchParams: Promise.resolve({ passwordChanged: "1" }),
+    }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "パスワードを変更しました。新しいパスワードでログインしてください。",
+    );
   });
 });
 
@@ -146,6 +158,17 @@ describe("アカウント画面", () => {
     expect(
       screen.queryByRole("button", { name: "家庭を作成" }),
     ).not.toBeInTheDocument();
+    const passwordSection = screen.getByRole("region", { name: "パスワード変更" });
+    expect(within(passwordSection).getByLabelText("現在のパスワード")).toHaveAttribute(
+      "type",
+      "password",
+    );
+    expect(within(passwordSection).getByLabelText("新しいパスワード")).toHaveAttribute(
+      "minLength",
+      "12",
+    );
+    expect(within(passwordSection).getByRole("button", { name: "パスワードを変更" }))
+      .toBeInTheDocument();
   });
 
   it("「編集」を押すと現在のニックネームを初期値とした編集フォームへ切り替わり、「キャンセル」で表示へ戻る(Issue #76)", async () => {

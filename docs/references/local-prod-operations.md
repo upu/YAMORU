@@ -3,10 +3,12 @@ type: Playbook
 title: ローカルprod環境の利用・運用手順
 description: 自分の家で実データを使ってYAMORUを動かす人向けに、初回セットアップから普段の起動、更新の取り込み、バックアップ・復旧までを一続きでまとめた手順書
 tags: [yamoru, supabase, prod, operations]
-status: stable
+status: deprecated
 ---
 
 # ローカルprod環境の利用・運用手順
+
+> この文書はD1移行前のSupabaseローカルprod運用を確認するための履歴資料です。現在のアプリはAuth.js + D1を使用します。初回アカウント作成とパスワード再設定は[Auth.js初回bootstrapとパスワード再設定](auth-admin-operations.md)、現在の起動手順は[README](../../README.md#ローカルで起動する)を参照してください。
 
 対象読者は、このリポジトリをcloneし、自分の家で実データを使ってYAMORUを動かす人。**この文書はスキーマを変更する手順を持たない。** マイグレーションを追加する、型やRLSポリシーカタログを再生成するなど、スキーマを変更する側の手順は[データベースに影響する変更の手順](database-change-playbook.md)を参照する。
 

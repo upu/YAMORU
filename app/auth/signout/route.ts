@@ -1,13 +1,10 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { createClient } from "../../../lib/supabase/server";
+import { signOut } from "../../../auth";
 
 export async function POST() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-
-  if (data?.claims !== undefined) await supabase.auth.signOut();
+  await signOut({ redirect: false });
 
   revalidatePath("/", "layout");
   // 相対Locationなら、LAN内のiPhoneで開いたホストをブラウザがそのまま使う。

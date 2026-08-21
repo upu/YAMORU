@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { metadata, viewport } from "../app/layout";
 import manifest from "../app/manifest";
-import { config as proxyConfig } from "../proxy";
+import { authMiddlewareConfig as middlewareConfig } from "../auth.config";
 
 function readPng(path: string) {
   const png = readFileSync(join(process.cwd(), path));
@@ -26,8 +26,8 @@ function expectOpaqueRgbPng(path: string) {
   expect(readPng(path)[25]).toBe(2);
 }
 
-function isHandledByAuthProxy(pathname: string) {
-  return new RegExp(`^${proxyConfig.matcher[0]}$`, "u").test(pathname);
+function isHandledByAuthMiddleware(pathname: string) {
+  return new RegExp(`^${middlewareConfig.matcher[0]}$`, "u").test(pathname);
 }
 
 describe("PWA manifest", () => {
@@ -93,8 +93,8 @@ describe("PWA metadata", () => {
   });
 
   it("未認証でもmanifestと標準Appleアイコンを取得できる", () => {
-    expect(isHandledByAuthProxy("/manifest.webmanifest")).toBe(false);
-    expect(isHandledByAuthProxy("/account")).toBe(true);
+    expect(isHandledByAuthMiddleware("/manifest.webmanifest")).toBe(false);
+    expect(isHandledByAuthMiddleware("/account")).toBe(true);
 
     const iconPaths = [
       "public/apple-touch-icon.png",

@@ -6,6 +6,7 @@ import { loadAccountState as loadD1AccountState } from "../../lib/d1/households"
 import { HouseholdForm } from "./household-form";
 import { NicknameEditForm } from "./nickname-edit-form";
 import { NicknameForm } from "./nickname-form";
+import { PasswordChangeForm } from "./password-change-form";
 
 export default async function AccountPage() {
   const user = await requireUser();
@@ -22,7 +23,7 @@ export default async function AccountPage() {
       <header className="detail-hero">
         <p className="detail-kicker">ACCOUNT</p>
         <h1>アカウント</h1>
-        <p>{user.email ?? "メールアドレス未設定"}</p>
+        <p>{user.email}</p>
       </header>
       {profile !== null ? (
         <section aria-labelledby="nickname-section-title" className="detail-card">
@@ -52,6 +53,11 @@ export default async function AccountPage() {
             <HouseholdForm defaultName={`${profile.nickname}の家庭`} />
           </>
         )}
+      </section>
+      <section aria-labelledby="password-change-title" className="detail-card">
+        <h2 id="password-change-title">パスワード変更</h2>
+        <p>変更後は、すべての端末で新しいパスワードによる再ログインが必要です。</p>
+        <PasswordChangeForm />
       </section>
       <form action="/auth/signout" className="signout-form" method="post">
         <button className="auth-submit" type="submit">ログアウト</button>

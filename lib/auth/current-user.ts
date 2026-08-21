@@ -1,17 +1,20 @@
-import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
-import { createClient } from "../supabase/server";
+import { auth } from "../../auth";
+import { getUserForSession, type AuthenticatedD1User } from "../d1/authentication";
+import { getD1Database } from "../d1/client";
 
-export async function getCurrentUser(): Promise<User | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-
-  if (error !== null) return null;
-  return data.user;
+export async function getCurrentUser(): Promise<AuthenticatedD1User | null> {
+  const session = await auth();
+  if (session === null) return null;
+  const userId = session.user.id;
+  const sessionVersion = session.user.sessionVersion;
+  if (typeof userId !== "string" || typeof sessionVersion !== "number") return null;
+  const db = await getD1Database();
+  return getUserForSession(db, { sessionVersion, userId });
 }
 
-export async function requireUser(): Promise<User> {
+export async function requireUser(): Promise<AuthenticatedD1User> {
   const user = await getCurrentUser();
   if (user === null) redirect("/login");
   return user;

@@ -2,21 +2,18 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "../../../../lib/auth/current-user";
+import { getD1Database } from "../../../../lib/d1/client";
+import { getInvitationClaimState } from "../../../../lib/d1/invitations";
 import {
   INVITE_CLAIM_COOKIE_NAME,
   INVITE_CLAIM_RESUME_PATH,
 } from "../../../../lib/invitations/claim-cookie";
-import { createClient } from "../../../../lib/supabase/server";
-import { NicknameForm } from "../../../account/nickname-form";
 import { AcceptInvitationButton } from "./accept-invitation-button";
+import { InvitationRegistrationForm } from "./invitation-registration-form";
 
-type Profile = { nickname: string };
-
-// Issue #69 (YDR-019): 招待claimの有無「だけ」で共通エラーか続行かを分ける。
-// claimの実際の有効性(無効・期限切れ・取消済み・メール不一致・一人一家庭制約)は
-// ここでは判定せず、受諾ボタンを押した時点のaccept_household_invitation_by_claimへ
-// 遅延させる(交換時点で無区別にした意味が、ここで再び有効性を問い合わせては
-// 失われるため)。
+// YDR-023に従い、無効・期限切れ・使用済み・取消済みを同じ表示へ畳み込む。
+// 画面表示時の確認はUX用であり、メール一致や一人一家庭制約を含む最終判定は
+// 受諾commit時にD1上で再検証する。
 function CommonErrorCard() {
   return (
     <section aria-labelledby="invitation-error-title" className="detail-card">
@@ -30,9 +27,9 @@ function CommonErrorCard() {
 
 export default async function AcceptInvitationConfirmPage() {
   const cookieStore = await cookies();
-  const hasClaim = cookieStore.get(INVITE_CLAIM_COOKIE_NAME) !== undefined;
+  const claimSecret = cookieStore.get(INVITE_CLAIM_COOKIE_NAME)?.value;
 
-  if (!hasClaim) {
+  if (claimSecret === undefined) {
     return (
       <main className="detail-page">
         <CommonErrorCard />
@@ -40,24 +37,18 @@ export default async function AcceptInvitationConfirmPage() {
     );
   }
 
+  const db = await getD1Database();
+  const claimState = await getInvitationClaimState(db, claimSecret);
+  if (claimState === null) {
+    return <main className="detail-page"><CommonErrorCard /></main>;
+  }
+
   const user = await getCurrentUser();
-  if (user === null) {
+  if (user === null && claimState.kind === "existing") {
     // claim cookieは招待パスだけへ送出する。ログインのServer Actionから
     // 確認画面へ直接戻すと、そのPOSTにはcookieが含まれず共通エラーを
     // 描画し得るため、cookieを受け取れる交換エントリーポイントを経由する。
     redirect(`/login?next=${encodeURIComponent(INVITE_CLAIM_RESUME_PATH)}`);
-  }
-
-  const supabase = await createClient();
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("nickname")
-    .eq("user_id", user.id)
-    .maybeSingle()
-    .overrideTypes<Profile, { merge: false }>();
-
-  if (error !== null) {
-    throw new Error("アカウント情報を取得できませんでした。");
   }
 
   return (
@@ -67,11 +58,11 @@ export default async function AcceptInvitationConfirmPage() {
         <h1>招待を受諾</h1>
       </header>
       <section aria-labelledby="invitation-confirm-title" className="detail-card">
-        {profile === null ? (
+        {user === null ? (
           <>
-            <h2 id="invitation-confirm-title">ニックネーム登録</h2>
-            <p>招待を受諾する前に、あなたのニックネームを登録してください。</p>
-            <NicknameForm next={INVITE_CLAIM_RESUME_PATH} />
+            <h2 id="invitation-confirm-title">招待からアカウントを作成</h2>
+            <p>ニックネームとログイン用パスワードを設定してください。</p>
+            <InvitationRegistrationForm email={claimState.email} />
           </>
         ) : (
           <>

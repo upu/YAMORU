@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-import { getE2ETestEnvironment } from "./scripts/e2e-environment.ts";
+import { E2E_WRANGLER_ENVIRONMENT } from "./scripts/e2e-environment.ts";
 
-const environment = getE2ETestEnvironment();
+const E2E_AUTH_SECRET = "yamoru-e2e-auth-secret-at-least-32-characters";
 
 export default defineConfig({
   expect: { timeout: 10_000 },
@@ -24,9 +24,9 @@ export default defineConfig({
   webServer: {
     command: "npm run dev:http",
     env: {
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: environment.publishableKey,
-      NEXT_PUBLIC_SUPABASE_URL: environment.supabaseUrl,
-      SUPABASE_SERVICE_ROLE_KEY: environment.serviceRoleKey,
+      AUTH_SECRET: E2E_AUTH_SECRET,
+      AUTH_TRUST_HOST: "true",
+      NEXT_DEV_WRANGLER_ENV: E2E_WRANGLER_ENVIRONMENT,
     },
     reuseExistingServer: false,
     timeout: 120_000,

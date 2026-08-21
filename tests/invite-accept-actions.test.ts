@@ -1,94 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  cookiesMock,
-  createClientMock,
-  createServiceRoleClientMock,
-  getUserMock,
-  redirectMock,
-  revalidatePathMock,
-  rpcMock,
-} = vi.hoisted(() => ({
-  cookiesMock: vi.fn(),
-  createClientMock: vi.fn(),
-  createServiceRoleClientMock: vi.fn(),
-  getUserMock: vi.fn(),
-  redirectMock: vi.fn(),
-  revalidatePathMock: vi.fn(),
-  rpcMock: vi.fn(),
-}));
-
 vi.mock("server-only", () => ({}));
 
-// requireUser() (lib/auth/current-user) はgetUser()の検証にanonキーの
-// サーバークライアントを使う。RPC呼び出し自体はservice-roleクライアント
-// (下のservice-roleモック)を経由するため、二つを別々にモックする。
-vi.mock("../lib/supabase/server", () => ({
-  createClient: createClientMock,
+const {
+  acceptInvitationMock,
+  cookiesMock,
+  getD1ContextMock,
+  redirectMock,
+  revalidatePathMock,
+} = vi.hoisted(() => ({
+  acceptInvitationMock: vi.fn(),
+  cookiesMock: vi.fn(),
+  getD1ContextMock: vi.fn(),
+  redirectMock: vi.fn(),
+  revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/supabase/service-role", () => ({
-  createServiceRoleClient: createServiceRoleClientMock,
+vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../lib/d1/invitations", () => ({
+  acceptInvitationForExistingUser: acceptInvitationMock,
 }));
-
-vi.mock("next/cache", () => ({
-  revalidatePath: revalidatePathMock,
-}));
-
-vi.mock("next/navigation", () => ({
-  redirect: redirectMock,
-}));
-
-vi.mock("next/headers", () => ({
-  cookies: cookiesMock,
-}));
+vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
+vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 
 import { acceptInvitationClaim } from "../app/invitations/accept/confirm/actions";
 
 function cookieStore(claimSecret: string | undefined) {
   const deleteMock = vi.fn();
-  const getMock = vi.fn().mockReturnValue(
-    claimSecret === undefined ? undefined : { value: claimSecret },
-  );
-  return { deleteMock, getMock, store: { delete: deleteMock, get: getMock } };
+  return {
+    deleteMock,
+    store: {
+      delete: deleteMock,
+      get: vi.fn().mockReturnValue(
+        claimSecret === undefined ? undefined : { value: claimSecret },
+      ),
+    },
+  };
 }
 
-const VERIFIED_USER = { email: "person@example.test", id: "user-1" };
-
-describe("招待claim受諾操作", () => {
+describe("既存利用者のD1招待受諾", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createClientMock.mockResolvedValue({ auth: { getUser: getUserMock } });
-    getUserMock.mockResolvedValue({ data: { user: VERIFIED_USER }, error: null });
-    createServiceRoleClientMock.mockReturnValue({ rpc: rpcMock });
+    getD1ContextMock.mockResolvedValue({ db: "db", session: { userId: "user-1" } });
   });
 
-  it("claim cookieがない場合はRPCを呼ばず共通エラーを返す", async () => {
-    const { store } = cookieStore(undefined);
-    cookiesMock.mockResolvedValue(store);
+  it("claimなしはD1へ触れず共通エラーを返す", async () => {
+    cookiesMock.mockResolvedValue(cookieStore(undefined).store);
 
-    const result = await acceptInvitationClaim();
-
-    expect(createServiceRoleClientMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ kind: "invalid", status: "error" });
-    expect(redirectMock).not.toHaveBeenCalled();
+    await expect(acceptInvitationClaim()).resolves.toEqual({ kind: "invalid", status: "error" });
+    expect(getD1ContextMock).not.toHaveBeenCalled();
   });
 
-  it("成功時はAuthで検証済みの利用者IDを渡してRPCを呼び、claim cookieを削除してホームへ移動する", async () => {
-    const { deleteMock, getMock, store } = cookieStore("claim-secret-value");
+  it("成功時はsession利用者として原子的に受諾しcookieを削除する", async () => {
+    const { deleteMock, store } = cookieStore("claim-secret");
     cookiesMock.mockResolvedValue(store);
-    rpcMock.mockResolvedValue({
-      data: [{ result_code: "success", household_id: "h1", membership_created: true }],
-      error: null,
-    });
+    acceptInvitationMock.mockResolvedValue(true);
 
     await acceptInvitationClaim();
 
-    expect(getMock).toHaveBeenCalledWith("yamoru_invite_claim");
-    expect(rpcMock).toHaveBeenCalledWith("accept_household_invitation_by_claim", {
-      p_user_id: VERIFIED_USER.id,
-      claim_secret: "claim-secret-value",
-    });
+    expect(acceptInvitationMock).toHaveBeenCalledWith(
+      "db",
+      { userId: "user-1" },
+      "claim-secret",
+    );
     expect(deleteMock).toHaveBeenCalledWith({
       name: "yamoru_invite_claim",
       path: "/invitations/accept",
@@ -97,60 +72,22 @@ describe("招待claim受諾操作", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
-  it("一人一家庭制約違反(cross_household)は別のエラー種別を返し、cookieを削除する", async () => {
-    const { deleteMock, store } = cookieStore("claim-secret-value");
+  it("無効・メール不一致・別家庭は共通エラーにしてcookieを使い切る", async () => {
+    const { deleteMock, store } = cookieStore("claim-secret");
     cookiesMock.mockResolvedValue(store);
-    rpcMock.mockResolvedValue({
-      data: [{ result_code: "cross_household", household_id: null, membership_created: null }],
-      error: null,
-    });
+    acceptInvitationMock.mockResolvedValue(false);
 
-    const result = await acceptInvitationClaim();
-
-    expect(result).toEqual({ kind: "cross-household", status: "error" });
+    await expect(acceptInvitationClaim()).resolves.toEqual({ kind: "invalid", status: "error" });
     expect(deleteMock).toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it("その他の失敗(共通エラー)は内部詳細を表示せず、cookieを削除する", async () => {
-    const { deleteMock, store } = cookieStore("claim-secret-value");
+  it("予期しないD1エラーでは再試行用cookieを残す", async () => {
+    const { deleteMock, store } = cookieStore("claim-secret");
     cookiesMock.mockResolvedValue(store);
-    rpcMock.mockResolvedValue({
-      data: [{ result_code: "invalid", household_id: null, membership_created: null }],
-      error: null,
-    });
+    acceptInvitationMock.mockRejectedValue(new Error("D1 unavailable"));
 
-    const result = await acceptInvitationClaim();
-
-    expect(result).toEqual({ kind: "invalid", status: "error" });
-    expect(deleteMock).toHaveBeenCalled();
-    expect(JSON.stringify(result)).not.toContain("Invitation token is invalid");
-  });
-
-  it("レート制限中(rate_limited相当)も共通エラーと区別できない結果を返す", async () => {
-    const { deleteMock, store } = cookieStore("claim-secret-value");
-    cookiesMock.mockResolvedValue(store);
-    // DB側はrate_limitedもinvalidとして返す(YDR-019: 区別できない応答)。
-    rpcMock.mockResolvedValue({
-      data: [{ result_code: "invalid", household_id: null, membership_created: null }],
-      error: null,
-    });
-
-    const result = await acceptInvitationClaim();
-
-    expect(result).toEqual({ kind: "invalid", status: "error" });
-    expect(deleteMock).toHaveBeenCalled();
-  });
-
-  it("予期しないRPCエラーは招待の無効扱いに畳み込まず、cookieを残したまま例外にする", async () => {
-    const { deleteMock, store } = cookieStore("claim-secret-value");
-    cookiesMock.mockResolvedValue(store);
-    rpcMock.mockResolvedValue({ data: null, error: new Error("unexpected failure") });
-
-    // DB接続断などの内部エラーを「この招待は無効」と偽って表示すると、
-    // 一時的な障害で利用者の再試行手段(cookie)を失わせてしまうため、
-    // 例外として伝播させ、cookieは消費しない(Codexレビュー指摘)。
-    await expect(acceptInvitationClaim()).rejects.toThrow();
+    await expect(acceptInvitationClaim()).rejects.toThrow("D1 unavailable");
     expect(deleteMock).not.toHaveBeenCalled();
   });
 });

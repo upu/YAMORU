@@ -6,8 +6,7 @@ import { useFormStatus } from "react-dom";
 import { acceptInvitationClaim } from "./actions";
 import { INITIAL_ACCEPT_INVITATION_STATE } from "./state";
 
-const ERROR_MESSAGES: Record<"cross-household" | "invalid", string> = {
-  "cross-household": "既に別の家庭に所属しているため、この招待には参加できません。",
+const ERROR_MESSAGES: Record<"invalid", string> = {
   invalid: "この招待リンクは無効か、有効期限が切れています。招待した家族に再発行を依頼してください。",
 };
 

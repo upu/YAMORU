@@ -18,5 +18,17 @@
 			"database_id": "local-only-placeholder",
 			"migrations_dir": "d1/migrations"
 		}
-	]
+	],
+	"env": {
+		"e2e": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "yamoru-e2e-local",
+					"database_id": "e2e-local-only-placeholder",
+					"migrations_dir": "d1/migrations"
+				}
+			]
+		}
+	}
 }

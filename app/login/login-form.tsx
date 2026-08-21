@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { login, signup } from "./actions";
+import { login } from "./actions";
+import { MIN_PASSWORD_LENGTH } from "../../lib/auth/password-policy";
 import { INITIAL_AUTH_STATE, type AuthActionState } from "./state";
 
 function SubmitButton({ label }: { label: string }) {
@@ -38,9 +39,9 @@ function CredentialsFields({ idPrefix }: { idPrefix: string }) {
       />
       <label htmlFor={`${idPrefix}-password`}>パスワード</label>
       <input
-        autoComplete={idPrefix === "signup" ? "new-password" : "current-password"}
+        autoComplete="current-password"
         id={`${idPrefix}-password`}
-        minLength={6}
+        minLength={MIN_PASSWORD_LENGTH}
         name="password"
         required
         type="password"
@@ -56,10 +57,9 @@ function NextField({ next }: { next?: string }) {
 
 export function LoginForm({ next }: { next?: string }) {
   const [loginState, loginAction] = useActionState(login, INITIAL_AUTH_STATE);
-  const [signupState, signupAction] = useActionState(signup, INITIAL_AUTH_STATE);
 
   return (
-    <div className="auth-grid">
+    <div className="auth-grid auth-grid-single">
       <section aria-labelledby="login-title" className="auth-card">
         <h2 id="login-title">ログイン</h2>
         <form action={loginAction} className="auth-form">
@@ -67,16 +67,6 @@ export function LoginForm({ next }: { next?: string }) {
           <CredentialsFields idPrefix="login" />
           <SubmitButton label="ログイン" />
           <Feedback state={loginState} />
-        </form>
-      </section>
-      <section aria-labelledby="signup-title" className="auth-card">
-        <h2 id="signup-title">新規登録</h2>
-        <p>ローカル確認用の架空のメールアドレスを使用してください。</p>
-        <form action={signupAction} className="auth-form">
-          <NextField next={next} />
-          <CredentialsFields idPrefix="signup" />
-          <SubmitButton label="新規登録" />
-          <Feedback state={signupState} />
         </form>
       </section>
     </div>

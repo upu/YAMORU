@@ -19,6 +19,8 @@ vi.mock("../app/managed-items/[id]/actions", () => ({
   undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
 
+vi.mock("../auth", () => ({ auth: vi.fn() }));
+
 import {
   buildReminderItems,
   buildRecentItems,
