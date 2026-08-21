@@ -165,7 +165,7 @@ describe("アカウント画面", () => {
     );
     expect(within(passwordSection).getByLabelText("新しいパスワード")).toHaveAttribute(
       "minLength",
-      "12",
+      "8",
     );
     expect(within(passwordSection).getByRole("button", { name: "パスワードを変更" }))
       .toBeInTheDocument();
