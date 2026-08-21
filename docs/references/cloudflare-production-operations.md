@@ -55,7 +55,7 @@ npx wrangler secret put AUTH_SECRET --env production
 
 SecretsはCloudflare側で管理され、読み戻せない。デプロイは`--keep-vars`を使い、Dashboardで管理するruntime変数を消さない。`AUTH_SECRET`を変更すると既存JWTが無効になるため、計画した全員再ログイン時だけローテーションする。
 
-## previewへ配備して確認する
+## previewへ初回配備して確認する
 
 まずpreview D1へマイグレーションを適用する。コマンドが求める確認には`yamoru-preview`を完全一致で入力する。
 
@@ -79,17 +79,39 @@ npm run auth:bootstrap:preview
 
 preview URLのログイン画面でログインし、ニックネームと架空の家庭を作成する。再読み込み後も表示できれば、Workersからpreview D1への基本接続が成立している。previewには家庭の実データを入れない。
 
-## GitHubからproductionへ自動デプロイする
+初回構築後は、mainへのpushに対する`Quality checks`が成功すると`.github/workflows/deploy-preview.yml`が同じcommit SHAをcheckoutし、preview migration、Cloudflare build、deploy、公開境界smokeを順に実行する。Pull Requestのhead、失敗したmain、stable Releaseの公開はpreview自動配備の契機にしない。緊急調査以外はローカルから手動配備しない。
+
+## GitHub Environmentsを設定する
 
 Cloudflare DashboardでYAMORU専用のAPI tokenを作り、対象AccountをYAMORUの所有アカウントだけに限定する。必要な権限はWorkers Scriptsの編集とD1の編集である。Global API Keyは使わない。
 
-GitHubの`production` Environmentへ次を設定する。
+GitHubの`preview` Environmentへ次を設定する。
+
+- Secret `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Dashboardに表示されるAccount ID
+- Secret `CLOUDFLARE_API_TOKEN`: 上記の限定API token
+- Variable `YAMORU_PREVIEW_URL`: `https://yamoru-preview.<workers-subdomain>.workers.dev`
+
+GitHubの`production` Environmentにも、production用として次を設定する。
 
 - Secret `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Dashboardに表示されるAccount ID
 - Secret `CLOUDFLARE_API_TOKEN`: 上記の限定API token
 - Variable `YAMORU_PRODUCTION_URL`: `https://yamoru-production.<workers-subdomain>.workers.dev`またはカスタムドメインのHTTPS URL
 
-`.github/workflows/deploy-production.yml`は、`main`へのpushに対する`Quality checks`が成功したときだけ、その検証済みcommit SHAをcheckoutする。その後、対象分離確認、production migration、Cloudflare build、deploy、公開境界smokeの順に実行する。Pull Requestのheadや失敗した`main`はproductionへ反映しない。
+同じAPI tokenを両Environmentへ登録してもよいが、リポジトリ全体のSecretへ広げず、workflow jobが指定したEnvironmentからだけ参照する。Cloudflare runtimeの`AUTH_SECRET`はGitHubへ登録せず、preview / production Worker側で別々に管理する。
+
+## stable Releaseからproductionへ配備する
+
+mainへのマージだけではproductionへ配備しない。`.github/workflows/deploy-production.yml`はstableなGitHub Releaseの`published`イベントで起動し、Releaseタグのcommitへ`Quality checks`を再実行する。成功後、タグが`vX.Y.Z`形式で、checkout済みHEADと一致し、mainに含まれることを確認してから、production migration、Cloudflare build、deploy、公開境界smokeを順に実行する。
+
+productionへ出すときは次の順で操作する。
+
+1. Release対象のmain commitがpreviewへ配備済みで、previewのsmokeと必要な手動確認が成功していることを確認する。
+2. GitHubのReleasesからDraftを作り、`vX.Y.Z`形式の新しいタグとmain上の対象commitを指定する。
+3. Release notesと対象commitを見直す。`Set as a pre-release`は選ばない。
+4. `Publish release`を実行する。この操作がproduction反映の承認になる。
+5. GitHub Actionsの`Deploy production`で、quality、target確認、migration、deploy、smokeがすべて成功したことを確認する。
+
+Draftとpre-releaseはproductionへ配備しない。不正なタグやmainに含まれないcommitではproduction変更前に失敗する。Releaseタグを書き換えて再利用せず、修正をmainとpreviewで確認してから新しいpatch Releaseを作る。
 
 初回デプロイ後、productionの最初の利用者を作る。対象確認には`yamoru-production`を入力する。
 
@@ -101,7 +123,7 @@ production URLでログイン画面まで到達し、作成した認証情報で
 
 ## 日常のマイグレーションとデプロイ
 
-スキーマ変更は[データベースに影響する変更の手順](database-change-playbook.md)に従い、先にlocalとpreviewで確認する。productionへは`main`の自動デプロイだけで適用する。workflowはmigrationを新Workerより先に適用するため、migrationは現在稼働中のWorkerとも互換なexpand-first変更にする。破壊的な削除・rename・制約強化は、先に新旧両方で動くschemaとコードを配備し、後続issueで利用停止を確認してから行う。D1 migrationは適用直前にバックアップを取得し、途中で失敗したmigrationをロールバックするが、既に成功した過去migrationまでは戻さない。
+スキーマ変更は[データベースに影響する変更の手順](database-change-playbook.md)に従い、先にlocalとmainから自動配備されるpreviewで確認する。productionへはstable Releaseの自動デプロイだけで適用する。workflowはmigrationを新Workerより先に適用するため、migrationは現在稼働中のWorkerとも互換なexpand-first変更にする。破壊的な削除・rename・制約強化は、先に新旧両方で動くschemaとコードを配備し、後続issueで利用停止を確認してから行う。D1 migrationは適用直前にバックアップを取得し、途中で失敗したmigrationをロールバックするが、既に成功した過去migrationまでは戻さない。
 
 緊急時を除き、ローカルから`cf:deploy:production`や`d1:migrate:production`を直接実行しない。緊急操作を行った場合は、理由、対象Worker/D1、commit SHA、時刻、結果をIssueへ秘密情報なしで記録し、リポジトリの状態と実環境を再同期する。
 
@@ -150,3 +172,5 @@ D1 Time Travelは、データ破損・誤削除が確認された事故時だけ
 - [Cloudflare GitHub Actions](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/) - Account IDと限定API token
 - [Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) - ログ保存と確認
 - [Cloudflare Workers Rollbacks](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/) - version rollback
+- [GitHub Actionsのrelease event](https://docs.github.com/actions/reference/workflows-and-actions/events-that-trigger-workflows#release) - stable Release公開時のtag refとcommit
+- [GitHub Actionsの再利用workflow](https://docs.github.com/actions/how-tos/reuse-automations/reuse-workflows) - Release commitへQuality checksを再実行する構成

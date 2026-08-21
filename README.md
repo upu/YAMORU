@@ -65,7 +65,7 @@ npm run dev
 
 `auth:bootstrap`は利用者が一人もいないローカルD1に限り、最初のアカウントを作る。公開signupは提供しない。二人目以降は、家庭の管理者が発行した招待URLから登録する。詳しい初回作成と運用者によるパスワード再設定は[Auth.js初回bootstrapとパスワード再設定](docs/references/auth-admin-operations.md)を参照する。
 
-Cloudflareのpreview / productionは別のWorkerとD1へ分離し、環境名入りの専用コマンドだけで操作する。初回構築、Secrets、CI/CD、ログ、ロールバックは[Cloudflare productionの構築・デプロイ・復旧](docs/references/cloudflare-production-operations.md)を参照する。既存実データの移行はIssue #124で扱う。
+Cloudflareのpreview / productionは別のWorkerとD1へ分離し、環境名入りの専用コマンドだけで操作する。mainのQuality checks成功後はpreviewへ自動配備し、productionへはstableなGitHub Releaseの公開時だけ反映する。初回構築、Secrets、CI/CD、Release、ログ、ロールバックは[Cloudflare productionの構築・デプロイ・復旧](docs/references/cloudflare-production-operations.md)を参照する。既存実データの移行はIssue #124で扱う。
 
 `localhost`以外のホスト名やIPアドレスで開発サーバーを開く場合は、起動マシンのIPv4アドレスを`.env.local`の`YAMORU_ALLOWED_DEV_ORIGINS`へ設定します。これはスマートフォン専用ではなく、同じWi-Fi上のタブレットや別のPCなどから接続する場合も同じです。たとえば起動マシンのアドレスが`192.168.1.10`なら、`YAMORU_ALLOWED_DEV_ORIGINS=192.168.1.10`とし、別端末で`https://192.168.1.10:3000`を開きます。複数指定する場合はカンマで区切ります。同じ値がHTTPS開発証明書の対象ホストにもなるため、変更後は開発サーバーを再起動してください(`npm run dev`が証明書を自動で再生成します)。DHCPで起動マシンのIPアドレスが変わった場合も同様に再設定・再起動が必要です。
 
