@@ -44,7 +44,7 @@ GitHub Actionsの`D1 migration and authorization tests`も、空のローカルD
 
 ## remote D1へ適用する
 
-preview / productionへの適用は[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従う。まずlocalゲートを完了し、次に`npm run d1:migrate:preview`とpreview Workerで確認する。production migrationは`main`の`Quality checks`が成功した同一commitを使う自動デプロイだけで適用する。
+preview / productionへの適用は[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従う。まずlocalゲートを完了する。mainの`Quality checks`が成功すると同一commitがpreview D1とWorkerへ自動配備されるため、previewで新旧コードとschemaの互換性を確認する。production migrationは、その確認済みmain commitを指すstableなGitHub Releaseを公開したときだけ適用する。
 
 remote操作ではbinding名`DB`だけに依存せず、不変のD1名`yamoru-preview` / `yamoru-production`とWrangler環境を同時に指定する。productionではmigrationを新Workerより先に適用するため、現在稼働中のWorkerと互換なexpand-first変更にする。productionへ適用したmigrationファイルを書き換えず、新しい連番migrationでforward fixする。
 
