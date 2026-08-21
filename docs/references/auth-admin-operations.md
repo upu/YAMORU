@@ -1,14 +1,14 @@
 ---
 type: Playbook
 title: Auth.js初回bootstrapとパスワード再設定
-description: ローカルD1で最初のアカウントを一度だけ作成し、運用者がパスワードを再設定する手順
+description: local、preview、productionのD1で最初のアカウントを一度だけ作成し、運用者がパスワードを再設定する手順
 tags: [yamoru, authjs, d1, authentication, operations]
 status: stable
 ---
 
 # Auth.js初回bootstrapとパスワード再設定
 
-この手順は[YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md)に基づく。公開signupやセルフサービスのパスワード回復は提供しない。現在の管理コマンドはローカルD1だけを対象とし、Cloudflare本番D1の対象選択と誤操作ガードはIssue #123で追加する。
+この手順は[YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md)に基づく。公開signupやセルフサービスのパスワード回復は提供しない。既定の管理コマンドはlocal D1だけを対象とし、remote操作はpreview / productionを明示する専用コマンドと対象名の完全一致確認を要求する。
 
 ## 事前準備
 
@@ -30,6 +30,13 @@ npm run auth:bootstrap
 
 OKの基準は、コマンドが「認証情報を更新しました」と表示し、その認証情報でログインできること。二回目は何も変更せず失敗し、既存の認証情報で引き続きログインできること。
 
+Cloudflare上のpreview / productionを対象にする場合は、先に[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従ってD1 migrationとWorkerの配備を済ませる。対象確認へそれぞれ`yamoru-preview` / `yamoru-production`を入力する。
+
+```powershell
+npm run auth:bootstrap:preview
+npm run auth:bootstrap:production
+```
+
 ## パスワードを運用者が再設定する
 
 利用者がパスワードを忘れた場合だけ実行する。
@@ -41,6 +48,13 @@ npm run auth:reset-password
 対象メールアドレス、新しい12文字以上のパスワード、確認をプロンプトへ入力する。成功すると対象利用者の`session_version`も増え、既存のJWTセッションはすべて失効する。
 
 OKの基準は、古いパスワードでログインできず、新しいパスワードでログインできること。対象メールアドレスが存在しない場合は何も変更せず失敗する。
+
+remote D1の再設定には環境名入りのコマンドを使い、対象確認へDB名を完全一致で入力する。
+
+```powershell
+npm run auth:reset-password:preview
+npm run auth:reset-password:production
+```
 
 ## 秘密情報の扱い
 

@@ -31,11 +31,21 @@
     "test:db": "node scripts/supabase-env-sync.ts test && node scripts/supabase-destructive-guard.ts test && supabase test db --workdir environments/test",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "npm run cf:build && wrangler dev",
+    "cf:config:check": "node scripts/cloudflare.ts check",
+    "cf:deploy:preview": "node scripts/cloudflare.ts deploy preview",
+    "cf:deploy:production": "node scripts/cloudflare.ts deploy production",
+    "cf:smoke": "node scripts/cloudflare-smoke.ts",
     "d1:migrate": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local",
     "d1:migrate:e2e": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local --env e2e",
+    "d1:migrate:preview": "node scripts/cloudflare.ts migrate preview",
+    "d1:migrate:production": "node scripts/cloudflare.ts migrate production",
     "test:d1": "node --env-file=scripts/d1-test.env ./node_modules/vitest/vitest.mjs run --config vitest.d1.config.ts",
     "auth:bootstrap": "node scripts/auth-admin.ts bootstrap",
-    "auth:reset-password": "node scripts/auth-admin.ts reset-password"
+    "auth:bootstrap:preview": "node scripts/auth-admin.ts bootstrap --environment preview",
+    "auth:bootstrap:production": "node scripts/auth-admin.ts bootstrap --environment production",
+    "auth:reset-password": "node scripts/auth-admin.ts reset-password",
+    "auth:reset-password:preview": "node scripts/auth-admin.ts reset-password --environment preview",
+    "auth:reset-password:production": "node scripts/auth-admin.ts reset-password --environment production"
   },
   "dependencies": {
     "next": "16.3.0",

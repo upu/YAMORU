@@ -1,6 +1,5 @@
-// Issue #116: Cloudflare Workers移行可否スパイク用の設定。
-// R2による永続キャッシュはリモートリソース作成が必要になるため、
-// このスパイクではデフォルト(インメモリ)のままにする。
+// YAMORUはオンライン専用PWAで、認証済みHTMLや家庭データを永続キャッシュしない。
+// そのためR2等の永続incremental cacheは追加せず、既定のインメモリ構成を使う。
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 
 export default defineCloudflareConfig();

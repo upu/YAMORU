@@ -1,5 +1,5 @@
-import { hashPassword, verifyPassword } from "../auth/password";
-import { D1ConflictError, D1UnauthorizedError } from "./errors";
+import { hashPassword, verifyPassword } from "../auth/password.ts";
+import { D1ConflictError, D1UnauthorizedError } from "./errors.ts";
 
 export type AuthenticatedD1User = {
   email: string;

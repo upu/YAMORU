@@ -2,17 +2,24 @@ import { createInterface } from "node:readline/promises";
 
 import { getPlatformProxy } from "wrangler";
 
-import { parseAuthAdminCommand } from "../lib/auth/admin-command";
-import { hashPassword } from "../lib/auth/password";
-import { MIN_PASSWORD_LENGTH } from "../lib/auth/password-policy";
-import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication";
+import { parseAuthAdminInvocation } from "../lib/auth/admin-command.ts";
+import { hashPassword } from "../lib/auth/password.ts";
+import { MIN_PASSWORD_LENGTH } from "../lib/auth/password-policy.ts";
+import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication.ts";
+import { assertRemoteTargetConfirmation } from "./cloudflare-target.ts";
 
 type AdminInput = { email: string; password: string };
 
-async function readPipedInput(): Promise<AdminInput> {
+async function readPipedInput(
+  environment: "local" | "preview" | "production",
+): Promise<AdminInput> {
   let input = "";
   for await (const chunk of process.stdin) input += String(chunk);
-  const [email = "", password = "", confirmation = ""] = input.split(/\r?\n/u);
+  const lines = input.split(/\r?\n/u);
+  if (environment !== "local") {
+    assertRemoteTargetConfirmation(environment, lines.shift() ?? "");
+  }
+  const [email = "", password = "", confirmation = ""] = lines;
   if (password !== confirmation) throw new Error("Password confirmation does not match");
   return { email, password };
 }
@@ -53,10 +60,23 @@ async function readHiddenLine(label: string): Promise<string> {
   });
 }
 
-async function readInteractiveInput(): Promise<AdminInput> {
+async function readInteractiveInput(
+  environment: "local" | "preview" | "production",
+): Promise<AdminInput> {
   const prompt = createInterface({ input: process.stdin, output: process.stdout });
-  const email = await prompt.question("Email: ");
-  prompt.close();
+  let email: string;
+  try {
+    if (environment !== "local") {
+      const target = `yamoru-${environment}`;
+      const confirmation = await prompt.question(
+        `操作対象の確認として ${target} を入力: `,
+      );
+      assertRemoteTargetConfirmation(environment, confirmation);
+    }
+    email = await prompt.question("Email: ");
+  } finally {
+    prompt.close();
+  }
   const password = await readHiddenLine("Password: ");
   const confirmation = await readHiddenLine("Password (again): ");
   if (password !== confirmation) throw new Error("Password confirmation does not match");
@@ -64,16 +84,19 @@ async function readInteractiveInput(): Promise<AdminInput> {
 }
 
 async function main(): Promise<void> {
-  const command = parseAuthAdminCommand(process.argv.slice(2));
-  const input = process.stdin.isTTY ? await readInteractiveInput() : await readPipedInput();
+  const { command, environment } = parseAuthAdminInvocation(process.argv.slice(2));
+  const input = process.stdin.isTTY
+    ? await readInteractiveInput(environment)
+    : await readPipedInput(environment);
   if (!input.email.includes("@") || input.password.length < MIN_PASSWORD_LENGTH) {
     throw new Error(`Email and a password of at least ${String(MIN_PASSWORD_LENGTH)} characters are required`);
   }
   const passwordHash = await hashPassword(input.password);
   const platform = await getPlatformProxy<CloudflareEnv>({
     configPath: "wrangler.jsonc",
-    persist: true,
-    remoteBindings: false,
+    ...(environment === "local" ? {} : { environment }),
+    persist: environment === "local",
+    remoteBindings: environment !== "local",
   });
   try {
     if (command === "bootstrap") {
