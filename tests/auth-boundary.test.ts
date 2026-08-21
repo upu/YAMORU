@@ -72,4 +72,8 @@ describe("Auth.js認証境界", () => {
     authMock.mockResolvedValue({ user: { id: "user-1" } });
     await expect(getCurrentUser()).resolves.toBeNull();
   });
+
+  it("Cloudflare Workersの公開ホストを信頼し、preview/productionでUntrustedHostを起こさない(#137)", () => {
+    expect(authConfig.trustHost).toBe(true);
+  });
 });
