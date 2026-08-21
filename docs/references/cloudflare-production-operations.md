@@ -19,7 +19,7 @@ stale_after: 2026-11-21
 | preview | `yamoru-preview` | `yamoru-preview` | Cloudflare上での事前確認。家庭の実データを入れない |
 | production | `yamoru-production` | `yamoru-production` | 家族が利用する本番。実データは専用の移行手順でだけ初回投入する |
 
-三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
+三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。Auth管理コマンドは、本体Workerのbindingから分離した`wrangler.auth-admin.jsonc`でも同じD1を指定し、preview / productionの対象bindingだけをremote接続する。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
 
 ## 最初のCloudflareリソースを作る
 
@@ -36,7 +36,7 @@ npx wrangler d1 create yamoru-preview --location apac
 npx wrangler d1 create yamoru-production --location apac
 ```
 
-各コマンドが返した`database_id`を、`wrangler.jsonc`の対応するplaceholderへ設定する。IDは秘密情報ではないが、環境を識別する正本なので転記後に次を実行する。
+各コマンドが返した`database_id`を、`wrangler.jsonc`と`wrangler.auth-admin.jsonc`の対応するplaceholderへ設定する。IDは秘密情報ではないが、環境を識別する正本なので転記後に次を実行する。
 
 ```powershell
 npm run cf:config:check

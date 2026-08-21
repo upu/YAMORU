@@ -7,6 +7,27 @@ export type AuthAdminInvocation = {
   environment: AuthAdminEnvironment;
 };
 
+export const AUTH_ADMIN_FAILURE_MESSAGE =
+  "認証情報を更新できませんでした。入力とD1の状態を確認してください。\n";
+
+export function getAuthAdminPlatformOptions(
+  environment: AuthAdminEnvironment,
+): {
+  configPath: string;
+  environment?: "preview" | "production";
+  envFiles: string[];
+  persist: boolean;
+  remoteBindings: boolean;
+} {
+  const base = {
+    configPath: "wrangler.auth-admin.jsonc",
+    envFiles: [],
+    persist: environment === "local",
+    remoteBindings: environment !== "local",
+  };
+  return environment === "local" ? base : { ...base, environment };
+}
+
 export function parseAuthAdminCommand(args: string[]): AuthAdminCommand {
   if (args.length !== 1 || (args[0] !== "bootstrap" && args[0] !== "reset-password")) {
     throw new Error("Usage: auth-admin <bootstrap|reset-password>");

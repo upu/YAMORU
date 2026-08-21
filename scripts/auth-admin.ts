@@ -2,7 +2,11 @@ import { createInterface } from "node:readline/promises";
 
 import { getPlatformProxy } from "wrangler";
 
-import { parseAuthAdminInvocation } from "../lib/auth/admin-command.ts";
+import {
+  AUTH_ADMIN_FAILURE_MESSAGE,
+  getAuthAdminPlatformOptions,
+  parseAuthAdminInvocation,
+} from "../lib/auth/admin-command.ts";
 import { hashPassword } from "../lib/auth/password.ts";
 import { MIN_PASSWORD_LENGTH } from "../lib/auth/password-policy.ts";
 import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication.ts";
@@ -92,12 +96,9 @@ async function main(): Promise<void> {
     throw new Error(`Email and a password of at least ${String(MIN_PASSWORD_LENGTH)} characters are required`);
   }
   const passwordHash = await hashPassword(input.password);
-  const platform = await getPlatformProxy<CloudflareEnv>({
-    configPath: "wrangler.jsonc",
-    ...(environment === "local" ? {} : { environment }),
-    persist: environment === "local",
-    remoteBindings: environment !== "local",
-  });
+  const platform = await getPlatformProxy<CloudflareEnv>(
+    getAuthAdminPlatformOptions(environment),
+  );
   try {
     if (command === "bootstrap") {
       await bootstrapFirstUser(platform.env.DB, input.email, passwordHash);
@@ -113,6 +114,6 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch {
-  process.stderr.write("認証情報を更新できませんでした。入力とD1の状態を確認してください。\n");
+  process.stderr.write(AUTH_ADMIN_FAILURE_MESSAGE);
   process.exitCode = 1;
 }
