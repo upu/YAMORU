@@ -21,6 +21,21 @@ import { assertRemoteTargetConfirmation } from "./cloudflare-target.ts";
 
 type AdminInput = { email: string; password: string };
 
+class AuthAdminInputError extends Error {
+  readonly stage: Extract<
+    AuthAdminFailureStage,
+    "target-confirmation" | "password-confirmation"
+  >;
+
+  constructor(
+    stage: AuthAdminInputError["stage"],
+    cause?: unknown,
+  ) {
+    super("Auth admin input failed", { cause });
+    this.stage = stage;
+  }
+}
+
 class AuthAdminOperationError extends Error {
   readonly stage: AuthAdminFailureStage;
   readonly command: AuthAdminCommand;
@@ -44,7 +59,30 @@ async function runStage<T>(
   try {
     return await operation();
   } catch (cause) {
+    if (cause instanceof AuthAdminInputError) {
+      throw new AuthAdminOperationError(cause.stage, command, cause);
+    }
     throw new AuthAdminOperationError(stage, command, cause);
+  }
+}
+
+function assertTargetConfirmation(
+  environment: "preview" | "production",
+  confirmation: string,
+): void {
+  try {
+    assertRemoteTargetConfirmation(environment, confirmation);
+  } catch (cause) {
+    throw new AuthAdminInputError("target-confirmation", cause);
+  }
+}
+
+function assertPasswordConfirmation(
+  password: string,
+  confirmation: string,
+): void {
+  if (password !== confirmation) {
+    throw new AuthAdminInputError("password-confirmation");
   }
 }
 
@@ -55,10 +93,10 @@ async function readPipedInput(
   for await (const chunk of process.stdin) input += String(chunk);
   const lines = input.split(/\r?\n/u);
   if (environment !== "local") {
-    assertRemoteTargetConfirmation(environment, lines.shift() ?? "");
+    assertTargetConfirmation(environment, lines.shift() ?? "");
   }
   const [email = "", password = "", confirmation = ""] = lines;
-  if (password !== confirmation) throw new Error("Password confirmation does not match");
+  assertPasswordConfirmation(password, confirmation);
   return { email, password };
 }
 
@@ -109,7 +147,7 @@ async function readInteractiveInput(
       const confirmation = await prompt.question(
         `操作対象の確認として ${target} を入力: `,
       );
-      assertRemoteTargetConfirmation(environment, confirmation);
+      assertTargetConfirmation(environment, confirmation);
     }
     email = await prompt.question("Email: ");
   } finally {
@@ -117,7 +155,7 @@ async function readInteractiveInput(
   }
   const password = await readHiddenLine("Password: ");
   const confirmation = await readHiddenLine("Password (again): ");
-  if (password !== confirmation) throw new Error("Password confirmation does not match");
+  assertPasswordConfirmation(password, confirmation);
   return { email, password };
 }
 
@@ -154,8 +192,9 @@ async function main(): Promise<void> {
   const input = await runStage("input", command, () => process.stdin.isTTY
     ? readInteractiveInput(environment)
     : readPipedInput(environment));
-  if (!input.email.includes("@") || input.password.length < MIN_PASSWORD_LENGTH) {
-    throw new AuthAdminOperationError("input", command);
+  if (!input.email.includes("@")) throw new AuthAdminOperationError("email", command);
+  if (input.password.length < MIN_PASSWORD_LENGTH) {
+    throw new AuthAdminOperationError("password-length", command);
   }
   const passwordHash = await runStage("password-hash", command, () =>
     hashPassword(input.password),

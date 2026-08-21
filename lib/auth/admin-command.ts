@@ -1,3 +1,5 @@
+import { MIN_PASSWORD_LENGTH } from "./password-policy.ts";
+
 export type AuthAdminCommand = "bootstrap" | "reset-password";
 
 export type AuthAdminEnvironment = "local" | "preview" | "production";
@@ -9,6 +11,10 @@ export type AuthAdminInvocation = {
 
 export type AuthAdminFailureStage =
   | "invocation"
+  | "target-confirmation"
+  | "email"
+  | "password-length"
+  | "password-confirmation"
   | "input"
   | "password-hash"
   | "connection"
@@ -24,8 +30,16 @@ export function getAuthAdminFailureMessage(
   switch (stage) {
     case "invocation":
       return "コマンドの指定が正しくありません。環境名入りのnpm scriptを使用してください。\n";
+    case "target-confirmation":
+      return "操作対象の確認が一致しません。プロンプトに表示されたD1名を完全一致で入力してください。\n";
+    case "email":
+      return "メールアドレスの形式が正しくありません。@を含むメールアドレスを入力してください。\n";
+    case "password-length":
+      return `パスワードが短すぎます。${String(MIN_PASSWORD_LENGTH)}文字以上で入力してください。\n`;
+    case "password-confirmation":
+      return "パスワードの1回目と2回目が一致しません。もう一度入力してください。\n";
     case "input":
-      return "入力または操作対象の確認に失敗しました。メールアドレス、パスワード長、確認入力を見直してください。\n";
+      return "入力を読み取れませんでした。コマンドを再実行してください。\n";
     case "password-hash":
       return "パスワードを安全に処理できませんでした。コマンドを再実行してください。\n";
     case "connection":

@@ -32,7 +32,7 @@ npm run auth:bootstrap
 
 OKの基準は、コマンドが「認証情報を更新しました」と表示し、その認証情報でログインできること。二回目は何も変更せず失敗し、既存の認証情報で引き続きログインできること。
 
-失敗時は、入力・パスワード処理・Cloudflare接続・D1状態のどこを見直すべきかを表示する。秘密情報やCloudflareの生のエラー本文は表示しない。D1状態のエラーでは、bootstrapなら利用者が既に存在しないかとmigration適用済みか、パスワード再設定なら対象利用者が存在するかとmigration適用済みかを確認する。
+失敗時は、操作対象名の不一致、メールアドレス形式、パスワードの最小文字数、2回のパスワード不一致、入力の読み取り、パスワード処理、Cloudflare接続、D1状態のどこを見直すべきかを個別に表示する。入力値そのもの、秘密情報、Cloudflareの生のエラー本文は表示しない。D1状態のエラーでは、bootstrapなら利用者が既に存在しないかとmigration適用済みか、パスワード再設定なら対象利用者が存在するかとmigration適用済みかを確認する。
 
 Cloudflare上のpreview / productionを対象にする場合は、先に[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従ってD1 migrationとWorkerの配備を済ませる。対象確認へそれぞれ`yamoru-preview` / `yamoru-production`を入力する。
 

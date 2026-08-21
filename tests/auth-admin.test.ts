@@ -68,7 +68,11 @@ describe("auth admin command boundary", () => {
 
   it.each([
     ["invocation", "bootstrap", "コマンドの指定が正しくありません。環境名入りのnpm scriptを使用してください。\n"],
-    ["input", "bootstrap", "入力または操作対象の確認に失敗しました。メールアドレス、パスワード長、確認入力を見直してください。\n"],
+    ["target-confirmation", "bootstrap", "操作対象の確認が一致しません。プロンプトに表示されたD1名を完全一致で入力してください。\n"],
+    ["email", "bootstrap", "メールアドレスの形式が正しくありません。@を含むメールアドレスを入力してください。\n"],
+    ["password-length", "bootstrap", "パスワードが短すぎます。12文字以上で入力してください。\n"],
+    ["password-confirmation", "bootstrap", "パスワードの1回目と2回目が一致しません。もう一度入力してください。\n"],
+    ["input", "bootstrap", "入力を読み取れませんでした。コマンドを再実行してください。\n"],
     ["password-hash", "bootstrap", "パスワードを安全に処理できませんでした。コマンドを再実行してください。\n"],
     ["connection", "bootstrap", "D1への接続を確立できませんでした。Cloudflareへのログイン状態と対象環境を確認してください。\n"],
     ["database", "bootstrap", "bootstrapできませんでした。対象D1に利用者が存在しないこととmigration適用済みであることを確認してください。\n"],
@@ -92,7 +96,22 @@ describe("auth admin command boundary", () => {
     {
       args: ["bootstrap", "--environment", "preview"],
       input: "wrong-target\nperson@example.test\nplain-password\nplain-password\n",
-      expected: "入力または操作対象の確認に失敗しました。メールアドレス、パスワード長、確認入力を見直してください。\n",
+      expected: "操作対象の確認が一致しません。プロンプトに表示されたD1名を完全一致で入力してください。\n",
+    },
+    {
+      args: ["bootstrap", "--environment", "preview"],
+      input: "yamoru-preview\ninvalid-email\nlong-password\nlong-password\n",
+      expected: "メールアドレスの形式が正しくありません。@を含むメールアドレスを入力してください。\n",
+    },
+    {
+      args: ["bootstrap", "--environment", "preview"],
+      input: "yamoru-preview\nperson@example.test\nshort\nshort\n",
+      expected: "パスワードが短すぎます。12文字以上で入力してください。\n",
+    },
+    {
+      args: ["bootstrap", "--environment", "preview"],
+      input: "yamoru-preview\nperson@example.test\nlong-password-1\nlong-password-2\n",
+      expected: "パスワードの1回目と2回目が一致しません。もう一度入力してください。\n",
     },
   ])("CLIが失敗段階だけを表示する: $args", ({ args, input, expected }) => {
     const result = spawnSync(process.execPath, ["scripts/auth-admin.ts", ...args], {
