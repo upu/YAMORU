@@ -64,7 +64,7 @@ describe("D1招待受諾確認画面", () => {
     expect(screen.getByRole("heading", { name: "招待からアカウントを作成" })).toBeInTheDocument();
     expect(screen.getByLabelText("メールアドレス")).toHaveValue("new@example.test");
     expect(screen.getByLabelText("ニックネーム")).toBeInTheDocument();
-    expect(screen.getByLabelText("パスワード")).toHaveAttribute("minLength", "12");
+    expect(screen.getByLabelText("パスワード")).toHaveAttribute("minLength", "8");
     expect(screen.getByRole("button", { name: "アカウントを作成して参加" })).toBeInTheDocument();
   });
 

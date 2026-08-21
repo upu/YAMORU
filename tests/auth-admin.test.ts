@@ -70,7 +70,7 @@ describe("auth admin command boundary", () => {
     ["invocation", "bootstrap", "コマンドの指定が正しくありません。環境名入りのnpm scriptを使用してください。\n"],
     ["target-confirmation", "bootstrap", "操作対象の確認が一致しません。プロンプトに表示されたD1名を完全一致で入力してください。\n"],
     ["email", "bootstrap", "メールアドレスの形式が正しくありません。@を含むメールアドレスを入力してください。\n"],
-    ["password-length", "bootstrap", "パスワードが短すぎます。12文字以上で入力してください。\n"],
+    ["password-length", "bootstrap", "パスワードが短すぎます。8文字以上で入力してください。\n"],
     ["password-confirmation", "bootstrap", "パスワードの1回目と2回目が一致しません。もう一度入力してください。\n"],
     ["input", "bootstrap", "入力を読み取れませんでした。コマンドを再実行してください。\n"],
     ["password-hash", "bootstrap", "パスワードを安全に処理できませんでした。コマンドを再実行してください。\n"],
@@ -106,7 +106,7 @@ describe("auth admin command boundary", () => {
     {
       args: ["bootstrap", "--environment", "preview"],
       input: "yamoru-preview\nperson@example.test\nshort\nshort\n",
-      expected: "パスワードが短すぎます。12文字以上で入力してください。\n",
+      expected: "パスワードが短すぎます。8文字以上で入力してください。\n",
     },
     {
       args: ["bootstrap", "--environment", "preview"],

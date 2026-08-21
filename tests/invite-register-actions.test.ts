@@ -18,7 +18,7 @@ const {
 
 vi.mock("../auth", () => ({ signIn: signInMock }));
 vi.mock("../lib/auth/password", () => ({
-  MIN_PASSWORD_LENGTH: 12,
+  MIN_PASSWORD_LENGTH: 8,
   hashPassword: hashPasswordMock,
 }));
 vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
