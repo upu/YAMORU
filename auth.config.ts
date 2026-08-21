@@ -45,6 +45,12 @@ export const sharedAuthConfig = {
   },
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
+  // Cloudflare Workers(preview/production)はHostヘッダーをリクエストURLから
+  // 安全に設定するプラットフォームであり、Auth.js公式リファレンスもここでの
+  // trustHost: trueを前提とする。既定値はNODE_ENV等の環境変数から間接的に
+  // 決まり、本番ビルドでは無効側に倒れてUntrustedHostを起こすため、
+  // local/preview/productionで同じ挙動になるようここで明示する(#137)。
+  trustHost: true,
 } satisfies Omit<NextAuthConfig, "providers">;
 
 export const authConfig = {

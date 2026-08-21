@@ -55,6 +55,8 @@ npx wrangler secret put AUTH_SECRET --env production
 
 SecretsはCloudflare側で管理され、読み戻せない。デプロイは`--keep-vars`を使い、Dashboardで管理するruntime変数を消さない。`AUTH_SECRET`を変更すると既存JWTが無効になるため、計画した全員再ログイン時だけローテーションする。
 
+Auth.jsのホスト信頼は`auth.config.ts`の`trustHost: true`で明示している。Cloudflare Workersは受信したHostヘッダーを実際の公開URLから設定するため、公式リファレンスに従いlocal / preview / productionで同じ値を使う。ログイン画面で`There was a problem with the server configuration.`が表示され、`wrangler tail`のログに`UntrustedHost`が出る場合は、この設定が反映されたビルドが配備されているかを確認する(#137)。
+
 ## previewへ初回配備して確認する
 
 まずpreview D1へマイグレーションを適用する。コマンドが求める確認には`yamoru-preview`を完全一致で入力する。
