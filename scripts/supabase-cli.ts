@@ -77,19 +77,32 @@ function stopSupabaseBestEffort(workdir: string): void {
   }
 }
 
+function throwStartError(error: unknown, quiet: boolean): never {
+  if (quiet) throw new Error("Supabaseの隔離スタックを起動できませんでした。");
+  throw error;
+}
+
 // `supabase start`は、直前のコンテナのポート開放がまだ終わっていない状態で
 // 次のバインドが走ると「address already in use」で失敗することがある
 // (GitHub Actionsのホスト型ランナーで実際に観測。Issue #86関連調査)。原因を
 // 問わず起動失敗全般を対象に、短い待機を挟んで数回まで自動再試行する。
 // CI(型生成・RLSポリシーカタログ生成)・ローカルのprod/test起動・バックアップ
 // 復元検証など、スタックを起動するすべての経路がこの関数を通る想定。
-export function startSupabase(workdir: string): void {
+export function startSupabase(
+  workdir: string,
+  options: { quiet?: boolean } = {},
+): void {
   for (let attempt = 1; attempt <= START_MAX_ATTEMPTS; attempt += 1) {
     try {
-      runSupabase(["start"], { workdir });
+      runSupabase(["start"], {
+        workdir,
+        ...(options.quiet === true ? { stdio: "pipe" as const } : {}),
+      });
       return;
     } catch (error) {
-      if (isSignalTerminated(error) || attempt === START_MAX_ATTEMPTS) throw error;
+      if (isSignalTerminated(error) || attempt === START_MAX_ATTEMPTS) {
+        throwStartError(error, options.quiet === true);
+      }
       console.error(
         `supabase startに失敗しました(${String(attempt)}/${String(START_MAX_ATTEMPTS)}回目)。` +
           `${String(START_RETRY_DELAY_MS / 1000)}秒待ってから再試行します。`,

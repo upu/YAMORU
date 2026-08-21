@@ -2,6 +2,8 @@ import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import schemaSql from "../../d1/migrations/0001_init.sql?raw";
+import authSchemaSql from "../../d1/migrations/0002_auth_invitation_claims.sql?raw";
+import migrationAuditSql from "../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -30,7 +32,7 @@ const householdBMember = { email: "b@example.com", userId: "user-b" };
 const nonMember = { email: "o@example.com", userId: "user-outsider" };
 
 function migrationStatements(): string[] {
-  return schemaSql
+  return [schemaSql, authSchemaSql, migrationAuditSql].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n")
@@ -72,6 +74,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await db.batch([
+    db.prepare("DELETE FROM invitation_claims"),
     db.prepare("DELETE FROM household_invitations"),
     db.prepare("DELETE FROM activity_logs"),
     db.prepare("DELETE FROM task_occurrences"),
@@ -97,6 +100,7 @@ describe("D1 formal schema and household authorization", () => {
     expect(tables.results.map(({ name }) => name)).toEqual(expect.arrayContaining([
       "activity_logs",
       "external_links",
+      "invitation_claims",
       "household_invitations",
       "household_members",
       "households",
@@ -288,6 +292,33 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     ).bind(nextId).first()).resolves.toMatchObject({ status: "pending" });
   });
 
+  it("担当変更と延期の前後値を追記型履歴へ保持する", async () => {
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+    await setTaskOccurrenceAssignee(db, householdAMember, occurrenceId, "user-a");
+    await postponeTaskOccurrence(
+      db,
+      householdAMember,
+      occurrenceId,
+      "2027-01-01T00:00:00.000Z",
+    );
+
+    await expect(db.prepare(
+      `SELECT assignee_user_id, previous_assignee_user_id, new_assignee_user_id
+         FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'assignee_changed'`,
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      assignee_user_id: "user-a",
+      new_assignee_user_id: "user-a",
+      previous_assignee_user_id: null,
+    });
+    await expect(db.prepare(
+      `SELECT previous_due_at, new_due_at
+         FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'postponed'`,
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      new_due_at: "2027-01-01T00:00:00.000Z",
+      previous_due_at: "2026-08-10T15:00:00.000Z",
+    });
+  });
+
   it("A session cannot complete, assign, or postpone a B occurrence by ID", async () => {
     const bRuleId = await createMaintenanceTask(db, householdBMember, {
       firstDueAt: "2026-09-10T15:00:00.000Z",
@@ -306,7 +337,7 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     })).rejects.toThrow("Occurrence not found");
     await expect(setTaskOccurrenceAssignee(
       db, householdAMember, bOccurrence.id, "user-a",
-    )).rejects.toThrow("Occurrence is not pending");
+    )).rejects.toThrow("Occurrence not found");
     await expect(postponeTaskOccurrence(
       db, householdAMember, bOccurrence.id, "2027-01-01T00:00:00.000Z",
     )).rejects.toThrow("Occurrence not found");

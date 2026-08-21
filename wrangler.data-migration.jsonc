@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yamoru-data-migration",
+  "compatibility_date": "2026-08-19",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yamoru-production",
+      "database_id": "89fb968e-c899-4af7-b279-dd5d27b2cc6f",
+      "remote": true
+    }
+  ]
+}
