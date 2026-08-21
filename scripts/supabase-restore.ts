@@ -5,6 +5,7 @@ import {
   envWorkdir,
   getStatusEnv,
   readProjectId,
+  runSupabase,
   startSupabase,
   writeDerivedConfig,
 } from "./supabase-cli.ts";
@@ -29,7 +30,11 @@ function verifyWorkdir(): string {
 }
 
 function loadDumpIntoContainer(projectId: string, backupFile: string): void {
-  const sql = readFileSync(backupFile);
+  const sql = Buffer.concat([
+    Buffer.from("SET session_replication_role = replica;\n"),
+    readFileSync(backupFile),
+    Buffer.from("\nSET session_replication_role = origin;\n"),
+  ]);
   execFileSync(
     "docker",
     // -1 (--single-transaction)により、途中で失敗した場合は全体をロールバック
@@ -56,9 +61,61 @@ function printVerificationCounts(projectId: string): void {
     { encoding: "utf8" },
   );
   console.log(output);
+
+  const integrityQuery = `
+    select
+      (select count(*) from public.household_members m
+        left join public.households h on h.id = m.household_id
+        left join auth.users u on u.id = m.user_id
+        where h.id is null or u.id is null)
+      + (select count(*) from public.profiles p
+        left join auth.users u on u.id = p.user_id where u.id is null)
+      + (select count(*) from public.managed_items i
+        left join public.households h on h.id = i.household_id where h.id is null)
+      + (select count(*) from public.external_links l
+        left join public.managed_items i on i.id = l.managed_item_id
+        where i.id is null or i.household_id <> l.household_id)
+      + (select count(*) from public.task_rules r
+        left join public.households h on h.id = r.household_id
+        left join public.managed_items i on i.id = r.managed_item_id
+        where h.id is null or (r.managed_item_id is not null and
+          (i.id is null or i.household_id <> r.household_id)))
+      + (select count(*) from public.task_occurrences o
+        left join public.task_rules r on r.id = o.task_rule_id
+        where r.id is null or r.household_id <> o.household_id)
+      + (select count(*) from public.activity_logs l
+        left join public.task_occurrences o on o.id = l.task_occurrence_id
+        where o.id is null or o.household_id <> l.household_id)
+      + (select count(*) from public.household_invitations i
+        left join public.households h on h.id = i.household_id where h.id is null)
+      as orphan_count;`;
+  const orphanCount = execFileSync(
+    "docker",
+    [
+      "exec", `supabase_db_${projectId}`, "psql", "-U", "postgres", "-d", "postgres",
+      "-At", "-v", "ON_ERROR_STOP=1", "-c", integrityQuery,
+    ],
+    { encoding: "utf8" },
+  ).trim();
+  if (orphanCount !== "0") {
+    throw new Error("バックアップ復元後の参照整合性チェックに失敗しました。");
+  }
+  console.log("参照整合性を確認しました(orphan_count: 0)。");
+}
+
+function resetVerifyStack(): void {
+  try {
+    runSupabase(["stop", "--no-backup"], {
+      workdir: verifyWorkdir(),
+      stdio: "pipe",
+    });
+  } catch {
+    // 初回実行など、対象スタックが存在しない場合はそのまま新規作成する。
+  }
 }
 
 function restoreToVerify(backupFile: string): void {
+  resetVerifyStack();
   writeDerivedConfig({
     projectId: VERIFY_PROJECT_ID,
     portPrefix: "57",
@@ -67,7 +124,7 @@ function restoreToVerify(backupFile: string): void {
   syncMigrationsInto(join(verifyWorkdir(), "supabase"));
 
   console.log("一時検証スタックを起動します(migrationsのみ適用、seedなし)...");
-  startSupabase(verifyWorkdir());
+  startSupabase(verifyWorkdir(), { quiet: true });
 
   console.log(`バックアップを読み込みます: ${backupFile}`);
   loadDumpIntoContainer(VERIFY_PROJECT_ID, backupFile);

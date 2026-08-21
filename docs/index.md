@@ -29,6 +29,7 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 ## Database
 
 - [旧Supabaseローカルprod環境の利用・運用手順](references/local-prod-operations.md) - D1移行前の運用を確認する履歴資料
+- [Supabaseローカルprodからproduction D1へのデータ移行](references/supabase-to-d1-data-migration.md) - backup、dry run、Auth.js対応付け、検証、rollbackを含む一回限りの移行手順
 - [データベースに影響する変更の手順](references/database-change-playbook.md) - 現在のスキーマをどこで確認するか、スキーマを変更するときに何を実行するか
 - [Auth.js初回bootstrapとパスワード再設定](references/auth-admin-operations.md) - local / preview / production D1で最初のアカウントを作成し、運用者がパスワードを再設定する手順
 - [Cloudflare productionの構築・デプロイ・復旧](references/cloudflare-production-operations.md) - Workers + D1の環境分離、Secrets、CI/CD、ログ、ロールバック手順

@@ -20,7 +20,7 @@ status: stable
 | 純粋な暦計算や画面actionの契約 | `tests/` |
 | 変更の理由 | `docs/decisions/`のAcceptedなYDR |
 
-`supabase/migrations/`、`lib/supabase/database.types.ts`、`docs/references/rls-policy-catalog.md`はD1移行前の履歴資料であり、現在のアプリデータ仕様の正本として使わない。Issue #124で既存データ移行を完了するまで、移行元の確認資料として保持する。
+`supabase/migrations/`、`lib/supabase/database.types.ts`、`docs/references/rls-policy-catalog.md`はD1移行前の履歴資料であり、現在のアプリデータ仕様の正本として使わない。[既存データ移行](supabase-to-d1-data-migration.md)の移行元確認とrollbackに必要なため保持し、移行完了後もこの変更では削除しない。
 
 ## スキーマまたはデータアクセスを変更する
 

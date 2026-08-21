@@ -248,9 +248,10 @@ export async function issueHouseholdInvitation(
   await db.batch([
     db.prepare(
       `UPDATE household_invitations
-          SET status = 'replaced', replaced_at = ?1
-        WHERE household_id = ?2 AND invited_email = ?3 AND status = 'pending'`,
-    ).bind(replacedAt, householdId, normalizedEmail),
+          SET status = 'replaced', replaced_at = ?1,
+              replaced_by_invitation_id = ?2
+        WHERE household_id = ?3 AND invited_email = ?4 AND status = 'pending'`,
+    ).bind(replacedAt, invitationId, householdId, normalizedEmail),
     db.prepare(
       `INSERT INTO household_invitations (
         id, household_id, invited_email, token_hash, created_by_user_id,

@@ -28,6 +28,8 @@ export type CalendarTaskInput = TaskBasics & {
 };
 
 type OccurrenceWithRule = {
+  assignee_user_id: string | null;
+  due_at: string;
   household_id: string;
   id: string;
   recurrence_basis: string;
@@ -160,7 +162,8 @@ async function loadOccurrence(
   occurrenceId: string,
 ): Promise<OccurrenceWithRule> {
   const row = await db.prepare(
-    `SELECT o.id, o.household_id, o.task_rule_id, o.scheduled_for, o.status,
+    `SELECT o.id, o.household_id, o.task_rule_id, o.scheduled_for, o.due_at,
+      o.assignee_user_id, o.status,
       r.recurrence_basis, r.recommended_start_offset, r.recommended_until_offset,
       r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
       r.schedule_week_of_month, r.schedule_month
@@ -376,13 +379,15 @@ export async function setTaskOccurrenceAssignee(
   if (assigneeUserId !== null) {
     await requireHouseholdUser(db, householdId, assigneeUserId, "Assignee not found");
   }
+  const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   const logId = crypto.randomUUID();
   const results = await db.batch([
     db.prepare(
       `INSERT INTO activity_logs (
         id, household_id, task_occurrence_id, action, actor_user_id,
-        occurred_at, assignee_user_id
-      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6
+        occurred_at, assignee_user_id, previous_assignee_user_id,
+        new_assignee_user_id
+      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
         WHERE EXISTS (
           SELECT 1 FROM task_occurrences
            WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
@@ -394,6 +399,7 @@ export async function setTaskOccurrenceAssignee(
       user.userId,
       new Date().toISOString(),
       assigneeUserId,
+      occurrence.assignee_user_id,
     ),
     db.prepare(
       `UPDATE task_occurrences SET assignee_user_id = ?1
@@ -421,13 +427,22 @@ export async function postponeTaskOccurrence(
   const results = await db.batch([
     db.prepare(
       `INSERT INTO activity_logs (
-        id, household_id, task_occurrence_id, action, actor_user_id, occurred_at
-      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5
+        id, household_id, task_occurrence_id, action, actor_user_id, occurred_at,
+        previous_due_at, new_due_at
+      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7
         WHERE EXISTS (
           SELECT 1 FROM task_occurrences
            WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
         )`,
-    ).bind(logId, householdId, occurrenceId, user.userId, new Date().toISOString()),
+    ).bind(
+      logId,
+      householdId,
+      occurrenceId,
+      user.userId,
+      new Date().toISOString(),
+      occurrence.due_at,
+      dueAt,
+    ),
     db.prepare(
       `UPDATE task_occurrences SET due_at = ?1
         WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
