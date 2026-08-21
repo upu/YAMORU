@@ -30,7 +30,8 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 
 - [旧Supabaseローカルprod環境の利用・運用手順](references/local-prod-operations.md) - D1移行前の運用を確認する履歴資料
 - [データベースに影響する変更の手順](references/database-change-playbook.md) - 現在のスキーマをどこで確認するか、スキーマを変更するときに何を実行するか
-- [Auth.js初回bootstrapとパスワード再設定](references/auth-admin-operations.md) - ローカルD1で最初のアカウントを作成し、運用者がパスワードを再設定する手順
+- [Auth.js初回bootstrapとパスワード再設定](references/auth-admin-operations.md) - local / preview / production D1で最初のアカウントを作成し、運用者がパスワードを再設定する手順
+- [Cloudflare productionの構築・デプロイ・復旧](references/cloudflare-production-operations.md) - Workers + D1の環境分離、Secrets、CI/CD、ログ、ロールバック手順
 
 ## Reading rules
 

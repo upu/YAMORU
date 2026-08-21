@@ -42,6 +42,12 @@ status: stable
 
 GitHub Actionsの`D1 migration and authorization tests`も、空のローカルD1へのマイグレーション適用とWorkersランタイム上のD1テストを実行する。
 
+## remote D1へ適用する
+
+preview / productionへの適用は[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従う。まずlocalゲートを完了し、次に`npm run d1:migrate:preview`とpreview Workerで確認する。production migrationは`main`の`Quality checks`が成功した同一commitを使う自動デプロイだけで適用する。
+
+remote操作ではbinding名`DB`だけに依存せず、不変のD1名`yamoru-preview` / `yamoru-production`とWrangler環境を同時に指定する。productionではmigrationを新Workerより先に適用するため、現在稼働中のWorkerと互換なexpand-first変更にする。productionへ適用したmigrationファイルを書き換えず、新しい連番migrationでforward fixする。
+
 ## 境界テストの最低条件
 
 家庭データへ触れる主要操作では、少なくとも次を維持する。

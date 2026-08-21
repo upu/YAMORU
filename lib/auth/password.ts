@@ -3,8 +3,8 @@ const PASSWORD_HASH_VERSION = "v1";
 const DERIVED_KEY_BYTES = 32;
 const SALT_BYTES = 16;
 
-export { MIN_PASSWORD_LENGTH, PASSWORD_HASH_ITERATIONS } from "./password-policy";
-import { PASSWORD_HASH_ITERATIONS } from "./password-policy";
+export { MIN_PASSWORD_LENGTH, PASSWORD_HASH_ITERATIONS } from "./password-policy.ts";
+import { PASSWORD_HASH_ITERATIONS } from "./password-policy.ts";
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";

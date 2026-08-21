@@ -1,34 +1,94 @@
 {
-	// YAMORUのCloudflare Workers / D1ローカル開発設定。
-	// リモートdatabase_idと本番デプロイ設定はIssue #123で確定する。
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
-	"name": "yamoru",
-	"compatibility_date": "2026-08-19",
-	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-	"assets": {
-		"directory": ".open-next/assets",
-		"binding": "ASSETS"
-	},
-	// database_id はローカル開発では未使用(--local実行時はwrangler側で無視される)。
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "yamoru-local",
-			"database_id": "local-only-placeholder",
-			"migrations_dir": "d1/migrations"
-		}
-	],
-	"env": {
-		"e2e": {
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_name": "yamoru-e2e-local",
-					"database_id": "e2e-local-only-placeholder",
-					"migrations_dir": "d1/migrations"
-				}
-			]
-		}
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "yamoru",
+  "compatibility_date": "2026-08-19",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "secrets": {
+    "required": ["AUTH_SECRET"]
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "yamoru"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yamoru-local",
+      "database_id": "local-only-placeholder",
+      "migrations_dir": "d1/migrations"
+    }
+  ],
+  "env": {
+    "e2e": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-e2e-local",
+          "database_id": "e2e-local-only-placeholder",
+          "migrations_dir": "d1/migrations"
+        }
+      ]
+    },
+    "preview": {
+      "name": "yamoru-preview",
+      "vars": {
+        "NEXTJS_ENV": "production",
+        "YAMORU_ENVIRONMENT": "preview"
+      },
+      "secrets": {
+        "required": ["AUTH_SECRET"]
+      },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "yamoru-preview"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-preview",
+          "database_id": "a70517df-e320-405e-a91e-2c2e726d3f75",
+          "migrations_dir": "d1/migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "yamoru-production",
+      "vars": {
+        "NEXTJS_ENV": "production",
+        "YAMORU_ENVIRONMENT": "production"
+      },
+      "secrets": {
+        "required": ["AUTH_SECRET"]
+      },
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "yamoru-production"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-production",
+          "database_id": "89fb968e-c899-4af7-b279-dd5d27b2cc6f",
+          "migrations_dir": "d1/migrations"
+        }
+      ]
+    }
+  }
 }
