@@ -4,15 +4,49 @@ import { getPlatformProxy } from "wrangler";
 
 import {
   AUTH_ADMIN_FAILURE_MESSAGE,
-  getAuthAdminPlatformOptions,
+  type AuthAdminCommand,
+  type AuthAdminFailureStage,
+  getAuthAdminFailureMessage,
+  getLocalAuthAdminPlatformOptions,
   parseAuthAdminInvocation,
 } from "../lib/auth/admin-command.ts";
 import { hashPassword } from "../lib/auth/password.ts";
 import { MIN_PASSWORD_LENGTH } from "../lib/auth/password-policy.ts";
 import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication.ts";
+import {
+  RemoteAuthAdminDatabaseError,
+  runRemoteAuthAdmin,
+} from "./auth-admin-remote.ts";
 import { assertRemoteTargetConfirmation } from "./cloudflare-target.ts";
 
 type AdminInput = { email: string; password: string };
+
+class AuthAdminOperationError extends Error {
+  readonly stage: AuthAdminFailureStage;
+  readonly command: AuthAdminCommand;
+
+  constructor(
+    stage: AuthAdminFailureStage,
+    command: AuthAdminCommand,
+    cause?: unknown,
+  ) {
+    super("Auth admin operation failed", { cause });
+    this.stage = stage;
+    this.command = command;
+  }
+}
+
+async function runStage<T>(
+  stage: AuthAdminFailureStage,
+  command: AuthAdminCommand,
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (cause) {
+    throw new AuthAdminOperationError(stage, command, cause);
+  }
+}
 
 async function readPipedInput(
   environment: "local" | "preview" | "production",
@@ -87,33 +121,80 @@ async function readInteractiveInput(
   return { email, password };
 }
 
-async function main(): Promise<void> {
-  const { command, environment } = parseAuthAdminInvocation(process.argv.slice(2));
-  const input = process.stdin.isTTY
-    ? await readInteractiveInput(environment)
-    : await readPipedInput(environment);
-  if (!input.email.includes("@") || input.password.length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Email and a password of at least ${String(MIN_PASSWORD_LENGTH)} characters are required`);
+async function executeRemoteOperation(
+  command: AuthAdminCommand,
+  environment: "preview" | "production",
+  input: AdminInput,
+  passwordHash: string,
+): Promise<void> {
+  try {
+    await runRemoteAuthAdmin({
+      command,
+      email: input.email,
+      environment,
+      passwordHash,
+    });
+  } catch (cause) {
+    throw new AuthAdminOperationError(
+      cause instanceof RemoteAuthAdminDatabaseError ? "database" : "connection",
+      command,
+      cause,
+    );
   }
-  const passwordHash = await hashPassword(input.password);
-  const platform = await getPlatformProxy<CloudflareEnv>(
-    getAuthAdminPlatformOptions(environment),
+}
+
+async function main(): Promise<void> {
+  let invocation;
+  try {
+    invocation = parseAuthAdminInvocation(process.argv.slice(2));
+  } catch (cause) {
+    throw new AuthAdminOperationError("invocation", "bootstrap", cause);
+  }
+  const { command, environment } = invocation;
+  const input = await runStage("input", command, () => process.stdin.isTTY
+    ? readInteractiveInput(environment)
+    : readPipedInput(environment));
+  if (!input.email.includes("@") || input.password.length < MIN_PASSWORD_LENGTH) {
+    throw new AuthAdminOperationError("input", command);
+  }
+  const passwordHash = await runStage("password-hash", command, () =>
+    hashPassword(input.password),
+  );
+  if (environment !== "local") {
+    await executeRemoteOperation(command, environment, input, passwordHash);
+    process.stdout.write("認証情報を更新しました。\n");
+    return;
+  }
+  const platform = await runStage("connection", command, () =>
+    getPlatformProxy<CloudflareEnv>(getLocalAuthAdminPlatformOptions()),
   );
   try {
     if (command === "bootstrap") {
-      await bootstrapFirstUser(platform.env.DB, input.email, passwordHash);
+      await runStage("database", command, () =>
+        bootstrapFirstUser(platform.env.DB, input.email, passwordHash),
+      );
     } else {
-      await resetPassword(platform.env.DB, input.email, passwordHash);
+      await runStage("database", command, () =>
+        resetPassword(platform.env.DB, input.email, passwordHash),
+      );
     }
   } finally {
-    await platform.dispose();
+    try {
+      await platform.dispose();
+    } catch {
+      // D1更新後のcleanup失敗を操作失敗として誤表示しない。
+    }
   }
   process.stdout.write("認証情報を更新しました。\n");
 }
 
 try {
   await main();
-} catch {
-  process.stderr.write(AUTH_ADMIN_FAILURE_MESSAGE);
+} catch (error) {
+  process.stderr.write(
+    error instanceof AuthAdminOperationError
+      ? getAuthAdminFailureMessage(error.stage, error.command)
+      : AUTH_ADMIN_FAILURE_MESSAGE,
+  );
   process.exitCode = 1;
 }

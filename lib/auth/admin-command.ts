@@ -7,25 +7,48 @@ export type AuthAdminInvocation = {
   environment: AuthAdminEnvironment;
 };
 
+export type AuthAdminFailureStage =
+  | "invocation"
+  | "input"
+  | "password-hash"
+  | "connection"
+  | "database";
+
 export const AUTH_ADMIN_FAILURE_MESSAGE =
   "認証情報を更新できませんでした。入力とD1の状態を確認してください。\n";
 
-export function getAuthAdminPlatformOptions(
-  environment: AuthAdminEnvironment,
-): {
+export function getAuthAdminFailureMessage(
+  stage: AuthAdminFailureStage,
+  command: AuthAdminCommand,
+): string {
+  switch (stage) {
+    case "invocation":
+      return "コマンドの指定が正しくありません。環境名入りのnpm scriptを使用してください。\n";
+    case "input":
+      return "入力または操作対象の確認に失敗しました。メールアドレス、パスワード長、確認入力を見直してください。\n";
+    case "password-hash":
+      return "パスワードを安全に処理できませんでした。コマンドを再実行してください。\n";
+    case "connection":
+      return "D1への接続を確立できませんでした。Cloudflareへのログイン状態と対象環境を確認してください。\n";
+    case "database":
+      return command === "bootstrap"
+        ? "bootstrapできませんでした。対象D1に利用者が存在しないこととmigration適用済みであることを確認してください。\n"
+        : "パスワードを再設定できませんでした。対象D1に利用者が存在することとmigration適用済みであることを確認してください。\n";
+  }
+}
+
+export function getLocalAuthAdminPlatformOptions(): {
   configPath: string;
-  environment?: "preview" | "production";
   envFiles: string[];
   persist: boolean;
   remoteBindings: boolean;
 } {
-  const base = {
+  return {
     configPath: "wrangler.auth-admin.jsonc",
     envFiles: [],
-    persist: environment === "local",
-    remoteBindings: environment !== "local",
+    persist: true,
+    remoteBindings: false,
   };
-  return environment === "local" ? base : { ...base, environment };
 }
 
 export function parseAuthAdminCommand(args: string[]): AuthAdminCommand {

@@ -127,10 +127,12 @@ describe("Cloudflare環境分離", () => {
   it("Auth管理専用設定はlocal / preview / productionのD1だけを分離して公開する", () => {
     const targets = parseCloudflareTargets(readWranglerConfig());
     const config = readAuthAdminWranglerConfig() as {
+      main: string;
       d1_databases: Array<Record<string, unknown>>;
       env: Record<string, { d1_databases: Array<Record<string, unknown>> }>;
     };
 
+    expect(config.main).toBe("scripts/auth-admin-platform.ts");
     expect(config.d1_databases).toEqual([{
       binding: "DB",
       database_id: "local-only-placeholder",
