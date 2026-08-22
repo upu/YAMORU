@@ -101,7 +101,7 @@ OpenNext for Cloudflareのissue([opennextjs-cloudflare#1082](https://github.com/
 
 ## 複雑さの比較(現状 vs A案)
 
-YAMORUは現在、クラウドへのデプロイ実績がなく、各利用者が自分の家でローカルSupabase + `next dev`を動かす運用([ローカルprod環境の利用・運用手順](../references/local-prod-operations.md))になっている。A案は、この構成のうちアプリのホスティング先だけをCloudflare Workersに変える案で、Supabase(Auth/RLS/マイグレーション運用)には一切手を加えない。
+検証時点のYAMORUはクラウドへのデプロイ実績がなく、各利用者が自分の家でローカルSupabase + `next dev`を動かす運用だった。A案は、この構成のうちアプリのホスティング先だけをCloudflare Workersに変える案で、Supabase(Auth/RLS/マイグレーション運用)には一切手を加えない。
 
 | 観点 | 現状(ローカルセルフホスト) | A案(Workers + Supabase) |
 |---|---|---|
