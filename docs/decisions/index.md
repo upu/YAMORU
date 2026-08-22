@@ -34,7 +34,8 @@
 | YDR-020 | 担当者・実施者・操作主体を区別し、保存先を固定する | Accepted | [ydr-020-assignee-performer-actor.md](ydr-020-assignee-performer-actor.md) |
 | YDR-021 | 定例日基準Todoの暦規則とタイムゾーンを固定する | Accepted | [ydr-021-recurring-calendar-rules.md](ydr-021-recurring-calendar-rules.md) |
 | YDR-022 | Cloudflare Workers + D1へ移行し、家庭間分離をアプリ層で実装する | Accepted | [ydr-022-cloudflare-workers-d1-migration.md](ydr-022-cloudflare-workers-d1-migration.md) |
-| YDR-023 | 公開登録を閉じ、招待限定のアカウント作成と最小のパスワード運用を採用する | Accepted | [ydr-023-invitation-only-account-lifecycle.md](ydr-023-invitation-only-account-lifecycle.md) |
+| YDR-023 | 公開登録を閉じ、招待限定のアカウント作成と最小のパスワード運用を採用する | Superseded by YDR-024(招待token搬送方式の部分のみ) | [ydr-023-invitation-only-account-lifecycle.md](ydr-023-invitation-only-account-lifecycle.md) |
+| YDR-024 | 招待の生tokenをquery stringではなくURL fragmentで搬送する | Accepted | [ydr-024-invitation-token-in-url-fragment.md](ydr-024-invitation-token-in-url-fragment.md) |
 
 ## 新しい意思決定の追加
 

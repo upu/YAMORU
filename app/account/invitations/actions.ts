@@ -34,6 +34,10 @@ function isPlausibleEmail(value: string): boolean {
 // リクエストのHostヘッダーから、招待リンクの絶対URLを組み立てる。
 // 環境ごとの公開URLを別途設定せずに済むよう、常に受信したリクエスト自身の
 // オリジンを使う(dev/test/prodいずれの環境でも動く)。
+//
+// 生tokenはquery stringではなくURL fragment(#token=)に載せる。fragmentは
+// ブラウザーからサーバーへのHTTP requestに一切送信されないため、Cloudflareが
+// Invocationログ・Real-time logsへ記録するrequest URLに現れない(#140)。
 async function buildAcceptInvitationLink(token: string): Promise<string> {
   const headerList = await headers();
   const host = headerList.get("host");
@@ -41,8 +45,8 @@ async function buildAcceptInvitationLink(token: string): Promise<string> {
   const origin = host !== null ? `${protocol}://${host}` : "";
 
   const url = new URL(ACCEPT_INVITATION_PATH, origin || "http://localhost");
-  url.searchParams.set("token", token);
-  return origin ? url.toString() : url.pathname + url.search;
+  url.hash = `token=${encodeURIComponent(token)}`;
+  return origin ? url.toString() : url.pathname + url.hash;
 }
 
 export async function issueInvitation(

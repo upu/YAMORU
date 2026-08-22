@@ -33,6 +33,17 @@ describe("Cloudflare公開環境の認証境界", () => {
     }).not.toThrow();
   });
 
+  it("招待入口は生tokenを含まない公開HTMLを未認証で返す(#140)", () => {
+    expect(() => {
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[2], {
+        body: "<h1>招待を確認しています</h1>",
+        contentType: "text/html; charset=utf-8",
+        location: null,
+        status: 200,
+      });
+    }).not.toThrow();
+  });
+
   it("保護画面はログインへ移動し、ログイン画面は公開する", () => {
     expect(() => {
       assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[3], {

@@ -5,14 +5,15 @@ title: 公開登録を閉じ、招待限定のアカウント作成と最小の�
 description: Auth.js Credentialsへの移行に伴い、初回bootstrapと招待からだけアカウントを作成し、メール未確認を前提とした招待・パスワード運用を定める
 tags: [yamoru, decisions, ydr, authentication, invitations, security]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-20
 supersedes: YDR-019
+superseded_by: YDR-024
 ---
 
 # YDR-023: 公開登録を閉じ、招待限定のアカウント作成と最小のパスワード運用を採用する
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-024](ydr-024-invitation-token-in-url-fragment.md)(「招待トークンは推測困難な乱数とし…生トークンを含むURLは最初のサーバー到達後にブラウザーのアドレス欄から取り除き…」の搬送方式のみ置き換え。招待の発行・失効ライフサイクル、7日間・一回限り・メール一致の契約、共通エラー、パスワード運用など、他はすべて[YDR-024](ydr-024-invitation-token-in-url-fragment.md)でも維持される)
 - 決定日: 2026-08-20
 - 置き換える決定: [YDR-019](ydr-019-invitation-lifecycle.md)の全体。本YDRは、継続する招待契約を含めてAuth.js Credentials向けに再定義する。
 
