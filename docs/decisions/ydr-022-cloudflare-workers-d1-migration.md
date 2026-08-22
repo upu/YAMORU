@@ -25,7 +25,7 @@ supersedes: YDR-005
 
 検証結果は[cloudflare-workers-d1.md](../spikes/cloudflare-workers-d1.md)(B案)と[cloudflare-workers-supabase.md](../spikes/cloudflare-workers-supabase.md)(A案)を参照。両案とも、Next.js 16の`proxy.ts`がOpenNext for Cloudflareで動かない共通の非互換があったが、deprecatedな`middleware.ts`(旧ミドルウェア規約)+Edgeランタイムへの切り戻しで回避できることを実証した。
 
-YAMORUは現時点でクラウドへのデプロイ実績がなく、各利用者が自宅でローカルSupabase + `next dev`を動かす運用になっている([ローカルprod環境の利用・運用手順](../references/local-prod-operations.md))。本決定は、この自宅セルフホスト運用から、Cloudflareを使った常時稼働のクラウド運用へ移行する方針を定める。
+本決定時点のYAMORUはクラウドへのデプロイ実績がなく、各利用者が自宅でローカルSupabase + `next dev`を動かす運用だった。本決定は、この自宅セルフホスト運用から、Cloudflareを使った常時稼働のクラウド運用へ移行する方針を定める。
 
 ## 検討した案
 
@@ -56,7 +56,7 @@ YAMORUは現時点でクラウドへのデプロイ実績がなく、各利用�
 - 認証をSupabase Authから、Auth.js Credentials(メール+パスワード)へ置き換える。ログイン画面・新規登録・招待受諾フローを含む。
 - `supabase/tests/database/`のpgTAPテストに相当する境界テストを、`@cloudflare/vitest-pool-workers`で全テーブル分再構築する。
 - GitHub Actionsのワークフロー(型生成・RLSポリシーカタログ生成等)を、D1のスキーマ・マイグレーション運用に合わせて置き換える。
-- `docs/references/local-prod-operations.md`等、Supabase運用を前提とした手順書をD1・Cloudflareベースへ書き換える。
+- Supabase運用を前提とした手順書をD1・Cloudflareベースへ書き換える。
 - 既存Supabaseデータ(実際に自宅で使われているデータ)をD1へ移行する設計・手順を別途検討する(本スパイクでは未着手)。
 
 ## 結果

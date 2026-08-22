@@ -9,7 +9,7 @@ stale_after: 2026-11-21
 
 # Cloudflare productionの構築・デプロイ・復旧
 
-この手順は[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)と[YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md)に基づく。旧Supabaseの家庭データをproduction D1へ一度だけ投入する作業は[Supabaseローカルprodからproduction D1へのデータ移行](supabase-to-d1-data-migration.md)に従う。
+この手順は[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)と[YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md)に基づく。
 
 ## 環境の境界
 
@@ -17,7 +17,7 @@ stale_after: 2026-11-21
 |---|---|---|---|
 | local | `yamoru`(デプロイしない) | `yamoru-local` | 日常開発。`.wrangler/`内だけに保存する |
 | preview | `yamoru-preview` | `yamoru-preview` | Cloudflare上での事前確認。家庭の実データを入れない |
-| production | `yamoru-production` | `yamoru-production` | 家族が利用する本番。実データは専用の移行手順でだけ初回投入する |
+| production | `yamoru-production` | `yamoru-production` | 家族が利用する本番。previewとは認証情報と実データを分離する |
 
 三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。Auth管理コマンドは、本体Workerのbindingから分離した`wrangler.auth-admin.jsonc`でも同じD1を指定し、preview / productionの対象bindingだけをremote接続する。remote Auth管理では処理中だけ一回限りのtokenで保護した管理用Workerを起動し、認証情報をCLI引数、設定ファイル、ログへ渡さない。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
 
@@ -121,7 +121,7 @@ Draftとpre-releaseはproductionへ配備しない。不正なタグやmainに�
 npm run auth:bootstrap:production
 ```
 
-production URLでログイン画面まで到達し、作成した認証情報でログインできることを確認する。旧Supabaseの実データを投入する前は、ニックネーム・家庭・実Todoを手作業で作成しない。
+production URLでログイン画面まで到達し、作成した認証情報でログインできることを確認する。その後、アプリの画面からニックネーム、家庭、Todoなど必要なデータを登録する。
 
 ## 日常のマイグレーションとデプロイ
 
