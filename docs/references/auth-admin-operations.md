@@ -60,6 +60,8 @@ npm run auth:reset-password:preview
 npm run auth:reset-password:production
 ```
 
+利用者がパスワードを忘れていない場合でも、password hashに埋め込まれた反復回数がその時点の`PASSWORD_HASH_ITERATIONS`([YDR-025](../decisions/ydr-025-pbkdf2-iterations-within-workers-limit.md))を超えていると、ログイン画面には認証情報不一致と同じ汎用エラーが表示される。この場合も上記の再設定で解決する。
+
 ## 秘密情報の扱い
 
 - パスワードをCLI引数、設定ファイル、Issue、ログへ書かない。

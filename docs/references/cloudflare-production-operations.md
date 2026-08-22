@@ -148,6 +148,10 @@ CloudflareのInvocationログとReal-time logsは、アプリ独自の除去処�
 3. Invocationログ・Real-time logsのどちらにも、そのrequestのURLにダミー値が含まれないことを確認する。fragmentはHTTP request自体に送信されないため、想定どおりならログの`request.url`は`/invitations/accept`のみになる。
 4. 実際の秘密値では再現しない。
 
+### ローカルのworkerdでは再現しないWorkers固有の制約
+
+ローカルのvitestやlocal `wrangler dev`(non-remote)が使うworkerdは、実際にデプロイされたCloudflare edgeと完全には一致しない。例えば`crypto.subtle`/`node:crypto`のPBKDF2は、実機では反復回数100,000回を超えると`NotSupportedError`になるが、ローカルのworkerdはこの上限を再現しない([YDR-025](../decisions/ydr-025-pbkdf2-iterations-within-workers-limit.md)、Issue #142)。ローカルのテストや`wrangler dev`が通っても実機で失敗しうる変更(暗号API、CPU/メモリに依存するAPIなど)は、`wrangler dev --remote`で実機相当の挙動を確認してからpreviewへ配備する。
+
 ## Workerをロールバックする
 
 まずproductionのdeployment履歴を確認する。
