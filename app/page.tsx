@@ -446,9 +446,6 @@ function HomeHero({
           <Link className="account-link" href="/managed-items">
             家の台帳
           </Link>
-          <Link className="account-link" href="/account" aria-label="アカウントを開く">
-            アカウント
-          </Link>
         </div>
       </div>
       <p className="tagline">暮らしの「いつだっけ？」をなくす。</p>
@@ -471,8 +468,8 @@ function HouseholdRequiredNotice() {
   return (
     <section aria-labelledby="household-required-title" className="detail-card">
       <h2 id="household-required-title">家庭を作成してください</h2>
-      <p>ホームは家庭ごとに表示します。先にアカウント画面で家庭を作成してください。</p>
-      <Link className="ledger-primary-link" href="/account">
+      <p>ホームは家庭ごとに表示します。先に家庭画面で家庭を作成してください。</p>
+      <Link className="ledger-primary-link" href="/household">
         家庭を作成する
       </Link>
     </section>

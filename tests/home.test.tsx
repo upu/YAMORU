@@ -75,13 +75,12 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByText("8月13日 木")).toBeInTheDocument();
   });
 
-  it("右上からアカウント画面へ移動できる", () => {
+  it("ページ固有のアカウント導線を表示しない", () => {
     renderHome(emptySections());
 
     const header = screen.getByRole("banner");
-    expect(
-      within(header).getByRole("link", { name: "アカウントを開く" }),
-    ).toHaveAttribute("href", "/account");
+    expect(within(header).queryByRole("link", { name: "アカウントを開く" }))
+      .not.toBeInTheDocument();
   });
 
   it("家庭未所属の利用者には家庭作成を案内する", () => {
@@ -92,7 +91,7 @@ describe("ホーム画面(HomeContent)", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "家庭を作成する" })).toHaveAttribute(
       "href",
-      "/account",
+      "/household",
     );
     expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
   });

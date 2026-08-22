@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { getD1Context } from "../../../lib/d1/context";
+import { getD1Context } from "../../lib/d1/context";
 import {
   cancelHouseholdInvitation,
   issueHouseholdInvitation,
-} from "../../../lib/d1/invitations";
+} from "../../lib/d1/invitations";
 import type { CancelInvitationState, IssueInvitationState } from "./state";
 
 const INVITED_EMAIL_MIN_LENGTH = 3;
@@ -31,13 +31,6 @@ function isPlausibleEmail(value: string): boolean {
   );
 }
 
-// リクエストのHostヘッダーから、招待リンクの絶対URLを組み立てる。
-// 環境ごとの公開URLを別途設定せずに済むよう、常に受信したリクエスト自身の
-// オリジンを使う(dev/test/prodいずれの環境でも動く)。
-//
-// 生tokenはquery stringではなくURL fragment(#token=)に載せる。fragmentは
-// ブラウザーからサーバーへのHTTP requestに一切送信されないため、Cloudflareが
-// Invocationログ・Real-time logsへ記録するrequest URLに現れない(#140)。
 async function buildAcceptInvitationLink(token: string): Promise<string> {
   const headerList = await headers();
   const host = headerList.get("host");
@@ -45,6 +38,8 @@ async function buildAcceptInvitationLink(token: string): Promise<string> {
   const origin = host !== null ? `${protocol}://${host}` : "";
 
   const url = new URL(ACCEPT_INVITATION_PATH, origin || "http://localhost");
+  // 生tokenをfragmentへ載せることで、Cloudflareへ送られるrequest URLと
+  // Invocationログに招待tokenを含めない(YDR-024)。
   url.hash = `token=${encodeURIComponent(token)}`;
   return origin ? url.toString() : url.pathname + url.hash;
 }
@@ -70,7 +65,7 @@ export async function issueInvitation(
     };
   }
 
-  revalidatePath("/account/invitations");
+  revalidatePath("/household");
 
   return {
     expiresAt: issued.expiresAt,
@@ -102,6 +97,6 @@ export async function cancelInvitation(
     };
   }
 
-  revalidatePath("/account/invitations");
+  revalidatePath("/household");
   return { message: "", status: "idle" };
 }

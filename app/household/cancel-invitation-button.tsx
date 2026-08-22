@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { cancelInvitation } from "./actions";
+import { cancelInvitation } from "./invitation-actions";
 import { INITIAL_CANCEL_INVITATION_STATE } from "./state";
 
 function SubmitButton() {

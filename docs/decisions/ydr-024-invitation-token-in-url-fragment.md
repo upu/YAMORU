@@ -53,7 +53,7 @@ supersedes: YDR-023
 ## 結果
 
 - 新たに発行される招待リンクは、Cloudflare Invocationログ・Real-time logsのいずれにも生トークンを残さない。
-- 変更対象は招待リンクの生成(`app/account/invitations/actions.ts`)と受諾入口(`app/invitations/accept/`)のみで、D1層の招待・claimスキーマとロジック(`lib/d1/invitations.ts`)は変更しない。
+- 変更対象は招待リンクの生成(`app/household/invitation-actions.ts`)と受諾入口(`app/invitations/accept/`)のみで、D1層の招待・claimスキーマとロジック(`lib/d1/invitations.ts`)は変更しない。
 - この変更より前に`?token=`形式で発行済みの招待リンクは、本変更のデプロイ後は受諾できない(共通エラーとなる)。招待は7日間・家庭内の手動共有運用のため、影響がある場合は再発行で足りるとみなす。
 
 ## 見直す条件

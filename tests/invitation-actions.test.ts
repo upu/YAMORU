@@ -24,7 +24,7 @@ vi.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-import { cancelInvitation, issueInvitation } from "../app/account/invitations/actions";
+import { cancelInvitation, issueInvitation } from "../app/household/invitation-actions";
 
 const INITIAL_ISSUE_STATE = { status: "idle" } as const;
 const INITIAL_CANCEL_STATE = { message: "", status: "idle" } as const;
@@ -78,7 +78,7 @@ describe("招待発行操作", () => {
       link: "https://yamoru.example.test/invitations/accept#token=raw-token-value",
       status: "issued",
     });
-    expect(revalidatePathMock).toHaveBeenCalledWith("/account/invitations");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/household");
   });
 
   it.each(["", "   ", "no-at-sign", "@leading-at.test", "trailing-at@"])(
@@ -122,7 +122,7 @@ describe("招待取消操作", () => {
       "session",
       "invitation-1",
     );
-    expect(revalidatePathMock).toHaveBeenCalledWith("/account/invitations");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/household");
     expect(result).toEqual({ message: "", status: "idle" });
   });
 

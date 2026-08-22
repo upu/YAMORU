@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { INITIAL_HOUSEHOLD_STATE } from "../account/state";
 import { createFirstHousehold } from "./actions";
-import { INITIAL_HOUSEHOLD_STATE } from "./state";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
