@@ -587,15 +587,16 @@ export default async function Home() {
   const nowIso = new Date().toISOString();
   const heroDateLabel = formatHeroDate(nowIso);
 
-  const [accountState, actorName] = await Promise.all([
-    loadAccountState(db, session),
-    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
-  ]);
+  // 家庭所属チェック(loadAccountState)を先に確定させる。loadActorName等は
+  // 内部でrequireCurrentHouseholdIdを呼び家庭未所属だと例外を投げるため、
+  // Promise.allで並列化すると家庭未所属ユーザーがHouseholdRequiredNoticeへ
+  // 到達する前にページごと例外で落ちてしまう(Issue #144)。
+  const accountState = await loadAccountState(db, session);
   const household: HomeHouseholdSummary | null = accountState.household;
   if (household === null) {
     return (
       <HomeContent
-        actorName={actorName}
+        actorName={FALLBACK_SELF_ACTOR_NAME}
         currentUserId={user.id}
         heroDateLabel={heroDateLabel}
         household={null}
@@ -605,7 +606,8 @@ export default async function Home() {
     );
   }
 
-  const [sections, members] = await Promise.all([
+  const [actorName, sections, members] = await Promise.all([
+    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     loadHomeSections(db, session, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(db, session),
