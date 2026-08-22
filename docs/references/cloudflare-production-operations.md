@@ -139,6 +139,15 @@ npx wrangler tail --env production --format pretty
 
 パスワード、JWT、`AUTH_SECRET`、生の招待token・claim secret、招待先メールアドレス本文をログへ出さない。障害調査には時刻、Worker version、HTTP status、非秘匿ID、Cloudflare Ray IDを使う。
 
+### URLに秘密情報を含めない確認方法
+
+CloudflareのInvocationログとReal-time logsは、アプリ独自の除去処理より前にrequestのmethodと完全なrequest URL(query string含む)を記録する。招待受諾など秘密値をURLで扱う経路を変更した場合は、実tokenを使わず次の手順で確認する([YDR-024](../decisions/ydr-024-invitation-token-in-url-fragment.md)、Issue #140)。
+
+1. previewで`npx wrangler tail --env preview --format pretty`を開始する。
+2. 実在しない非秘密のダミー値だけを使い、確認対象のURLを開く(招待受諾の場合は`/invitations/accept#dummy-nonsecret-value`のようにfragmentへ置き、query stringには置かない)。
+3. Invocationログ・Real-time logsのどちらにも、そのrequestのURLにダミー値が含まれないことを確認する。fragmentはHTTP request自体に送信されないため、想定どおりならログの`request.url`は`/invitations/accept`のみになる。
+4. 実際の秘密値では再現しない。
+
 ## Workerをロールバックする
 
 まずproductionのdeployment履歴を確認する。

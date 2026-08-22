@@ -150,7 +150,7 @@ test("Auth.jsで招待限定登録・再ログイン・password変更を行い�
   await login(ownerPage, OWNER.email, OWNER.password);
 
   const invitationLink = await issueInvitation(ownerPage, "invitee@example.test");
-  expect(invitationLink).toMatch(/\/invitations\/accept\?token=/u);
+  expect(invitationLink).toMatch(/\/invitations\/accept#token=/u);
   const invitee = await registerInvitee(browser, invitationLink);
 
   await expect(platform.env.DB.prepare(

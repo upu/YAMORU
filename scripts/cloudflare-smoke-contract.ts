@@ -21,8 +21,9 @@ export const PRODUCTION_SMOKE_CHECKS: readonly SmokeCheck[] = [
   },
   { expectedContentType: "image/png", kind: "public", pathname: "/icon.png" },
   {
-    expectedLocationPath: "/invitations/accept/confirm",
-    kind: "redirect",
+    expectedContentType: "text/html",
+    expectedText: "招待を確認しています",
+    kind: "public",
     pathname: "/invitations/accept",
   },
   {

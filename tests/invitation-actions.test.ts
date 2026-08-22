@@ -69,13 +69,13 @@ describe("招待発行操作", () => {
     );
   });
 
-  it("発行成功時は絶対URLの招待リンクを一度だけ返す", async () => {
+  it("発行成功時は絶対URLの招待リンクを一度だけ返す(#140: 生tokenはfragmentに載せる)", async () => {
     const result = await issueInvitation(INITIAL_ISSUE_STATE, issueForm("family@example.test"));
 
     expect(result).toEqual({
       expiresAt: "2026-08-21T00:00:00.000Z",
       invitedEmail: "family@example.test",
-      link: "https://yamoru.example.test/invitations/accept?token=raw-token-value",
+      link: "https://yamoru.example.test/invitations/accept#token=raw-token-value",
       status: "issued",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/account/invitations");
