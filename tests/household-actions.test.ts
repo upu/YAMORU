@@ -27,7 +27,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { createFirstHousehold } from "../app/account/actions";
+import { createFirstHousehold } from "../app/household/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
@@ -52,8 +52,8 @@ describe("最初の家庭作成操作", () => {
       "session",
       "テスト家庭",
     );
-    expect(revalidatePathMock).toHaveBeenCalledWith("/account");
-    expect(redirectMock).toHaveBeenCalledWith("/account");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/", "layout");
+    expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
   it.each(["", "   ", "あ".repeat(101)])(

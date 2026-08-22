@@ -107,7 +107,7 @@ describe("アカウント画面", () => {
     expect(screen.queryByLabelText("家庭名")).not.toBeInTheDocument();
   });
 
-  it("家庭未所属だがニックネーム登録済みの利用者に、ニックネームを初期値とした家庭作成フォームを表示する", async () => {
+  it("ニックネーム登録済みの利用者には個人情報だけを表示し、家庭管理とログアウトを置かない", async () => {
     requireUserMock.mockResolvedValue({
       email: "person@example.test",
       id: "user-id",
@@ -116,15 +116,6 @@ describe("アカウント画面", () => {
 
     render(await AccountPage());
 
-    const householdSection = screen.getByRole("region", {
-      name: "家庭を作成",
-    });
-    const householdInput = within(householdSection).getByLabelText("家庭名");
-    expect(householdInput).toHaveAttribute("maxLength", "100");
-    expect(householdInput).toHaveValue("たろうの家庭");
-    expect(
-      within(householdSection).getByRole("button", { name: "家庭を作成" }),
-    ).toBeInTheDocument();
     const nicknameSection = screen.getByRole("region", { name: "ニックネーム" });
     expect(within(nicknameSection).getByText("たろう")).toBeInTheDocument();
     expect(
@@ -133,12 +124,13 @@ describe("アカウント画面", () => {
     expect(
       screen.queryByRole("button", { name: "ニックネームを登録" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "ログアウト" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("家庭名")).not.toBeInTheDocument();
+    expect(screen.queryByText("所属している家庭")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ログアウト" }))
+      .not.toBeInTheDocument();
   });
 
-  it("家庭所属済みの利用者には家庭名だけを表示し、作成フォームを隠す", async () => {
+  it("パスワード変更フォームは利用者が開いたときだけ表示する", async () => {
     requireUserMock.mockResolvedValue({
       email: "member@example.test",
       id: "member-id",
@@ -150,15 +142,11 @@ describe("アカウント画面", () => {
 
     render(await AccountPage());
 
-    expect(screen.getByRole("heading", { name: "所属している家庭" })).toBeInTheDocument();
-    expect(screen.getByText("テスト家庭")).toBeInTheDocument();
-    expect(screen.queryByLabelText("家庭名")).not.toBeInTheDocument();
-    const nicknameSection = screen.getByRole("region", { name: "ニックネーム" });
-    expect(within(nicknameSection).getByText("はなこ")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "家庭を作成" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("現在のパスワード")).not.toBeInTheDocument();
     const passwordSection = screen.getByRole("region", { name: "パスワード変更" });
+    fireEvent.click(
+      within(passwordSection).getByRole("button", { name: "パスワードを変更" }),
+    );
     expect(within(passwordSection).getByLabelText("現在のパスワード")).toHaveAttribute(
       "type",
       "password",
@@ -169,6 +157,7 @@ describe("アカウント画面", () => {
     );
     expect(within(passwordSection).getByRole("button", { name: "パスワードを変更" }))
       .toBeInTheDocument();
+    expect(screen.queryByText("テスト家庭")).not.toBeInTheDocument();
   });
 
   it("「編集」を押すと現在のニックネームを初期値とした編集フォームへ切り替わり、「キャンセル」で表示へ戻る(Issue #76)", async () => {

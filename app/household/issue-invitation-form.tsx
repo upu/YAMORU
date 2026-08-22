@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { PHASE_ONE_TIME_ZONE } from "../../time-zone";
-import { issueInvitation } from "./actions";
+import { PHASE_ONE_TIME_ZONE } from "../time-zone";
+import { issueInvitation } from "./invitation-actions";
 import { INITIAL_ISSUE_INVITATION_STATE } from "./state";
 
 function SubmitButton({ pending }: { pending: string }) {
@@ -35,9 +35,7 @@ function IssuedInvitationResult({
   });
   return (
     <div className="invitation-issued-result" role="status">
-      <p>
-        <strong>{invitedEmail}</strong>宛の招待リンクを発行しました。
-      </p>
+      <p><strong>{invitedEmail}</strong>宛の招待リンクを発行しました。</p>
       <p className="invitation-link-copy">{link}</p>
       <p className="detail-note">
         このリンクは{expiresLabel}まで有効です。この画面を離れると再表示されないため、今すぐコピーして共有してください。
@@ -46,10 +44,6 @@ function IssuedInvitationResult({
   );
 }
 
-// 発行と再発行(同じ招待先メールへの再度の発行)は、いずれもこのフォームから同じ
-// issue_household_invitation RPCを呼ぶ(RPC側が既存の有効な招待を置き換える)。
-// 発行結果はこのフォーム自身の状態として一度だけ表示するため、フォームが
-// 一覧の再検証でアンマウントされない場所(画面上部)に置く。
 export function IssueInvitationForm({ invitedEmail }: { invitedEmail?: string }) {
   const [state, formAction] = useActionState(
     issueInvitation,

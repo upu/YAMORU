@@ -53,7 +53,7 @@ describe("ニックネーム登録操作", () => {
 
     expect(createProfileMock).toHaveBeenCalledWith("db", "session", "たろう");
     expect(revalidatePathMock).toHaveBeenCalledWith("/account");
-    expect(redirectMock).toHaveBeenCalledWith("/account");
+    expect(redirectMock).toHaveBeenCalledWith("/household");
   });
 
   it.each(["", "   ", "あ".repeat(21)])(
@@ -86,7 +86,7 @@ describe("ニックネーム登録操作", () => {
 
       await registerNickname(INITIAL_STATE, formData);
 
-      expect(redirectMock).toHaveBeenCalledWith("/account");
+      expect(redirectMock).toHaveBeenCalledWith("/household");
     },
   );
 
@@ -96,7 +96,7 @@ describe("ニックネーム登録操作", () => {
     await registerNickname(INITIAL_STATE, nicknameForm("たろう"));
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/account");
-    expect(redirectMock).toHaveBeenCalledWith("/account");
+    expect(redirectMock).toHaveBeenCalledWith("/household");
   });
 
   it("登録失敗の内部詳細を表示せず、再試行できる案内を返す", async () => {

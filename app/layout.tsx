@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { AppHeader } from "./app-header";
 import { RefreshOnVisible } from "./refresh-on-visible";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="ja">
       <body>
         <RefreshOnVisible />
+        <AppHeader />
         {children}
       </body>
     </html>

@@ -59,7 +59,7 @@ async function login(page: Page, email: string, password: string): Promise<void>
 }
 
 async function issueInvitation(page: Page, email: string): Promise<string> {
-  await page.goto("/account/invitations");
+  await page.goto("/household");
   await page.getByLabel("招待先メールアドレス").fill(email);
   await page.getByRole("button", { name: "招待する" }).click();
   const link = page.locator(".invitation-link-copy");
@@ -94,10 +94,12 @@ async function changeInviteePassword(
   currentPassword: string,
 ): Promise<void> {
   await page.goto("/account");
+  await page.getByRole("button", { name: "アカウントメニュー" }).click();
   await page.getByRole("button", { name: "ログアウト" }).click();
   await login(page, email, currentPassword);
   await page.goto("/account");
   const passwordRegion = page.getByRole("region", { name: "パスワード変更" });
+  await passwordRegion.getByRole("button", { name: "パスワードを変更" }).click();
   const changedPassword = "changed-password-value";
   await passwordRegion.getByLabel("現在のパスワード").fill(currentPassword);
   await passwordRegion.getByLabel("新しいパスワード", { exact: true }).fill(changedPassword);

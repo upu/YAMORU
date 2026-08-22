@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../auth", () => ({ auth: vi.fn() }));
 
 import {
-  InvitationsContent,
+  HouseholdContent,
   type InvitationSummary,
-} from "../app/account/invitations/page";
+} from "../app/household/page";
 
 afterEach(cleanup);
 
@@ -27,24 +27,30 @@ const ACCEPTED_INVITATION: InvitationSummary = {
 };
 
 describe("家族招待画面", () => {
-  it("家庭未所属の利用者には招待機能を隠して家庭作成を案内する", () => {
-    render(<InvitationsContent household={null} invitations={[]} />);
+  it("家庭未所属の利用者には招待機能を隠して家庭作成フォームを表示する", () => {
+    render(
+      <HouseholdContent
+        household={null}
+        invitations={[]}
+        members={[]}
+        nickname="たろう"
+      />,
+    );
 
     expect(
-      screen.getByRole("heading", { name: "家庭を作成してください" }),
+      screen.getByRole("heading", { name: "家庭を作成" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("招待先メールアドレス")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "家庭を作成する" })).toHaveAttribute(
-      "href",
-      "/account",
-    );
+    expect(screen.getByRole("button", { name: "家庭を作成" })).toBeInTheDocument();
   });
 
   it("家庭所属済みなら発行フォームと空状態を表示する", () => {
     render(
-      <InvitationsContent
+      <HouseholdContent
         household={{ id: "household-1", name: "テスト家庭" }}
         invitations={[]}
+        members={[]}
+        nickname="たろう"
       />,
     );
 
@@ -58,9 +64,11 @@ describe("家族招待画面", () => {
 
   it("有効な招待には状態表示と取消・再発行操作を表示する", () => {
     render(
-      <InvitationsContent
+      <HouseholdContent
         household={{ id: "household-1", name: "テスト家庭" }}
         invitations={[PENDING_INVITATION]}
+        members={[]}
+        nickname="たろう"
       />,
     );
 
@@ -74,15 +82,17 @@ describe("家族招待画面", () => {
       within(list).getByRole("link", { name: "再発行する" }),
     ).toHaveAttribute(
       "href",
-      "/account/invitations?reissue=family%40example.test#issue-invitation-title",
+      "/household?reissue=family%40example.test#issue-invitation-title",
     );
   });
 
   it("受諾済みの招待には取消・再発行操作を表示しない", () => {
     render(
-      <InvitationsContent
+      <HouseholdContent
         household={{ id: "household-1", name: "テスト家庭" }}
         invitations={[ACCEPTED_INVITATION]}
+        members={[]}
+        nickname="たろう"
       />,
     );
 
@@ -98,10 +108,12 @@ describe("家族招待画面", () => {
 
   it("reissueクエリのメールを発行フォームへ引き継ぐ", () => {
     render(
-      <InvitationsContent
+      <HouseholdContent
         defaultInviteEmail="reissue-me@example.test"
         household={{ id: "household-1", name: "テスト家庭" }}
         invitations={[]}
+        members={[]}
+        nickname="たろう"
       />,
     );
 
