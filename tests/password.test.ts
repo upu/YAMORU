@@ -31,4 +31,22 @@ describe("password hashing", () => {
     await expect(verifyPassword("wrong-password-value", passwordHash)).resolves.toBe(false);
     await expect(verifyPassword("right-password-value", "not-a-password-hash")).resolves.toBe(false);
   });
+
+  it("Cloudflare Workersのcrypto.subtle/node:crypto pbkdf2が受け付ける上限(100,000回)を超えない", () => {
+    // Issue #142: crypto.subtle.deriveBits()とnode:crypto pbkdf2()はどちらも
+    // Cloudflare Workers上で反復回数100,000回を超えると例外になる。
+    // この上限を超えるとローカルのテストは通ってもWorkers上のログインが壊れるため、
+    // 定数そのものを固定する。
+    expect(PASSWORD_HASH_ITERATIONS).toBeLessThanOrEqual(100_000);
+  });
+
+  it("上限より大きい反復回数を記録したhash(移行前の600,000回など)は検証時に安全に拒否する", async () => {
+    const passwordHash = await hashPassword("right-password-value");
+    const overLimitHash = passwordHash.replace(
+      `$${String(PASSWORD_HASH_ITERATIONS)}$`,
+      `$${String(PASSWORD_HASH_ITERATIONS + 1)}$`,
+    );
+
+    await expect(verifyPassword("right-password-value", overLimitHash)).resolves.toBe(false);
+  });
 });
