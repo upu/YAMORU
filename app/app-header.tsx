@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { ManualRefreshButton } from "./refresh-coordinator";
+
 const PUBLIC_PATH_PREFIXES = ["/login", "/invitations/accept"];
 
 function isPublicPath(pathname: string): boolean {
@@ -131,7 +133,10 @@ export function AppHeader() {
     <header aria-label="共通ヘッダー" className="app-header">
       <div className="app-header-inner">
         <Link className="app-header-brand" href="/">YAMORU</Link>
-        <AccountMenu key={pathname} pathname={pathname} />
+        <div className="app-header-actions">
+          <ManualRefreshButton />
+          <AccountMenu key={pathname} pathname={pathname} />
+        </div>
       </div>
     </header>
   );

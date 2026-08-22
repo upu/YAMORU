@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { refreshMock } = vi.hoisted(() => ({
@@ -9,7 +9,26 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }));
 
+import { RefreshCoordinator, useRefresh } from "../app/refresh-coordinator";
 import { RefreshOnVisible } from "../app/refresh-on-visible";
+
+function RefreshStatusProbe() {
+  const { status } = useRefresh();
+  return <output data-testid="refresh-status">{status}</output>;
+}
+
+function renderRefreshOnVisible(cooldownMs = 2000) {
+  return render(
+    <RefreshCoordinator
+      cooldownMs={cooldownMs}
+      minimumPendingMs={0}
+      successVisibleMs={10_000}
+    >
+      <RefreshOnVisible />
+      <RefreshStatusProbe />
+    </RefreshCoordinator>,
+  );
+}
 
 function setVisibilityState(state: DocumentVisibilityState) {
   Object.defineProperty(document, "visibilityState", {
@@ -36,7 +55,7 @@ afterEach(() => {
 
 describe("RefreshOnVisible", () => {
   it("非表示から表示に戻ったときにrouter.refresh()を呼ぶ", () => {
-    render(<RefreshOnVisible />);
+    renderRefreshOnVisible();
 
     setVisibilityState("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
@@ -48,14 +67,14 @@ describe("RefreshOnVisible", () => {
   });
 
   it("フォーカス復帰時にrouter.refresh()を呼ぶ", () => {
-    render(<RefreshOnVisible />);
+    renderRefreshOnVisible();
 
     window.dispatchEvent(new Event("focus"));
     expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
   it("bfcacheからの復元(pageshow persisted)でrouter.refresh()を呼ぶ", () => {
-    render(<RefreshOnVisible />);
+    renderRefreshOnVisible();
 
     firePageShow(false);
     expect(refreshMock).not.toHaveBeenCalled();
@@ -64,8 +83,8 @@ describe("RefreshOnVisible", () => {
     expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
-  it("クールダウン時間内の重複イベントでは連続取得しない", () => {
-    render(<RefreshOnVisible cooldownMs={2000} />);
+  it("クールダウン時間内の重複イベントでは連続取得しない", async () => {
+    renderRefreshOnVisible(2000);
 
     const nowSpy = vi.spyOn(performance, "now").mockReturnValue(0);
 
@@ -73,6 +92,10 @@ describe("RefreshOnVisible", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     firePageShow(true);
     expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("refresh-status").textContent).toBe("success");
+    });
 
     nowSpy.mockReturnValue(1000);
     window.dispatchEvent(new Event("focus"));
@@ -85,8 +108,8 @@ describe("RefreshOnVisible", () => {
     nowSpy.mockRestore();
   });
 
-  it("システム時計(Date.now)が巻き戻ってもクールダウン判定に影響しない(performance.nowは単調増加)", () => {
-    render(<RefreshOnVisible cooldownMs={2000} />);
+  it("システム時計(Date.now)が巻き戻ってもクールダウン判定に影響しない(performance.nowは単調増加)", async () => {
+    renderRefreshOnVisible(2000);
 
     const perfSpy = vi.spyOn(performance, "now").mockReturnValue(10_000);
     // NTP補正などでシステム時計が巻き戻る状況を模す。クールダウン判定が
@@ -96,6 +119,10 @@ describe("RefreshOnVisible", () => {
 
     window.dispatchEvent(new Event("focus"));
     expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("refresh-status").textContent).toBe("success");
+    });
 
     dateSpy.mockReturnValue(0);
     perfSpy.mockReturnValue(12_500);
@@ -108,7 +135,7 @@ describe("RefreshOnVisible", () => {
   });
 
   it("アンマウント後はイベントに反応しない", () => {
-    const { unmount } = render(<RefreshOnVisible />);
+    const { unmount } = renderRefreshOnVisible();
     unmount();
 
     window.dispatchEvent(new Event("focus"));
