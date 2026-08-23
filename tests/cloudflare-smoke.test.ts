@@ -10,6 +10,7 @@ describe("Cloudflare公開環境の認証境界", () => {
     expect(PRODUCTION_SMOKE_CHECKS.map(({ pathname }) => pathname)).toEqual([
       "/manifest.webmanifest",
       "/icon.png",
+      "/pwa/yamoru-startup-iphone-16-portrait.png",
       "/invitations/accept",
       "/login",
       "/account",
@@ -30,12 +31,18 @@ describe("Cloudflare公開環境の認証境界", () => {
         location: null,
         status: 200,
       });
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[2], {
+        body: "",
+        contentType: "image/png",
+        location: null,
+        status: 200,
+      });
     }).not.toThrow();
   });
 
   it("招待入口は生tokenを含まない公開HTMLを未認証で返す(#140)", () => {
     expect(() => {
-      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[2], {
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[3], {
         body: "<h1>招待を確認しています</h1>",
         contentType: "text/html; charset=utf-8",
         location: null,
@@ -46,13 +53,13 @@ describe("Cloudflare公開環境の認証境界", () => {
 
   it("保護画面はログインへ移動し、ログイン画面は公開する", () => {
     expect(() => {
-      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[3], {
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[4], {
         body: "<h1>YAMORUへログイン</h1>",
         contentType: "text/html; charset=utf-8",
         location: null,
         status: 200,
       });
-      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[4], {
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[5], {
         body: "",
         contentType: null,
         location: "https://yamoru.example/login?callbackUrl=%2Faccount",
@@ -71,7 +78,7 @@ describe("Cloudflare公開環境の認証境界", () => {
       });
     }).toThrow(/Content-Type/u);
     expect(() => {
-      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[4], {
+      assertSmokeResponse(PRODUCTION_SMOKE_CHECKS[5], {
         body: "secret page",
         contentType: "text/html",
         location: null,

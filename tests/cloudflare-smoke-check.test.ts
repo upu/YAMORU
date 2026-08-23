@@ -6,8 +6,8 @@ import {
   type SmokeCheckRetryFailure,
 } from "../scripts/cloudflare-smoke-check";
 
-const LOGIN_CHECK = PRODUCTION_SMOKE_CHECKS[3]; // /login (public, text/html)
-const ACCOUNT_CHECK = PRODUCTION_SMOKE_CHECKS[4]; // /account (redirect → /login)
+const LOGIN_CHECK = PRODUCTION_SMOKE_CHECKS[4]; // /login (public, text/html)
+const ACCOUNT_CHECK = PRODUCTION_SMOKE_CHECKS[5]; // /account (redirect → /login)
 
 const POLICY = { delaysMs: [0, 0, 0], maxAttempts: 4 };
 
@@ -49,7 +49,7 @@ describe("公開境界checkの上限付き再試行(#152)", () => {
     const onRetry = vi.fn<(failure: SmokeCheckRetryFailure) => void>();
 
     await runSmokeCheckWithRetry(
-      PRODUCTION_SMOKE_CHECKS[2], // /invitations/accept
+      PRODUCTION_SMOKE_CHECKS[3], // /invitations/accept
       fetchResponse,
       POLICY,
       { onRetry },
