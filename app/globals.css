@@ -1318,13 +1318,13 @@ footer p {
   font-size: 0.78rem;
 }
 
-.undo-completion-panel {
+.correction-panel {
   margin-top: 2px;
 }
 
-/* undo-trigger(取消)・postpone-trigger(延期)は、Todo詳細操作の補助的な
-   テキストボタンとして見た目を共有し、色だけで意味を区別する。 */
-.undo-trigger,
+/* correction-trigger(修正、Issue #148)・postpone-trigger(延期)は、Todo詳細
+   操作の補助的なテキストボタンとして見た目を共有し、色だけで意味を区別する。 */
+.correction-trigger,
 .postpone-trigger {
   padding: 0;
   border: 0;
@@ -1335,7 +1335,7 @@ footer p {
   cursor: pointer;
 }
 
-.undo-trigger {
+.correction-trigger {
   color: var(--orange);
 }
 
@@ -1343,12 +1343,12 @@ footer p {
   color: var(--green);
 }
 
-.undo-trigger:hover,
+.correction-trigger:hover,
 .postpone-trigger:hover {
   text-decoration: underline;
 }
 
-.undo-trigger:focus-visible,
+.correction-trigger:focus-visible,
 .postpone-trigger:focus-visible {
   outline: 3px solid rgb(64 103 120 / 38%);
   outline-offset: 2px;

@@ -37,6 +37,7 @@
 | YDR-023 | 公開登録を閉じ、招待限定のアカウント作成と最小のパスワード運用を採用する | Superseded by YDR-024(招待token搬送方式の部分のみ) | [ydr-023-invitation-only-account-lifecycle.md](ydr-023-invitation-only-account-lifecycle.md) |
 | YDR-024 | 招待の生tokenをquery stringではなくURL fragmentで搬送する | Accepted | [ydr-024-invitation-token-in-url-fragment.md](ydr-024-invitation-token-in-url-fragment.md) |
 | YDR-025 | PBKDF2の反復回数をCloudflare Workersの実行上限(10万回)に合わせる | Accepted | [ydr-025-pbkdf2-iterations-within-workers-limit.md](ydr-025-pbkdf2-iterations-within-workers-limit.md) |
+| YDR-026 | 実施記録の訂正を追記型の訂正イベントとして記録し、有効値を読み取り時に解決する | Accepted | [ydr-026-completion-correction-events.md](ydr-026-completion-correction-events.md) |
 
 ## 新しい意思決定の追加
 

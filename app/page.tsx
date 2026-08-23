@@ -18,7 +18,7 @@ import { loadAccountState } from "../lib/d1/households";
 import type { D1Session } from "../lib/d1/authorization";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
-import { UndoCompletionPanel } from "./managed-items/[id]/undo-completion-panel";
+import { CorrectionPanel } from "./managed-items/[id]/correction-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
   STRICT_DISPLAY_COPY,
@@ -40,6 +40,8 @@ export type HomeItem = {
   assigneeUserId?: string | null;
   completedAt?: string;
   completedOccurrenceId?: string;
+  // completed Todoにだけ設定する(#148の修正で実施者を選び直すための既定値)。
+  completedPerformedByUserId?: string | null;
   detail: string;
   detailHref?: string;
   id: string;
@@ -215,6 +217,7 @@ export function buildRecentItems(
       return {
         completedAt: row.occurred_at,
         completedOccurrenceId: row.task_occurrence_id,
+        completedPerformedByUserId: row.performed_by_user_id,
         detail: row.managed_item_name ?? "管理対象なし",
         ...(row.managed_item_id === null
           ? {}
@@ -332,10 +335,13 @@ function TaskActions({
     return null;
   }
   return (
-    <UndoCompletionPanel
+    <CorrectionPanel
+      currentUserId={currentUserId}
       managedItemId={item.managedItemId ?? null}
+      members={members}
       occurredAt={item.completedAt}
       occurrenceId={item.completedOccurrenceId}
+      performedByUserId={item.completedPerformedByUserId ?? null}
       taskTitle={item.title}
     />
   );

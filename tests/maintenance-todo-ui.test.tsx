@@ -135,6 +135,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
             {
               id: "occurrence-0",
               occurredAt: "2026-09-01T15:00:00.000Z",
+              performedByUserId: "user-self",
               title: "フィルター交換",
             },
           ],

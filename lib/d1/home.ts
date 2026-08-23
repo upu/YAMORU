@@ -68,6 +68,10 @@ export async function listRecentActiveCompletions(
 ): Promise<RecentCompletionRow[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const boundedLimit = Math.min(Math.max(limit, 0), 100);
+  // #148: occurred_at・performed_by_user_idは、元のcompletedログの値ではなく、
+  // completion_correctionsで訂正済みなら訂正後の有効値を返す(YDR-026)。
+  // 日時訂正と実施者訂正は別行として記録されるため、それぞれ独立に最新の
+  // 訂正を相関サブクエリで引き、なければ元の値へフォールバックする。
   const { results } = await db.prepare(
     `WITH ranked AS (
        SELECT l.id, l.occurred_at, l.recorded_at, l.performed_by_user_id,
@@ -82,8 +86,22 @@ export async function listRecentActiveCompletions(
         WHERE l.household_id = ?1 AND l.action = 'completed'
           AND o.status = 'completed'
      )
-     SELECT ranked.id AS activity_log_id, ranked.occurred_at,
-            ranked.performed_by_user_id, ranked.task_occurrence_id,
+     SELECT ranked.id AS activity_log_id,
+            coalesce(
+              (SELECT c.new_occurred_at FROM completion_corrections c
+                 WHERE c.completed_activity_log_id = ranked.id AND c.household_id = ?1
+                   AND c.new_occurred_at IS NOT NULL
+                 ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
+              ranked.occurred_at
+            ) AS occurred_at,
+            coalesce(
+              (SELECT c.new_performed_by_user_id FROM completion_corrections c
+                 WHERE c.completed_activity_log_id = ranked.id AND c.household_id = ?1
+                   AND c.new_performed_by_user_id IS NOT NULL
+                 ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
+              ranked.performed_by_user_id
+            ) AS performed_by_user_id,
+            ranked.task_occurrence_id,
             r.title AS task_rule_title, i.id AS managed_item_id,
             i.name AS managed_item_name
        FROM ranked

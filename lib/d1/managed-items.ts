@@ -124,8 +124,27 @@ export async function loadManagedItemDetail(
         ORDER BY o.scheduled_for, o.id`,
     ).bind(id, householdId).all<FlatOccurrence>(),
     db.prepare(
-      `SELECT l.id, l.task_occurrence_id, l.action, l.occurred_at,
-              l.recorded_at, l.performed_by_user_id
+      // #148: completedの行はcompletion_correctionsに訂正があれば有効値へ
+      // 差し替える(YDR-026)。元のl.occurred_at/l.performed_by_user_id自体は
+      // 書き換えない。corrected_activity_log_idはcompleted行しか参照しない
+      // ため、他actionの行では相関サブクエリが常にNULLになりl側の値へ
+      // フォールバックする。
+      `SELECT l.id, l.task_occurrence_id, l.action,
+              coalesce(
+                (SELECT c.new_occurred_at FROM completion_corrections c
+                   WHERE c.completed_activity_log_id = l.id AND c.household_id = l.household_id
+                     AND c.new_occurred_at IS NOT NULL
+                   ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
+                l.occurred_at
+              ) AS occurred_at,
+              l.recorded_at,
+              coalesce(
+                (SELECT c.new_performed_by_user_id FROM completion_corrections c
+                   WHERE c.completed_activity_log_id = l.id AND c.household_id = l.household_id
+                     AND c.new_performed_by_user_id IS NOT NULL
+                   ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
+                l.performed_by_user_id
+              ) AS performed_by_user_id
          FROM activity_logs l
          JOIN task_occurrences o ON o.id = l.task_occurrence_id AND o.household_id = l.household_id
          JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
