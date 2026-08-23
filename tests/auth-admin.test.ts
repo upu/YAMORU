@@ -50,7 +50,7 @@ describe("auth admin command boundary", () => {
 
   it("localコマンドはremote bindingを無効にした専用設定を選ぶ", () => {
     expect(getLocalAuthAdminPlatformOptions()).toEqual({
-      configPath: "wrangler.auth-admin.jsonc",
+      configPath: "config/wrangler/auth-admin.jsonc",
       envFiles: [],
       persist: true,
       remoteBindings: false,

@@ -10,7 +10,7 @@ status: stable
 
 この手順は[YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md)に基づく。公開signupやセルフサービスのパスワード回復は提供しない。既定の管理コマンドはlocal D1だけを対象とし、remote操作はpreview / productionを明示する専用コマンドと対象名の完全一致確認を要求する。
 
-Auth管理コマンドは、アプリ本体のbindingやSecretを含まない`wrangler.auth-admin.jsonc`を接続境界として使う。local bindingはローカル専用、preview / production bindingはそれぞれ対応するD1だけを`remote: true`にする。remote操作では処理の間だけCloudflare上に管理用Workerを起動し、ローカルで生成したパスワードhashを一回限りのtokenで保護したrequest bodyとして渡す。メールアドレス、パスワード、hash、tokenをCLI引数、設定ファイル、ログへ渡さず、終了時に管理用Workerを停止する。remote D1の`database_id`を変更した場合は、`wrangler.jsonc`とこの管理専用設定を同じ変更で更新し、自動テストで一致を確認する。
+Auth管理コマンドは、アプリ本体のbindingやSecretを含まない`config/wrangler/auth-admin.jsonc`を接続境界として使う。local bindingはローカル専用、preview / production bindingはそれぞれ対応するD1だけを`remote: true`にする。remote操作では処理の間だけCloudflare上に管理用Workerを起動し、ローカルで生成したパスワードhashを一回限りのtokenで保護したrequest bodyとして渡す。メールアドレス、パスワード、hash、tokenをCLI引数、設定ファイル、ログへ渡さず、終了時に管理用Workerを停止する。remote D1の`database_id`を変更した場合は、`wrangler.jsonc`とこの管理専用設定を同じ変更で更新し、自動テストで一致を確認する。
 
 ## 事前準備
 

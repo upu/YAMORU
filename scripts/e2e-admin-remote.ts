@@ -89,7 +89,7 @@ export async function resetPreviewE2eFixtures(
   let worker: RemoteDevWorker;
   try {
     worker = await startDev("scripts/e2e-admin-platform.ts", {
-      config: "wrangler.e2e-admin.jsonc",
+      config: "config/wrangler/e2e-admin.jsonc",
       env: "preview",
       envFiles: [],
       experimental: {

@@ -16,7 +16,7 @@ function readWranglerConfig(): unknown {
 
 function readAuthAdminWranglerConfig(): Record<string, unknown> {
   return JSON.parse(
-    readFileSync(join(process.cwd(), "wrangler.auth-admin.jsonc"), "utf8"),
+    readFileSync(join(process.cwd(), "config/wrangler/auth-admin.jsonc"), "utf8"),
   ) as Record<string, unknown>;
 }
 
@@ -113,7 +113,7 @@ describe("Cloudflare環境分離", () => {
   it("一回限りのデータ移行はproduction D1だけをremote bindingにする", () => {
     const targets = parseCloudflareTargets(readWranglerConfig());
     const migrationConfig = JSON.parse(
-      readFileSync(join(process.cwd(), "wrangler.data-migration.jsonc"), "utf8"),
+      readFileSync(join(process.cwd(), "config/wrangler/data-migration.jsonc"), "utf8"),
     ) as { d1_databases: Array<Record<string, unknown>> };
 
     expect(migrationConfig.d1_databases).toEqual([{
@@ -132,12 +132,14 @@ describe("Cloudflare環境分離", () => {
       env: Record<string, { d1_databases: Array<Record<string, unknown>> }>;
     };
 
-    expect(config.main).toBe("scripts/auth-admin-platform.ts");
+    // main・migrations_dirはwranglerが設定ファイルの位置を基準に解決するため、
+    // config/wrangler/からリポジトリルートへ遡る相対パスで指定する。
+    expect(config.main).toBe("../../scripts/auth-admin-platform.ts");
     expect(config.d1_databases).toEqual([{
       binding: "DB",
       database_id: "local-only-placeholder",
       database_name: "yamoru-local",
-      migrations_dir: "d1/migrations",
+      migrations_dir: "../../d1/migrations",
       remote: false,
     }]);
     expect(config.env.preview.d1_databases).toEqual([{

@@ -1,5 +1,5 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "yamoru-data-migration",
   "compatibility_date": "2026-08-19",
   "d1_databases": [
