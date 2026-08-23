@@ -1,8 +1,8 @@
 import {
-  assertSmokeResponse,
   PRODUCTION_SMOKE_CHECKS,
   type SmokeResponse,
 } from "./cloudflare-smoke-contract.ts";
+import { runSmokeCheckWithRetry } from "./cloudflare-smoke-check.ts";
 
 function parseBaseUrl(value: string | undefined): URL {
   if (value === undefined) throw new Error("公開HTTPS URLを指定してください。");
@@ -39,7 +39,13 @@ async function main(): Promise<void> {
   const baseUrl = parseBaseUrl(process.argv[2]);
   for (const check of PRODUCTION_SMOKE_CHECKS) {
     const url = new URL(check.pathname, baseUrl);
-    assertSmokeResponse(check, await fetchSmokeResponse(url));
+    await runSmokeCheckWithRetry(check, () => fetchSmokeResponse(url), undefined, {
+      onRetry: ({ attempt, maxAttempts, pathname, reason }) => {
+        process.stderr.write(
+          `retry ${String(attempt)}/${String(maxAttempts)} ${pathname}: ${reason}\n`,
+        );
+      },
+    });
     process.stdout.write(`OK ${check.pathname}\n`);
   }
 }
