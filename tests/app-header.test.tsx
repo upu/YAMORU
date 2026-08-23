@@ -32,6 +32,16 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
     );
   }
 
+  it("YAMORUをホームへの共通導線として表示する", () => {
+    renderHeader();
+
+    const header = screen.getByRole("banner", { name: "共通ヘッダー" });
+    expect(within(header).getByRole("link", { name: "YAMORU" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
   it("右上の丸いボタンからアカウント・家庭・ログアウトを選べる", () => {
     renderHeader();
 

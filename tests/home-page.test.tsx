@@ -79,7 +79,10 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     const element = await Home();
     render(element);
 
-    expect(screen.getByRole("heading", { level: 1, name: "YAMORU" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ホーム" })).toHaveClass("sr-only");
+    expect(screen.queryByText("HOME CARE")).not.toBeInTheDocument();
+    expect(screen.queryByText("暮らしの「いつだっけ？」をなくす。"))
+      .not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "まだ表示できる予定がありません" }),
     ).toBeInTheDocument();

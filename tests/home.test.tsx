@@ -72,11 +72,25 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
 }
 
 describe("ホーム画面(HomeContent)", () => {
-  it("YAMORUの名前とタグラインを表示し、日付バッジは表示しない", () => {
+  it("ブランド紹介を省き、ホーム見出しと主要な導線・対応状況を維持する", () => {
     renderHome(emptySections());
 
-    expect(screen.getByRole("heading", { level: 1, name: "YAMORU" })).toBeInTheDocument();
-    expect(screen.getByText("暮らしの「いつだっけ？」をなくす。")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "ホーム" })).toHaveClass("sr-only");
+    expect(screen.queryByText("HOME CARE")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "YAMORU" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByText("暮らしの「いつだっけ？」をなくす。"))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
+      "href",
+      "/todos/new",
+    );
+    expect(screen.getByRole("link", { name: "家の台帳" })).toHaveAttribute(
+      "href",
+      "/managed-items",
+    );
+    expect(screen.getByLabelText("対応状況")).toBeInTheDocument();
+    expect(document.querySelector(".brand-row")).not.toBeInTheDocument();
     expect(document.querySelector(".date-badge")).not.toBeInTheDocument();
   });
 
