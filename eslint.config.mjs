@@ -66,9 +66,6 @@ export default defineConfig([
     "out/**",
     "coverage/**",
     ".claude/worktrees/**",
-    // Supabase CLIが出力する生成物(Issue #45)。手で直せないため整形規則の
-    // 対象外とする。型としての正しさはnpm run typecheckが引き続き検査する。
-    "lib/supabase/database.types.ts",
     // opennextjs-cloudflare buildとwrangler devが出力する
     // バンドル済みWorkerスクリプト・ローカルD1状態(生成物)。
     ".open-next/**",

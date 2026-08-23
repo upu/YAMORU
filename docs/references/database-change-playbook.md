@@ -20,7 +20,7 @@ status: stable
 | 純粋な暦計算や画面actionの契約 | `tests/` |
 | 変更の理由 | `docs/decisions/`のAcceptedなYDR |
 
-`supabase/migrations/`、`lib/supabase/database.types.ts`、`docs/references/rls-policy-catalog.md`はD1移行前の履歴資料であり、現在のアプリデータ仕様の正本として使わない。
+D1移行前のSupabaseスキーマ、生成型、RLSポリシー一覧はリポジトリから撤去した([#183](https://github.com/upu/YAMORU/issues/183))。移行前の構成を確認する必要がある場合は、[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)と[Supabase RLSによる家庭間分離スパイク](../spikes/supabase-rls-household-isolation.md)を読む。
 
 ## スキーマまたはデータアクセスを変更する
 

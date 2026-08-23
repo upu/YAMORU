@@ -103,25 +103,7 @@ describe("Cloudflare環境分離", () => {
       "cf:smoke": "node scripts/cloudflare-smoke.ts",
       "d1:migrate:preview": "node scripts/cloudflare.ts migrate preview",
       "d1:migrate:production": "node scripts/cloudflare.ts migrate production",
-      "data:migrate:dry-run":
-        "node --env-file=scripts/d1-test.env scripts/data-migration.ts dry-run --environment production",
-      "data:migrate:production":
-        "node --env-file=scripts/d1-test.env scripts/data-migration.ts apply --environment production",
     });
-  });
-
-  it("一回限りのデータ移行はproduction D1だけをremote bindingにする", () => {
-    const targets = parseCloudflareTargets(readWranglerConfig());
-    const migrationConfig = JSON.parse(
-      readFileSync(join(process.cwd(), "config/wrangler/data-migration.jsonc"), "utf8"),
-    ) as { d1_databases: Array<Record<string, unknown>> };
-
-    expect(migrationConfig.d1_databases).toEqual([{
-      binding: "DB",
-      database_id: targets.production.databaseId,
-      database_name: "yamoru-production",
-      remote: true,
-    }]);
   });
 
   it("Auth管理専用設定はlocal / preview / productionのD1だけを分離して公開する", () => {
