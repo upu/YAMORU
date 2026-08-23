@@ -23,14 +23,12 @@ export async function acceptInvitationClaim(): Promise<AcceptInvitationState> {
   const { db, session } = await getD1Context();
   const accepted = await acceptInvitationForExistingUser(db, session, claimSecret);
 
-  // ここから先はドメイン結果(result_code)が確定しているため、この画面での
-  // 受諾試行は一度きりとして扱い、claim cookieを使い切る(YDR-019「単回使用」
-  // の趣旨。DB側のclaim自体は受諾成立時だけ消費済みになるが、cookie側は
-  // 再提示を防ぐ)。
-  cookieStore.delete({ name: INVITE_CLAIM_COOKIE_NAME, path: INVITE_CLAIM_COOKIE_PATH });
-
+  // 期待される受諾失敗では、Server Actionの状態が画面へ反映されるまで
+  // claim cookieを残す。先に削除するとroute segmentの再実行時に共通エラーへ
+  // 切り替わり、ボタンが返した具体的なinlineエラーを表示できない。
   if (!accepted) return { kind: "invalid", status: "error" };
 
+  cookieStore.delete({ name: INVITE_CLAIM_COOKIE_NAME, path: INVITE_CLAIM_COOKIE_PATH });
   revalidatePath("/", "layout");
   redirect("/");
 }

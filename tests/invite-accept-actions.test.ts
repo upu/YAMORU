@@ -72,13 +72,13 @@ describe("既存利用者のD1招待受諾", () => {
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
-  it("無効・メール不一致・別家庭は共通エラーにしてcookieを使い切る", async () => {
+  it("無効・メール不一致・別家庭はinlineエラー表示のためcookieを残す", async () => {
     const { deleteMock, store } = cookieStore("claim-secret");
     cookiesMock.mockResolvedValue(store);
     acceptInvitationMock.mockResolvedValue(false);
 
     await expect(acceptInvitationClaim()).resolves.toEqual({ kind: "invalid", status: "error" });
-    expect(deleteMock).toHaveBeenCalled();
+    expect(deleteMock).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
