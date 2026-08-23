@@ -49,11 +49,11 @@ describe("Preview family sharing E2E workflow(#151, #167)", () => {
 
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("release_tag:");
+    expect(workflow).toContain("target_sha:");
     expect(workflow).not.toContain("types: [created]");
-    expect(workflow).toContain("Resolve the Draft Release target");
-    expect(workflow).toContain(".target_commitish");
-    expect(workflow).toContain(".draft");
-    expect(workflow).toContain("git/ref/heads/main");
+    expect(workflow).toContain("Verify the Draft Release target");
+    expect(workflow).toContain("refs/heads/main");
+    expect(workflow).toContain('RELEASE_TARGET_SHA" != "$GITHUB_SHA');
     expect(workflow).toContain("ref: ${{ steps.release.outputs.target_sha }}");
     expect(workflow).toContain("name: preview");
     expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
@@ -63,7 +63,7 @@ describe("Preview family sharing E2E workflow(#151, #167)", () => {
     expect(workflow).toContain("group: yamoru-preview");
 
     expectOrderedCommands(workflow, [
-      "Resolve the Draft Release target",
+      "Verify the Draft Release target",
       "playwright install",
       "npm run test:e2e:preview",
     ]);
