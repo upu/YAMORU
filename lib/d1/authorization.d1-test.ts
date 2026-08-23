@@ -5,6 +5,7 @@ import schemaSql from "../../d1/migrations/0001_init.sql?raw";
 import authSchemaSql from "../../d1/migrations/0002_auth_invitation_claims.sql?raw";
 import migrationAuditSql from "../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import completionCorrectionsSql from "../../d1/migrations/0004_completion_corrections.sql?raw";
+import classificationSql from "../../d1/migrations/0005_managed_item_classification.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -42,7 +43,7 @@ const householdBMember = { email: "b@example.com", userId: "user-b" };
 const nonMember = { email: "o@example.com", userId: "user-outsider" };
 
 function migrationStatements(): string[] {
-  return [schemaSql, authSchemaSql, migrationAuditSql, completionCorrectionsSql].join("\n")
+  return [schemaSql, authSchemaSql, migrationAuditSql, completionCorrectionsSql, classificationSql].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n")
@@ -105,9 +106,8 @@ beforeEach(async () => {
 
 describe("D1 formal schema and household authorization", () => {
   it("formal migration creates every application table", async () => {
-    const tables = await db.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' ORDER BY name",
-    ).all<{ name: string }>();
+    const tables = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' ORDER BY name")
+      .all<{ name: string }>();
     expect(tables.results.map(({ name }) => name)).toEqual(expect.arrayContaining([
       "activity_logs",
       "external_links",
@@ -116,6 +116,9 @@ describe("D1 formal schema and household authorization", () => {
       "household_members",
       "households",
       "managed_items",
+      "managed_item_classifications",
+      "managed_item_kinds",
+      "managed_item_type_presets",
       "profiles",
       "task_occurrences",
       "task_rules",
@@ -151,7 +154,14 @@ describe("D1 formal schema and household authorization", () => {
       db, householdAMember, "household-a", "item-b", "Hacked",
     )).resolves.toBe(0);
     await expect(listManagedItems(db, householdAMember)).resolves.toEqual([
-      { id: "item-a", kind: "other", name: "Item A" },
+      {
+        id: "item-a",
+        itemTypeCode: "other",
+        itemTypeLabel: "その他",
+        kindCode: "other",
+        kindLabel: "その他",
+        name: "Item A",
+      },
     ]);
     await expect(getManagedItem(db, householdAMember, "item-b")).resolves.toBeNull();
     await expect(listAuthorizedManagedItems(db, householdBMember, "household-b"))
@@ -160,8 +170,10 @@ describe("D1 formal schema and household authorization", () => {
 
   it("new managed items are bound to the session household", async () => {
     await createManagedItem(db, householdAMember, {
+      customItemType: null,
       externalUrl: "https://example.com/a",
-      kind: "contract",
+      itemTypeCode: "contract",
+      kindCode: "service",
       name: "A contract",
     });
     const aItems = await listManagedItems(db, householdAMember);
@@ -172,8 +184,10 @@ describe("D1 formal schema and household authorization", () => {
 
   it("a failed external-link insert rolls back the managed item insert", async () => {
     await expect(createManagedItem(db, householdAMember, {
+      customItemType: null,
       externalUrl: "not-a-url",
-      kind: "contract",
+      itemTypeCode: "contract",
+      kindCode: "service",
       name: "Must roll back",
     })).rejects.toThrow();
     await expect(db.prepare(
@@ -183,37 +197,51 @@ describe("D1 formal schema and household authorization", () => {
 
   it("updateManagedItem replaces the external link atomically without touching household B(Issue #40)", async () => {
     await updateManagedItem(db, householdAMember, "item-a", {
+      customItemType: null,
       externalUrl: "https://example.com/updated",
-      kind: "appliance",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Item A updated",
     });
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
+      customItemType: null,
       externalUrl: "https://example.com/updated",
       id: "item-a",
-      kind: "appliance",
+      itemTypeCode: "appliance",
+      itemTypeLabel: "家電",
+      kindCode: "asset",
+      kindLabel: "モノ・設備",
       name: "Item A updated",
     });
     await expect(db.prepare(
       "SELECT count(*) AS count FROM external_links WHERE managed_item_id = 'item-a'",
     ).first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
     await expect(getManagedItemForEdit(db, householdBMember, "item-b")).resolves.toEqual({
+      customItemType: null,
       externalUrl: null,
       id: "item-b",
-      kind: "other",
+      itemTypeCode: "other",
+      itemTypeLabel: "その他",
+      kindCode: "other",
+      kindLabel: "その他",
       name: "Item B",
     });
   });
 
   it("updateManagedItem can unset the external link", async () => {
     await updateManagedItem(db, householdAMember, "item-a", {
+      customItemType: null,
       externalUrl: "https://example.com/first",
-      kind: "other",
+      itemTypeCode: "other",
+      kindCode: "other",
       name: "Item A",
     });
     await updateManagedItem(db, householdAMember, "item-a", {
+      customItemType: null,
       externalUrl: null,
-      kind: "other",
+      itemTypeCode: "other",
+      kindCode: "other",
       name: "Item A",
     });
 
@@ -224,8 +252,10 @@ describe("D1 formal schema and household authorization", () => {
 
   it("an A session cannot update or read a B item by ID (IDOR)", async () => {
     await expect(updateManagedItem(db, householdAMember, "item-b", {
+      customItemType: null,
       externalUrl: null,
-      kind: "other",
+      itemTypeCode: "other",
+      kindCode: "other",
       name: "Hacked",
     })).rejects.toThrow("管理対象が見つかりません。");
     await expect(getManagedItemForEdit(db, householdAMember, "item-b")).resolves.toBeNull();
@@ -236,21 +266,29 @@ describe("D1 formal schema and household authorization", () => {
 
   it("a failed external-link insert rolls back the managed item name/kind update too", async () => {
     await updateManagedItem(db, householdAMember, "item-a", {
+      customItemType: null,
       externalUrl: "https://example.com/original",
-      kind: "other",
+      itemTypeCode: "other",
+      kindCode: "other",
       name: "Item A",
     });
 
     await expect(updateManagedItem(db, householdAMember, "item-a", {
+      customItemType: null,
       externalUrl: "not-a-url",
-      kind: "appliance",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Should not persist",
     })).rejects.toThrow();
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
+      customItemType: null,
       externalUrl: "https://example.com/original",
       id: "item-a",
-      kind: "other",
+      itemTypeCode: "other",
+      itemTypeLabel: "その他",
+      kindCode: "other",
+      kindLabel: "その他",
       name: "Item A",
     });
   });

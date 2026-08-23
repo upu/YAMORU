@@ -9,9 +9,25 @@ import { ManagedItemRegistrationContent } from "../app/managed-items/new/page";
 
 afterEach(cleanup);
 
+const CLASSIFICATION_OPTIONS = {
+  itemTypes: [
+    { code: "pet_supplies", kindCode: "asset", label: "ペット用品" },
+    { code: "contract", kindCode: "service", label: "契約" },
+  ],
+  kinds: [
+    { code: "asset", label: "モノ・設備" },
+    { code: "service", label: "サービス・契約" },
+  ],
+};
+
 describe("管理対象登録", () => {
   it("家庭未所属なら登録フォームを隠して家庭作成を案内する", () => {
-    render(<ManagedItemRegistrationContent household={null} />);
+    render(
+      <ManagedItemRegistrationContent
+        classificationOptions={CLASSIFICATION_OPTIONS}
+        household={null}
+      />,
+    );
 
     expect(
       screen.getByRole("heading", { name: "家庭を作成してください" }),
@@ -26,6 +42,7 @@ describe("管理対象登録", () => {
   it("台帳へ戻れる専用ページで既存の入力項目を表示する", () => {
     render(
       <ManagedItemRegistrationContent
+        classificationOptions={CLASSIFICATION_OPTIONS}
         household={{ id: "household-1", name: "テスト家庭" }}
       />,
     );
@@ -39,9 +56,10 @@ describe("管理対象登録", () => {
       "maxLength",
       "100",
     );
-    expect(within(form).getByLabelText("種類")).toHaveValue("pet_supplies");
+    expect(within(form).getByLabelText("大分類")).toHaveValue("asset");
+    expect(within(form).getByLabelText("詳しい種類（任意）")).toHaveValue("");
     expect(within(form).getByRole("option", { name: "ペット用品" })).toBeInTheDocument();
-    expect(within(form).getByRole("option", { name: "その他" })).toBeInTheDocument();
+    expect(within(form).getByRole("option", { name: "その他（自由入力）" })).toBeInTheDocument();
     expect(within(form).getByLabelText("外部リンク（任意）")).toHaveAttribute(
       "type",
       "url",

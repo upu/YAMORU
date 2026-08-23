@@ -38,17 +38,23 @@ import { createManagedItem, updateManagedItem } from "../app/managed-items/actio
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
 function managedItemForm({
+  customItemType = "",
   externalUrl = "",
-  kind = "pet_supplies",
+  itemTypeCode = "appliance",
+  kindCode = "asset",
   name = "猫の浄水器",
 }: {
+  customItemType?: string;
   externalUrl?: string;
-  kind?: string;
+  itemTypeCode?: string;
+  kindCode?: string;
   name?: string;
 } = {}) {
   const formData = new FormData();
   formData.set("name", name);
-  formData.set("kind", kind);
+  formData.set("kindCode", kindCode);
+  formData.set("itemTypeCode", itemTypeCode);
+  formData.set("customItemType", customItemType);
   formData.set("externalUrl", externalUrl);
   return formData;
 }
@@ -65,14 +71,17 @@ describe("ManagedItem登録操作", () => {
       INITIAL_STATE,
       managedItemForm({
         externalUrl: "  https://example.com/product  ",
-        kind: "pet_supplies",
+        itemTypeCode: "pet_supplies",
+        kindCode: "asset",
         name: "  猫の浄水器  ",
       }),
     );
 
     expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      customItemType: null,
       externalUrl: "https://example.com/product",
-      kind: "pet_supplies",
+      itemTypeCode: "pet_supplies",
+      kindCode: "asset",
       name: "猫の浄水器",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items");
@@ -85,8 +94,10 @@ describe("ManagedItem登録操作", () => {
     await createManagedItem(INITIAL_STATE, managedItemForm());
 
     expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      customItemType: null,
       externalUrl: null,
-      kind: "pet_supplies",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "猫の浄水器",
     });
   });
@@ -107,18 +118,52 @@ describe("ManagedItem登録操作", () => {
     },
   );
 
-  it("未定義の種類はRPCへ送らない", async () => {
+  it("大分類が未選択ならD1へ送らない", async () => {
     const result = await createManagedItem(
       INITIAL_STATE,
-      managedItemForm({ kind: "secret_kind" }),
+      managedItemForm({ kindCode: "" }),
     );
 
     expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
-      message: "種類を選択してください。",
+      message: "大分類を選択してください。",
       status: "error",
     });
   });
+
+  it("自由入力の詳しい種類を整形してD1へ渡す", async () => {
+    await createManagedItem(
+      INITIAL_STATE,
+      managedItemForm({
+        customItemType: "  猫用給水機  ",
+        itemTypeCode: "__custom__",
+      }),
+    );
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      customItemType: "猫用給水機",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "猫の浄水器",
+    });
+  });
+
+  it.each(["", " ", "あ".repeat(51)])(
+    "自由入力を選んだとき無効な詳しい種類(%s)はD1へ送らない",
+    async (customItemType) => {
+      const result = await createManagedItem(
+        INITIAL_STATE,
+        managedItemForm({ customItemType, itemTypeCode: "__custom__" }),
+      );
+
+      expect(getD1ContextMock).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        message: "詳しい種類は1文字以上50文字以内で入力してください。",
+        status: "error",
+      });
+    },
+  );
 
   it.each([
     "javascript:alert(1)",
@@ -158,17 +203,27 @@ describe("ManagedItem登録操作", () => {
 });
 
 function managedItemEditForm({
+  customItemType = "",
   externalUrl = "",
   id = "managed-item-id",
-  kind = "pet_supplies",
+  itemTypeCode = "appliance",
+  kindCode = "asset",
   name = "猫の浄水器",
 }: {
+  customItemType?: string;
   externalUrl?: string;
   id?: string;
-  kind?: string;
+  itemTypeCode?: string;
+  kindCode?: string;
   name?: string;
 } = {}) {
-  const formData = managedItemForm({ externalUrl, kind, name });
+  const formData = managedItemForm({
+    customItemType,
+    externalUrl,
+    itemTypeCode,
+    kindCode,
+    name,
+  });
   formData.set("id", id);
   return formData;
 }
@@ -186,7 +241,8 @@ describe("ManagedItem編集操作(Issue #40)", () => {
       managedItemEditForm({
         externalUrl: "  https://example.com/updated  ",
         id: "managed-item-id",
-        kind: "appliance",
+        itemTypeCode: "appliance",
+        kindCode: "asset",
         name: "  猫の浄水器2  ",
       }),
     );
@@ -196,8 +252,10 @@ describe("ManagedItem編集操作(Issue #40)", () => {
       "session",
       "managed-item-id",
       {
+        customItemType: null,
         externalUrl: "https://example.com/updated",
-        kind: "appliance",
+        itemTypeCode: "appliance",
+        kindCode: "asset",
         name: "猫の浄水器2",
       },
     );
@@ -213,7 +271,13 @@ describe("ManagedItem編集操作(Issue #40)", () => {
       "db",
       "session",
       "managed-item-id",
-      { externalUrl: null, kind: "pet_supplies", name: "猫の浄水器" },
+      {
+        customItemType: null,
+        externalUrl: null,
+        itemTypeCode: "appliance",
+        kindCode: "asset",
+        name: "猫の浄水器",
+      },
     );
   });
 

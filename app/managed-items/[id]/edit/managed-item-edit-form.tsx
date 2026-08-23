@@ -5,11 +5,8 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { updateManagedItem } from "../../actions";
-import {
-  MANAGED_ITEM_KIND_LABELS,
-  MANAGED_ITEM_KINDS,
-  type ManagedItemKind,
-} from "../../model";
+import { ManagedItemClassificationFields } from "../../classification-fields";
+import type { ManagedItemClassificationOptions } from "../../model";
 import { INITIAL_MANAGED_ITEM_STATE } from "../../state";
 
 function SubmitButton() {
@@ -28,12 +25,18 @@ function SubmitButton() {
 }
 
 function ManagedItemEditFields({
+  classificationOptions,
+  customItemType,
   externalUrl,
-  kind,
+  itemTypeCode,
+  kindCode,
   name,
 }: {
+  classificationOptions: ManagedItemClassificationOptions;
+  customItemType: string | null;
   externalUrl: string | null;
-  kind: ManagedItemKind;
+  itemTypeCode: string | null;
+  kindCode: string;
   name: string;
 }) {
   return (
@@ -49,14 +52,13 @@ function ManagedItemEditFields({
         type="text"
       />
 
-      <label htmlFor="managed-item-edit-kind">種類</label>
-      <select defaultValue={kind} id="managed-item-edit-kind" name="kind">
-        {MANAGED_ITEM_KINDS.map((kindOption) => (
-          <option key={kindOption} value={kindOption}>
-            {MANAGED_ITEM_KIND_LABELS[kindOption]}
-          </option>
-        ))}
-      </select>
+      <ManagedItemClassificationFields
+        classificationOptions={classificationOptions}
+        idPrefix="managed-item-edit"
+        initialCustomItemType={customItemType}
+        initialItemTypeCode={itemTypeCode}
+        initialKindCode={kindCode}
+      />
 
       <label htmlFor="managed-item-edit-external-url">外部リンク（任意）</label>
       <input
@@ -80,14 +82,20 @@ function ManagedItemEditFields({
 // 詳細画面へ戻れるようにする。対象IDはactions.tsのupdateManagedItemが
 // 隠しフィールドから読み取る。
 export function ManagedItemEditForm({
+  classificationOptions,
+  customItemType,
   externalUrl,
   id,
-  kind,
+  itemTypeCode,
+  kindCode,
   name,
 }: {
+  classificationOptions: ManagedItemClassificationOptions;
+  customItemType: string | null;
   externalUrl: string | null;
   id: string;
-  kind: ManagedItemKind;
+  itemTypeCode: string | null;
+  kindCode: string;
   name: string;
 }) {
   const [state, formAction] = useActionState(
@@ -98,7 +106,14 @@ export function ManagedItemEditForm({
   return (
     <form action={formAction} className="auth-form managed-item-form">
       <input name="id" type="hidden" value={id} />
-      <ManagedItemEditFields externalUrl={externalUrl} kind={kind} name={name} />
+      <ManagedItemEditFields
+        classificationOptions={classificationOptions}
+        customItemType={customItemType}
+        externalUrl={externalUrl}
+        itemTypeCode={itemTypeCode}
+        kindCode={kindCode}
+        name={name}
+      />
       <div className="nickname-edit-actions">
         <SubmitButton />
         <Link

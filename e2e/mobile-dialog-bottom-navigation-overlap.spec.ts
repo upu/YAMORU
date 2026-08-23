@@ -54,8 +54,10 @@ async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
   ]);
   const session = { userId: "owner" };
   managedItemId = await createManagedItem(db, session, {
+    customItemType: null,
     externalUrl: null,
-    kind: "other",
+    itemTypeCode: "other",
+    kindCode: "other",
     name: TASK_TITLE,
   });
   const today = formatDateInput(new Date());

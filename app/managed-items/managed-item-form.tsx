@@ -4,10 +4,8 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createManagedItem } from "./actions";
-import {
-  MANAGED_ITEM_KIND_LABELS,
-  MANAGED_ITEM_KINDS,
-} from "./model";
+import { ManagedItemClassificationFields } from "./classification-fields";
+import type { ManagedItemClassificationOptions } from "./model";
 import { INITIAL_MANAGED_ITEM_STATE } from "./state";
 
 function SubmitButton() {
@@ -25,7 +23,11 @@ function SubmitButton() {
   );
 }
 
-export function ManagedItemForm() {
+export function ManagedItemForm({
+  classificationOptions,
+}: {
+  classificationOptions: ManagedItemClassificationOptions;
+}) {
   const [state, formAction] = useActionState(
     createManagedItem,
     INITIAL_MANAGED_ITEM_STATE,
@@ -43,14 +45,10 @@ export function ManagedItemForm() {
         type="text"
       />
 
-      <label htmlFor="managed-item-kind">種類</label>
-      <select defaultValue="pet_supplies" id="managed-item-kind" name="kind">
-        {MANAGED_ITEM_KINDS.map((kind) => (
-          <option key={kind} value={kind}>
-            {MANAGED_ITEM_KIND_LABELS[kind]}
-          </option>
-        ))}
-      </select>
+      <ManagedItemClassificationFields
+        classificationOptions={classificationOptions}
+        idPrefix="managed-item"
+      />
 
       <label htmlFor="managed-item-external-url">外部リンク（任意）</label>
       <input

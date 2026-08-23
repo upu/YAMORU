@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../../lib/auth/current-user";
 import { getD1Context } from "../../../../lib/d1/context";
-import { getManagedItemForEdit } from "../../../../lib/d1/managed-items";
-import { toManagedItemKind } from "../../model";
+import {
+  getManagedItemForEdit,
+  listManagedItemClassificationOptions,
+} from "../../../../lib/d1/managed-items";
 import { ManagedItemEditForm } from "./managed-item-edit-form";
 
 // Issue #40: 自家庭のManagedItemの名前・種類・外部リンクを編集する専用画面。
@@ -17,7 +19,10 @@ export default async function ManagedItemEditPage({
   const user = await requireUser();
   const { id } = await params;
   const { db, session } = await getD1Context(user);
-  const item = await getManagedItemForEdit(db, session, id);
+  const [item, classificationOptions] = await Promise.all([
+    getManagedItemForEdit(db, session, id),
+    listManagedItemClassificationOptions(db),
+  ]);
 
   if (item === null) notFound();
 
@@ -38,9 +43,12 @@ export default async function ManagedItemEditPage({
       <section aria-labelledby="managed-item-edit-title" className="detail-card">
         <h2 id="managed-item-edit-title">管理対象を編集</h2>
         <ManagedItemEditForm
+          classificationOptions={classificationOptions}
+          customItemType={item.customItemType}
           externalUrl={item.externalUrl}
           id={id}
-          kind={toManagedItemKind(item.kind)}
+          itemTypeCode={item.itemTypeCode}
+          kindCode={item.kindCode}
           name={item.name}
         />
       </section>
