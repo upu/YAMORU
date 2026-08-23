@@ -107,7 +107,7 @@ v0.3.0では、家族2アカウントを使ったpreview通し確認を人手で
 
 ### いつ実行するか
 
-`.github/workflows/preview-family-sharing-e2e.yml`は、GitHubでRelease Draftを保存した後に、Actions画面または`gh workflow run preview-family-sharing-e2e.yml -f release_tag=vX.Y.Z --ref main`で明示実行する。GitHub ActionsはDraft Releaseの`created`イベントを起動しないため、この一操作をリリース手順に含める(Issue #167)。workflowは指定tagのReleaseがDraftであること、`target_commitish`が完全なcommit SHAであること、対象が最新の`main` commitであることをGitHub APIで確認し、そのcommitをcheckoutする。その時点で配備済みのpreview環境(mainへのpushのたびに`deploy-preview.yml`が最新化している)に対してE2Eを実行する。`deploy-preview.yml`自体はこのE2Eを含まず、従来どおりmigration・build・deploy・公開境界smokeだけを行う。
+`.github/workflows/preview-family-sharing-e2e.yml`は、GitHubでRelease Draftを保存した後に、Actions画面または`gh workflow run preview-family-sharing-e2e.yml -f release_tag=vX.Y.Z -f target_sha=<Draftの対象SHA> --ref main`で明示実行する。GitHub ActionsはDraft Releaseの`created`イベントを起動せず、workflowの`GITHUB_TOKEN`から未公開Draftを取得できないため、この一操作と事前照合をリリース手順に含める(Issue #167)。運用者はDraftが対象にする完全なcommit SHAを入力し、workflowは起動元が`main`であることと、そのSHAが起動時の`main` commitに一致することを検証してからcheckoutする。その時点で配備済みのpreview環境(mainへのpushのたびに`deploy-preview.yml`が最新化している)に対してE2Eを実行する。`deploy-preview.yml`自体はこのE2Eを含まず、従来どおりmigration・build・deploy・公開境界smokeだけを行う。
 
 ### 自動確認する内容
 
@@ -150,9 +150,9 @@ mainへのマージだけではproductionへ配備しない。`.github/workflows
 productionへ出すときは次の順で操作する。
 
 1. Release対象のmain commitに対する`Deploy preview`(公開境界smoke)が成功していることを確認する。
-2. GitHubのReleasesからDraftを作り、`vX.Y.Z`形式の新しいタグと最新のmain commitの完全なSHAを指定する。
-3. `Preview family sharing E2E`をActions画面または`gh workflow run preview-family-sharing-e2e.yml -f release_tag=vX.Y.Z --ref main`で実行し、家族利用の主要導線([前述](#stable-release前のpreview家族通し確認))をpreview上で確認する。
-4. workflowがDraftの対象SHAを検証したうえで成功していることを確認する。失敗していればこのDraftはNo-Goとして扱い、原因のIssue化と解消・再確認を先に行う(修正後は新しいDraftを作り直す)。
+2. GitHubのReleasesからDraftを作り、`vX.Y.Z`形式の新しいタグと最新のmain commitの完全なSHAを指定する。保存後にDraftが`draft: true`・`prerelease: false`で、対象SHAが手順1と一致することをReleases画面または`gh release view vX.Y.Z --json isDraft,isPrerelease,targetCommitish`で照合する。
+3. `Preview family sharing E2E`をActions画面または`gh workflow run preview-family-sharing-e2e.yml -f release_tag=vX.Y.Z -f target_sha=<Draftの対象SHA> --ref main`で実行し、家族利用の主要導線([前述](#stable-release前のpreview家族通し確認))をpreview上で確認する。
+4. workflowが入力SHAと起動時の`main` commitを照合したうえで成功していることを確認する。失敗していればこのDraftはNo-Goとして扱い、原因のIssue化と解消・再確認を先に行う(修正後は新しいDraftを作り直す)。
 5. Release notesと対象commitを見直す。`Set as a pre-release`は選ばない。
 6. `Publish release`を実行する。この操作がproduction反映の承認になる。
 7. GitHub Actionsの`Deploy production`で、quality、target確認、migration、deploy、smokeがすべて成功したことを確認する。
