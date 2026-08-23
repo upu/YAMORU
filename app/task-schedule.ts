@@ -30,8 +30,7 @@ export type MaintenanceDisplayState =
 export type StrictDisplayState = "upcoming" | "due-today" | "overdue";
 
 // task_rulesの方式列はCHECK制約付きのtextであり、生成された型では`string`に
-// なる。DB制約とのズレを黙って通さず、未知の値はその場で失敗させる
-// (managed-items/model.tsのtoManagedItemKindと同じ方針)。
+// なる。DB制約とのズレを黙って通さず、未知の値はその場で失敗させる。
 export const DEADLINE_KINDS = ["maintenance", "strict"] as const;
 
 export type DeadlineKind = (typeof DEADLINE_KINDS)[number];

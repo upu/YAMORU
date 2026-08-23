@@ -3,13 +3,17 @@ import Link from "next/link";
 import { requireUser } from "../../../lib/auth/current-user";
 import { getD1Context } from "../../../lib/d1/context";
 import { loadAccountState } from "../../../lib/d1/households";
+import { listManagedItemClassificationOptions } from "../../../lib/d1/managed-items";
 import { ManagedItemForm } from "../managed-item-form";
+import type { ManagedItemClassificationOptions } from "../model";
 
 type HouseholdSummary = { id: string; name: string };
 
 export function ManagedItemRegistrationContent({
+  classificationOptions,
   household,
 }: {
+  classificationOptions: ManagedItemClassificationOptions;
   household: HouseholdSummary | null;
 }) {
   return (
@@ -36,7 +40,7 @@ export function ManagedItemRegistrationContent({
         <section aria-labelledby="register-item-title" className="detail-card">
           <h2 id="register-item-title">登録内容</h2>
           <p className="detail-note">{household.name}の台帳へ追加します。</p>
-          <ManagedItemForm />
+          <ManagedItemForm classificationOptions={classificationOptions} />
         </section>
       )}
     </main>
@@ -49,6 +53,14 @@ export default async function ManagedItemRegistrationPage() {
   const household: HouseholdSummary | null = (
     await loadAccountState(db, session)
   ).household;
+  const classificationOptions = household === null
+    ? { itemTypes: [], kinds: [] }
+    : await listManagedItemClassificationOptions(db);
 
-  return <ManagedItemRegistrationContent household={household} />;
+  return (
+    <ManagedItemRegistrationContent
+      classificationOptions={classificationOptions}
+      household={household}
+    />
+  );
 }

@@ -14,9 +14,6 @@ import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
 import { selectActiveCompletionLogs } from "../../active-completion";
 import {
   isSafeExternalUrl,
-  MANAGED_ITEM_KIND_LABELS,
-  type ManagedItemKind,
-  toManagedItemKind,
 } from "../model";
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
@@ -68,7 +65,8 @@ export type ManagedItemDetailData = {
   currentUserId: string;
   externalLinks: ExternalLinkData[];
   id: string;
-  kind: ManagedItemKind;
+  itemTypeLabel: string | null;
+  kindLabel: string;
   lastActivity: LastActivityData | null;
   members: HouseholdMemberOption[];
   name: string;
@@ -339,11 +337,13 @@ function ExternalLinksSection({ links }: { links: ExternalLinkData[] }) {
 
 function ManagedItemHeader({
   id,
-  kind,
+  itemTypeLabel,
+  kindLabel,
   name,
 }: {
   id: string;
-  kind: ManagedItemKind;
+  itemTypeLabel: string | null;
+  kindLabel: string;
   name: string;
 }) {
   return (
@@ -351,8 +351,9 @@ function ManagedItemHeader({
       <p className="detail-kicker">MANAGED ITEM</p>
       <div className="detail-title-row">
         <h1>{name}</h1>
-        <span className="kind-badge">{MANAGED_ITEM_KIND_LABELS[kind]}</span>
+        <span className="kind-badge">{kindLabel}</span>
       </div>
+      {itemTypeLabel === null ? null : <p>詳しい種類: {itemTypeLabel}</p>}
       <p>登録した管理対象と、現在のTodoを確認できます。</p>
       <Link className="ledger-primary-link" href={`/managed-items/${encodeURIComponent(id)}/edit`}>
         編集
@@ -376,7 +377,12 @@ export function ManagedItemDetailContent({
         <Link href="/managed-items">← 家の台帳へ戻る</Link>
       </nav>
 
-      <ManagedItemHeader id={item.id} kind={item.kind} name={item.name} />
+      <ManagedItemHeader
+        id={item.id}
+        itemTypeLabel={item.itemTypeLabel}
+        kindLabel={item.kindLabel}
+        name={item.name}
+      />
 
       <LastActivitySummary lastActivity={item.lastActivity} />
 
@@ -466,7 +472,8 @@ export default async function RegisteredManagedItemDetail({
         currentUserId: user.id,
         externalLinks: data.external_links,
         id: data.id,
-        kind: toManagedItemKind(data.kind),
+        itemTypeLabel: data.itemTypeLabel,
+        kindLabel: data.kindLabel,
         lastActivity,
         members,
         name: data.name,

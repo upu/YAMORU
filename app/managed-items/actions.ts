@@ -8,10 +8,11 @@ import {
   createManagedItem as createManagedItemInD1,
   updateManagedItem as updateManagedItemInD1,
 } from "../../lib/d1/managed-items";
-import { isManagedItemKind, isSafeExternalUrl } from "./model";
+import { isSafeExternalUrl } from "./model";
 import type { ManagedItemActionState } from "./state";
 
 const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
+const CUSTOM_ITEM_TYPE_MAX_LENGTH = 50;
 const EXTERNAL_URL_MAX_LENGTH = 2048;
 
 function invalidName(): ManagedItemActionState {
@@ -22,16 +23,25 @@ function invalidName(): ManagedItemActionState {
 }
 
 type ParsedManagedItemForm =
-  | { externalUrl: string | null; kind: string; name: string; status: "ok" }
+  | {
+      customItemType: string | null;
+      externalUrl: string | null;
+      itemTypeCode: string | null;
+      kindCode: string;
+      name: string;
+      status: "ok";
+    }
   | ManagedItemActionState;
 
-// createManagedItem・updateManagedItemの両方が使う、名前・種類・外部リンクの
-// 入力検証。登録と編集で許可する値・エラー文言を揃える。
-function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
-  const rawName = formData.get("name");
-  const rawKind = formData.get("kind");
-  const rawExternalUrl = formData.get("externalUrl");
+type ParsedClassification = {
+  customItemType: string | null;
+  itemTypeCode: string | null;
+  kindCode: string;
+  status: "ok";
+} | ManagedItemActionState;
 
+function parseName(formData: FormData): string | ManagedItemActionState {
+  const rawName = formData.get("name");
   if (typeof rawName !== "string") return invalidName();
 
   const name = rawName.trim();
@@ -41,11 +51,53 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   ) {
     return invalidName();
   }
+  return name;
+}
 
-  if (typeof rawKind !== "string" || !isManagedItemKind(rawKind)) {
-    return { message: "種類を選択してください。", status: "error" };
+function parseClassification(formData: FormData): ParsedClassification {
+  const rawKindCode = formData.get("kindCode");
+  if (typeof rawKindCode !== "string" || rawKindCode.trim().length === 0) {
+    return { message: "大分類を選択してください。", status: "error" };
   }
 
+  const rawItemTypeCode = formData.get("itemTypeCode");
+  const itemTypeValue = typeof rawItemTypeCode === "string"
+    ? rawItemTypeCode.trim()
+    : "";
+  if (itemTypeValue !== "__custom__") {
+    return {
+      customItemType: null,
+      itemTypeCode: itemTypeValue.length === 0 ? null : itemTypeValue,
+      kindCode: rawKindCode.trim(),
+      status: "ok",
+    };
+  }
+
+  const rawCustomItemType = formData.get("customItemType");
+  const customItemType = typeof rawCustomItemType === "string"
+    ? rawCustomItemType.trim()
+    : "";
+  if (
+    customItemType.length === 0
+    || Array.from(customItemType).length > CUSTOM_ITEM_TYPE_MAX_LENGTH
+  ) {
+    return {
+      message: "詳しい種類は1文字以上50文字以内で入力してください。",
+      status: "error",
+    };
+  }
+  return {
+    customItemType,
+    itemTypeCode: null,
+    kindCode: rawKindCode.trim(),
+    status: "ok",
+  };
+}
+
+function parseExternalUrl(formData: FormData):
+  | { status: "ok"; value: string | null }
+  | ManagedItemActionState {
+  const rawExternalUrl = formData.get("externalUrl");
   const externalUrl =
     typeof rawExternalUrl === "string" ? rawExternalUrl.trim() : "";
   if (
@@ -57,10 +109,24 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
       status: "error",
     };
   }
+  return { status: "ok", value: externalUrl.length === 0 ? null : externalUrl };
+}
+
+// createManagedItem・updateManagedItemの両方が使う、名前・分類・外部リンクの
+// 入力検証。登録と編集で許可する値・エラー文言を揃える。
+function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
+  const name = parseName(formData);
+  if (typeof name !== "string") return name;
+  const classification = parseClassification(formData);
+  if (classification.status !== "ok") return classification;
+  const externalUrl = parseExternalUrl(formData);
+  if (externalUrl.status !== "ok") return externalUrl;
 
   return {
-    externalUrl: externalUrl.length === 0 ? null : externalUrl,
-    kind: rawKind,
+    customItemType: classification.customItemType,
+    externalUrl: externalUrl.value,
+    itemTypeCode: classification.itemTypeCode,
+    kindCode: classification.kindCode,
     name,
     status: "ok",
   };
@@ -77,8 +143,10 @@ export async function createManagedItem(
   try {
     const { db, session } = await getD1Context();
     itemId = await createManagedItemInD1(db, session, {
+      customItemType: parsed.customItemType,
       externalUrl: parsed.externalUrl,
-      kind: parsed.kind,
+      itemTypeCode: parsed.itemTypeCode,
+      kindCode: parsed.kindCode,
       name: parsed.name,
     });
   } catch {
@@ -112,8 +180,10 @@ export async function updateManagedItem(
   try {
     const { db, session } = await getD1Context();
     await updateManagedItemInD1(db, session, rawId, {
+      customItemType: parsed.customItemType,
       externalUrl: parsed.externalUrl,
-      kind: parsed.kind,
+      itemTypeCode: parsed.itemTypeCode,
+      kindCode: parsed.kindCode,
       name: parsed.name,
     });
   } catch {

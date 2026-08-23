@@ -1,7 +1,23 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
 import { D1NotFoundError } from "./errors";
 
-export type ManagedItemSummary = { id: string; kind: string; name: string };
+export type ManagedItemClassificationOptions = {
+  itemTypes: { code: string; kindCode: string; label: string }[];
+  kinds: { code: string; label: string }[];
+};
+export type ManagedItemClassificationInput = {
+  customItemType: string | null;
+  itemTypeCode: string | null;
+  kindCode: string;
+};
+export type ManagedItemSummary = {
+  id: string;
+  itemTypeCode: string | null;
+  itemTypeLabel: string | null;
+  kindCode: string;
+  kindLabel: string;
+  name: string;
+};
 export type ActivityLogRow = {
   action: string;
   id: string;
@@ -30,6 +46,33 @@ export type ManagedItemDetailRow = ManagedItemSummary & {
   task_rules: TaskRuleRow[];
 };
 
+type ClassificationDefinition = { legacyKind: string };
+
+const MANAGED_ITEM_CLASSIFICATION_SELECT = `
+  SELECT m.id,
+         m.name,
+         coalesce(current_kind.code, legacy_kind.code) AS kindCode,
+         coalesce(current_kind.label, legacy_kind.label) AS kindLabel,
+         CASE WHEN current_kind.code IS NULL THEN legacy_type.code ELSE c.item_type_code END AS itemTypeCode,
+         CASE
+           WHEN current_kind.code IS NULL THEN legacy_type.label
+           ELSE coalesce(c.custom_item_type, current_type.label)
+         END AS itemTypeLabel
+    FROM managed_items m
+    LEFT JOIN managed_item_classifications c
+      ON c.managed_item_id = m.id AND c.household_id = m.household_id
+    LEFT JOIN managed_item_kinds current_kind
+      ON current_kind.code = c.kind_code
+     AND m.kind = coalesce(
+       (SELECT p.legacy_kind FROM managed_item_type_presets p
+         WHERE p.code = c.item_type_code AND p.kind_code = c.kind_code),
+       current_kind.legacy_kind
+     )
+    LEFT JOIN managed_item_type_presets current_type
+      ON current_type.code = c.item_type_code AND current_type.kind_code = c.kind_code
+    JOIN managed_item_type_presets legacy_type ON legacy_type.code = m.kind
+    JOIN managed_item_kinds legacy_kind ON legacy_kind.code = legacy_type.kind_code`;
+
 async function requireCurrentHousehold(db: D1Database, session: D1Session): Promise<string> {
   const householdId = await getCurrentHouseholdId(db, session);
   if (householdId === null) throw new D1NotFoundError("家庭が見つかりません。");
@@ -39,16 +82,68 @@ async function requireCurrentHousehold(db: D1Database, session: D1Session): Prom
 
 export async function listManagedItems(db: D1Database, session: D1Session): Promise<ManagedItemSummary[]> {
   const householdId = await requireCurrentHousehold(db, session);
-  const { results } = await db.prepare("SELECT id, name, kind FROM managed_items WHERE household_id = ?1 ORDER BY created_at DESC, id DESC")
+  const { results } = await db.prepare(`${MANAGED_ITEM_CLASSIFICATION_SELECT}
+      WHERE m.household_id = ?1 ORDER BY m.created_at DESC, m.id DESC`)
     .bind(householdId).all<ManagedItemSummary>();
   return results;
 }
 
-export async function createManagedItem(db: D1Database, session: D1Session, input: { externalUrl: string | null; kind: string; name: string }): Promise<string> {
+export async function listManagedItemClassificationOptions(
+  db: D1Database,
+): Promise<ManagedItemClassificationOptions> {
+  const [kinds, itemTypes] = await Promise.all([
+    db.prepare("SELECT code, label FROM managed_item_kinds WHERE is_active = 1 ORDER BY sort_order, code")
+      .all<{ code: string; label: string }>(),
+    db.prepare(`SELECT p.code, p.kind_code AS kindCode, p.label
+                  FROM managed_item_type_presets p
+                  JOIN managed_item_kinds k ON k.code = p.kind_code AND k.is_active = 1
+                 WHERE p.is_active = 1
+                 ORDER BY p.kind_code, p.sort_order, p.code`)
+      .all<{ code: string; kindCode: string; label: string }>(),
+  ]);
+  return { itemTypes: itemTypes.results, kinds: kinds.results };
+}
+
+async function requireActiveClassification(
+  db: D1Database,
+  input: ManagedItemClassificationInput,
+): Promise<ClassificationDefinition> {
+  if (input.itemTypeCode !== null && input.customItemType !== null) {
+    throw new Error("管理対象の分類を選択し直してください。");
+  }
+  const definition = await db.prepare(
+    `SELECT coalesce(p.legacy_kind, k.legacy_kind) AS legacyKind
+       FROM managed_item_kinds k
+       LEFT JOIN managed_item_type_presets p
+         ON p.code = ?2 AND p.kind_code = k.code AND p.is_active = 1
+      WHERE k.code = ?1 AND k.is_active = 1
+        AND (?2 IS NULL OR p.code IS NOT NULL)`,
+  ).bind(input.kindCode, input.itemTypeCode).first<ClassificationDefinition>();
+  if (definition === null) {
+    throw new Error("管理対象の分類を選択し直してください。");
+  }
+  return definition;
+}
+
+type ManagedItemWriteInput = ManagedItemClassificationInput & {
+  externalUrl: string | null;
+  name: string;
+};
+
+export async function createManagedItem(
+  db: D1Database,
+  session: D1Session,
+  input: ManagedItemWriteInput,
+): Promise<string> {
   const householdId = await requireCurrentHousehold(db, session);
+  const classification = await requireActiveClassification(db, input);
   const itemId = crypto.randomUUID();
   const statements = [db.prepare("INSERT INTO managed_items (id, household_id, name, kind) VALUES (?1, ?2, ?3, ?4)")
-    .bind(itemId, householdId, input.name, input.kind)];
+    .bind(itemId, householdId, input.name, classification.legacyKind),
+  db.prepare(`INSERT INTO managed_item_classifications (
+      managed_item_id, household_id, kind_code, item_type_code, custom_item_type
+    ) VALUES (?1, ?2, ?3, ?4, ?5)`)
+    .bind(itemId, householdId, input.kindCode, input.itemTypeCode, input.customItemType)];
   if (input.externalUrl !== null) statements.push(db.prepare("INSERT INTO external_links (id, household_id, managed_item_id, url) VALUES (?1, ?2, ?3, ?4)")
     .bind(crypto.randomUUID(), householdId, itemId, input.externalUrl));
   await db.batch(statements);
@@ -57,7 +152,8 @@ export async function createManagedItem(db: D1Database, session: D1Session, inpu
 
 export async function getManagedItem(db: D1Database, session: D1Session, id: string): Promise<ManagedItemSummary | null> {
   const householdId = await requireCurrentHousehold(db, session);
-  return db.prepare("SELECT id, name, kind FROM managed_items WHERE id = ?1 AND household_id = ?2")
+  return db.prepare(`${MANAGED_ITEM_CLASSIFICATION_SELECT}
+      WHERE m.id = ?1 AND m.household_id = ?2`)
     .bind(id, householdId).first<ManagedItemSummary>();
 }
 
@@ -69,7 +165,10 @@ export async function getManagedItemHouseholdId(db: D1Database, session: D1Sessi
   return householdId;
 }
 
-export type ManagedItemEditData = ManagedItemSummary & { externalUrl: string | null };
+export type ManagedItemEditData = ManagedItemSummary & {
+  customItemType: string | null;
+  externalUrl: string | null;
+};
 
 // Issue #40の編集画面が使う。外部リンクは登録時と同じく高々1件を想定するが、
 // 複数行が存在する場合でもcreated_atの昇順で1件だけを既定値として返す。
@@ -80,11 +179,23 @@ export async function getManagedItemForEdit(
 ): Promise<ManagedItemEditData | null> {
   const householdId = await requireCurrentHousehold(db, session);
   return db.prepare(
-    `SELECT m.id, m.name, m.kind, l.url AS externalUrl
-       FROM managed_items m
+    `SELECT item.*,
+            CASE
+              WHEN m.kind = coalesce(current_type.legacy_kind, current_kind.legacy_kind)
+                THEN c.custom_item_type
+              ELSE NULL
+            END AS customItemType,
+            l.url AS externalUrl
+       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
+              WHERE m.id = ?1 AND m.household_id = ?2) item
+       JOIN managed_items m ON m.id = item.id
+       LEFT JOIN managed_item_classifications c
+         ON c.managed_item_id = m.id AND c.household_id = m.household_id
+       LEFT JOIN managed_item_kinds current_kind ON current_kind.code = c.kind_code
+       LEFT JOIN managed_item_type_presets current_type
+         ON current_type.code = c.item_type_code AND current_type.kind_code = c.kind_code
        LEFT JOIN external_links l
          ON l.managed_item_id = m.id AND l.household_id = m.household_id
-      WHERE m.id = ?1 AND m.household_id = ?2
       ORDER BY l.created_at LIMIT 1`,
   ).bind(id, householdId).first<ManagedItemEditData>();
 }
@@ -99,13 +210,27 @@ export async function updateManagedItem(
   db: D1Database,
   session: D1Session,
   id: string,
-  input: { externalUrl: string | null; kind: string; name: string },
+  input: ManagedItemWriteInput,
 ): Promise<void> {
   const householdId = await requireCurrentHousehold(db, session);
+  const classification = await requireActiveClassification(db, input);
   const statements = [
     db.prepare(
       "UPDATE managed_items SET name = ?1, kind = ?2 WHERE id = ?3 AND household_id = ?4",
-    ).bind(input.name, input.kind, id, householdId),
+    ).bind(input.name, classification.legacyKind, id, householdId),
+    db.prepare(
+      `INSERT INTO managed_item_classifications (
+         managed_item_id, household_id, kind_code, item_type_code, custom_item_type
+       )
+       SELECT ?1, ?2, ?3, ?4, ?5
+        WHERE EXISTS (
+          SELECT 1 FROM managed_items WHERE id = ?1 AND household_id = ?2
+        )
+       ON CONFLICT(managed_item_id) DO UPDATE SET
+         kind_code = excluded.kind_code,
+         item_type_code = excluded.item_type_code,
+         custom_item_type = excluded.custom_item_type`,
+    ).bind(id, householdId, input.kindCode, input.itemTypeCode, input.customItemType),
     db.prepare(
       "DELETE FROM external_links WHERE managed_item_id = ?1 AND household_id = ?2",
     ).bind(id, householdId),
@@ -162,7 +287,10 @@ export async function loadManagedItemDetail(
 ): Promise<ManagedItemDetailRow | null> {
   const householdId = await requireCurrentHousehold(db, session);
   const item = await db.prepare(
-    "SELECT id, household_id, name, kind FROM managed_items WHERE id = ?1 AND household_id = ?2",
+    `SELECT item.*, m.household_id
+       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
+              WHERE m.id = ?1 AND m.household_id = ?2) item
+       JOIN managed_items m ON m.id = item.id`,
   ).bind(id, householdId).first<ManagedItemSummary & { household_id: string }>();
   if (item === null) return null;
   const [links, rules, occurrences, logs] = await Promise.all([

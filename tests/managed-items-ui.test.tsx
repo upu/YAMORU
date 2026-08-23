@@ -18,7 +18,8 @@ afterEach(cleanup);
 
 const REGISTERED_ITEM: ManagedItemSummary = {
   id: "item-1",
-  kind: "pet_supplies",
+  itemTypeLabel: "ペット用品",
+  kindLabel: "モノ・設備",
   name: "猫の浄水器",
 };
 
@@ -79,7 +80,7 @@ describe("家の台帳一覧", () => {
     );
 
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
-    expect(within(list).getByText("ペット用品")).toBeInTheDocument();
+    expect(within(list).getByText("モノ・設備・ペット用品")).toBeInTheDocument();
     expect(within(list).getByRole("link", { name: "猫の浄水器" })).toHaveAttribute(
       "href",
       "/managed-items/item-1",
@@ -97,7 +98,8 @@ describe("登録済みManagedItem詳細", () => {
         { id: "link-2", url: "http://example.com/manual" },
       ],
       id: "item-1",
-      kind: "pet_supplies",
+      itemTypeLabel: "ペット用品",
+      kindLabel: "モノ・設備",
       lastActivity: null,
       members: [],
       name: "猫の浄水器",
@@ -108,7 +110,8 @@ describe("登録済みManagedItem詳細", () => {
     render(<ManagedItemDetailContent item={item} />);
 
     expect(screen.getByRole("heading", { name: "猫の浄水器" })).toBeInTheDocument();
-    expect(screen.getByText("ペット用品")).toBeInTheDocument();
+    expect(screen.getByText("モノ・設備")).toBeInTheDocument();
+    expect(screen.getByText("詳しい種類: ペット用品")).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: /外部リンクを開く/ });
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("target", "_blank");

@@ -4,15 +4,10 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { listManagedItems } from "../../lib/d1/managed-items";
 import { loadAccountState } from "../../lib/d1/households";
-import {
-  MANAGED_ITEM_KIND_LABELS,
-  type ManagedItemKind,
-  toManagedItemKind,
-} from "./model";
-
 export type ManagedItemSummary = {
   id: string;
-  kind: ManagedItemKind;
+  itemTypeLabel: string | null;
+  kindLabel: string;
   name: string;
 };
 
@@ -56,7 +51,11 @@ export function ManagedItemsContent({
                 {items.map((item) => (
                   <li key={item.id}>
                     <Link href={`/managed-items/${item.id}`}>{item.name}</Link>
-                    <span>{MANAGED_ITEM_KIND_LABELS[item.kind]}</span>
+                    <span>
+                      {item.itemTypeLabel === null
+                        ? item.kindLabel
+                        : `${item.kindLabel}・${item.itemTypeLabel}`}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -78,11 +77,7 @@ export default async function ManagedItemsPage() {
   }
 
   const itemData = await listManagedItems(db, session);
-  const items: ManagedItemSummary[] = itemData.map((item) => ({
-    id: item.id,
-    kind: toManagedItemKind(item.kind),
-    name: item.name,
-  }));
+  const items: ManagedItemSummary[] = itemData;
 
   return <ManagedItemsContent household={household} items={items} />;
 }
