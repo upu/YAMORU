@@ -43,6 +43,35 @@ describe("Cloudflare preview deploy workflow", () => {
   });
 });
 
+describe("Preview family sharing E2E workflow(#151)", () => {
+  it("Release Draft作成時だけ、preview上で家族利用の主要導線を自動検証する", () => {
+    const workflow = readWorkflow("preview-family-sharing-e2e.yml");
+
+    expect(workflow).toContain("release:");
+    expect(workflow).toContain("types: [created]");
+    expect(workflow).toContain("github.event.release.draft == true");
+    expect(workflow).toContain("ref: ${{ github.event.release.tag_name }}");
+    expect(workflow).toContain("name: preview");
+    expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
+    expect(workflow).toContain("YAMORU_PREVIEW_URL: ${{ vars.YAMORU_PREVIEW_URL }}");
+    // deploy-preview.ymlと同じconcurrency groupを共有し、preview環境への
+    // deployとE2Eが同時に走らないようにする。
+    expect(workflow).toContain("group: yamoru-preview");
+
+    expectOrderedCommands(workflow, [
+      "playwright install",
+      "npm run test:e2e:preview",
+    ]);
+  });
+
+  it("deploy-preview.ymlはpush毎の自動配備のままで、E2Eを含まない", () => {
+    const workflow = readWorkflow("deploy-preview.yml");
+
+    expect(workflow).not.toContain("test:e2e:preview");
+    expect(workflow).not.toContain("playwright");
+  });
+});
+
 describe("Cloudflare production deploy workflow", () => {
   it("stable Releaseのtag commitを再検証してから本番へ反映する", () => {
     const workflow = readWorkflow("deploy-production.yml");

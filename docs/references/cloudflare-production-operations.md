@@ -81,7 +81,7 @@ npm run auth:bootstrap:preview
 
 preview URLのログイン画面でログインし、ニックネームと架空の家庭を作成する。再読み込み後も表示できれば、Workersからpreview D1への基本接続が成立している。previewには家庭の実データを入れない。
 
-初回構築後は、mainへのpushに対する`Quality checks`が成功すると`.github/workflows/deploy-preview.yml`が同じcommit SHAをcheckoutし、preview migration、Cloudflare build、deploy、公開境界smokeを順に実行する。Pull Requestのhead、失敗したmain、stable Releaseの公開はpreview自動配備の契機にしない。緊急調査以外はローカルから手動配備しない。
+初回構築後は、mainへのpushに対する`Quality checks`が成功すると`.github/workflows/deploy-preview.yml`が同じcommit SHAをcheckoutし、preview migration、Cloudflare build、deploy、公開境界smokeを順に実行する。Pull Requestのhead、失敗したmain、stable Releaseの公開はpreview自動配備の契機にしない。緊急調査以外はローカルから手動配備しない。家族利用の主要導線に対するE2Eは、mainへのpush毎ではなくstable Releaseを作る直前にだけ実行する([下記](#stable-release前のpreview家族通し確認))。
 
 ## GitHub Environmentsを設定する
 
@@ -101,17 +101,60 @@ GitHubの`production` Environmentにも、production用として次を設定す�
 
 同じAPI tokenを両Environmentへ登録してもよいが、リポジトリ全体のSecretへ広げず、workflow jobが指定したEnvironmentからだけ参照する。Cloudflare runtimeの`AUTH_SECRET`はGitHubへ登録せず、preview / production Worker側で別々に管理する。
 
+## stable Release前のpreview家族通し確認
+
+v0.3.0では、家族2アカウントを使ったpreview通し確認を人手で行っていた(#139)。v0.4.1からは、この確認を`e2e/preview/family-sharing.spec.ts`によるPlaywright E2Eへ全面自動化し、Go/No-Go判定自体をCIへ委譲する(Issue #151)。人手による全項目通しは必須ではない。mainへのpush毎ではなく、stable Releaseを作る直前(Release Draft作成時)にだけ実行する。
+
+### いつ実行するか
+
+`.github/workflows/preview-family-sharing-e2e.yml`は、GitHubで**Release Draftを作成した時点**(`release: types: [created]`かつ`draft == true`)で自動起動する。Draftのtag名が指すcommitをcheckoutし、その時点で配備済みのpreview環境(mainへのpushのたびに`deploy-preview.yml`が最新化している)に対してE2Eを実行する。`deploy-preview.yml`自体はこのE2Eを含まず、従来どおりmigration・build・deploy・公開境界smokeだけを行う。
+
+### 自動確認する内容
+
+1. `scripts/e2e-admin-remote.ts`が、preview D1専用の一時Worker([wrangler.e2e-admin.jsonc](../../wrangler.e2e-admin.jsonc)、preview envのみを定義)を介して、固定の架空テストアカウント(`e2e-owner@example.test`・`e2e-outsider@example.test`)をメールアドレス経由で消してから作り直す。これらのアカウントが所属する家庭はON DELETE CASCADEでメンバー・管理対象・Todo・履歴・招待もまとめて消える。パスワードは実行のたびに生成し、Playwrightのプロセス内だけで使ってログ・Issueへ出さない。
+2. `e2e/preview/family-sharing.spec.ts`が、配備済みpreview URLへ直接アクセスし、次を1つの通しシナリオとして確認する。
+   - ニックネーム登録・家庭作成(初回セットアップ導線)
+   - Todo作成と完了操作
+   - 招待発行・招待受諾によるアカウント登録・家庭参加、完了記録の共有可視性
+   - 既に別の家庭に所属するアカウントへの招待が家庭間分離により拒否されること
+   - 未認証での保護画面アクセスがログインへ移動すること
+
+このjobが失敗すれば、そのRelease DraftはNo-Goとして扱う。GitHub Actionsの`Preview family sharing E2E`workflow実行がそのままGo/No-Goの記録になる。
+
+### 対象外(production受入確認として分離)
+
+- production固有のSecret入力、実データ入力、実端末確認は、production公開後の受入確認として別に行う([最初の利用者を作る](#stable-releaseからproductionへ配備する)以降を参照)
+- 下部ナビゲーションの表示崩れなど、実端末でしか再現しない見た目の確認は対象外(必要に応じて[実端末・PWAの確認](../development/local-device-pwa-verification.md)を使う)
+
+### 問題を見つけたとき
+
+`e2e/preview/family-sharing.spec.ts`が失敗した場合、失敗したstep・アサーション・Playwrightのtraceを添えて再現手順付きのIssueを起票する。Draftは`Publish release`せずそのまま残すか削除し、修正commitがmainへ入って対象commitをpreviewが反映してから、新しいRelease Draftを作り直してE2Eを再確認する。
+
+### ローカルで同じ確認を実行する
+
+Cloudflareへログイン済み(`npx wrangler login`)であれば、Release Draftを作る前にローカルから同じpreview URLに対して確認できる。
+
+```powershell
+npm run test:e2e:install
+$env:CLOUDFLARE_ACCOUNT_ID = "<Cloudflare Dashboardに表示されるAccount ID>"
+$env:YAMORU_PREVIEW_URL = "https://yamoru-preview.<workers-subdomain>.workers.dev"
+npm run test:e2e:preview
+```
+
+`e2e-admin`一時Workerはpreview D1だけをbindし、production envを定義しないため、誤ってproductionを対象にした実行はconfig解決の時点で失敗する。
+
 ## stable Releaseからproductionへ配備する
 
 mainへのマージだけではproductionへ配備しない。`.github/workflows/deploy-production.yml`はstableなGitHub Releaseの`published`イベントで起動し、Releaseタグのcommitへ`Quality checks`を再実行する。成功後、タグが`vX.Y.Z`形式で、checkout済みHEADと一致し、mainに含まれることを確認してから、production migration、Cloudflare build、deploy、公開境界smokeを順に実行する。
 
 productionへ出すときは次の順で操作する。
 
-1. Release対象のmain commitがpreviewへ配備済みで、previewのsmokeと必要な手動確認が成功していることを確認する。
-2. GitHubのReleasesからDraftを作り、`vX.Y.Z`形式の新しいタグとmain上の対象commitを指定する。
-3. Release notesと対象commitを見直す。`Set as a pre-release`は選ばない。
-4. `Publish release`を実行する。この操作がproduction反映の承認になる。
-5. GitHub Actionsの`Deploy production`で、quality、target確認、migration、deploy、smokeがすべて成功したことを確認する。
+1. Release対象のmain commitに対する`Deploy preview`(公開境界smoke)が成功していることを確認する。
+2. GitHubのReleasesからDraftを作り、`vX.Y.Z`形式の新しいタグとmain上の対象commitを指定する。この時点で`preview-family-sharing-e2e.yml`が自動起動し、家族利用の主要導線([前述](#stable-release前のpreview家族通し確認))をpreview上で確認する。
+3. GitHub Actionsの`Preview family sharing E2E`が成功していることを確認する。失敗していればこのDraftはNo-Goとして扱い、原因のIssue化と解消・再確認を先に行う(修正後は新しいDraftを作り直す)。
+4. Release notesと対象commitを見直す。`Set as a pre-release`は選ばない。
+5. `Publish release`を実行する。この操作がproduction反映の承認になる。
+6. GitHub Actionsの`Deploy production`で、quality、target確認、migration、deploy、smokeがすべて成功したことを確認する。
 
 Draftとpre-releaseはproductionへ配備しない。不正なタグやmainに含まれないcommitではproduction変更前に失敗する。Releaseタグを書き換えて再利用せず、修正をmainとpreviewで確認してから新しいpatch Releaseを作る。
 
