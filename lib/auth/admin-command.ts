@@ -58,7 +58,7 @@ export function getLocalAuthAdminPlatformOptions(): {
   remoteBindings: boolean;
 } {
   return {
-    configPath: "wrangler.auth-admin.jsonc",
+    configPath: "config/wrangler/auth-admin.jsonc",
     envFiles: [],
     persist: true,
     remoteBindings: false,

@@ -1,6 +1,8 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "main": "scripts/e2e-admin-platform.ts",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // main・migrations_dirはこの設定ファイルの位置を基準に解決されるため、
+  // リポジトリルートへ遡る相対パスで指定する。
+  "main": "../../scripts/e2e-admin-platform.ts",
   "name": "yamoru-e2e-admin",
   "compatibility_date": "2026-08-19",
   // previewのD1だけをbindする。production envは意図的に定義しない
@@ -11,7 +13,7 @@
       "binding": "DB",
       "database_name": "yamoru-local",
       "database_id": "local-only-placeholder",
-      "migrations_dir": "d1/migrations",
+      "migrations_dir": "../../d1/migrations",
       "remote": false
     }
   ],

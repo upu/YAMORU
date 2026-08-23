@@ -4,7 +4,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [
     cloudflareTest({
-      wrangler: { configPath: "./wrangler.d1-test.jsonc" },
+      // configPathとtest.includeは、この設定ファイルの位置ではなく
+      // 実行時のcwd(リポジトリルート)を基準に解決される。
+      wrangler: { configPath: "./config/wrangler/d1-test.jsonc" },
     }),
   ],
   test: {

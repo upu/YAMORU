@@ -80,7 +80,7 @@ export async function runRemoteAuthAdmin(
   let worker: RemoteDevWorker;
   try {
     worker = await startDev("scripts/auth-admin-platform.ts", {
-      config: "wrangler.auth-admin.jsonc",
+      config: "config/wrangler/auth-admin.jsonc",
       env: input.environment,
       envFiles: [],
       experimental: {

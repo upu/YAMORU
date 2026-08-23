@@ -9,7 +9,8 @@ if (baseURL === undefined || baseURL === "") {
 
 // deploy-preview.ymlが公開境界smoke(cf:smoke)の後に実行する、家族利用の
 // 主要導線に対する自動E2E(#151)。ローカルwebServerは起動せず、既に配備
-// 済みのpreview URLへ直接アクセスする点がplaywright.config.tsと異なる。
+// 済みのpreview URLへ直接アクセスする点がルートのplaywright.config.tsと
+// 異なる。testDirはこの設定ファイルの位置を基準に解決される。
 export default defineConfig({
   expect: { timeout: 15_000 },
   forbidOnly: true,
@@ -21,7 +22,7 @@ export default defineConfig({
     },
   ],
   reporter: "list",
-  testDir: "./e2e/preview",
+  testDir: "../e2e/preview",
   timeout: 180_000,
   use: {
     baseURL,

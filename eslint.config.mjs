@@ -47,7 +47,7 @@ export default defineConfig([
     },
   },
   {
-    // D1統合テストはWorkersランタイム専用のvitest.d1.config.tsでのみ実行され、
+    // D1統合テストはWorkersランタイム専用のconfig/vitest.d1.config.tsでのみ実行され、
     // "cloudflare:workers"のような
     // Workers組み込みモジュールを使うためtsconfig.json(DOM libを使う既存app用)の
     // 型検査対象から意図的に除外している(判明した制約としてdocs/spikes/参照)。

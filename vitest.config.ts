@@ -9,7 +9,7 @@ export default defineConfig({
       "e2e/**",
       "tests/**/*.integration.test.ts",
       // Workersランタイム(D1バインディング)が必要なため、
-      // vitest.d1.config.ts(npm run test:d1)側だけで実行する。
+      // config/vitest.d1.config.ts(npm run test:d1)側だけで実行する。
       "lib/d1/**/*.d1-test.ts",
     ],
   },

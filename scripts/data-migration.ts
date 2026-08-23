@@ -189,7 +189,7 @@ async function main(): Promise<void> {
   const invocation = parseDataMigrationInvocation(process.argv.slice(2));
   await readConfirmation();
   const platform = await getPlatformProxy<CloudflareEnv>({
-    configPath: "wrangler.data-migration.jsonc",
+    configPath: "config/wrangler/data-migration.jsonc",
     persist: false,
     remoteBindings: true,
   });

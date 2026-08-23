@@ -19,7 +19,7 @@ stale_after: 2026-11-21
 | preview | `yamoru-preview` | `yamoru-preview` | Cloudflare上での事前確認。家庭の実データを入れない |
 | production | `yamoru-production` | `yamoru-production` | 家族が利用する本番。previewとは認証情報と実データを分離する |
 
-三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。Auth管理コマンドは、本体Workerのbindingから分離した`wrangler.auth-admin.jsonc`でも同じD1を指定し、preview / productionの対象bindingだけをremote接続する。remote Auth管理では処理中だけ一回限りのtokenで保護した管理用Workerを起動し、認証情報をCLI引数、設定ファイル、ログへ渡さない。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
+三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。Auth管理コマンドは、本体Workerのbindingから分離した`config/wrangler/auth-admin.jsonc`でも同じD1を指定し、preview / productionの対象bindingだけをremote接続する。remote Auth管理では処理中だけ一回限りのtokenで保護した管理用Workerを起動し、認証情報をCLI引数、設定ファイル、ログへ渡さない。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
 
 ## 最初のCloudflareリソースを作る
 
@@ -36,7 +36,7 @@ npx wrangler d1 create yamoru-preview --location apac
 npx wrangler d1 create yamoru-production --location apac
 ```
 
-各コマンドが返した`database_id`を、`wrangler.jsonc`と`wrangler.auth-admin.jsonc`の対応するplaceholderへ設定する。IDは秘密情報ではないが、環境を識別する正本なので転記後に次を実行する。
+各コマンドが返した`database_id`を、`wrangler.jsonc`と`config/wrangler/auth-admin.jsonc`の対応するplaceholderへ設定する。IDは秘密情報ではないが、環境を識別する正本なので転記後に次を実行する。
 
 ```powershell
 npm run cf:config:check
@@ -111,7 +111,7 @@ v0.3.0では、家族2アカウントを使ったpreview通し確認を人手で
 
 ### 自動確認する内容
 
-1. `scripts/e2e-admin-remote.ts`が、preview D1専用の一時Worker([wrangler.e2e-admin.jsonc](../../wrangler.e2e-admin.jsonc)、preview envのみを定義)を介して、固定の架空テストアカウント(`e2e-owner@example.test`・`e2e-outsider@example.test`)をメールアドレス経由で消してから作り直す。これらのアカウントが所属する家庭はON DELETE CASCADEでメンバー・管理対象・Todo・履歴・招待もまとめて消える。パスワードは実行のたびに生成し、Playwrightのプロセス内だけで使ってログ・Issueへ出さない。
+1. `scripts/e2e-admin-remote.ts`が、preview D1専用の一時Worker([config/wrangler/e2e-admin.jsonc](../../config/wrangler/e2e-admin.jsonc)、preview envのみを定義)を介して、固定の架空テストアカウント(`e2e-owner@example.test`・`e2e-outsider@example.test`)をメールアドレス経由で消してから作り直す。これらのアカウントが所属する家庭はON DELETE CASCADEでメンバー・管理対象・Todo・履歴・招待もまとめて消える。パスワードは実行のたびに生成し、Playwrightのプロセス内だけで使ってログ・Issueへ出さない。
 2. `e2e/preview/family-sharing.spec.ts`が、配備済みpreview URLへ直接アクセスし、次を1つの通しシナリオとして確認する。
    - ニックネーム登録・家庭作成(初回セットアップ導線)
    - Todo作成と完了操作

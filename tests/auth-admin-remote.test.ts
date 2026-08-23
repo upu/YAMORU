@@ -73,7 +73,7 @@ describe("remote Auth管理接続", () => {
       const startCall = startDevMock.mock.calls[0];
       const options = startCall[1];
       expect(startCall[0]).toBe("scripts/auth-admin-platform.ts");
-      expect(options.config).toBe("wrangler.auth-admin.jsonc");
+      expect(options.config).toBe("config/wrangler/auth-admin.jsonc");
       expect(options.env).toBe(environment);
       expect(options.envFiles).toEqual([]);
       expect(options.local).toBe(false);
