@@ -58,7 +58,6 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
     <HomeContent
       actorName={ACTOR_NAME}
       currentUserId="user-1"
-      heroDateLabel="8月13日 木"
       household={household}
       members={MEMBERS}
       sections={sections}
@@ -67,12 +66,12 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
 }
 
 describe("ホーム画面(HomeContent)", () => {
-  it("YAMORUの名前・タグライン・現在日付を表示する", () => {
+  it("YAMORUの名前とタグラインを表示し、日付バッジは表示しない", () => {
     renderHome(emptySections());
 
     expect(screen.getByRole("heading", { level: 1, name: "YAMORU" })).toBeInTheDocument();
     expect(screen.getByText("暮らしの「いつだっけ？」をなくす。")).toBeInTheDocument();
-    expect(screen.getByText("8月13日 木")).toBeInTheDocument();
+    expect(document.querySelector(".date-badge")).not.toBeInTheDocument();
   });
 
   it("ページ固有のアカウント導線を表示しない", () => {

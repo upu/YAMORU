@@ -4,15 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { isPublicPath } from "./public-paths";
 import { ManualRefreshButton } from "./refresh-coordinator";
-
-const PUBLIC_PATH_PREFIXES = ["/login", "/invitations/accept"];
-
-function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
 
 function AccountIcon() {
   return (
