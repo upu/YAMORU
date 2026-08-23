@@ -82,6 +82,13 @@ describe("PWA metadata", () => {
   it("iOSのホーム画面からYAMORUとして独立表示で起動する", () => {
     expect(metadata.appleWebApp).toEqual({
       capable: true,
+      startupImage: [
+        {
+          media:
+            "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+          url: "/pwa/yamoru-startup-iphone-16-portrait.png",
+        },
+      ],
       title: "YAMORU",
       statusBarStyle: "default",
     });
@@ -90,6 +97,16 @@ describe("PWA metadata", () => {
     });
     expect(metadata.icons).toBeUndefined();
     expect(metadata.manifest).toBeUndefined();
+  });
+
+  it("iPhone 16縦向きの不透明な起動画面を公開する", () => {
+    const startupImagePath = "public/pwa/yamoru-startup-iphone-16-portrait.png";
+
+    expectPngSize(startupImagePath, 1179, 2556);
+    expectOpaqueRgbPng(startupImagePath);
+    expect(isHandledByAuthMiddleware("/pwa/yamoru-startup-iphone-16-portrait.png")).toBe(
+      false,
+    );
   });
 
   it("未認証でもmanifestと標準Appleアイコンを取得できる", () => {

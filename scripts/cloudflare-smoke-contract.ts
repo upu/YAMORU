@@ -21,6 +21,11 @@ export const PRODUCTION_SMOKE_CHECKS: readonly SmokeCheck[] = [
   },
   { expectedContentType: "image/png", kind: "public", pathname: "/icon.png" },
   {
+    expectedContentType: "image/png",
+    kind: "public",
+    pathname: "/pwa/yamoru-startup-iphone-16-portrait.png",
+  },
+  {
     expectedContentType: "text/html",
     expectedText: "招待を確認しています",
     kind: "public",
