@@ -36,7 +36,7 @@ describe("家の台帳一覧", () => {
     );
   });
 
-  it("家庭所属済みなら専門知識不要の登録フォームと空状態を表示する", () => {
+  it("家庭所属済みなら一覧を主要内容として空状態から登録ページへ進める", () => {
     render(
       <ManagedItemsContent
         household={{ id: "household-1", name: "テスト家庭" }}
@@ -44,19 +44,30 @@ describe("家の台帳一覧", () => {
       />,
     );
 
-    const form = screen.getByRole("region", { name: "管理対象を登録" });
-    expect(within(form).getByLabelText("名前")).toHaveAttribute(
-      "maxLength",
-      "100",
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    expect(within(list).getByText("まだ管理対象はありません。")).toBeInTheDocument();
+    expect(
+      within(list).getByRole("link", { name: "管理対象を登録" }),
+    ).toHaveAttribute("href", "/managed-items/new");
+    expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /ホームへ戻る/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("登録済み一覧から登録ページへ進める", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[REGISTERED_ITEM]}
+      />,
     );
-    expect(within(form).getByLabelText("種類")).toHaveValue("pet_supplies");
-    expect(within(form).getByRole("option", { name: "ペット用品" })).toBeInTheDocument();
-    expect(within(form).getByRole("option", { name: "その他" })).toBeInTheDocument();
-    expect(within(form).getByLabelText("外部リンク（任意）")).toHaveAttribute(
-      "type",
-      "url",
+
+    expect(screen.getByRole("link", { name: "管理対象を登録" })).toHaveAttribute(
+      "href",
+      "/managed-items/new",
     );
-    expect(screen.getByText("まだ管理対象はありません。")).toBeInTheDocument();
+    expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
   });
 
   it("自家庭の登録済みManagedItemを詳細へのリンクとして表示する", () => {

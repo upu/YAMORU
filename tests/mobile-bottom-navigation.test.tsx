@@ -52,18 +52,21 @@ describe("モバイル下部ナビゲーション(Issue #146)", () => {
     );
   });
 
-  it("台帳一覧と詳細では台帳を現在地として示す", () => {
-    usePathnameMock.mockReturnValue("/managed-items/item-1");
-    render(<MobileBottomNavigation />);
+  it.each(["/managed-items", "/managed-items/new", "/managed-items/item-1"])(
+    "%sでは台帳を現在地として示す",
+    (pathname) => {
+      usePathnameMock.mockReturnValue(pathname);
+      render(<MobileBottomNavigation />);
 
-    expect(screen.getByRole("link", { name: "台帳" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(screen.getByRole("link", { name: "ホーム" })).not.toHaveAttribute(
-      "aria-current",
-    );
-  });
+      expect(screen.getByRole("link", { name: "台帳" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(screen.getByRole("link", { name: "ホーム" })).not.toHaveAttribute(
+        "aria-current",
+      );
+    },
+  );
 
   it("Todo追加など主要2画面以外では選択状態を付けない", () => {
     usePathnameMock.mockReturnValue("/todos/new");
