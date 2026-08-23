@@ -4,7 +4,6 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { listManagedItems } from "../../lib/d1/managed-items";
 import { loadAccountState } from "../../lib/d1/households";
-import { ManagedItemForm } from "./managed-item-form";
 import {
   MANAGED_ITEM_KIND_LABELS,
   type ManagedItemKind,
@@ -28,10 +27,6 @@ export function ManagedItemsContent({
 }) {
   return (
     <main className="detail-page ledger-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/">← ホームへ戻る</Link>
-      </nav>
-
       <header className="detail-hero">
         <p className="detail-kicker">HOUSE LEDGER</p>
         <h1>家の台帳</h1>
@@ -48,16 +43,12 @@ export function ManagedItemsContent({
         </section>
       ) : (
         <div className="ledger-grid">
-          <section aria-labelledby="register-item-title" className="detail-card">
-            <p className="detail-kicker">ADD ITEM</p>
-            <h2 id="register-item-title">管理対象を登録</h2>
-            <p className="detail-note">{household.name}の台帳へ追加します。</p>
-            <ManagedItemForm />
-          </section>
-
           <section aria-labelledby="registered-items-title" className="detail-card">
             <p className="detail-kicker">ITEMS</p>
             <h2 id="registered-items-title">登録済みの管理対象</h2>
+            <Link className="ledger-primary-link" href="/managed-items/new">
+              管理対象を登録
+            </Link>
             {items.length === 0 ? (
               <p className="ledger-empty">まだ管理対象はありません。</p>
             ) : (
