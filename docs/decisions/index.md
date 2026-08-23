@@ -28,7 +28,7 @@
 | YDR-014 | 二種類の一意制約と条件付き更新で重複完了を防ぐ | Accepted | [ydr-014-unique-constraints-and-conditional-update.md](ydr-014-unique-constraints-and-conditional-update.md) |
 | YDR-015 | Occurrenceを状態、ActivityLogを履歴とし、安全な条件で完了取消する | Accepted | [ydr-015-occurrence-state-activitylog-history-safe-undo.md](ydr-015-occurrence-state-activitylog-history-safe-undo.md) |
 | YDR-016 | 「回ごとに残す」方式の導入時に過去分を自動生成しない | Accepted | [ydr-016-no-backfill-on-per-occurrence-mode.md](ydr-016-no-backfill-on-per-occurrence-mode.md) |
-| YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Accepted | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
+| YDR-017 | 厳密な期限とメンテナンスの推奨期間を区別する | Superseded by YDR-027(推奨期間内の開始条件の部分のみ) | [ydr-017-strict-deadline-vs-maintenance-recommended-window.md](ydr-017-strict-deadline-vs-maintenance-recommended-window.md) |
 | YDR-018 | アカウント単位のニックネームを家庭内Member表示名と同一概念として扱う | Accepted | [ydr-018-account-nickname-as-member-display-name.md](ydr-018-account-nickname-as-member-display-name.md) |
 | YDR-019 | 家族招待の発行・受諾・失効ライフサイクルを固定する | Superseded by YDR-023 | [ydr-019-invitation-lifecycle.md](ydr-019-invitation-lifecycle.md) |
 | YDR-020 | 担当者・実施者・操作主体を区別し、保存先を固定する | Accepted | [ydr-020-assignee-performer-actor.md](ydr-020-assignee-performer-actor.md) |
@@ -38,6 +38,7 @@
 | YDR-024 | 招待の生tokenをquery stringではなくURL fragmentで搬送する | Accepted | [ydr-024-invitation-token-in-url-fragment.md](ydr-024-invitation-token-in-url-fragment.md) |
 | YDR-025 | PBKDF2の反復回数をCloudflare Workersの実行上限(10万回)に合わせる | Accepted | [ydr-025-pbkdf2-iterations-within-workers-limit.md](ydr-025-pbkdf2-iterations-within-workers-limit.md) |
 | YDR-026 | 実施記録の訂正を追記型の訂正イベントとして記録し、有効値を読み取り時に解決する | Accepted | [ydr-026-completion-correction-events.md](ydr-026-completion-correction-events.md) |
+| YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Accepted | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
 
 ## 新しい意思決定の追加
 

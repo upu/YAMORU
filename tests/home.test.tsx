@@ -365,7 +365,9 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
   });
 
   it("推奨期間内はreminderトーンで推奨期間の上限を案内し、完了操作用のmanagedItemIdを持つ", () => {
-    const items = buildReminderItems([pendingRow()], "2026-08-12T00:00:00.000Z");
+    // scheduled_for(Tokyo 8/7)〜due_at(Tokyo 9/5)の80%しきい値はTokyo 8/31
+    // (Issue #52)。9/1はしきい値を過ぎ、上限日より前。
+    const items = buildReminderItems([pendingRow()], "2026-09-01T00:00:00.000Z");
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       detail: "猫の浄水器",
@@ -385,12 +387,15 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
   });
 
   it("due_atの昇順で並べる", () => {
+    // どちらも80%しきい値(Issue #52)を過ぎているnowを使う。earlierは
+    // 上限日も過ぎてpast-windowになるが、before-windowでなければ表示は
+    // 維持される。
     const items = buildReminderItems(
       [
         pendingRow({ due_at: "2026-09-10T15:00:00.000Z", id: "later" }),
         pendingRow({ due_at: "2026-08-20T15:00:00.000Z", id: "earlier" }),
       ],
-      "2026-08-12T00:00:00.000Z",
+      "2026-09-05T00:00:00.000Z",
     );
     expect(items.map((item) => item.id)).toEqual(["earlier", "later"]);
   });

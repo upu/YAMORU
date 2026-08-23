@@ -13,22 +13,30 @@ describe("Tokyo基準の推奨期間判定(getMaintenanceDisplayStateFromIso)", 
     dueAt: "2026-09-04T15:00:00.000Z", // Tokyo: 2026-09-05T00:00
     scheduledFor: "2026-08-06T15:00:00.000Z", // Tokyo: 2026-08-07T00:00
   };
+  // 経過29日のうち80%(切り上げ)は24日、しきい値はTokyo暦日で8/7+24=8/31
+  // (Issue #52)。
 
-  it("推奨期間前はbefore-windowになる", () => {
-    // UTCでは08/07 00:00だが、Tokyoでは08/07 09:00(推奨期間内)。
+  it("推奨期間の開始直後は80%未満なので、まだそろそろと案内しない", () => {
+    // UTCでは08/07 00:00だが、Tokyoでは08/07 09:00(開始直後)。
     // サーバーがUTCで実行されてもTokyoの暦日で判定されることを確認する。
     expect(
       getMaintenanceDisplayStateFromIso(window, "2026-08-07T00:00:00.000Z"),
-    ).toBe("in-window");
+    ).toBe("before-window");
     expect(
       getMaintenanceDisplayStateFromIso(window, "2026-08-06T10:00:00.000Z"),
     ).toBe("before-window");
   });
 
-  it("推奨期間の開始日と上限日は期間内として扱う", () => {
+  it("80%ちょうどのTokyo暦日からそろそろと案内する(Issue #52)", () => {
     expect(
-      getMaintenanceDisplayStateFromIso(window, window.scheduledFor),
+      getMaintenanceDisplayStateFromIso(window, "2026-08-30T15:00:00.000Z"), // Tokyo: 8/31T00:00
     ).toBe("in-window");
+    expect(
+      getMaintenanceDisplayStateFromIso(window, "2026-08-30T14:59:00.000Z"), // Tokyo: 8/30T23:59
+    ).toBe("before-window");
+  });
+
+  it("推奨期間の上限日は期間内として扱う", () => {
     expect(getMaintenanceDisplayStateFromIso(window, window.dueAt)).toBe(
       "in-window",
     );

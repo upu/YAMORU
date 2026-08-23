@@ -8,6 +8,7 @@ import {
   MAINTENANCE_DISPLAY_COPY,
   MAINTENANCE_RECOMMENDED_START_DAYS,
   MAINTENANCE_RECOMMENDED_UPPER_DAYS,
+  maintenanceReminderThresholdDays,
   parseDateOnly,
   STRICT_DISPLAY_COPY,
   toRecurrenceBasis,
@@ -39,6 +40,7 @@ describe("推奨期間の計算", () => {
 
 describe("メンテナンスTodoの表示状態", () => {
   const window = computeMaintenanceWindow(parseDateOnly("2026-07-10")); // 8/7 - 9/4
+  // 経過28日のうち80%(切り上げ)は23日、しきい値は8/7+23=8/30(Issue #52)。
 
   it("推奨期間前は交換を急かさない", () => {
     const state = getMaintenanceDisplayState(window, parseDateOnly("2026-08-01"));
@@ -51,8 +53,17 @@ describe("メンテナンスTodoの表示状態", () => {
     );
   });
 
-  it("推奨期間内は中立的に案内する", () => {
-    const state = getMaintenanceDisplayState(window, parseDateOnly("2026-08-12"));
+  it("推奨期間の開始直後は80%未満なので、まだそろそろと案内しない", () => {
+    expect(getMaintenanceDisplayState(window, parseDateOnly("2026-08-07"))).toBe(
+      "before-window",
+    );
+    expect(getMaintenanceDisplayState(window, parseDateOnly("2026-08-29"))).toBe(
+      "before-window",
+    );
+  });
+
+  it("80%ちょうどの日から中立的に案内する(Issue #52)", () => {
+    const state = getMaintenanceDisplayState(window, parseDateOnly("2026-08-30"));
 
     expect(state).toBe("in-window");
     expect(MAINTENANCE_DISPLAY_COPY[state].message).toBe("そろそろ交換時期です");
@@ -61,10 +72,7 @@ describe("メンテナンスTodoの表示状態", () => {
     );
   });
 
-  it("推奨期間の開始日と上限日は期間内として扱う", () => {
-    expect(getMaintenanceDisplayState(window, parseDateOnly("2026-08-07"))).toBe(
-      "in-window",
-    );
+  it("推奨上限日は期間内として扱う", () => {
     expect(getMaintenanceDisplayState(window, parseDateOnly("2026-09-04"))).toBe(
       "in-window",
     );
@@ -88,6 +96,40 @@ describe("メンテナンスTodoの表示状態", () => {
 
     expect(new Set(entries.map((entry) => entry.badge)).size).toBe(3);
     expect(new Set(entries.map((entry) => entry.tone)).size).toBe(3);
+  });
+
+  it("開始日と上限日が同日ならゼロ除算せず当日からそろそろ扱いにする(Issue #52)", () => {
+    const sameDayWindow = {
+      dueAt: parseDateOnly("2026-08-07"),
+      scheduledFor: parseDateOnly("2026-08-07"),
+    };
+
+    expect(getMaintenanceDisplayState(sameDayWindow, parseDateOnly("2026-08-06"))).toBe(
+      "before-window",
+    );
+    expect(getMaintenanceDisplayState(sameDayWindow, parseDateOnly("2026-08-07"))).toBe(
+      "in-window",
+    );
+    expect(getMaintenanceDisplayState(sameDayWindow, parseDateOnly("2026-08-08"))).toBe(
+      "past-window",
+    );
+  });
+});
+
+describe("そろそろ表示のしきい値日数(maintenanceReminderThresholdDays, Issue #52)", () => {
+  it("80%ちょうどで割り切れる場合はその日数をそのまま返す", () => {
+    expect(maintenanceReminderThresholdDays(10)).toBe(8);
+    expect(maintenanceReminderThresholdDays(5)).toBe(4);
+  });
+
+  it("80%ちょうどにならない場合は切り上げて、ちょうど80%を含める", () => {
+    expect(maintenanceReminderThresholdDays(28)).toBe(23); // 22.4→23
+    expect(maintenanceReminderThresholdDays(1)).toBe(1); // 0.8→1
+  });
+
+  it("開始日と上限日が同日(0日)以下はゼロ除算せず0を返す", () => {
+    expect(maintenanceReminderThresholdDays(0)).toBe(0);
+    expect(maintenanceReminderThresholdDays(-1)).toBe(0);
   });
 });
 
