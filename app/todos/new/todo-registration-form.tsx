@@ -4,7 +4,6 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { INITIAL_MAINTENANCE_TODO_STATE } from "../../managed-items/[id]/state";
-import { PHASE_ONE_TIME_ZONE } from "../../time-zone";
 import { createTodo } from "./actions";
 
 export type TodoManagedItemOption = { id: string; name: string };
@@ -448,9 +447,6 @@ export function TodoRegistrationForm({
         managedItems={managedItems}
       />
 
-      <p>
-        家庭のタイムゾーンは{PHASE_ONE_TIME_ZONE}（日本時間）として保存・表示します。
-      </p>
       <SubmitButton />
       {state.status === "idle" ? null : (
         <p

@@ -8,6 +8,7 @@ import {
   loadHouseholdMembers,
   type HouseholdMemberOption,
 } from "../../lib/d1/profiles";
+import { PHASE_ONE_TIME_ZONE } from "../time-zone";
 import { CancelInvitationButton } from "./cancel-invitation-button";
 import { HouseholdForm } from "./household-form";
 import { IssueInvitationForm } from "./issue-invitation-form";
@@ -111,6 +112,11 @@ function HouseholdDetails({
         <p className="detail-kicker">HOUSEHOLD NAME</p>
         <h2 id="household-name-title">家庭名</h2>
         <p className="household-name">{household.name}</p>
+        {/* Issue #173: 変更できる設定ではなく、適用中の固定値の確認として表示する
+            (YDR-021、家庭ごとのタイムゾーン変更UIは対象外)。 */}
+        <p className="detail-note">
+          タイムゾーン {PHASE_ONE_TIME_ZONE}（日本時間）
+        </p>
       </section>
       <section aria-labelledby="household-members-title" className="detail-card">
         <p className="detail-kicker">MEMBERS</p>

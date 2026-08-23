@@ -36,6 +36,8 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
+    // Issue #173: タイムゾーンの説明は家庭ページへ移し、この画面には表示しない。
+    expect(screen.queryByText(/タイムゾーン/)).not.toBeInTheDocument();
   });
 
   it("名前で絞り込み、関連する管理対象を選べる", () => {
