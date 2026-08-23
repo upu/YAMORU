@@ -425,23 +425,17 @@ function HomeHero({
 }) {
   return (
     <header className="hero">
-      <div className="brand-row">
-        <div>
-          <p className="eyebrow">HOME CARE</p>
-          <h1>YAMORU</h1>
-        </div>
-        <div className="hero-actions">
-          {canAddTodo ? (
-            <Link className="account-link todo-add-link" href="/todos/new">
-              Todoを追加
-            </Link>
-          ) : null}
-          <Link className="account-link home-ledger-link" href="/managed-items">
-            家の台帳
+      <h1 className="sr-only">ホーム</h1>
+      <nav aria-label="ホームの操作" className="hero-actions">
+        {canAddTodo ? (
+          <Link className="account-link todo-add-link" href="/todos/new">
+            Todoを追加
           </Link>
-        </div>
-      </div>
-      <p className="tagline">暮らしの「いつだっけ？」をなくす。</p>
+        ) : null}
+        <Link className="account-link home-ledger-link" href="/managed-items">
+          家の台帳
+        </Link>
+      </nav>
 
       <div className="summary" aria-label="対応状況">
         <div>
