@@ -7,6 +7,14 @@ on:
     branches:
       - main
 
+# 同じPRへ短時間に複数回pushすると、古いワークフロー実行がキャンセルされず
+# 並走し続けていた(#86)。pull_requestだけ古い実行を自動キャンセルし、
+# push(main)やworkflow_call(production release)では進行中のビルドを
+# 誤って取り消さない。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
