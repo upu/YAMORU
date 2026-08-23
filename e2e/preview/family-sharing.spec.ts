@@ -116,13 +116,11 @@ async function verifyOutsiderCannotJoin(
     page.getByRole("heading", { name: "家族からの招待です" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "招待を受諾する" }).click();
-  // 受諾ボタンのinline失敗表示("この招待リンクは無効か…")、または
-  // claim cookie消費後にpage全体が再実行された場合の共通エラー表示
-  // ("招待リンクが無効か…")のどちらでも、家庭間分離が保たれていれば良い
-  // (表示の揺れ自体はIssue #160で追跡する)。Next.jsの空route announcer
-  // (role="alert")と衝突するため、role指定ではなく文言で特定する。
   await expect(
-    page.getByText(/招待(リンク)?(は|が)無効か、有効期限が切れています/u),
+    page.getByText(
+      "この招待リンクは無効か、有効期限が切れています。招待した家族に再発行を依頼してください。",
+      { exact: true },
+    ),
   ).toBeVisible();
 
   await page.goto("/household");
