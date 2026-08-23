@@ -16,7 +16,13 @@ import {
   listHouseholdInvitations,
 } from "./invitations";
 import { createFirstHousehold, createProfile, updateProfile } from "./households";
-import { createManagedItem, getManagedItem, listManagedItems } from "./managed-items";
+import {
+  createManagedItem,
+  getManagedItem,
+  getManagedItemForEdit,
+  listManagedItems,
+  updateManagedItem,
+} from "./managed-items";
 import {
   completeTask,
   correctCompletionOccurredAt,
@@ -172,6 +178,80 @@ describe("D1 formal schema and household authorization", () => {
     await expect(db.prepare(
       "SELECT count(*) AS count FROM managed_items WHERE name = 'Must roll back'",
     ).first<{ count: number }>()).resolves.toMatchObject({ count: 0 });
+  });
+
+  it("updateManagedItem replaces the external link atomically without touching household B(Issue #40)", async () => {
+    await updateManagedItem(db, householdAMember, "item-a", {
+      externalUrl: "https://example.com/updated",
+      kind: "appliance",
+      name: "Item A updated",
+    });
+
+    await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
+      externalUrl: "https://example.com/updated",
+      id: "item-a",
+      kind: "appliance",
+      name: "Item A updated",
+    });
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM external_links WHERE managed_item_id = 'item-a'",
+    ).first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+    await expect(getManagedItemForEdit(db, householdBMember, "item-b")).resolves.toEqual({
+      externalUrl: null,
+      id: "item-b",
+      kind: "other",
+      name: "Item B",
+    });
+  });
+
+  it("updateManagedItem can unset the external link", async () => {
+    await updateManagedItem(db, householdAMember, "item-a", {
+      externalUrl: "https://example.com/first",
+      kind: "other",
+      name: "Item A",
+    });
+    await updateManagedItem(db, householdAMember, "item-a", {
+      externalUrl: null,
+      kind: "other",
+      name: "Item A",
+    });
+
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM external_links WHERE managed_item_id = 'item-a'",
+    ).first<{ count: number }>()).resolves.toMatchObject({ count: 0 });
+  });
+
+  it("an A session cannot update or read a B item by ID (IDOR)", async () => {
+    await expect(updateManagedItem(db, householdAMember, "item-b", {
+      externalUrl: null,
+      kind: "other",
+      name: "Hacked",
+    })).rejects.toThrow("管理対象が見つかりません。");
+    await expect(getManagedItemForEdit(db, householdAMember, "item-b")).resolves.toBeNull();
+    await expect(db.prepare(
+      "SELECT name FROM managed_items WHERE id = 'item-b'",
+    ).first()).resolves.toMatchObject({ name: "Item B" });
+  });
+
+  it("a failed external-link insert rolls back the managed item name/kind update too", async () => {
+    await updateManagedItem(db, householdAMember, "item-a", {
+      externalUrl: "https://example.com/original",
+      kind: "other",
+      name: "Item A",
+    });
+
+    await expect(updateManagedItem(db, householdAMember, "item-a", {
+      externalUrl: "not-a-url",
+      kind: "appliance",
+      name: "Should not persist",
+    })).rejects.toThrow();
+
+    await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
+      externalUrl: "https://example.com/original",
+      id: "item-a",
+      kind: "other",
+      name: "Item A",
+    });
   });
 
   it("profiles are account-scoped and duplicate submission is idempotent", async () => {

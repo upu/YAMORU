@@ -38,6 +38,15 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
 };
 
 describe("ManagedItem詳細のメンテナンスTodo", () => {
+  it("編集画面へ移動できる(Issue #40)", () => {
+    render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
+
+    expect(screen.getByRole("link", { name: "編集" })).toHaveAttribute(
+      "href",
+      "/managed-items/item-1/edit",
+    );
+  });
+
   it("専用登録ページへ管理対象を引き継いで移動できる", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
