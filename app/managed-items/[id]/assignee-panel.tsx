@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, useState, useTransition } from "react";
 
-import { setTaskOccurrenceAssignee } from "./actions";
+import { claimTaskOccurrenceAssignee, setTaskOccurrenceAssignee } from "./actions";
 import { OperationFeedback } from "../../operation-feedback";
 
 const UNASSIGNED_VALUE = "";
@@ -11,6 +11,63 @@ const UNASSIGNED_VALUE = "";
 export const UNASSIGNED_LABEL = "誰でも可";
 
 export type AssigneeOption = { nickname: string; userId: string };
+
+// Issue #77: 未担当のときだけ表示する一操作の担当引き受けボタン。誰を担当に
+// するかを選ぶ通常のselect(下記AssigneePanel)とは別に、「自分がやる」を
+// 素早く伝える短い導線を提供する。対象は常に操作主体自身(サーバー側で決定、
+// クライアントからは渡さない)。
+function ClaimAssigneeTrigger({
+  managedItemId,
+  occurrenceId,
+  taskTitle,
+}: {
+  managedItemId: string | null;
+  occurrenceId: string;
+  taskTitle: string;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function handleClaim() {
+    setErrorMessage(null);
+    startTransition(async () => {
+      const result = await claimTaskOccurrenceAssignee(managedItemId, occurrenceId);
+      if (result.status === "error") setErrorMessage(result.message);
+    });
+  }
+
+  return (
+    <>
+      <button
+        aria-label={`${taskTitle}を自分の担当にする`}
+        className="claim-assignee-trigger"
+        disabled={isPending}
+        onClick={handleClaim}
+        type="button"
+      >
+        やるよ
+      </button>
+      <OperationFeedback
+        errorMessage={errorMessage}
+        isPending={isPending}
+        pendingMessage="担当にしています…"
+      />
+    </>
+  );
+}
+
+function AssigneeOptions({ members }: { members: AssigneeOption[] }) {
+  return (
+    <>
+      <option value={UNASSIGNED_VALUE}>{UNASSIGNED_LABEL}</option>
+      {members.map((member) => (
+        <option key={member.userId} value={member.userId}>
+          {member.nickname}
+        </option>
+      ))}
+    </>
+  );
+}
 
 export function AssigneePanel({
   assigneeUserId,
@@ -56,13 +113,15 @@ export function AssigneePanel({
         key={assigneeUserId ?? UNASSIGNED_VALUE}
         onChange={handleChange}
       >
-        <option value={UNASSIGNED_VALUE}>{UNASSIGNED_LABEL}</option>
-        {members.map((member) => (
-          <option key={member.userId} value={member.userId}>
-            {member.nickname}
-          </option>
-        ))}
+        <AssigneeOptions members={members} />
       </select>
+      {assigneeUserId === null ? (
+        <ClaimAssigneeTrigger
+          managedItemId={managedItemId}
+          occurrenceId={occurrenceId}
+          taskTitle={taskTitle}
+        />
+      ) : null}
       <OperationFeedback
         errorMessage={errorMessage}
         isPending={isPending}

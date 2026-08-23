@@ -24,6 +24,7 @@ import {
   updateManagedItem,
 } from "./managed-items";
 import {
+  claimTaskOccurrenceAssignee,
   completeTask,
   correctCompletionOccurredAt,
   correctCompletionPerformer,
@@ -403,6 +404,45 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     });
   });
 
+  it("「やるよ」は未担当のOccurrenceを操作主体自身の担当にし、追記型履歴を残す(Issue #77)", async () => {
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+
+    await claimTaskOccurrenceAssignee(db, householdAMember, occurrenceId);
+
+    await expect(db.prepare(
+      "SELECT assignee_user_id FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrenceId).first()).resolves.toMatchObject({ assignee_user_id: "user-a" });
+    await expect(db.prepare(
+      `SELECT actor_user_id, assignee_user_id, previous_assignee_user_id, new_assignee_user_id
+         FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'assignee_changed'`,
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      actor_user_id: "user-a",
+      assignee_user_id: "user-a",
+      new_assignee_user_id: "user-a",
+      previous_assignee_user_id: null,
+    });
+  });
+
+  it("既に担当者がいれば「やるよ」は黙って上書きせず、後着だけ失敗する(同時操作の安全性、Issue #77)", async () => {
+    await db.batch([
+      db.prepare("INSERT INTO users (id, email) VALUES ('user-a2','a2@example.com')"),
+      db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a','user-a2')"),
+    ]);
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+    const secondMember = { email: "a2@example.com", userId: "user-a2" };
+
+    await claimTaskOccurrenceAssignee(db, householdAMember, occurrenceId);
+    await expect(claimTaskOccurrenceAssignee(db, secondMember, occurrenceId))
+      .rejects.toThrow("Occurrence already has an assignee");
+
+    await expect(db.prepare(
+      "SELECT assignee_user_id FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrenceId).first()).resolves.toMatchObject({ assignee_user_id: "user-a" });
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'assignee_changed'",
+    ).bind(occurrenceId).first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+  });
+
   it("A session cannot complete, assign, or postpone a B occurrence by ID", async () => {
     const bRuleId = await createMaintenanceTask(db, householdBMember, {
       firstDueAt: "2026-09-10T15:00:00.000Z",
@@ -421,6 +461,9 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     })).rejects.toThrow("Occurrence not found");
     await expect(setTaskOccurrenceAssignee(
       db, householdAMember, bOccurrence.id, "user-a",
+    )).rejects.toThrow("Occurrence not found");
+    await expect(claimTaskOccurrenceAssignee(
+      db, householdAMember, bOccurrence.id,
     )).rejects.toThrow("Occurrence not found");
     await expect(postponeTaskOccurrence(
       db, householdAMember, bOccurrence.id, "2027-01-01T00:00:00.000Z",
