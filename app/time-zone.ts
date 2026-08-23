@@ -1,6 +1,7 @@
-import type {
-  MaintenanceDisplayState,
-  StrictDisplayState,
+import {
+  maintenanceReminderThresholdDays,
+  type MaintenanceDisplayState,
+  type StrictDisplayState,
 } from "./task-schedule";
 
 export const PHASE_ONE_TIME_ZONE = "Asia/Tokyo";
@@ -97,20 +98,21 @@ export function describeStrictScheduleFromIso(
   }
 }
 
-// task-schedule.tsのgetMaintenanceDisplayStateと同じ3状態判定(YDR-017)を、
-// 実行環境のタイムゾーンに依存せずAsia/Tokyoの暦日で行う。Server Componentは
-// UTCで実行されることがあり、ローカルDateのstartOfDayでは日付境界がずれて
-// ホーム/詳細間で判定が食い違いうるため、ISO文字列同士をTokyoの暦日文字列へ
-// そろえてから比較する。
+// task-schedule.tsのgetMaintenanceDisplayStateと同じ3状態判定・80%しきい値
+// (YDR-017、Issue #52)を、実行環境のタイムゾーンに依存せずAsia/Tokyoの暦日で
+// 行う。Server ComponentはUTCで実行されることがあり、ローカルDateの
+// startOfDayでは日付境界がずれてホーム/詳細間で判定が食い違いうるため、
+// ISO文字列同士をTokyoの暦日文字列・暦日数へそろえてから比較する。
 export function getMaintenanceDisplayStateFromIso(
   window: { dueAt: string; scheduledFor: string },
   nowIso: string,
 ): MaintenanceDisplayState {
   const today = toTokyoDateString(nowIso);
-  const scheduled = toTokyoDateString(window.scheduledFor);
   const due = toTokyoDateString(window.dueAt);
+  const totalDays = getTokyoDayDistance(window.scheduledFor, window.dueAt);
+  const elapsedDays = getTokyoDayDistance(window.scheduledFor, nowIso);
 
-  if (today < scheduled) return "before-window";
+  if (elapsedDays < maintenanceReminderThresholdDays(totalDays)) return "before-window";
   if (today <= due) return "in-window";
   return "past-window";
 }

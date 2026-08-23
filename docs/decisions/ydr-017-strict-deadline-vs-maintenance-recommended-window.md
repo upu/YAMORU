@@ -5,14 +5,15 @@ title: 厳密な期限とメンテナンスの推奨期間を区別する
 description: 税金・支払いなど厳密な期限は「期限切れ」のまま扱い、メンテナンスにはscheduled_for/due_atを使った推奨期間(開始・上限)を持たせて早期交換を急かさない
 tags: [yamoru, decisions, ydr]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-12
 supersedes: YDR-010
+superseded_by: YDR-027
 ---
 
 # YDR-017: 厳密な期限とメンテナンスの推奨期間を区別する
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-027](ydr-027-maintenance-reminder-progress-ratio.md)(「推奨期間内(`scheduled_for <= now <= due_at`)」という開始条件のみ置き換え。`deadline_kind`による`strict`/`maintenance`の区別、`strict`の期限切れ表示、`scheduled_for`/`due_at`の意味は[YDR-027](ydr-027-maintenance-reminder-progress-ratio.md)でも維持される)
 - 決定日: 2026-08-12
 - 置き換える決定: [YDR-010](ydr-010-single-pending-occurrence-per-task-rule.md)(「未完了なら期限切れのまま表示する」という一律の表示前提のみ。未解決Occurrenceを最大1件とする決定そのものは変更しない)
 

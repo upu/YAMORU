@@ -7,6 +7,11 @@
 export const MAINTENANCE_RECOMMENDED_START_DAYS = 28; // 4週間
 export const MAINTENANCE_RECOMMENDED_UPPER_DAYS = 56; // 8週間
 
+// Issue #52: 推奨開始日から推奨上限日までの経過割合がこの値以上になったら
+// 「そろそろ」と案内する。利用者ごとの設定化はせず、まず固定のプロダクト
+// 規則とする(design memo)。
+export const MAINTENANCE_REMINDER_THRESHOLD_RATIO = 0.8;
+
 export type TodoTone =
   | "urgent"
   | "today"
@@ -87,6 +92,17 @@ export function computeMaintenanceWindow(occurredAt: Date): MaintenanceWindow {
   };
 }
 
+// Issue #52: 推奨開始日から推奨上限日までの暦日数(totalDays)のうち、
+// 「そろそろ」表示を開始する経過日数のしきい値を求める。ちょうど80%に
+// 達する日を含めるため切り上げる。開始日と上限日が同日(totalDays<=0)の
+// 場合はゼロ除算を避け、しきい値0(=当日から即座にそろそろ扱い)とする
+// (design memoの「同日は当日扱い」)。timeZone非依存(呼び出し側が暦日数を
+// 正しく求める)。
+export function maintenanceReminderThresholdDays(totalDays: number): number {
+  if (totalDays <= 0) return 0;
+  return Math.ceil(totalDays * MAINTENANCE_REMINDER_THRESHOLD_RATIO);
+}
+
 export function getMaintenanceDisplayState(
   window: MaintenanceWindow,
   now: Date,
@@ -94,8 +110,11 @@ export function getMaintenanceDisplayState(
   const today = startOfDay(now);
   const scheduled = startOfDay(window.scheduledFor);
   const due = startOfDay(window.dueAt);
+  const totalDays = Math.round((due - scheduled) / 86_400_000);
+  const reminderStart =
+    scheduled + maintenanceReminderThresholdDays(totalDays) * 86_400_000;
 
-  if (today < scheduled) return "before-window";
+  if (today < reminderStart) return "before-window";
   if (today <= due) return "in-window";
   return "past-window";
 }
