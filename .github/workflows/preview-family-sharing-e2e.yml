@@ -1,8 +1,12 @@
 name: Preview family sharing E2E
 
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "検証するDraft Releaseのtag名(vX.Y.Z)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -15,9 +19,6 @@ concurrency:
 
 jobs:
   e2e:
-    # Release Draftを作った時点だけ実行する。Publish releaseの直接契機には
-    # しない(stable Release前に、人がこの結果を見てGo/No-Goを判断する)。
-    if: github.event.release.draft == true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -30,10 +31,43 @@ jobs:
       YAMORU_PREVIEW_URL: ${{ vars.YAMORU_PREVIEW_URL }}
 
     steps:
+      # GitHub ActionsはDraft Releaseのcreatedイベントを発火しないため、
+      # Draft保存後に明示実行し、API上の対象commitをここで確定する(#167)。
+      - name: Resolve the Draft Release target
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag must be stable SemVer (vX.Y.Z): $RELEASE_TAG"
+            exit 1
+          fi
+
+          draft=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.draft')
+          target_sha=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.target_commitish')
+          main_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+
+          if [ "$draft" != "true" ]; then
+            echo "::error::Release $RELEASE_TAG is not a Draft"
+            exit 1
+          fi
+          if [[ ! "$target_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Draft target_commitish must be a full commit SHA: $target_sha"
+            exit 1
+          fi
+          if [ "$target_sha" != "$main_sha" ]; then
+            echo "::error::Draft target $target_sha is not the latest main commit $main_sha"
+            exit 1
+          fi
+
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Release candidate::$RELEASE_TAG targets $target_sha"
+
       - name: Check out the Release candidate commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ steps.release.outputs.target_sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7

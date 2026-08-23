@@ -43,14 +43,18 @@ describe("Cloudflare preview deploy workflow", () => {
   });
 });
 
-describe("Preview family sharing E2E workflow(#151)", () => {
-  it("Release Draft作成時だけ、preview上で家族利用の主要導線を自動検証する", () => {
+describe("Preview family sharing E2E workflow(#151, #167)", () => {
+  it("Release Draftの対象main commitを明示実行で検証する", () => {
     const workflow = readWorkflow("preview-family-sharing-e2e.yml");
 
-    expect(workflow).toContain("release:");
-    expect(workflow).toContain("types: [created]");
-    expect(workflow).toContain("github.event.release.draft == true");
-    expect(workflow).toContain("ref: ${{ github.event.release.tag_name }}");
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("release_tag:");
+    expect(workflow).not.toContain("types: [created]");
+    expect(workflow).toContain("Resolve the Draft Release target");
+    expect(workflow).toContain(".target_commitish");
+    expect(workflow).toContain(".draft");
+    expect(workflow).toContain("git/ref/heads/main");
+    expect(workflow).toContain("ref: ${{ steps.release.outputs.target_sha }}");
     expect(workflow).toContain("name: preview");
     expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
     expect(workflow).toContain("YAMORU_PREVIEW_URL: ${{ vars.YAMORU_PREVIEW_URL }}");
@@ -59,6 +63,7 @@ describe("Preview family sharing E2E workflow(#151)", () => {
     expect(workflow).toContain("group: yamoru-preview");
 
     expectOrderedCommands(workflow, [
+      "Resolve the Draft Release target",
       "playwright install",
       "npm run test:e2e:preview",
     ]);
