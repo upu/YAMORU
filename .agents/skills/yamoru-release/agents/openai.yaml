@@ -1,0 +1,7 @@
+interface:
+  display_name: "YAMORU Release"
+  short_description: "YAMORUのstable Releaseを安全ゲート付きで実行する"
+  default_prompt: "Use $yamoru-release to prepare and publish the next YAMORU stable Release safely."
+
+policy:
+  allow_implicit_invocation: false
