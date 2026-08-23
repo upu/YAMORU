@@ -3,11 +3,13 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { setTaskOccurrenceAssigneeMock } = vi.hoisted(() => ({
+const { claimTaskOccurrenceAssigneeMock, setTaskOccurrenceAssigneeMock } = vi.hoisted(() => ({
+  claimTaskOccurrenceAssigneeMock: vi.fn(),
   setTaskOccurrenceAssigneeMock: vi.fn(),
 }));
 
 vi.mock("../app/managed-items/[id]/actions", () => ({
+  claimTaskOccurrenceAssignee: claimTaskOccurrenceAssigneeMock,
   setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
 }));
 
@@ -25,7 +27,7 @@ describe("AssigneePanel(Issue #72)", () => {
     vi.clearAllMocks();
   });
 
-  it("未設定は「誰でも可」を選択済みで表示する", () => {
+  it("未設定は「誰でも可」を選択済みで表示し、「やるよ」も表示する(Issue #77)", () => {
     render(
       <AssigneePanel
         assigneeUserId={null}
@@ -40,9 +42,12 @@ describe("AssigneePanel(Issue #72)", () => {
       screen.getByLabelText("フィルター交換の担当"),
     ).toHaveValue("");
     expect(screen.getByRole("option", { name: "誰でも可" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "フィルター交換を自分の担当にする" }),
+    ).toBeInTheDocument();
   });
 
-  it("既に設定済みの担当者を選択済みで表示する", () => {
+  it("既に設定済みの担当者を選択済みで表示し、「やるよ」は表示しない(Issue #77)", () => {
     render(
       <AssigneePanel
         assigneeUserId="user-2"
@@ -54,6 +59,9 @@ describe("AssigneePanel(Issue #72)", () => {
     );
 
     expect(screen.getByLabelText("フィルター交換の担当")).toHaveValue("user-2");
+    expect(
+      screen.queryByRole("button", { name: "フィルター交換を自分の担当にする" }),
+    ).not.toBeInTheDocument();
   });
 
   it("家庭メンバーを選ぶと担当変更アクションを呼ぶ", () => {
@@ -133,6 +141,56 @@ describe("AssigneePanel(Issue #72)", () => {
     expect(
       await screen.findByText(
         "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("「やるよ」を押すと同じOccurrenceへ引き受けアクションを呼ぶ(Issue #77)", () => {
+    claimTaskOccurrenceAssigneeMock.mockResolvedValue({
+      message: "担当にしました。",
+      status: "success",
+    });
+
+    render(
+      <AssigneePanel
+        assigneeUserId={null}
+        managedItemId="item-1"
+        members={MEMBERS}
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を自分の担当にする" }),
+    );
+
+    expect(claimTaskOccurrenceAssigneeMock).toHaveBeenCalledWith("item-1", "occurrence-1");
+  });
+
+  it("既に他の家族が担当していれば案内メッセージを表示する(Issue #77)", async () => {
+    claimTaskOccurrenceAssigneeMock.mockResolvedValue({
+      message: "すでに他の家族が担当しています。最新の状態を確認してください。",
+      status: "error",
+    });
+
+    render(
+      <AssigneePanel
+        assigneeUserId={null}
+        managedItemId="item-1"
+        members={MEMBERS}
+        occurrenceId="occurrence-1"
+        taskTitle="フィルター交換"
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "フィルター交換を自分の担当にする" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "すでに他の家族が担当しています。最新の状態を確認してください。",
       ),
     ).toBeInTheDocument();
   });

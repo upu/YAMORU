@@ -412,6 +412,49 @@ export async function setTaskOccurrenceAssignee(
   if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending");
 }
 
+// Issue #77: 未担当のOccurrenceを、操作主体自身の担当として一操作で引き受け
+// る(「やるよ」)。setTaskOccurrenceAssigneeと違い、対象は常に呼び出したセッ
+// ション自身(YDR-020と同様、クライアントから担当者IDを受け取らない)で、
+// 既に誰かが担当している場合は黙って上書きしない。ガードに
+// assignee_user_id IS NULLを含めることで、同時に二人が「やるよ」を押しても
+// 片方だけが成功する(先にcommitした側がNULLを消費し、後着はガード不成立で
+// 0行のまま失敗する)。
+export async function claimTaskOccurrenceAssignee(
+  db: D1Database,
+  session: D1Session,
+  occurrenceId: string,
+): Promise<void> {
+  const user = requireD1Session(session);
+  const householdId = await requireCurrentHouseholdId(db, session);
+  await loadOccurrence(db, householdId, occurrenceId);
+  const logId = crypto.randomUUID();
+  const results = await db.batch([
+    db.prepare(
+      `INSERT INTO activity_logs (
+        id, household_id, task_occurrence_id, action, actor_user_id,
+        occurred_at, assignee_user_id, previous_assignee_user_id,
+        new_assignee_user_id
+      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?4, NULL, ?4
+        WHERE EXISTS (
+          SELECT 1 FROM task_occurrences
+           WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
+             AND assignee_user_id IS NULL
+        )`,
+    ).bind(logId, householdId, occurrenceId, user.userId, new Date().toISOString()),
+    db.prepare(
+      `UPDATE task_occurrences SET assignee_user_id = ?1
+        WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
+          AND assignee_user_id IS NULL
+          AND EXISTS (
+            SELECT 1 FROM activity_logs WHERE id = ?4 AND household_id = ?3
+          )`,
+    ).bind(user.userId, occurrenceId, householdId, logId),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) !== 1) {
+    throw new D1ConflictError("Occurrence already has an assignee");
+  }
+}
+
 export async function postponeTaskOccurrence(
   db: D1Database,
   session: D1Session,
