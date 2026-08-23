@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import "./globals.css";
 import { AppHeader } from "./app-header";
+import { MobileBottomNavigation } from "./mobile-bottom-navigation";
 import { RefreshCoordinator } from "./refresh-coordinator";
 import { RefreshOnVisible } from "./refresh-on-visible";
 
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           <RefreshOnVisible />
           <AppHeader />
           {children}
+          <MobileBottomNavigation />
         </RefreshCoordinator>
       </body>
     </html>

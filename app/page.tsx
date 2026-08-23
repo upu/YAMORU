@@ -30,11 +30,9 @@ import {
   describeMaintenanceWindowFromIso,
   describeStrictScheduleFromIso,
   formatTokyoDate,
-  formatTokyoMonthDay,
   getMaintenanceDisplayStateFromIso,
   getStrictDisplayStateFromIso,
   getTokyoDayDistance,
-  PHASE_ONE_TIME_ZONE,
 } from "./time-zone";
 
 export type HomeItem = {
@@ -256,14 +254,6 @@ function buildHomeSections(
   }));
 }
 
-function formatHeroDate(nowIso: string): string {
-  const weekday = new Intl.DateTimeFormat("ja-JP", {
-    timeZone: PHASE_ONE_TIME_ZONE,
-    weekday: "narrow",
-  }).format(new Date(nowIso));
-  return `${formatTokyoMonthDay(nowIso)} ${weekday}`;
-}
-
 async function loadHomeSections(
   db: D1Database,
   session: D1Session,
@@ -420,12 +410,10 @@ function HomeSectionView({
 
 function HomeHero({
   canAddTodo,
-  heroDateLabel,
   openItemCount,
   overdueItemCount,
 }: {
   canAddTodo: boolean;
-  heroDateLabel: string;
   openItemCount: number;
   overdueItemCount: number;
 }) {
@@ -437,13 +425,12 @@ function HomeHero({
           <h1>YAMORU</h1>
         </div>
         <div className="hero-actions">
-          <span className="date-badge">{heroDateLabel}</span>
           {canAddTodo ? (
-            <Link className="account-link" href="/todos/new">
+            <Link className="account-link todo-add-link" href="/todos/new">
               Todoを追加
             </Link>
           ) : null}
-          <Link className="account-link" href="/managed-items">
+          <Link className="account-link home-ledger-link" href="/managed-items">
             家の台帳
           </Link>
         </div>
@@ -523,14 +510,12 @@ function HomeSectionList({
 export function HomeContent({
   actorName,
   currentUserId,
-  heroDateLabel,
   household,
   members,
   sections,
 }: {
   actorName: string;
   currentUserId: string;
-  heroDateLabel: string;
   household: HomeHouseholdSummary | null;
   members: HouseholdMemberOption[];
   sections: HomeSection[];
@@ -548,7 +533,6 @@ export function HomeContent({
     <main>
       <HomeHero
         canAddTodo={household !== null}
-        heroDateLabel={heroDateLabel}
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}
       />
@@ -582,7 +566,6 @@ export default async function Home() {
   const user = await requireUser();
   const { db, session } = await getD1Context(user);
   const nowIso = new Date().toISOString();
-  const heroDateLabel = formatHeroDate(nowIso);
 
   // 家庭所属チェック(loadAccountState)を先に確定させる。loadActorName等は
   // 内部でrequireCurrentHouseholdIdを呼び家庭未所属だと例外を投げるため、
@@ -595,7 +578,6 @@ export default async function Home() {
       <HomeContent
         actorName={FALLBACK_SELF_ACTOR_NAME}
         currentUserId={user.id}
-        heroDateLabel={heroDateLabel}
         household={null}
         members={[]}
         sections={[]}
@@ -614,7 +596,6 @@ export default async function Home() {
     <HomeContent
       actorName={actorName}
       currentUserId={user.id}
-      heroDateLabel={heroDateLabel}
       household={household}
       members={members}
       sections={sections}
