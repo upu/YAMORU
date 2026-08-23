@@ -16,6 +16,9 @@ export default defineConfig({
   ],
   reporter: "list",
   testDir: "./e2e",
+  // e2e/preview配下はplaywright.preview.config.ts専用(配備済みpreviewへ
+  // 直接アクセスするE2E、#151)。ローカルwebServerでは実行しない。
+  testIgnore: "preview/**",
   timeout: 120_000,
   use: {
     baseURL: "http://localhost:3000",

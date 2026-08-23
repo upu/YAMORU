@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": "scripts/e2e-admin-platform.ts",
+  "name": "yamoru-e2e-admin",
+  "compatibility_date": "2026-08-19",
+  // previewのD1だけをbindする。production envは意図的に定義しない
+  // (wrangler設定自体にproduction向けbindingが存在しないため、
+  // 誤ってproductionを対象にした呼び出しはconfig解決の時点で失敗する)。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yamoru-local",
+      "database_id": "local-only-placeholder",
+      "migrations_dir": "d1/migrations",
+      "remote": false
+    }
+  ],
+  "env": {
+    "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "yamoru-preview",
+          "database_id": "a70517df-e320-405e-a91e-2c2e726d3f75",
+          "remote": true
+        }
+      ]
+    }
+  }
+}

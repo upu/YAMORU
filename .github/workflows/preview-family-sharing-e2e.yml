@@ -1,0 +1,51 @@
+name: Preview family sharing E2E
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+# deploy-preview.ymlと同じgroupを共有し、preview環境への新しいdeployと
+# このE2Eが同時に走らないようにする(#151)。
+concurrency:
+  group: yamoru-preview
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    # Release Draftを作った時点だけ実行する。Publish releaseの直接契機には
+    # しない(stable Release前に、人がこの結果を見てGo/No-Goを判断する)。
+    if: github.event.release.draft == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: preview
+      url: ${{ vars.YAMORU_PREVIEW_URL }}
+    env:
+      CI: "true"
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      YAMORU_PREVIEW_URL: ${{ vars.YAMORU_PREVIEW_URL }}
+
+    steps:
+      - name: Check out the Release candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify family sharing flows on the deployed preview
+        run: npm run test:e2e:preview
