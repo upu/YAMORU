@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createManagedItemInD1Mock, getD1ContextMock, redirectMock, revalidatePathMock } = vi.hoisted(
+const {
+  createManagedItemInD1Mock,
+  getD1ContextMock,
+  redirectMock,
+  revalidatePathMock,
+  updateManagedItemInD1Mock,
+} = vi.hoisted(
   () => ({
     createManagedItemInD1Mock: vi.fn(),
     getD1ContextMock: vi.fn(),
     redirectMock: vi.fn(),
     revalidatePathMock: vi.fn(),
+    updateManagedItemInD1Mock: vi.fn(),
   }),
 );
 
@@ -15,6 +22,7 @@ vi.mock("../lib/d1/context", () => ({
 
 vi.mock("../lib/d1/managed-items", () => ({
   createManagedItem: createManagedItemInD1Mock,
+  updateManagedItem: updateManagedItemInD1Mock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -25,7 +33,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { createManagedItem } from "../app/managed-items/actions";
+import { createManagedItem, updateManagedItem } from "../app/managed-items/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
@@ -145,6 +153,107 @@ describe("ManagedItem登録操作", () => {
       status: "error",
     });
     expect(result.message).not.toContain("sensitive database detail");
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+function managedItemEditForm({
+  externalUrl = "",
+  id = "managed-item-id",
+  kind = "pet_supplies",
+  name = "猫の浄水器",
+}: {
+  externalUrl?: string;
+  id?: string;
+  kind?: string;
+  name?: string;
+} = {}) {
+  const formData = managedItemForm({ externalUrl, kind, name });
+  formData.set("id", id);
+  return formData;
+}
+
+describe("ManagedItem編集操作(Issue #40)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    updateManagedItemInD1Mock.mockResolvedValue(undefined);
+  });
+
+  it("隠しフィールドのIDと整形済み入力をD1関数へ渡し、両画面を再検証してから詳細へ戻す", async () => {
+    await updateManagedItem(
+      INITIAL_STATE,
+      managedItemEditForm({
+        externalUrl: "  https://example.com/updated  ",
+        id: "managed-item-id",
+        kind: "appliance",
+        name: "  猫の浄水器2  ",
+      }),
+    );
+
+    expect(updateManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "managed-item-id",
+      {
+        externalUrl: "https://example.com/updated",
+        kind: "appliance",
+        name: "猫の浄水器2",
+      },
+    );
+    expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
+    expect(redirectMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
+  });
+
+  it("空の外部リンクは未設定としてD1へ渡す", async () => {
+    await updateManagedItem(INITIAL_STATE, managedItemEditForm());
+
+    expect(updateManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "managed-item-id",
+      { externalUrl: null, kind: "pet_supplies", name: "猫の浄水器" },
+    );
+  });
+
+  it("IDのない送信はD1へ送らない", async () => {
+    const formData = managedItemForm();
+
+    const result = await updateManagedItem(INITIAL_STATE, formData);
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "管理対象を特定できませんでした。",
+      status: "error",
+    });
+  });
+
+  it.each(["", "   ", "あ".repeat(101)])(
+    "無効な名前(%s)はD1へ送らない",
+    async (name) => {
+      const result = await updateManagedItem(
+        INITIAL_STATE,
+        managedItemEditForm({ name }),
+      );
+
+      expect(getD1ContextMock).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        message: "名前は1文字以上100文字以内で入力してください。",
+        status: "error",
+      });
+    },
+  );
+
+  it("家庭Bの管理対象など見つからない対象への更新は内部詳細を表示しない", async () => {
+    updateManagedItemInD1Mock.mockRejectedValue(new Error("管理対象が見つかりません。"));
+
+    const result = await updateManagedItem(INITIAL_STATE, managedItemEditForm());
+
+    expect(result).toEqual({
+      message: "管理対象を更新できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
     expect(redirectMock).not.toHaveBeenCalled();
   });
 });

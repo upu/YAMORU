@@ -69,6 +69,60 @@ export async function getManagedItemHouseholdId(db: D1Database, session: D1Sessi
   return householdId;
 }
 
+export type ManagedItemEditData = ManagedItemSummary & { externalUrl: string | null };
+
+// Issue #40の編集画面が使う。外部リンクは登録時と同じく高々1件を想定するが、
+// 複数行が存在する場合でもcreated_atの昇順で1件だけを既定値として返す。
+export async function getManagedItemForEdit(
+  db: D1Database,
+  session: D1Session,
+  id: string,
+): Promise<ManagedItemEditData | null> {
+  const householdId = await requireCurrentHousehold(db, session);
+  return db.prepare(
+    `SELECT m.id, m.name, m.kind, l.url AS externalUrl
+       FROM managed_items m
+       LEFT JOIN external_links l
+         ON l.managed_item_id = m.id AND l.household_id = m.household_id
+      WHERE m.id = ?1 AND m.household_id = ?2
+      ORDER BY l.created_at LIMIT 1`,
+  ).bind(id, householdId).first<ManagedItemEditData>();
+}
+
+// Issue #40: 名前・種類・外部リンクをD1側の家庭境界とトランザクションで
+// 一括更新する(YDR-022、クライアントからhousehold_idを受け取らない)。
+// 外部リンクは既存行を消してから(未設定ならそのまま、設定ありなら)1件だけ
+// 挿入し直すことで、追加・変更・未設定化のいずれも同じ経路で扱う。
+// createManagedItemと同じくdb.batch()で一括実行し、対象が自家庭に無ければ
+// (Not Found)部分更新を残さない。
+export async function updateManagedItem(
+  db: D1Database,
+  session: D1Session,
+  id: string,
+  input: { externalUrl: string | null; kind: string; name: string },
+): Promise<void> {
+  const householdId = await requireCurrentHousehold(db, session);
+  const statements = [
+    db.prepare(
+      "UPDATE managed_items SET name = ?1, kind = ?2 WHERE id = ?3 AND household_id = ?4",
+    ).bind(input.name, input.kind, id, householdId),
+    db.prepare(
+      "DELETE FROM external_links WHERE managed_item_id = ?1 AND household_id = ?2",
+    ).bind(id, householdId),
+  ];
+  if (input.externalUrl !== null) {
+    statements.push(db.prepare(
+      `INSERT INTO external_links (id, household_id, managed_item_id, url)
+        SELECT ?1, ?2, ?3, ?4
+        WHERE EXISTS (SELECT 1 FROM managed_items WHERE id = ?3 AND household_id = ?2)`,
+    ).bind(crypto.randomUUID(), householdId, id, input.externalUrl));
+  }
+  const results = await db.batch(statements);
+  if ((results[0]?.meta.changes ?? 0) !== 1) {
+    throw new D1NotFoundError("管理対象が見つかりません。");
+  }
+}
+
 type FlatOccurrence = Omit<TaskOccurrenceRow, "activity_logs"> & {
   task_rule_id: string;
 };

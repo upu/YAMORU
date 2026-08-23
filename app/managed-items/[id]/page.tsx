@@ -337,6 +337,30 @@ function ExternalLinksSection({ links }: { links: ExternalLinkData[] }) {
   );
 }
 
+function ManagedItemHeader({
+  id,
+  kind,
+  name,
+}: {
+  id: string;
+  kind: ManagedItemKind;
+  name: string;
+}) {
+  return (
+    <header className="detail-hero">
+      <p className="detail-kicker">MANAGED ITEM</p>
+      <div className="detail-title-row">
+        <h1>{name}</h1>
+        <span className="kind-badge">{MANAGED_ITEM_KIND_LABELS[kind]}</span>
+      </div>
+      <p>登録した管理対象と、現在のTodoを確認できます。</p>
+      <Link className="ledger-primary-link" href={`/managed-items/${encodeURIComponent(id)}/edit`}>
+        編集
+      </Link>
+    </header>
+  );
+}
+
 export function ManagedItemDetailContent({
   item,
 }: {
@@ -352,16 +376,7 @@ export function ManagedItemDetailContent({
         <Link href="/managed-items">← 家の台帳へ戻る</Link>
       </nav>
 
-      <header className="detail-hero">
-        <p className="detail-kicker">MANAGED ITEM</p>
-        <div className="detail-title-row">
-          <h1>{item.name}</h1>
-          <span className="kind-badge">
-            {MANAGED_ITEM_KIND_LABELS[item.kind]}
-          </span>
-        </div>
-        <p>登録した管理対象と、現在のTodoを確認できます。</p>
-      </header>
+      <ManagedItemHeader id={item.id} kind={item.kind} name={item.name} />
 
       <LastActivitySummary lastActivity={item.lastActivity} />
 
