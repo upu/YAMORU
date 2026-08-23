@@ -53,6 +53,8 @@ describe("家庭画面(Issue #147)", () => {
     expect(within(section).getByLabelText("家庭名")).toHaveValue("たろうの家庭");
     expect(within(section).getByRole("button", { name: "家庭を作成" }))
       .toBeInTheDocument();
+    // Issue #173: 家庭未作成時にタイムゾーン表示を追加しない。
+    expect(screen.queryByText(/タイムゾーン/)).not.toBeInTheDocument();
   });
 
   it("家庭名・家族メンバー・招待管理を一つの家庭画面に表示する", () => {
@@ -82,5 +84,21 @@ describe("家庭画面(Issue #147)", () => {
         "href",
         "/household?reissue=family%40example.test#issue-invitation-title",
       );
+  });
+
+  it("家庭作成済みなら適用中のタイムゾーンを読み取り専用で表示する(Issue #173)", () => {
+    render(
+      <HouseholdContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        invitations={[]}
+        members={[{ nickname: "たろう", userId: "user-1" }]}
+        nickname="たろう"
+      />,
+    );
+
+    const nameSection = screen.getByRole("region", { name: "家庭名" });
+    expect(
+      within(nameSection).getByText("タイムゾーン Asia/Tokyo（日本時間）"),
+    ).toBeInTheDocument();
   });
 });
