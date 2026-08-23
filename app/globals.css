@@ -1384,9 +1384,15 @@ footer p {
     display: none;
   }
 
+  :root {
+    /* 完了記録・延期ダイアログ(.completion-dialog-backdrop)が下部ナビゲーション
+       と重ならないよう、両者で同じ高さを共有する。 */
+    --mobile-nav-height: calc(72px + env(safe-area-inset-bottom));
+  }
+
   .mobile-bottom-navigation-space {
     display: block;
-    height: calc(72px + env(safe-area-inset-bottom));
+    height: var(--mobile-nav-height);
   }
 
   .mobile-bottom-navigation {
@@ -1464,13 +1470,17 @@ footer p {
   }
 
   .completion-dialog-backdrop {
+    /* 下部ナビゲーション(z-index: 20)より手前に出し、かつ下部ナビゲーション
+       の高さぶん下に余白を確保して、ダイアログの選択肢が下部ナビゲーションと
+       重ならないようにする(#156)。 */
+    z-index: 25;
     align-items: end;
-    padding: 0;
+    padding: 0 0 var(--mobile-nav-height);
   }
 
   .completion-dialog {
     width: 100%;
-    max-height: 90vh;
+    max-height: calc(90vh - var(--mobile-nav-height));
     padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
     border-radius: 22px 22px 0 0;
   }
