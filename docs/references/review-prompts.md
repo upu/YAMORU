@@ -54,9 +54,9 @@ docs/product/yamoru-project-plan.mdとdocs/decisions/index.md(索引からたど
 
 重点項目:
 
-- Next.js PWA + Supabaseという選択
+- Next.js PWA + Cloudflare Workers + D1という選択
 - Household単位のマルチテナント設計
-- Supabase RLSと招待受諾フロー
+- アプリ層で担保する家庭間分離と招待受諾フロー
 - TaskRule / TaskOccurrence / ActivityLogの分離
 - 固定日基準と完了日基準の定期Todo
 - TaskRuleごとに未解決Occurrenceを最大1件とするMVP方針
