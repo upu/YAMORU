@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import schemaSql from "../../d1/migrations/0001_init.sql?raw";
 import authSchemaSql from "../../d1/migrations/0002_auth_invitation_claims.sql?raw";
 import migrationAuditSql from "../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
+import completionCorrectionsSql from "../../d1/migrations/0004_completion_corrections.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -18,6 +19,8 @@ import { createFirstHousehold, createProfile, updateProfile } from "./households
 import { createManagedItem, getManagedItem, listManagedItems } from "./managed-items";
 import {
   completeTask,
+  correctCompletionOccurredAt,
+  correctCompletionPerformer,
   createCalendarTask,
   createMaintenanceTask,
   createOneTimeTask,
@@ -32,7 +35,7 @@ const householdBMember = { email: "b@example.com", userId: "user-b" };
 const nonMember = { email: "o@example.com", userId: "user-outsider" };
 
 function migrationStatements(): string[] {
-  return [schemaSql, authSchemaSql, migrationAuditSql].join("\n")
+  return [schemaSql, authSchemaSql, migrationAuditSql, completionCorrectionsSql].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n")
@@ -74,6 +77,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await db.batch([
+    db.prepare("DELETE FROM completion_corrections"),
     db.prepare("DELETE FROM invitation_claims"),
     db.prepare("DELETE FROM household_invitations"),
     db.prepare("DELETE FROM activity_logs"),
@@ -341,12 +345,145 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     await expect(postponeTaskOccurrence(
       db, householdAMember, bOccurrence.id, "2027-01-01T00:00:00.000Z",
     )).rejects.toThrow("Occurrence not found");
+    await expect(correctCompletionOccurredAt(
+      db, householdAMember, bOccurrence.id, "idor-correct-occurred-at", "2026-08-05T00:00:00.000Z",
+    )).rejects.toThrow("Occurrence not found");
+    await expect(correctCompletionPerformer(
+      db, householdAMember, bOccurrence.id, "idor-correct-performer", "user-a",
+    )).rejects.toThrow("Occurrence not found");
     await expect(db.prepare(
       "SELECT status, assignee_user_id FROM task_occurrences WHERE id = ?1",
     ).bind(bOccurrence.id).first()).resolves.toMatchObject({
       assignee_user_id: null,
       status: "pending",
     });
+  });
+});
+
+describe("D1 completion correction atomicity and household isolation (Issue #148)", () => {
+  it("実施日時の訂正は未変更の次回Occurrenceを原子的に再計算し、追記型で履歴を残す(Issue #148)", async () => {
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+    const nextId = await completeTask(db, householdAMember, {
+      idempotencyKey: "correct-recalc-complete",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    });
+    if (nextId === null) throw new Error("Expected a next occurrence");
+    const before = await db.prepare(
+      "SELECT scheduled_for, due_at FROM task_occurrences WHERE id = ?1",
+    ).bind(nextId).first<{ due_at: string; scheduled_for: string }>();
+
+    await correctCompletionOccurredAt(
+      db, householdAMember, occurrenceId, "correct-recalc", "2026-08-09T00:00:00.000Z",
+    );
+
+    const after = await db.prepare(
+      "SELECT scheduled_for, due_at FROM task_occurrences WHERE id = ?1",
+    ).bind(nextId).first<{ due_at: string; scheduled_for: string }>();
+    expect(after?.scheduled_for).not.toBe(before?.scheduled_for);
+    expect(after?.due_at).not.toBe(before?.due_at);
+    await expect(db.prepare(
+      `SELECT previous_occurred_at, new_occurred_at, new_performed_by_user_id
+         FROM completion_corrections WHERE task_occurrence_id = ?1`,
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      new_occurred_at: "2026-08-09T00:00:00.000Z",
+      new_performed_by_user_id: null,
+      previous_occurred_at: "2026-08-05T00:00:00.000Z",
+    });
+    // 元のcompletedログ自体は書き換えない。
+    await expect(db.prepare(
+      "SELECT occurred_at FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'completed'",
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      occurred_at: "2026-08-05T00:00:00.000Z",
+    });
+  });
+
+  it("次回Occurrenceが変更済みなら実施日時の訂正を拒否し、データを変更しない", async () => {
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+    const nextId = await completeTask(db, householdAMember, {
+      idempotencyKey: "correct-modified-complete",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    });
+    if (nextId === null) throw new Error("Expected a next occurrence");
+    await setTaskOccurrenceAssignee(db, householdAMember, nextId, "user-a");
+
+    await expect(correctCompletionOccurredAt(
+      db, householdAMember, occurrenceId, "correct-modified", "2026-08-09T00:00:00.000Z",
+    )).rejects.toThrow("Next occurrence has been modified");
+
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM completion_corrections WHERE task_occurrence_id = ?1",
+    ).bind(occurrenceId).first<{ count: number }>()).resolves.toMatchObject({ count: 0 });
+    await expect(db.prepare(
+      "SELECT occurred_at FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'completed'",
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      occurred_at: "2026-08-05T00:00:00.000Z",
+    });
+  });
+
+  it("実施者の訂正は同じ家庭のメンバーだけを許可し、元のcompletedログを書き換えない", async () => {
+    await db.batch([
+      db.prepare("INSERT INTO users (id, email) VALUES ('user-a2','a2@example.com')"),
+      db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a','user-a2')"),
+    ]);
+    const { occurrenceId } = await createHouseholdAMaintenanceTask();
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "correct-performer-complete",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    });
+
+    await expect(correctCompletionPerformer(
+      db, householdAMember, occurrenceId, "correct-performer-outsider", "user-b",
+    )).rejects.toThrow("Performer not found");
+
+    await correctCompletionPerformer(db, householdAMember, occurrenceId, "correct-performer", "user-a2");
+
+    await expect(db.prepare(
+      "SELECT performed_by_user_id FROM activity_logs WHERE task_occurrence_id = ?1 AND action = 'completed'",
+    ).bind(occurrenceId).first()).resolves.toMatchObject({ performed_by_user_id: "user-a" });
+    await expect(db.prepare(
+      `SELECT previous_performed_by_user_id, new_performed_by_user_id
+         FROM completion_corrections WHERE task_occurrence_id = ?1`,
+    ).bind(occurrenceId).first()).resolves.toMatchObject({
+      new_performed_by_user_id: "user-a2",
+      previous_performed_by_user_id: "user-a",
+    });
+  });
+
+  it("同じidempotency_keyの再送は訂正を重複させず、別Occurrenceへの使い回しは拒否する", async () => {
+    const first = await createHouseholdAMaintenanceTask();
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "correct-idem-complete-1",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId: first.occurrenceId,
+      performedByUserId: null,
+    });
+
+    await correctCompletionOccurredAt(
+      db, householdAMember, first.occurrenceId, "correct-idem", "2026-08-06T00:00:00.000Z",
+    );
+    await correctCompletionOccurredAt(
+      db, householdAMember, first.occurrenceId, "correct-idem", "2026-08-06T00:00:00.000Z",
+    );
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM completion_corrections WHERE idempotency_key = 'correct-idem'",
+    ).first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+
+    const second = await createHouseholdAMaintenanceTask();
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "correct-idem-complete-2",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId: second.occurrenceId,
+      performedByUserId: null,
+    });
+    await expect(correctCompletionOccurredAt(
+      db, householdAMember, second.occurrenceId, "correct-idem", "2026-08-06T00:00:00.000Z",
+    )).rejects.toThrow("Idempotency key was already used for a different occurrence");
   });
 });
 

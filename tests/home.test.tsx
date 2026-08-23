@@ -5,16 +5,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   completeMaintenanceTaskMock,
+  correctCompletionOccurredAtMock,
+  correctCompletionPerformerMock,
   setTaskOccurrenceAssigneeMock,
   undoMaintenanceTaskCompletionMock,
 } = vi.hoisted(() => ({
   completeMaintenanceTaskMock: vi.fn(),
+  correctCompletionOccurredAtMock: vi.fn(),
+  correctCompletionPerformerMock: vi.fn(),
   setTaskOccurrenceAssigneeMock: vi.fn(),
   undoMaintenanceTaskCompletionMock: vi.fn(),
 }));
 
 vi.mock("../app/managed-items/[id]/actions", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
+  correctCompletionOccurredAt: correctCompletionOccurredAtMock,
+  correctCompletionPerformer: correctCompletionPerformerMock,
   setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
   undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
@@ -277,7 +283,8 @@ describe("ホームのTodo操作", () => {
     });
     renderHome(sections);
 
-    fireEvent.click(screen.getByRole("button", { name: "家族会議の完了を取り消す" }));
+    fireEvent.click(screen.getByRole("button", { name: "家族会議を修正" }));
+    fireEvent.click(screen.getByRole("button", { name: "完了を取り消す" }));
     fireEvent.click(screen.getByRole("button", { name: "この完了を取り消す" }));
 
     expect(undoMaintenanceTaskCompletionMock).toHaveBeenCalledWith(
@@ -287,7 +294,7 @@ describe("ホームのTodo操作", () => {
     );
   });
 
-  it("実際の最近の実施データには担当・完了操作を出さず、完了取消だけを表示する", () => {
+  it("実際の最近の実施データには担当・完了操作を出さず、修正操作だけを表示する", () => {
     const recentItems = buildRecentItems(
       [
         {
@@ -314,7 +321,7 @@ describe("ホームのTodo操作", () => {
       within(recentSection).queryByRole("button", { name: "フィルター交換を記録" }),
     ).not.toBeInTheDocument();
     expect(
-      within(recentSection).getByRole("button", { name: "フィルター交換の完了を取り消す" }),
+      within(recentSection).getByRole("button", { name: "フィルター交換を修正" }),
     ).toBeInTheDocument();
     // 完了済みは対応状況の「件の予定」には数えない。
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件の予定");
