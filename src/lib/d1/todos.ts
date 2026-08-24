@@ -12,7 +12,7 @@ import {
 import { D1ConflictError, D1NotFoundError } from "./errors";
 
 type TaskBasics = { managedItemId: string | null; title: string };
-export type OneTimeTaskInput = TaskBasics & { scheduledFor: string };
+export type OneTimeTaskInput = TaskBasics & { scheduledFor: string | null };
 export type MaintenanceTaskInput = TaskBasics & {
   firstDueAt: string;
   firstScheduledFor: string;
@@ -29,7 +29,7 @@ export type CalendarTaskInput = TaskBasics & {
 
 type OccurrenceWithRule = {
   assignee_user_id: string | null;
-  due_at: string;
+  due_at: string | null;
   household_id: string;
   id: string;
   recurrence_basis: string;
@@ -40,7 +40,7 @@ type OccurrenceWithRule = {
   schedule_kind: string | null;
   schedule_month: number | null;
   schedule_week_of_month: number | null;
-  scheduled_for: string;
+  scheduled_for: string | null;
   status: string;
   task_rule_id: string;
 };
@@ -63,12 +63,12 @@ async function insertTask(
   householdId: string,
   input: TaskBasics & {
     deadlineKind: string;
-    dueAt: string;
+    dueAt: string | null;
     recurrenceBasis: string;
     recommendedStartOffset: number;
     recommendedUntilOffset: number;
     schedule?: CalendarTaskInput;
-    scheduledFor: string;
+    scheduledFor: string | null;
   },
 ): Promise<string> {
   await requireManagedItem(db, householdId, input.managedItemId);
@@ -201,6 +201,9 @@ function nextOccurrence(
     };
   }
   if (occurrence.recurrence_basis === "calendar") {
+    if (occurrence.scheduled_for === null) {
+      throw new D1ConflictError("Recurring occurrence must have a schedule");
+    }
     const scheduledFor = nextCalendarOccurrence(
       {
         scheduleDayOfMonth: occurrence.schedule_day_of_month,
@@ -464,6 +467,9 @@ export async function postponeTaskOccurrence(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
+  if (occurrence.scheduled_for === null || occurrence.due_at === null) {
+    throw new D1ConflictError("Cannot postpone an undated occurrence");
+  }
   if (dueAt <= new Date().toISOString()) throw new D1ConflictError("new_due_at must be in the future");
   if (dueAt < occurrence.scheduled_for) throw new D1ConflictError("new_due_at must not be before scheduled_for");
   const logId = crypto.randomUUID();
@@ -495,6 +501,30 @@ export async function postponeTaskOccurrence(
     ).bind(dueAt, occurrenceId, householdId, logId),
   ]);
   if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending");
+}
+
+// YDR-030: 一回限りのpending Occurrenceだけ、具体日と予定日未定を往復
+// できる。具体日を設定する場合はscheduled_for/due_atを同日にし、未定へ
+// 戻す場合は両方をNULLにしてペアの整合性を維持する。
+export async function setOneTimeTaskSchedule(
+  db: D1Database,
+  session: D1Session,
+  occurrenceId: string,
+  scheduledFor: string | null,
+): Promise<void> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  const occurrence = await loadOccurrence(db, householdId, occurrenceId);
+  if (occurrence.recurrence_basis !== "once") {
+    throw new D1ConflictError("Only one-time tasks can have an undated schedule");
+  }
+  const result = await db.prepare(
+    `UPDATE task_occurrences
+        SET scheduled_for = ?1, due_at = ?1
+      WHERE id = ?2 AND household_id = ?3 AND status = 'pending'`,
+  ).bind(scheduledFor, occurrenceId, householdId).run();
+  if (result.meta.changes !== 1) {
+    throw new D1ConflictError("Occurrence is not pending");
+  }
 }
 
 type ActiveCompletion = {

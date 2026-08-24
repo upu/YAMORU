@@ -19,6 +19,7 @@ import type { D1Session } from "../lib/d1/authorization";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import { CorrectionPanel } from "./managed-items/[id]/correction-panel";
+import { SchedulePanel } from "./managed-items/[id]/schedule-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
   STRICT_DISPLAY_COPY,
@@ -38,6 +39,7 @@ import {
 export type HomeItem = {
   // pending Todoにだけ設定する。未設定(誰でも可)はnull。
   assigneeUserId?: string | null;
+  badge?: string;
   completedAt?: string;
   completedOccurrenceId?: string;
   // completed Todoにだけ設定する(#148の修正で実施者を選び直すための既定値)。
@@ -50,11 +52,13 @@ export type HomeItem = {
   meta: string;
   // pending Todoにだけ設定し、ホームの担当・完了操作を有効にする。
   occurrenceId?: string;
+  // 一回限りTodoにだけ設定する。nullは予定日未定、文字列は具体日あり。
+  oneTimeScheduledFor?: string | null;
   title: string;
   tone: TodoTone;
 };
 
-export type HomeSectionId = "overdue" | "today" | "reminder" | "upcoming" | "recent";
+export type HomeSectionId = "overdue" | "today" | "undated" | "reminder" | "upcoming" | "recent";
 
 export type HomeSection = {
   description: string;
@@ -68,6 +72,7 @@ export type HomeHouseholdSummary = { id: string; name: string };
 const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "overdue",
   "today",
+  "undated",
   "reminder",
   "upcoming",
 ]);
@@ -86,6 +91,7 @@ const TONE_LABELS: Record<TodoTone, string> = {
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
+  { description: "実施する時期が決まっていません", id: "undated", title: "予定日未定" },
   { description: "対応の目安の時期です", id: "reminder", title: "そろそろ" },
   { description: "これから7日間の予定", id: "upcoming", title: "近日" },
   { description: "家族が完了したこと", id: "recent", title: "最近の実施" },
@@ -95,9 +101,9 @@ const RECENT_COMPLETIONS_LIMIT = 10;
 
 export type PendingOccurrenceRow = {
   assignee_user_id: string | null;
-  due_at: string;
+  due_at: string | null;
   id: string;
-  scheduled_for: string;
+  scheduled_for: string | null;
   task_rules: {
     deadline_kind: string;
     managed_items: { id: string; name: string } | null;
@@ -122,13 +128,16 @@ export function buildReminderItems(
 ): HomeItem[] {
   return rows
     .slice()
-    .sort((left, right) => left.due_at.localeCompare(right.due_at))
+    .sort((left, right) => (left.due_at ?? "").localeCompare(right.due_at ?? ""))
     .flatMap((row) => {
       const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
       const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
       if (recurrenceBasis !== "completion") return [];
       if (deadlineKind !== "maintenance") {
         throw new Error("完了日基準Todoの期限方式が不正です。");
+      }
+      if (row.scheduled_for === null || row.due_at === null) {
+        throw new Error("繰り返しTodoの予定日が未設定です。");
       }
 
       const window = { dueAt: row.due_at, scheduledFor: row.scheduled_for };
@@ -155,46 +164,87 @@ export function buildReminderItems(
     });
 }
 
-type StrictItems = Record<"overdue" | "today" | "upcoming", HomeItem[]>;
+type StrictItems = Record<"overdue" | "today" | "undated" | "upcoming", HomeItem[]>;
+
+function pendingHomeItemBase(row: PendingOccurrenceRow): Pick<
+  HomeItem,
+  "assigneeUserId" | "detail" | "detailHref" | "id" | "managedItemId" | "occurrenceId" | "title"
+> {
+  const managedItem = row.task_rules.managed_items;
+  return {
+    assigneeUserId: row.assignee_user_id,
+    detail: managedItem?.name ?? "管理対象なし",
+    ...(managedItem === null ? {} : { detailHref: `/managed-items/${managedItem.id}` }),
+    id: row.id,
+    managedItemId: managedItem?.id ?? null,
+    occurrenceId: row.id,
+    title: row.task_rules.title,
+  };
+}
+
+function buildUndatedStrictItem(row: PendingOccurrenceRow): HomeItem {
+  const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
+  const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
+  if (recurrenceBasis !== "once" || deadlineKind !== "strict") {
+    throw new Error("予定日未定を利用できないTodoです。");
+  }
+  return {
+    ...pendingHomeItemBase(row),
+    badge: "未定",
+    meta: "予定日: 未定 ・ 繰り返しなし",
+    oneTimeScheduledFor: null,
+    tone: "upcoming",
+  };
+}
+
+function buildDatedStrictItem(
+  row: PendingOccurrenceRow,
+  dueAt: string,
+  scheduledFor: string,
+  nowIso: string,
+): { item: HomeItem; sectionId: "overdue" | "today" | "upcoming" } | null {
+  const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
+  if (recurrenceBasis === "completion") return null;
+  if (toDeadlineKind(row.task_rules.deadline_kind) !== "strict") {
+    throw new Error("厳密な期限Todoの期限方式が不正です。");
+  }
+  const state = getStrictDisplayStateFromIso(dueAt, nowIso);
+  if (state === "upcoming" && getTokyoDayDistance(nowIso, dueAt) > 7) return null;
+  const sectionId = state === "due-today" ? "today" : state;
+  return {
+    item: {
+      ...pendingHomeItemBase(row),
+      meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
+        recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
+      }`,
+      ...(recurrenceBasis === "once" ? { oneTimeScheduledFor: scheduledFor } : {}),
+      tone: STRICT_DISPLAY_COPY[state].tone,
+    },
+    sectionId,
+  };
+}
 
 export function buildStrictItems(
   rows: PendingOccurrenceRow[],
   nowIso: string,
 ): StrictItems {
-  const result: StrictItems = { overdue: [], today: [], upcoming: [] };
+  const result: StrictItems = { overdue: [], today: [], undated: [], upcoming: [] };
 
   rows
     .slice()
-    .sort((left, right) => left.due_at.localeCompare(right.due_at))
+    .sort((left, right) => (left.due_at ?? "").localeCompare(right.due_at ?? ""))
     .forEach((row) => {
-      const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
-      const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
-      if (recurrenceBasis === "completion") return;
-      if (deadlineKind !== "strict") {
-        throw new Error("厳密な期限Todoの期限方式が不正です。");
+      const scheduledFor = row.scheduled_for;
+      const dueAt = row.due_at;
+      if ((scheduledFor === null) !== (dueAt === null)) {
+        throw new Error("Todoの予定日と期限の組み合わせが不正です。");
       }
-
-      const state = getStrictDisplayStateFromIso(row.due_at, nowIso);
-      if (state === "upcoming" && getTokyoDayDistance(nowIso, row.due_at) > 7) {
+      if (scheduledFor === null || dueAt === null) {
+        result.undated.push(buildUndatedStrictItem(row));
         return;
       }
-      const sectionId = state === "due-today" ? "today" : state;
-      const copy = STRICT_DISPLAY_COPY[state];
-      result[sectionId].push({
-        assigneeUserId: row.assignee_user_id,
-        detail: row.task_rules.managed_items?.name ?? "管理対象なし",
-        ...(row.task_rules.managed_items === null
-          ? {}
-          : { detailHref: `/managed-items/${row.task_rules.managed_items.id}` }),
-        id: row.id,
-        managedItemId: row.task_rules.managed_items?.id ?? null,
-        meta: `${describeStrictScheduleFromIso(state, row.due_at)} ・ ${
-          recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
-        }`,
-        occurrenceId: row.id,
-        title: row.task_rules.title,
-        tone: copy.tone,
-      });
+      const dated = buildDatedStrictItem(row, dueAt, scheduledFor, nowIso);
+      if (dated !== null) result[dated.sectionId].push(dated.item);
     });
 
   return result;
@@ -248,6 +298,7 @@ function buildHomeSections(
     reminder: reminderItems,
     recent: recentItems,
     today: strictItems.today,
+    undated: strictItems.undated,
     upcoming: strictItems.upcoming,
   };
 
@@ -292,7 +343,7 @@ function TaskTitle({ item }: { item: HomeItem }) {
         )}
       </h3>
       <span className={`tone-label tone-${item.tone}`}>
-        {TONE_LABELS[item.tone]}
+        {item.badge ?? TONE_LABELS[item.tone]}
       </span>
     </div>
   );
@@ -328,6 +379,14 @@ function TaskActions({
           occurrenceId={pendingOccurrenceId}
           taskTitle={item.title}
         />
+        {item.oneTimeScheduledFor !== undefined ? (
+          <SchedulePanel
+            managedItemId={item.managedItemId ?? null}
+            occurrenceId={pendingOccurrenceId}
+            scheduledFor={item.oneTimeScheduledFor}
+            taskTitle={item.title}
+          />
+        ) : null}
       </>
     );
   }

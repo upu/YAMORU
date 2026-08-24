@@ -21,6 +21,7 @@ import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { CorrectionPanel } from "./correction-panel";
 import { PostponePanel } from "./postpone-panel";
+import { SchedulePanel } from "./schedule-panel";
 import {
   MAINTENANCE_DISPLAY_COPY,
   STRICT_DISPLAY_COPY,
@@ -41,11 +42,11 @@ type ExternalLinkData = { id: string; url: string };
 type PendingTodoData = {
   assigneeUserId: string | null;
   badge: string;
-  dueAt: string;
+  dueAt: string | null;
   id: string;
   meta: string;
   recurrenceBasis: RecurrenceBasis;
-  scheduledFor: string;
+  scheduledFor: string | null;
   title: string;
   tone: TodoTone;
 };
@@ -89,9 +90,9 @@ type ActivityLogRow = {
 type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
   assignee_user_id: string | null;
-  due_at: string;
+  due_at: string | null;
   id: string;
-  scheduled_for: string;
+  scheduled_for: string | null;
   status: string;
 };
 type TaskRuleRow = {
@@ -105,56 +106,91 @@ type TaskRuleRow = {
 // home/detail間で期限分類・日時表示の結果をそろえる(Issue #36)。ホームは
 // 急かさないため推奨期間前(before-window)を非表示にするが、詳細は台帳の
 // 全体像を見る画面のため、推奨期間前も含めすべての未完了Todoを表示する。
-function buildPendingTodos(
-  taskRules: TaskRuleRow[],
+function buildDatedPendingTodo(
+  rule: TaskRuleRow,
+  occurrence: TaskOccurrenceRow,
+  scheduledFor: string,
+  dueAt: string,
   nowIso: string,
-): PendingTodoData[] {
-  return taskRules
-    .flatMap((rule) => {
-      const deadlineKind = toDeadlineKind(rule.deadline_kind);
-      const recurrenceBasis = toRecurrenceBasis(rule.recurrence_basis);
-      return rule.task_occurrences
-        .filter((occurrence) => occurrence.status === "pending")
-        .map((occurrence) => {
-          if (recurrenceBasis !== "completion") {
-            if (deadlineKind !== "strict") {
-              throw new Error("厳密な期限Todoの期限方式が不正です。");
-            }
-            const state = getStrictDisplayStateFromIso(occurrence.due_at, nowIso);
-            const copy = STRICT_DISPLAY_COPY[state];
-            return {
-              assigneeUserId: occurrence.assignee_user_id,
-              badge: copy.badge,
-              dueAt: occurrence.due_at,
-              id: occurrence.id,
-              meta: describeStrictScheduleFromIso(state, occurrence.due_at),
-              recurrenceBasis,
-              scheduledFor: occurrence.scheduled_for,
-              title: rule.title,
-              tone: copy.tone,
-            };
-          }
+): PendingTodoData {
+  const deadlineKind = toDeadlineKind(rule.deadline_kind);
+  const recurrenceBasis = toRecurrenceBasis(rule.recurrence_basis);
+  if (recurrenceBasis !== "completion") {
+    if (deadlineKind !== "strict") {
+      throw new Error("厳密な期限Todoの期限方式が不正です。");
+    }
+    const state = getStrictDisplayStateFromIso(dueAt, nowIso);
+    const copy = STRICT_DISPLAY_COPY[state];
+    return {
+      assigneeUserId: occurrence.assignee_user_id,
+      badge: copy.badge,
+      dueAt,
+      id: occurrence.id,
+      meta: describeStrictScheduleFromIso(state, dueAt),
+      recurrenceBasis,
+      scheduledFor,
+      title: rule.title,
+      tone: copy.tone,
+    };
+  }
+  if (deadlineKind !== "maintenance") {
+    throw new Error("完了日基準Todoの期限方式が不正です。");
+  }
+  const window = { dueAt, scheduledFor };
+  const state = getMaintenanceDisplayStateFromIso(window, nowIso);
+  const copy = MAINTENANCE_DISPLAY_COPY[state];
+  return {
+    assigneeUserId: occurrence.assignee_user_id,
+    badge: copy.badge,
+    dueAt,
+    id: occurrence.id,
+    meta: describeMaintenanceWindowFromIso(state, window),
+    recurrenceBasis,
+    scheduledFor,
+    title: rule.title,
+    tone: copy.tone,
+  };
+}
 
-          if (deadlineKind !== "maintenance") {
-            throw new Error("完了日基準Todoの期限方式が不正です。");
-          }
-          const window = { dueAt: occurrence.due_at, scheduledFor: occurrence.scheduled_for };
-          const state = getMaintenanceDisplayStateFromIso(window, nowIso);
-          const copy = MAINTENANCE_DISPLAY_COPY[state];
-          return {
-            assigneeUserId: occurrence.assignee_user_id,
-            badge: copy.badge,
-            dueAt: occurrence.due_at,
-            id: occurrence.id,
-            meta: describeMaintenanceWindowFromIso(state, window),
-            recurrenceBasis,
-            scheduledFor: occurrence.scheduled_for,
-            title: rule.title,
-            tone: copy.tone,
-          };
-        });
-    })
-    .sort((left, right) => left.scheduledFor.localeCompare(right.scheduledFor));
+function buildPendingTodo(
+  rule: TaskRuleRow,
+  occurrence: TaskOccurrenceRow,
+  nowIso: string,
+): PendingTodoData {
+  const scheduledFor = occurrence.scheduled_for;
+  const dueAt = occurrence.due_at;
+  if ((scheduledFor === null) !== (dueAt === null)) {
+    throw new Error("Todoの予定日と期限の組み合わせが不正です。");
+  }
+  if (scheduledFor !== null && dueAt !== null) {
+    return buildDatedPendingTodo(rule, occurrence, scheduledFor, dueAt, nowIso);
+  }
+  const deadlineKind = toDeadlineKind(rule.deadline_kind);
+  const recurrenceBasis = toRecurrenceBasis(rule.recurrence_basis);
+  if (recurrenceBasis !== "once" || deadlineKind !== "strict") {
+    throw new Error("予定日未定を利用できないTodoです。");
+  }
+  return {
+    assigneeUserId: occurrence.assignee_user_id,
+    badge: "未定",
+    dueAt: null,
+    id: occurrence.id,
+    meta: "予定日: 未定",
+    recurrenceBasis,
+    scheduledFor: null,
+    title: rule.title,
+    tone: "upcoming",
+  };
+}
+
+function buildPendingTodos(taskRules: TaskRuleRow[], nowIso: string): PendingTodoData[] {
+  return taskRules
+    .flatMap((rule) => rule.task_occurrences
+      .filter((occurrence) => occurrence.status === "pending")
+      .map((occurrence) => buildPendingTodo(rule, occurrence, nowIso)))
+    .sort((left, right) =>
+      (left.scheduledFor ?? "").localeCompare(right.scheduledFor ?? "")
+    );
 }
 
 // 取消されていない直近の完了(occurred_at基準)を、全TaskRuleを横断して1件返す
@@ -195,6 +231,55 @@ function buildRecentCompletions(
     .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt));
 }
 
+function PendingTodoActions({
+  actorName,
+  currentUserId,
+  managedItemId,
+  members,
+  todo,
+}: {
+  actorName: string;
+  currentUserId: string;
+  managedItemId: string;
+  members: HouseholdMemberOption[];
+  todo: PendingTodoData;
+}) {
+  return (
+    <>
+      <AssigneePanel
+        assigneeUserId={todo.assigneeUserId}
+        managedItemId={managedItemId}
+        members={members}
+        occurrenceId={todo.id}
+        taskTitle={todo.title}
+      />
+      <CompleteTodoPanel
+        actorName={actorName}
+        currentUserId={currentUserId}
+        managedItemId={managedItemId}
+        members={members}
+        occurrenceId={todo.id}
+        taskTitle={todo.title}
+      />
+      {todo.recurrenceBasis === "once" ? (
+        <SchedulePanel
+          managedItemId={managedItemId}
+          occurrenceId={todo.id}
+          scheduledFor={todo.scheduledFor}
+          taskTitle={todo.title}
+        />
+      ) : null}
+      {todo.scheduledFor === null ? null : (
+        <PostponePanel
+          managedItemId={managedItemId}
+          occurrenceId={todo.id}
+          taskTitle={todo.title}
+        />
+      )}
+    </>
+  );
+}
+
 function PendingTodoSection({
   actorName,
   currentUserId,
@@ -226,25 +311,12 @@ function PendingTodoSection({
                 {RECURRENCE_LABELS[todo.recurrenceBasis]}
               </span>
               <span>{todo.meta}</span>
-              <AssigneePanel
-                assigneeUserId={todo.assigneeUserId}
-                managedItemId={managedItemId}
-                members={members}
-                occurrenceId={todo.id}
-                taskTitle={todo.title}
-              />
-              <CompleteTodoPanel
+              <PendingTodoActions
                 actorName={actorName}
                 currentUserId={currentUserId}
                 managedItemId={managedItemId}
                 members={members}
-                occurrenceId={todo.id}
-                taskTitle={todo.title}
-              />
-              <PostponePanel
-                managedItemId={managedItemId}
-                occurrenceId={todo.id}
-                taskTitle={todo.title}
+                todo={todo}
               />
             </li>
           ))}

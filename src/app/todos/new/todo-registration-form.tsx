@@ -305,8 +305,10 @@ function OneTimeFields() {
   return (
     <div className="todo-fieldset">
       <label htmlFor="todo-planned-date">予定日</label>
-      <input id="todo-planned-date" name="plannedDate" required type="date" />
-      <p className="input-help">完了しても次のTodoは作成されません。</p>
+      <input id="todo-planned-date" name="plannedDate" type="date" />
+      <p className="input-help">
+        日付がまだ決まっていない場合は、空欄で登録できます。完了しても次のTodoは作成されません。
+      </p>
     </div>
   );
 }

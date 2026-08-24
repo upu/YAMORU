@@ -9,6 +9,7 @@ import {
   correctCompletionOccurredAt as correctCompletionOccurredAtInD1,
   correctCompletionPerformer as correctCompletionPerformerInD1,
   postponeTaskOccurrence as postponeTaskOccurrenceInD1,
+  setOneTimeTaskSchedule as setOneTimeTaskScheduleInD1,
   setTaskOccurrenceAssignee as setTaskOccurrenceAssigneeInD1,
   undoTaskCompletion,
 } from "../../../lib/d1/todos";
@@ -246,6 +247,59 @@ export async function postponeTaskOccurrence(
     message: `${formatTokyoDate(dueAtIso)}まで延期しました。`,
     status: "success",
   };
+}
+
+const ONLY_ONE_TIME_SCHEDULE_MESSAGE_FRAGMENT = "Only one-time tasks can have an undated schedule";
+const INVALID_SCHEDULE_DATE: MaintenanceTodoActionState = {
+  message: "予定日を正しく入力してください。",
+  status: "error",
+};
+
+async function updateTaskOccurrenceSchedule(
+  managedItemId: string | null,
+  occurrenceId: string,
+  scheduledFor: string | null,
+): Promise<MaintenanceTodoActionState | null> {
+  try {
+    const { db, session } = await getD1Context();
+    await setOneTimeTaskScheduleInD1(db, session, occurrenceId, scheduledFor);
+  } catch (error) {
+    return mapRpcError(
+      errorMessage(error),
+      [
+        {
+          fragment: ONLY_ONE_TIME_SCHEDULE_MESSAGE_FRAGMENT,
+          response: { message: "繰り返しTodoの予定日は未定にできません。", status: "error" },
+        },
+        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
+      ],
+      { message: "予定日を変更できませんでした。時間をおいて再度お試しください。", status: "error" },
+    );
+  }
+  revalidateManagedItemAndHome(managedItemId);
+  return null;
+}
+
+export async function setTaskOccurrenceSchedule(
+  managedItemId: string | null,
+  occurrenceId: string,
+  scheduledOn: string,
+): Promise<MaintenanceTodoActionState> {
+  const scheduledFor = tokyoDateToUtcIso(scheduledOn);
+  if (scheduledFor === null) return INVALID_SCHEDULE_DATE;
+  const error = await updateTaskOccurrenceSchedule(managedItemId, occurrenceId, scheduledFor);
+  return error ?? {
+    message: `予定日を${formatTokyoDate(scheduledFor)}に設定しました。`,
+    status: "success",
+  };
+}
+
+export async function unsetTaskOccurrenceSchedule(
+  managedItemId: string | null,
+  occurrenceId: string,
+): Promise<MaintenanceTodoActionState> {
+  const error = await updateTaskOccurrenceSchedule(managedItemId, occurrenceId, null);
+  return error ?? { message: "予定日を未定に戻しました。", status: "success" };
 }
 
 const NOT_COMPLETED_MESSAGE_FRAGMENT = "is not completed";

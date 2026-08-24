@@ -9,6 +9,7 @@ import classificationSql from "../../../d1/migrations/0005_managed_item_classifi
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
+import undatedTodosSql from "../../../d1/migrations/0009_undated_one_time_todos.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -20,6 +21,7 @@ import {
   listHouseholdInvitations,
 } from "./invitations";
 import { createFirstHousehold, createProfile, updateProfile } from "./households";
+import { listPendingOccurrences } from "./home";
 import {
   createManagedItem,
   getManagedItem,
@@ -36,6 +38,7 @@ import {
   createMaintenanceTask,
   createOneTimeTask,
   postponeTaskOccurrence,
+  setOneTimeTaskSchedule,
   setTaskOccurrenceAssignee,
   undoTaskCompletion,
 } from "./todos";
@@ -62,6 +65,21 @@ function migrationStatements(): string[] {
     .split(";")
     .map((statement) => statement.trim())
     .filter(Boolean);
+}
+
+function triggerAwareStatements(sql: string): string[] {
+  const cleaned = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  const triggers = [...cleaned.matchAll(/CREATE TRIGGER[\s\S]*?END;/g)]
+    .map(([statement]) => statement.trim());
+  const regular = cleaned
+    .replaceAll(/CREATE TRIGGER[\s\S]*?END;/g, "")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  return [...regular, ...triggers];
 }
 
 async function occurrenceForRule(ruleId: string): Promise<{
@@ -93,6 +111,7 @@ async function createHouseholdAMaintenanceTask(): Promise<{
 
 beforeAll(async () => {
   await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
+  await db.batch(triggerAwareStatements(undatedTodosSql).map((statement) => db.prepare(statement)));
 });
 
 beforeEach(async () => {
@@ -371,6 +390,105 @@ describe("D1 profile and household creation", () => {
     await expect(db.prepare(
       "SELECT count(*) AS count FROM household_members WHERE user_id = 'user-outsider'",
     ).first<{ count: number }>()).resolves.toMatchObject({ count: 0 });
+  });
+});
+
+describe("D1 undated one-time Todo constraints and authorization", () => {
+  it("他家庭の管理対象へ日付未定Todoを作成できず、一覧にも混在しない", async () => {
+    await expect(createOneTimeTask(db, householdAMember, {
+      managedItemId: "item-b",
+      scheduledFor: null,
+      title: "Cross-household task",
+    })).rejects.toThrow("Managed item not found");
+
+    const bRuleId = await createOneTimeTask(db, householdBMember, {
+      managedItemId: null,
+      scheduledFor: null,
+      title: "B undated task",
+    });
+    const bOccurrence = await occurrenceForRule(bRuleId);
+
+    expect((await listPendingOccurrences(db, householdAMember)).map(({ id }) => id))
+      .not.toContain(bOccurrence.id);
+    expect((await listPendingOccurrences(db, householdBMember)).map(({ id }) => id))
+      .toContain(bOccurrence.id);
+  });
+
+  it("日付未定の一回限りTodoを作成し、未定のまま完了して次回を作らない", async () => {
+    const ruleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: null,
+      title: "Undated one-time task",
+    });
+    const occurrence = await occurrenceForRule(ruleId);
+
+    await expect(db.prepare(
+      "SELECT scheduled_for, due_at, status FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrence.id).first()).resolves.toMatchObject({
+      due_at: null,
+      scheduled_for: null,
+      status: "pending",
+    });
+
+    const nextId = await completeTask(db, householdAMember, {
+      idempotencyKey: "complete-undated",
+      occurredAt: "2026-08-05T00:00:00.000Z",
+      occurrenceId: occurrence.id,
+      performedByUserId: null,
+    });
+
+    expect(nextId).toBeNull();
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM task_occurrences WHERE task_rule_id = ?1",
+    ).bind(ruleId).first<{ count: number }>()).resolves.toMatchObject({ count: 1 });
+    await expect(db.prepare(
+      "SELECT action FROM activity_logs WHERE task_occurrence_id = ?1",
+    ).bind(occurrence.id).first()).resolves.toMatchObject({ action: "completed" });
+  });
+
+  it("片方だけがNULLのOccurrenceと、繰り返しTodoの日付NULLを拒否する", async () => {
+    await db.prepare(
+      "INSERT INTO task_rules (id, household_id, title, recurrence_basis, deadline_kind) VALUES ('once-null-rule', 'household-a', 'Once', 'once', 'strict')",
+    ).run();
+    await expect(db.prepare(
+      "INSERT INTO task_occurrences (id, household_id, task_rule_id, scheduled_for, due_at) VALUES ('half-null', 'household-a', 'once-null-rule', NULL, '2026-09-01T00:00:00.000Z')",
+    ).run()).rejects.toThrow();
+
+    await db.prepare(
+      "INSERT INTO task_rules (id, household_id, title, recurrence_basis, deadline_kind, recommended_start_offset, recommended_until_offset) VALUES ('repeat-null-rule', 'household-a', 'Repeat', 'completion', 'maintenance', 1, 2)",
+    ).run();
+    await expect(db.prepare(
+      "INSERT INTO task_occurrences (id, household_id, task_rule_id, scheduled_for, due_at) VALUES ('repeat-null', 'household-a', 'repeat-null-rule', NULL, NULL)",
+    ).run()).rejects.toThrow();
+  });
+
+  it("一回限りTodoの予定日を設定・未定化し、他家庭からの変更を拒否する", async () => {
+    const ruleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: null,
+      title: "Undated one-time task",
+    });
+    const occurrence = await occurrenceForRule(ruleId);
+    await setOneTimeTaskSchedule(
+      db, householdAMember, occurrence.id, "2026-09-01T15:00:00.000Z",
+    );
+    await expect(db.prepare(
+      "SELECT scheduled_for, due_at FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrence.id).first()).resolves.toMatchObject({
+      due_at: "2026-09-01T15:00:00.000Z",
+      scheduled_for: "2026-09-01T15:00:00.000Z",
+    });
+
+    await expect(setOneTimeTaskSchedule(
+      db, householdBMember, occurrence.id, null,
+    )).rejects.toThrow("Occurrence not found");
+    await setOneTimeTaskSchedule(db, householdAMember, occurrence.id, null);
+    await expect(db.prepare(
+      "SELECT scheduled_for, due_at FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrence.id).first()).resolves.toMatchObject({
+      due_at: null,
+      scheduled_for: null,
+    });
   });
 });
 
