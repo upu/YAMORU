@@ -32,7 +32,7 @@ describe("管理対象登録", () => {
     expect(
       screen.getByRole("heading", { name: "家庭を作成してください" }),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("台帳での名前")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "家庭を作成する" })).toHaveAttribute(
       "href",
       "/account",
@@ -52,7 +52,7 @@ describe("管理対象登録", () => {
       "/managed-items",
     );
     const form = screen.getByRole("region", { name: "登録内容" });
-    expect(within(form).getByLabelText("台帳での名前")).toHaveAttribute(
+    expect(within(form).getByLabelText("名前")).toHaveAttribute(
       "maxLength",
       "100",
     );

@@ -83,7 +83,7 @@ function PurchaseDateFields({
   );
 }
 
-// Issue #42: 台帳での名前(家庭内での呼び名)とは別に、購入した商品を
+// Issue #42: 家庭内での呼び名(name)とは別に、購入した商品を
 // 見分けるための情報とメモを任意で残す。型番だけを必須の項目にすると
 // 正確な型番が分からない対象で入力しづらいため、一つの自由入力にする。
 export function ManagedItemOptionalAttributeFields({
@@ -113,8 +113,8 @@ export function ManagedItemOptionalAttributeFields({
         type="text"
       />
       <p id={`${idPrefix}-product-info-help`}>
-        上の「名前」は家庭内での呼び名です。こちらにはメーカー名、商品名、型番など、
-        購入した商品を見分けるための情報を分かる範囲で書けます。
+        メーカー名、商品名、型番など、購入した商品を見分けるための情報を
+        分かる範囲で書けます。型番だけを正確に入力する必要はありません。
       </p>
 
       <PurchaseDateFields idPrefix={idPrefix} purchasedOn={purchasedOn} />

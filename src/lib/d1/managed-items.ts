@@ -40,7 +40,7 @@ export type TaskRuleRow = {
   task_occurrences: TaskOccurrenceRow[];
   title: string;
 };
-// Issue #42: 台帳での名前とは別に残す任意の記録。いずれも未設定を許す。
+// Issue #42: 家庭内での呼び名(name)とは別に残す任意の記録。いずれも未設定を許す。
 export type ManagedItemOptionalAttributes = {
   note: string | null;
   productInfo: string | null;

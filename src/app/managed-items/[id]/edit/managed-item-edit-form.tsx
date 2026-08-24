@@ -51,7 +51,7 @@ function ManagedItemEditFields({
 }) {
   return (
     <>
-      <label htmlFor="managed-item-edit-name">台帳での名前</label>
+      <label htmlFor="managed-item-edit-name">名前</label>
       <input
         aria-describedby="managed-item-edit-name-help"
         autoComplete="off"
@@ -59,11 +59,12 @@ function ManagedItemEditFields({
         id="managed-item-edit-name"
         maxLength={100}
         name="name"
+        placeholder="例: リビングのエアコン"
         required
         type="text"
       />
       <p id="managed-item-edit-name-help">
-        家庭内でこの管理対象を見分けるための呼び名です。
+        家庭内でこの管理対象を見分けるための呼び名です。メーカー名や型番は下の欄に書けます。
       </p>
 
       <ManagedItemClassificationFields

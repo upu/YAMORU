@@ -37,13 +37,13 @@ const DETAIL_BASE: ManagedItemDetailData = {
 };
 
 describe("ManagedItemの任意の記録(Issue #42)", () => {
-  it("登録画面で台帳での名前と商品情報を別の欄として案内する", () => {
+  it("登録画面で名前と商品情報を別の欄として案内する", () => {
     render(<ManagedItemForm classificationOptions={CLASSIFICATION_OPTIONS} />);
 
-    expect(screen.getByLabelText("台帳での名前")).toBeRequired();
-    expect(
-      screen.getByText("家庭内でこの管理対象を見分けるための呼び名です。"),
-    ).toBeInTheDocument();
+    // ラベルは「名前」のまま。商品情報との違いは補足文で伝える。
+    expect(screen.getByLabelText("名前")).toBeRequired();
+    expect(screen.getByText(/家庭内でこの管理対象を見分けるための呼び名です。/u))
+      .toHaveTextContent("メーカー名や型番は下の欄に書けます。");
 
     const productInfo = screen.getByLabelText("メーカー・商品名など（任意）");
     expect(productInfo).not.toBeRequired();
