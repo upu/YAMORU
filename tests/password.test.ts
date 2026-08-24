@@ -4,7 +4,7 @@ import {
   PASSWORD_HASH_ITERATIONS,
   hashPassword,
   verifyPassword,
-} from "../lib/auth/password";
+} from "../src/lib/auth/password";
 
 describe("password hashing", () => {
   it("PBKDF2-SHA-256のversioned形式で平文を含まないhashを作る", async () => {

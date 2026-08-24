@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDateInput,
   getMaintenanceDisplayStateFromIso,
-} from "../app/time-zone";
+} from "../src/app/time-zone";
 
 // scheduled_for/due_atはUTCタイムスタンプとしてDBから返る。ここでは
 // Asia/Tokyoの07/10 09:00 JST(0時ではない)前後の値を使い、UTCの暦日と

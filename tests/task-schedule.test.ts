@@ -12,7 +12,7 @@ import {
   parseDateOnly,
   STRICT_DISPLAY_COPY,
   toRecurrenceBasis,
-} from "../app/task-schedule";
+} from "../src/app/task-schedule";
 
 it("定例日基準を既知の繰り返し方式として扱う", () => {
   expect(toRecurrenceBasis("calendar")).toBe("calendar");

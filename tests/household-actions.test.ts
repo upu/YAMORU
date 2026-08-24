@@ -9,11 +9,11 @@ const { createFirstHouseholdInD1Mock, getD1ContextMock, redirectMock, revalidate
   }),
 );
 
-vi.mock("../lib/d1/context", () => ({
+vi.mock("../src/lib/d1/context", () => ({
   getD1Context: getD1ContextMock,
 }));
 
-vi.mock("../lib/d1/households", () => ({
+vi.mock("../src/lib/d1/households", () => ({
   createFirstHousehold: createFirstHouseholdInD1Mock,
   createProfile: vi.fn(),
   updateProfile: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { createFirstHousehold } from "../app/household/actions";
+import { createFirstHousehold } from "../src/app/household/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

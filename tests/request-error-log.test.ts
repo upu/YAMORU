@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { onRequestError } from "../instrumentation";
+import { onRequestError } from "../src/instrumentation";
 import {
   buildRequestErrorLog,
   formatRequestErrorLog,
   type RequestErrorContext,
-} from "../lib/observability/request-error";
+} from "../src/lib/observability/request-error";
 
 const CONTEXT: RequestErrorContext = {
   renderSource: "react-server-components",

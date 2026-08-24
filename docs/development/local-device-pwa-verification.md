@@ -59,7 +59,7 @@ iPhoneでは次の手順で設定する。
 
 ### iPhone 16の起動画面
 
-iPhone 16の縦向きでは、393×852pt（1179×2556px、@3x）に対応するYAMORU起動画面を表示する。`app/layout.tsx`の`appleWebApp.startupImage`は、次の条件で`public/pwa/yamoru-startup-iphone-16-portrait.png`を選ぶ。
+iPhone 16の縦向きでは、393×852pt（1179×2556px、@3x）に対応するYAMORU起動画面を表示する。`src/app/layout.tsx`の`appleWebApp.startupImage`は、次の条件で`public/pwa/yamoru-startup-iphone-16-portrait.png`を選ぶ。
 
 ```text
 (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)

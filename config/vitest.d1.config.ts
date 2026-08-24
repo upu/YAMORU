@@ -10,6 +10,6 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ["lib/d1/**/*.d1-test.ts"],
+    include: ["src/lib/d1/**/*.d1-test.ts"],
   },
 });

@@ -7,12 +7,12 @@ const { authMock, getD1DatabaseMock, getUserForSessionMock } = vi.hoisted(() => 
   getUserForSessionMock: vi.fn(),
 }));
 
-vi.mock("../auth", () => ({ auth: authMock }));
-vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
-vi.mock("../lib/d1/authentication", () => ({ getUserForSession: getUserForSessionMock }));
+vi.mock("../src/auth", () => ({ auth: authMock }));
+vi.mock("../src/lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../src/lib/d1/authentication", () => ({ getUserForSession: getUserForSessionMock }));
 
-import { authConfig } from "../auth.config";
-import { getCurrentUser } from "../lib/auth/current-user";
+import { authConfig } from "../src/auth.config";
+import { getCurrentUser } from "../src/lib/auth/current-user";
 
 describe("Auth.js認証境界", () => {
   beforeEach(() => {

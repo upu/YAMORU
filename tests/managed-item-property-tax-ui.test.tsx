@@ -3,12 +3,12 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../auth", () => ({ auth: vi.fn() }));
+vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
-import { ManagedItemDetailContent } from "../app/managed-items/[id]/page";
-import { ManagedItemEditForm } from "../app/managed-items/[id]/edit/managed-item-edit-form";
-import { ManagedItemForm } from "../app/managed-items/managed-item-form";
-import { ManagedItemsContent } from "../app/managed-items/page";
+import { ManagedItemDetailContent } from "../src/app/managed-items/[id]/page";
+import { ManagedItemEditForm } from "../src/app/managed-items/[id]/edit/managed-item-edit-form";
+import { ManagedItemForm } from "../src/app/managed-items/managed-item-form";
+import { ManagedItemsContent } from "../src/app/managed-items/page";
 
 afterEach(cleanup);
 

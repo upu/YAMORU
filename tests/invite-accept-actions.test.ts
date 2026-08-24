@@ -16,15 +16,15 @@ const {
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/invitations", () => ({
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/invitations", () => ({
   acceptInvitationForExistingUser: acceptInvitationMock,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 
-import { acceptInvitationClaim } from "../app/invitations/accept/confirm/actions";
+import { acceptInvitationClaim } from "../src/app/invitations/accept/confirm/actions";
 
 function cookieStore(claimSecret: string | undefined) {
   const deleteMock = vi.fn();

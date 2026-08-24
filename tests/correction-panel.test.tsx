@@ -13,13 +13,13 @@ const {
   undoMaintenanceTaskCompletionMock: vi.fn(),
 }));
 
-vi.mock("../app/managed-items/[id]/actions", () => ({
+vi.mock("../src/app/managed-items/[id]/actions", () => ({
   correctCompletionOccurredAt: correctCompletionOccurredAtMock,
   correctCompletionPerformer: correctCompletionPerformerMock,
   undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
 
-import { CorrectionPanel } from "../app/managed-items/[id]/correction-panel";
+import { CorrectionPanel } from "../src/app/managed-items/[id]/correction-panel";
 
 afterEach(cleanup);
 

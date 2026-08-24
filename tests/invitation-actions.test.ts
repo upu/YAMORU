@@ -10,8 +10,8 @@ const { cancelInvitationMock, getD1ContextMock, headersMock, issueInvitationMock
   }),
 );
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/invitations", () => ({
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/invitations", () => ({
   cancelHouseholdInvitation: cancelInvitationMock,
   issueHouseholdInvitation: issueInvitationMock,
 }));
@@ -24,7 +24,7 @@ vi.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-import { cancelInvitation, issueInvitation } from "../app/household/invitation-actions";
+import { cancelInvitation, issueInvitation } from "../src/app/household/invitation-actions";
 
 const INITIAL_ISSUE_STATE = { status: "idle" } as const;
 const INITIAL_CANCEL_STATE = { message: "", status: "idle" } as const;

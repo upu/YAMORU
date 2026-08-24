@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { getPlatformProxy, type PlatformProxy } from "wrangler";
 
-import { hashPassword } from "../lib/auth/password";
-import { createManagedItem } from "../lib/d1/managed-items";
-import { createOneTimeTask } from "../lib/d1/todos";
+import { hashPassword } from "../src/lib/auth/password";
+import { createManagedItem } from "../src/lib/d1/managed-items";
+import { createOneTimeTask } from "../src/lib/d1/todos";
 import { E2E_WRANGLER_ENVIRONMENT } from "../scripts/e2e-environment";
-import { formatDateInput } from "../app/time-zone";
+import { formatDateInput } from "../src/app/time-zone";
 
 const OWNER = { email: "owner@example.test", password: "owner-password-value" };
 let platform: PlatformProxy<CloudflareEnv>;

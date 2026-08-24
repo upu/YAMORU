@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { toSafeRedirectPath } from "../lib/auth/safe-redirect";
+import { toSafeRedirectPath } from "../src/lib/auth/safe-redirect";
 
 describe("toSafeRedirectPath", () => {
   it.each([

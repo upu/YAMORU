@@ -52,7 +52,7 @@ export default defineConfig([
     // Workers組み込みモジュールを使うためtsconfig.json(DOM libを使う既存app用)の
     // 型検査対象から意図的に除外している(判明した制約としてdocs/spikes/参照)。
     // そのため型情報を要求するprojectServiceの対象からも外す。
-    files: ["lib/d1/**/*.d1-test.ts"],
+    files: ["src/lib/d1/**/*.d1-test.ts"],
     extends: [tseslint.configs.disableTypeChecked],
     rules: {
       "max-lines-per-function": [

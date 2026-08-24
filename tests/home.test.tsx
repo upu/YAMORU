@@ -17,7 +17,7 @@ const {
   undoMaintenanceTaskCompletionMock: vi.fn(),
 }));
 
-vi.mock("../app/managed-items/[id]/actions", () => ({
+vi.mock("../src/app/managed-items/[id]/actions", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
   correctCompletionOccurredAt: correctCompletionOccurredAtMock,
   correctCompletionPerformer: correctCompletionPerformerMock,
@@ -25,7 +25,7 @@ vi.mock("../app/managed-items/[id]/actions", () => ({
   undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
 
-vi.mock("../auth", () => ({ auth: vi.fn() }));
+vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
 import {
   buildReminderItems,
@@ -35,7 +35,7 @@ import {
   type HomeSection,
   type PendingOccurrenceRow,
   type RecentCompletionRow,
-} from "../app/page";
+} from "../src/app/page";
 
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
 const ACTOR_NAME = "ぽっぷ";

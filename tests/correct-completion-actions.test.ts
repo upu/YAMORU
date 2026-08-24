@@ -12,8 +12,8 @@ const {
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({
   correctCompletionOccurredAt: correctCompletionOccurredAtMock,
   correctCompletionPerformer: correctCompletionPerformerMock,
 }));
@@ -22,7 +22,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import {
   correctCompletionOccurredAt,
   correctCompletionPerformer,
-} from "../app/managed-items/[id]/actions";
+} from "../src/app/managed-items/[id]/actions";
 
 describe("実施日時の訂正操作(Issue #148)", () => {
   beforeEach(() => {

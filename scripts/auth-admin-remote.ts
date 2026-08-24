@@ -3,7 +3,7 @@ import { unstable_dev } from "wrangler";
 import type {
   AuthAdminCommand,
   AuthAdminEnvironment,
-} from "../lib/auth/admin-command.ts";
+} from "../src/lib/auth/admin-command.ts";
 
 type RemoteAuthAdminEnvironment = Exclude<AuthAdminEnvironment, "local">;
 

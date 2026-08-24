@@ -3,9 +3,9 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../auth", () => ({ auth: vi.fn() }));
+vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
-import { ManagedItemRegistrationContent } from "../app/managed-items/new/page";
+import { ManagedItemRegistrationContent } from "../src/app/managed-items/new/page";
 
 afterEach(cleanup);
 

@@ -6,11 +6,11 @@ const { getD1ContextMock, postponeTaskMock, revalidatePathMock } = vi.hoisted(()
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({ postponeTaskOccurrence: postponeTaskMock }));
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({ postponeTaskOccurrence: postponeTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { postponeTaskOccurrence } from "../app/managed-items/[id]/actions";
+import { postponeTaskOccurrence } from "../src/app/managed-items/[id]/actions";
 
 describe("未完了Todoの延期操作(Issue #19)", () => {
   beforeEach(() => {

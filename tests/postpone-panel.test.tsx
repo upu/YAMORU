@@ -7,11 +7,11 @@ const { postponeTaskOccurrenceMock } = vi.hoisted(() => ({
   postponeTaskOccurrenceMock: vi.fn(),
 }));
 
-vi.mock("../app/managed-items/[id]/actions", () => ({
+vi.mock("../src/app/managed-items/[id]/actions", () => ({
   postponeTaskOccurrence: postponeTaskOccurrenceMock,
 }));
 
-import { PostponePanel } from "../app/managed-items/[id]/postpone-panel";
+import { PostponePanel } from "../src/app/managed-items/[id]/postpone-panel";
 
 afterEach(cleanup);
 

@@ -8,12 +8,12 @@ const { claimTaskOccurrenceAssigneeMock, setTaskOccurrenceAssigneeMock } = vi.ho
   setTaskOccurrenceAssigneeMock: vi.fn(),
 }));
 
-vi.mock("../app/managed-items/[id]/actions", () => ({
+vi.mock("../src/app/managed-items/[id]/actions", () => ({
   claimTaskOccurrenceAssignee: claimTaskOccurrenceAssigneeMock,
   setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
 }));
 
-import { AssigneePanel } from "../app/managed-items/[id]/assignee-panel";
+import { AssigneePanel } from "../src/app/managed-items/[id]/assignee-panel";
 
 afterEach(cleanup);
 

@@ -16,18 +16,18 @@ const {
   signInMock: vi.fn(),
 }));
 
-vi.mock("../auth", () => ({ signIn: signInMock }));
-vi.mock("../lib/auth/password", () => ({
+vi.mock("../src/auth", () => ({ signIn: signInMock }));
+vi.mock("../src/lib/auth/password", () => ({
   MIN_PASSWORD_LENGTH: 8,
   hashPassword: hashPasswordMock,
 }));
-vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
-vi.mock("../lib/d1/invitations", () => ({ registerInvitedUser: registerInvitedUserMock }));
+vi.mock("../src/lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../src/lib/d1/invitations", () => ({ registerInvitedUser: registerInvitedUserMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 
-import { registerFromInvitation } from "../app/invitations/accept/confirm/registration-actions";
-import { D1ConflictError } from "../lib/d1/errors";
+import { registerFromInvitation } from "../src/app/invitations/accept/confirm/registration-actions";
+import { D1ConflictError } from "../src/lib/d1/errors";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

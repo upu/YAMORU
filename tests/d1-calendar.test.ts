@@ -4,7 +4,7 @@ import {
   calendarScheduledForOnOrAfter,
   nextCalendarOccurrence,
   tokyoDateFromIso,
-} from "../lib/d1/calendar";
+} from "../src/lib/d1/calendar";
 
 const EMPTY = {
   scheduleDayOfMonth: null,

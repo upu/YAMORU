@@ -9,24 +9,24 @@ const { getD1ContextMock, loadAccountStateMock, requireUserMock } = vi.hoisted((
   requireUserMock: vi.fn(),
 }));
 
-vi.mock("../lib/auth/current-user", () => ({
+vi.mock("../src/lib/auth/current-user", () => ({
   requireUser: requireUserMock,
 }));
 
-vi.mock("../auth", () => ({
+vi.mock("../src/auth", () => ({
   signIn: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({
+vi.mock("../src/lib/d1/context", () => ({
   getD1Context: getD1ContextMock,
 }));
 
-vi.mock("../lib/d1/households", () => ({
+vi.mock("../src/lib/d1/households", () => ({
   loadAccountState: loadAccountStateMock,
 }));
 
-import AccountPage from "../app/account/page";
-import LoginPage from "../app/login/page";
+import AccountPage from "../src/app/account/page";
+import LoginPage from "../src/app/login/page";
 
 afterEach(() => {
   cleanup();

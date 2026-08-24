@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { selectActiveCompletionLogs } from "../app/active-completion";
+import { selectActiveCompletionLogs } from "../src/app/active-completion";
 
 describe("現在有効な完了ログの選択", () => {
   it("completedのOccurrenceではrecorded_atが最新の完了だけを選ぶ", () => {

@@ -7,11 +7,11 @@ const { revalidatePathMock, signInMock, signOutMock } = vi.hoisted(() => ({
   signOutMock: vi.fn(),
 }));
 
-vi.mock("../auth", () => ({ signIn: signInMock, signOut: signOutMock }));
+vi.mock("../src/auth", () => ({ signIn: signInMock, signOut: signOutMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { login } from "../app/login/actions";
-import { POST as signOut } from "../app/auth/signout/route";
+import { login } from "../src/app/login/actions";
+import { POST as signOut } from "../src/app/auth/signout/route";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

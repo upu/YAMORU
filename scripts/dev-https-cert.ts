@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { resolve } from "node:path";
 
-// YAMORU_ALLOWED_DEV_ORIGINSの解釈は lib/dev-origins.ts の
+// YAMORU_ALLOWED_DEV_ORIGINSの解釈は src/lib/dev-origins.ts の
 // parseAllowedDevOrigins と揃えています。このスクリプトはNode単体で
 // next devより前に実行するため、Next.js経由のTypeScript解決に頼らず
 // 同じ分割ロジックをここに複製しています。

@@ -6,11 +6,11 @@ const { getD1ContextMock, revalidatePathMock, setAssigneeMock } = vi.hoisted(() 
   setAssigneeMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({ setTaskOccurrenceAssignee: setAssigneeMock }));
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({ setTaskOccurrenceAssignee: setAssigneeMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { setTaskOccurrenceAssignee } from "../app/managed-items/[id]/actions";
+import { setTaskOccurrenceAssignee } from "../src/app/managed-items/[id]/actions";
 
 describe("Todoの担当変更操作(Issue #72)", () => {
   beforeEach(() => {

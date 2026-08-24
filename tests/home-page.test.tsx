@@ -21,14 +21,14 @@ const {
   requireUserMock: vi.fn(),
 }));
 
-vi.mock("../lib/auth/current-user", () => ({ requireUser: requireUserMock }));
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/households", () => ({ loadAccountState: loadAccountStateMock }));
-vi.mock("../lib/d1/home", () => ({
+vi.mock("../src/lib/auth/current-user", () => ({ requireUser: requireUserMock }));
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/households", () => ({ loadAccountState: loadAccountStateMock }));
+vi.mock("../src/lib/d1/home", () => ({
   listPendingOccurrences: listPendingOccurrencesMock,
   listRecentActiveCompletions: listRecentActiveCompletionsMock,
 }));
-vi.mock("../lib/d1/profiles", () => ({
+vi.mock("../src/lib/d1/profiles", () => ({
   FALLBACK_OTHER_MEMBER_NAME: "メンバー",
   FALLBACK_SELF_ACTOR_NAME: "あなた",
   loadActorName: loadActorNameMock,
@@ -36,7 +36,7 @@ vi.mock("../lib/d1/profiles", () => ({
   loadProfileNames: vi.fn().mockResolvedValue(new Map()),
 }));
 
-import Home from "../app/page";
+import Home from "../src/app/page";
 
 beforeEach(() => {
   vi.clearAllMocks();

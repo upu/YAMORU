@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isSafeExternalUrl } from "../app/managed-items/model";
+import { isSafeExternalUrl } from "../src/app/managed-items/model";
 
 describe("管理対象の外部リンク", () => {
   it("httpとhttpsの絶対URLだけを安全なリンクとして扱う", () => {

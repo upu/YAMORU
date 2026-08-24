@@ -9,8 +9,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }));
 
-import { RefreshCoordinator, useRefresh } from "../app/refresh-coordinator";
-import { RefreshOnVisible } from "../app/refresh-on-visible";
+import { RefreshCoordinator, useRefresh } from "../src/app/refresh-coordinator";
+import { RefreshOnVisible } from "../src/app/refresh-on-visible";
 
 function RefreshStatusProbe() {
   const { status } = useRefresh();

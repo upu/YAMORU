@@ -33,6 +33,6 @@
   ],
   "exclude": [
     "node_modules",
-    "lib/d1/**/*.d1-test.ts"
+    "src/lib/d1/**/*.d1-test.ts"
   ]
 }

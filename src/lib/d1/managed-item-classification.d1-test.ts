@@ -1,11 +1,11 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schemaSql from "../../d1/migrations/0001_init.sql?raw";
-import authSchemaSql from "../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
-import completionCorrectionsSql from "../../d1/migrations/0004_completion_corrections.sql?raw";
-import classificationSql from "../../d1/migrations/0005_managed_item_classification.sql?raw";
+import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
+import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
+import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
+import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
+import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,

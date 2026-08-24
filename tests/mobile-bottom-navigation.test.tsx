@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
   usePathname: usePathnameMock,
 }));
 
-import { MobileBottomNavigation } from "../app/mobile-bottom-navigation";
+import { MobileBottomNavigation } from "../src/app/mobile-bottom-navigation";
 
 afterEach(cleanup);
 

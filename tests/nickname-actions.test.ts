@@ -14,11 +14,11 @@ const {
   updateProfileMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({
+vi.mock("../src/lib/d1/context", () => ({
   getD1Context: getD1ContextMock,
 }));
 
-vi.mock("../lib/d1/households", () => ({
+vi.mock("../src/lib/d1/households", () => ({
   createFirstHousehold: vi.fn(),
   createProfile: createProfileMock,
   updateProfile: updateProfileMock,
@@ -32,7 +32,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { registerNickname, updateNickname } from "../app/account/actions";
+import { registerNickname, updateNickname } from "../src/app/account/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 function nicknameForm(nickname: string) {

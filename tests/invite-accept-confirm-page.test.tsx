@@ -19,16 +19,16 @@ const {
   redirectMock: vi.fn(),
 }));
 
-vi.mock("../auth", () => ({ signIn: vi.fn() }));
-vi.mock("../lib/auth/current-user", () => ({ getCurrentUser: getCurrentUserMock }));
-vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
-vi.mock("../lib/d1/invitations", () => ({
+vi.mock("../src/auth", () => ({ signIn: vi.fn() }));
+vi.mock("../src/lib/auth/current-user", () => ({ getCurrentUser: getCurrentUserMock }));
+vi.mock("../src/lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../src/lib/d1/invitations", () => ({
   getInvitationClaimState: getInvitationClaimStateMock,
 }));
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
-import AcceptInvitationConfirmPage from "../app/invitations/accept/confirm/page";
+import AcceptInvitationConfirmPage from "../src/app/invitations/accept/confirm/page";
 
 function cookieStore(claimSecret?: string) {
   return { get: vi.fn().mockReturnValue(claimSecret === undefined ? undefined : { value: claimSecret }) };

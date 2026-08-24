@@ -55,7 +55,7 @@ npx wrangler secret put AUTH_SECRET --env production
 
 SecretsはCloudflare側で管理され、読み戻せない。デプロイは`--keep-vars`を使い、Dashboardで管理するruntime変数を消さない。`AUTH_SECRET`を変更すると既存JWTが無効になるため、計画した全員再ログイン時だけローテーションする。
 
-Auth.jsのホスト信頼は`auth.config.ts`の`trustHost: true`で明示している。Cloudflare Workersは受信したHostヘッダーを実際の公開URLから設定するため、公式リファレンスに従いlocal / preview / productionで同じ値を使う。ログイン画面で`There was a problem with the server configuration.`が表示され、`wrangler tail`のログに`UntrustedHost`が出る場合は、この設定が反映されたビルドが配備されているかを確認する(#137)。
+Auth.jsのホスト信頼は`src/auth.config.ts`の`trustHost: true`で明示している。Cloudflare Workersは受信したHostヘッダーを実際の公開URLから設定するため、公式リファレンスに従いlocal / preview / productionで同じ値を使う。ログイン画面で`There was a problem with the server configuration.`が表示され、`wrangler tail`のログに`UntrustedHost`が出る場合は、この設定が反映されたビルドが配備されているかを確認する(#137)。
 
 ## previewへ初回配備して確認する
 
@@ -185,7 +185,7 @@ npx wrangler tail --env production --format pretty
 
 ### サーバ側の例外を特定する
 
-500応答の原因は、Workers Logsに残るスタックだけでは特定できないことがある(Issue #190)。`instrumentation.ts`の`onRequestError`が、処理されなかったサーバ側例外ごとに1行のJSONを`console.error`へ出す。Observabilityでは`yamoru.request_error`で絞り込む。
+500応答の原因は、Workers Logsに残るスタックだけでは特定できないことがある(Issue #190)。`src/instrumentation.ts`の`onRequestError`が、処理されなかったサーバ側例外ごとに1行のJSONを`console.error`へ出す。Observabilityでは`yamoru.request_error`で絞り込む。
 
 ```json
 {"digest":null,"event":"yamoru.request_error","message":"D1_ERROR: ...","name":"Error","renderSource":"react-server-components","routePath":"/household","routeType":"render","routerKind":"App Router"}
