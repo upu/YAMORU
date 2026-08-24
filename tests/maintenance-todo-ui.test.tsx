@@ -22,6 +22,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   lastActivity: null,
   members: [],
   name: "猫の浄水器",
+  note: null,
   pendingTodos: [
     {
       assigneeUserId: null,
@@ -35,6 +36,8 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
       tone: "reminder",
     },
   ],
+  productInfo: null,
+  purchasedOn: null,
   recentCompletions: [],
 };
 
@@ -141,6 +144,8 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
       <ManagedItemDetailContent
         item={{
           ...ITEM_WITH_TODO,
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [
             {
               id: "occurrence-0",

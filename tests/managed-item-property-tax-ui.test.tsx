@@ -42,6 +42,9 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         itemTypeCode="property_tax"
         kindCode="obligation"
         name="固定資産税"
+        note={null}
+        productInfo={null}
+        purchasedOn={null}
       />,
     );
     expect(screen.getByLabelText("大分類")).toHaveValue("obligation");
@@ -79,7 +82,10 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         lastActivity: null,
         members: [],
         name: "2026年度 固定資産税",
+        note: null,
         pendingTodos: [],
+        productInfo: null,
+        purchasedOn: null,
         recentCompletions: [],
       }} />,
     );

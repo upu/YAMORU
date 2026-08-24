@@ -8,6 +8,7 @@ import completionCorrectionsSql from "../../../d1/migrations/0004_completion_cor
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
+import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -28,6 +29,7 @@ function migrationStatements(): string[] {
     classificationSql,
     propertyTaxSql,
     kindLabelsSql,
+    optionalAttributesSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -77,6 +79,9 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       itemTypeCode: "property_tax",
       kindCode: "obligation",
       name: "2026年度 固定資産税",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await expect(getManagedItemForEdit(db, householdMember, newItemId)).resolves.toMatchObject({
       itemTypeCode: "property_tax",
@@ -91,6 +96,9 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       itemTypeCode: "property_tax",
       kindCode: "obligation",
       name: "既存の固定資産税",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await expect(db.prepare(
       "SELECT url FROM external_links WHERE managed_item_id = 'item-a'",
@@ -113,6 +121,9 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       itemTypeCode: "property_tax",
       kindCode: "obligation",
       name: "固定資産税",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await createOneTimeTask(db, householdMember, {
       managedItemId: itemId,

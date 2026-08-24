@@ -16,6 +16,7 @@ import { ClassificationBadges } from "../classification-badges";
 import {
   isSafeExternalUrl,
 } from "../model";
+import { formatPurchaseDate } from "../purchase-date";
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { CorrectionPanel } from "./correction-panel";
@@ -71,7 +72,10 @@ export type ManagedItemDetailData = {
   lastActivity: LastActivityData | null;
   members: HouseholdMemberOption[];
   name: string;
+  note: string | null;
   pendingTodos: PendingTodoData[];
+  productInfo: string | null;
+  purchasedOn: string | null;
   recentCompletions: RecentCompletionData[];
 };
 
@@ -362,6 +366,43 @@ function ManagedItemHeader({
   );
 }
 
+// Issue #42: 任意の記録は、一つも残していない対象では画面を占有しない。
+// 残した項目だけを、名称と値の対として表示する。
+function ManagedItemRecordSection({
+  note,
+  productInfo,
+  purchasedOn,
+}: {
+  note: string | null;
+  productInfo: string | null;
+  purchasedOn: string | null;
+}) {
+  const records: { label: string; value: string }[] = [];
+  if (productInfo !== null) {
+    records.push({ label: "メーカー・商品名など", value: productInfo });
+  }
+  if (purchasedOn !== null) {
+    records.push({ label: "購入時期", value: formatPurchaseDate(purchasedOn) });
+  }
+  if (note !== null) records.push({ label: "メモ", value: note });
+  if (records.length === 0) return null;
+
+  return (
+    <section aria-labelledby="managed-item-record-title" className="detail-card">
+      <p className="detail-kicker">RECORD</p>
+      <h2 id="managed-item-record-title">この管理対象の記録</h2>
+      <dl className="managed-item-record-list">
+        {records.map((record) => (
+          <div key={record.label}>
+            <dt>{record.label}</dt>
+            <dd>{record.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 export function ManagedItemDetailContent({
   item,
 }: {
@@ -387,6 +428,12 @@ export function ManagedItemDetailContent({
       <LastActivitySummary lastActivity={item.lastActivity} />
 
       <div className="ledger-grid managed-item-detail-grid">
+        <ManagedItemRecordSection
+          note={item.note}
+          productInfo={item.productInfo}
+          purchasedOn={item.purchasedOn}
+        />
+
         <PendingTodoSection
           actorName={item.actorName}
           currentUserId={item.currentUserId}
@@ -477,7 +524,10 @@ export default async function RegisteredManagedItemDetail({
         lastActivity,
         members,
         name: data.name,
+        note: data.note,
         pendingTodos,
+        productInfo: data.productInfo,
+        purchasedOn: data.purchasedOn,
         recentCompletions,
       }}
     />

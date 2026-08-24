@@ -63,6 +63,9 @@ describe("ManagedItemの分類入力(Issue #41)", () => {
         itemTypeCode={null}
         kindCode="asset"
         name="猫の給水機"
+        note={null}
+        productInfo={null}
+        purchasedOn={null}
       />,
     );
 

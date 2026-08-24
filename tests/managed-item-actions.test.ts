@@ -37,27 +37,51 @@ import { createManagedItem, updateManagedItem } from "../src/app/managed-items/a
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 
+type ManagedItemFormInput = {
+  customItemType?: string;
+  externalUrl?: string;
+  itemTypeCode?: string;
+  kindCode?: string;
+  name?: string;
+  note?: string;
+  productInfo?: string;
+  purchasedDay?: string;
+  purchasedMonth?: string;
+  purchasedYear?: string;
+};
+
 function managedItemForm({
   customItemType = "",
   externalUrl = "",
   itemTypeCode = "appliance",
   kindCode = "asset",
   name = "猫の浄水器",
-}: {
-  customItemType?: string;
-  externalUrl?: string;
-  itemTypeCode?: string;
-  kindCode?: string;
-  name?: string;
-} = {}) {
+  note = "",
+  productInfo = "",
+  purchasedDay = "",
+  purchasedMonth = "",
+  purchasedYear = "",
+}: ManagedItemFormInput = {}) {
   const formData = new FormData();
   formData.set("name", name);
   formData.set("kindCode", kindCode);
   formData.set("itemTypeCode", itemTypeCode);
   formData.set("customItemType", customItemType);
   formData.set("externalUrl", externalUrl);
+  formData.set("note", note);
+  formData.set("productInfo", productInfo);
+  formData.set("purchasedYear", purchasedYear);
+  formData.set("purchasedMonth", purchasedMonth);
+  formData.set("purchasedDay", purchasedDay);
   return formData;
 }
+
+// Issue #42: 任意の記録を入力していないときにD1へ渡る値。
+const UNSET_OPTIONAL_ATTRIBUTES = {
+  note: null,
+  productInfo: null,
+  purchasedOn: null,
+} as const;
 
 describe("ManagedItem登録操作", () => {
   beforeEach(() => {
@@ -82,6 +106,7 @@ describe("ManagedItem登録操作", () => {
       externalUrl: "https://example.com/product",
       itemTypeCode: "pet_supplies",
       kindCode: "asset",
+      ...UNSET_OPTIONAL_ATTRIBUTES,
       name: "猫の浄水器",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items");
@@ -98,6 +123,7 @@ describe("ManagedItem登録操作", () => {
       externalUrl: null,
       itemTypeCode: "appliance",
       kindCode: "asset",
+      ...UNSET_OPTIONAL_ATTRIBUTES,
       name: "猫の浄水器",
     });
   });
@@ -145,6 +171,7 @@ describe("ManagedItem登録操作", () => {
       externalUrl: null,
       itemTypeCode: null,
       kindCode: "asset",
+      ...UNSET_OPTIONAL_ATTRIBUTES,
       name: "猫の浄水器",
     });
   });
@@ -183,6 +210,78 @@ describe("ManagedItem登録操作", () => {
     });
   });
 
+  it("商品情報とメモを入力どおり保存し、購入時期を分かる精度で渡す(Issue #42)", async () => {
+    await createManagedItem(
+      INITIAL_STATE,
+      managedItemForm({
+        note: "  リビングの窓側に設置。\n説明書は棚の中。  ",
+        productInfo: "  三菱 霧ヶ峰 MSZ-ZW2224S  ",
+        purchasedMonth: "05",
+        purchasedYear: "2024",
+      }),
+    );
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "猫の浄水器",
+      // 前後の空白だけを落とし、大文字小文字・記号・語中の空白・改行は変えない。
+      note: "リビングの窓側に設置。\n説明書は棚の中。",
+      productInfo: "三菱 霧ヶ峰 MSZ-ZW2224S",
+      purchasedOn: "2024-05",
+    });
+  });
+
+  it.each([
+    ["年だけ", { purchasedYear: "2024" }, "2024"],
+    ["年と月", { purchasedMonth: "05", purchasedYear: "2024" }, "2024-05"],
+    [
+      "年月日",
+      { purchasedDay: "10", purchasedMonth: "05", purchasedYear: "2024" },
+      "2024-05-10",
+    ],
+  ])("購入時期を%sの精度で保存する", async (_precision, parts, expected) => {
+    await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ purchasedOn: expected }),
+    );
+  });
+
+  it.each([
+    ["月だけ", { purchasedMonth: "05" }],
+    ["年のない日", { purchasedDay: "10", purchasedMonth: "05" }],
+    ["月のない日", { purchasedDay: "10", purchasedYear: "2024" }],
+    ["4桁でない年", { purchasedYear: "24" }],
+    ["存在しない日", { purchasedDay: "31", purchasedMonth: "02", purchasedYear: "2024" }],
+  ])("成立しない購入時期(%s)はD1へ送らない", async (_case, parts) => {
+    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "購入時期は、年、年と月、年月日のいずれかで入力してください。",
+      status: "error",
+    });
+  });
+
+  it.each([
+    ["メモ", { note: "あ".repeat(1001) }, "メモは1000文字以内で入力してください。"],
+    [
+      "商品情報",
+      { productInfo: "あ".repeat(201) },
+      "メーカー・商品名などは200文字以内で入力してください。",
+    ],
+  ])("長すぎる%sはD1へ送らない", async (_field, parts, message) => {
+    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ message, status: "error" });
+  });
+
   it("保存失敗の内部詳細を表示せず再試行できる案内を返す", async () => {
     createManagedItemInD1Mock.mockRejectedValue(
       new Error("sensitive database detail"),
@@ -203,27 +302,10 @@ describe("ManagedItem登録操作", () => {
 });
 
 function managedItemEditForm({
-  customItemType = "",
-  externalUrl = "",
   id = "managed-item-id",
-  itemTypeCode = "appliance",
-  kindCode = "asset",
-  name = "猫の浄水器",
-}: {
-  customItemType?: string;
-  externalUrl?: string;
-  id?: string;
-  itemTypeCode?: string;
-  kindCode?: string;
-  name?: string;
-} = {}) {
-  const formData = managedItemForm({
-    customItemType,
-    externalUrl,
-    itemTypeCode,
-    kindCode,
-    name,
-  });
+  ...fields
+}: ManagedItemFormInput & { id?: string } = {}) {
+  const formData = managedItemForm(fields);
   formData.set("id", id);
   return formData;
 }
@@ -256,6 +338,7 @@ describe("ManagedItem編集操作(Issue #40)", () => {
         externalUrl: "https://example.com/updated",
         itemTypeCode: "appliance",
         kindCode: "asset",
+        ...UNSET_OPTIONAL_ATTRIBUTES,
         name: "猫の浄水器2",
       },
     );
@@ -276,6 +359,7 @@ describe("ManagedItem編集操作(Issue #40)", () => {
         externalUrl: null,
         itemTypeCode: "appliance",
         kindCode: "asset",
+        ...UNSET_OPTIONAL_ATTRIBUTES,
         name: "猫の浄水器",
       },
     );
@@ -308,6 +392,24 @@ describe("ManagedItem編集操作(Issue #40)", () => {
       });
     },
   );
+
+  it("空欄にした任意の記録を未設定としてD1へ渡す(Issue #42)", async () => {
+    await updateManagedItem(
+      INITIAL_STATE,
+      managedItemEditForm({ note: "   ", productInfo: "", purchasedYear: "" }),
+    );
+
+    expect(updateManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "managed-item-id",
+      expect.objectContaining({
+        note: null,
+        productInfo: null,
+        purchasedOn: null,
+      }),
+    );
+  });
 
   it("家庭Bの管理対象など見つからない対象への更新は内部詳細を表示しない", async () => {
     updateManagedItemInD1Mock.mockRejectedValue(new Error("管理対象が見つかりません。"));

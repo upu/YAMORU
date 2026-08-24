@@ -964,7 +964,8 @@ footer p {
 }
 
 .auth-form input,
-.auth-form select {
+.auth-form select,
+.auth-form textarea {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid rgb(49 92 73 / 24%);
@@ -974,8 +975,13 @@ footer p {
   font: inherit;
 }
 
+.auth-form textarea {
+  resize: vertical;
+}
+
 .auth-form input:focus-visible,
 .auth-form select:focus-visible,
+.auth-form textarea:focus-visible,
 .auth-submit:focus-visible {
   outline: 3px solid rgb(64 103 120 / 34%);
   outline-offset: 2px;
@@ -1122,6 +1128,65 @@ footer p {
 .managed-item-form > p {
   margin: 0;
   font-size: 0.76rem;
+}
+
+/* Issue #42: 購入時期は年・月・日を横に並べ、狭い画面では折り返す。 */
+.purchase-date-fieldset {
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.purchase-date-fieldset legend {
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.managed-item-form .purchase-date-help {
+  margin-bottom: 6px;
+}
+
+.purchase-date-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.purchase-date-inputs > span {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-form .purchase-date-inputs label {
+  margin-top: 0;
+}
+
+.auth-form .purchase-date-inputs input {
+  width: 6rem;
+}
+
+.auth-form .purchase-date-inputs select {
+  width: 6.5rem;
+}
+
+.managed-item-record-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.managed-item-record-list dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.managed-item-record-list dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  /* メモの改行を入力どおり表示する。 */
+  white-space: pre-wrap;
 }
 
 .ledger-primary-link {

@@ -52,6 +52,9 @@ async function seedOwnerWithClassifiedItem(db: D1Database): Promise<void> {
     itemTypeCode: null,
     kindCode: "obligation",
     name: ITEM_NAME,
+    note: null,
+    productInfo: null,
+    purchasedOn: null,
   });
 }
 

@@ -128,7 +128,10 @@ describe("登録済みManagedItem詳細", () => {
       lastActivity: null,
       members: [],
       name: "猫の浄水器",
+      note: null,
       pendingTodos: [],
+      productInfo: null,
+      purchasedOn: null,
       recentCompletions: [],
     };
 
@@ -155,7 +158,10 @@ describe("登録済みManagedItem詳細", () => {
           externalLinks: [],
           lastActivity: null,
           members: [],
+          note: null,
           pendingTodos: [],
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [],
         }}
       />,
@@ -175,7 +181,10 @@ describe("登録済みManagedItem詳細", () => {
           itemTypeLabel: null,
           lastActivity: null,
           members: [],
+          note: null,
           pendingTodos: [],
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [],
         }}
       />,
@@ -195,7 +204,10 @@ describe("登録済みManagedItem詳細", () => {
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
           lastActivity: null,
           members: [],
+          note: null,
           pendingTodos: [],
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [],
         }}
       />,
@@ -215,7 +227,10 @@ describe("登録済みManagedItem詳細", () => {
           externalLinks: [],
           lastActivity: { occurredAt: "2026-08-10T00:00:00.000Z", performerName: "たろう" },
           members: [],
+          note: null,
           pendingTodos: [],
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [],
         }}
       />,
@@ -236,7 +251,10 @@ describe("登録済みManagedItem詳細", () => {
           externalLinks: [],
           lastActivity: null,
           members: [],
+          note: null,
           pendingTodos: [],
+          productInfo: null,
+          purchasedOn: null,
           recentCompletions: [],
         }}
       />,

@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { createManagedItem } from "./actions";
 import { ManagedItemClassificationFields } from "./classification-fields";
 import type { ManagedItemClassificationOptions } from "./model";
+import { ManagedItemOptionalAttributeFields } from "./optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "./state";
 
 function SubmitButton() {
@@ -35,15 +36,20 @@ export function ManagedItemForm({
 
   return (
     <form action={formAction} className="auth-form managed-item-form">
-      <label htmlFor="managed-item-name">名前</label>
+      <label htmlFor="managed-item-name">台帳での名前</label>
       <input
+        aria-describedby="managed-item-name-help"
         autoComplete="off"
         id="managed-item-name"
         maxLength={100}
         name="name"
+        placeholder="例: リビングのエアコン"
         required
         type="text"
       />
+      <p id="managed-item-name-help">
+        家庭内でこの管理対象を見分けるための呼び名です。
+      </p>
 
       <ManagedItemClassificationFields
         classificationOptions={classificationOptions}
@@ -63,6 +69,8 @@ export function ManagedItemForm({
       <p id="managed-item-external-url-help">
         商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。
       </p>
+
+      <ManagedItemOptionalAttributeFields idPrefix="managed-item" />
 
       <SubmitButton />
       {state.status === "error" ? (
