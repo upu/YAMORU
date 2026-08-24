@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 import {
   PREVIEW_E2E_INVITEE_EMAIL,
@@ -8,6 +14,11 @@ import {
   resetPreviewE2eFixtures,
   type PreviewE2eFixtures,
 } from "../../scripts/e2e-admin-remote";
+import {
+  reportPreviewDiagnostics,
+  resetPreviewDiagnostics,
+  watchPreviewNavigations,
+} from "./diagnostics";
 
 const OWNER_NICKNAME = "E2Eオーナー";
 const INVITEE_NICKNAME = "E2E招待者";
@@ -19,6 +30,23 @@ let fixtures: PreviewE2eFixtures;
 test.beforeAll(async () => {
   fixtures = await resetPreviewE2eFixtures();
 });
+
+// 失敗したときだけ、どのpathnameがどのstatusで返ったかを出す(#190)。
+// これがないと、画面に要素が出ない原因が500なのかredirectなのか分からない。
+test.afterEach(() => {
+  reportPreviewDiagnostics(test.info());
+});
+
+// 家族一人分のブラウザ文脈。作成と同時に通信の記録を始める。
+async function openDiagnosticContext(
+  browser: Browser,
+  label: string,
+): Promise<{ context: BrowserContext; page: Page }> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  watchPreviewNavigations(page, label);
+  return { context, page };
+}
 
 // 呼び出し時点のページが既に/login(招待受諾からのredirectで?next=付き
 // のことがある)であることを前提にする。ここでpage.goto("/login")すると
@@ -132,37 +160,34 @@ async function verifyOutsiderCannotJoin(
 test("preview上でログイン・招待受諾・家庭間分離・完了操作を確認する(#151)", async ({
   browser,
 }) => {
-  const ownerContext = await browser.newContext();
-  const ownerPage = await ownerContext.newPage();
-  await login(ownerPage, fixtures.ownerEmail, fixtures.ownerPassword);
-  await setUpOwner(ownerPage);
-  await createAndCompleteTodo(ownerPage);
+  resetPreviewDiagnostics();
+  const owner = await openDiagnosticContext(browser, "owner");
+  await login(owner.page, fixtures.ownerEmail, fixtures.ownerPassword);
+  await setUpOwner(owner.page);
+  await createAndCompleteTodo(owner.page);
 
-  const inviteeLink = await issueInvitation(ownerPage, PREVIEW_E2E_INVITEE_EMAIL);
-  const inviteeContext = await browser.newContext();
-  const inviteePage = await inviteeContext.newPage();
-  await acceptInvitationAsNewUser(inviteePage, inviteeLink);
-  await expect(inviteePage.getByText(TODO_TITLE)).toBeVisible();
+  const inviteeLink = await issueInvitation(owner.page, PREVIEW_E2E_INVITEE_EMAIL);
+  const invitee = await openDiagnosticContext(browser, "invitee");
+  await acceptInvitationAsNewUser(invitee.page, inviteeLink);
+  await expect(invitee.page.getByText(TODO_TITLE)).toBeVisible();
 
-  const outsiderLink = await issueInvitation(ownerPage, fixtures.outsiderEmail);
-  const outsiderContext = await browser.newContext();
-  const outsiderPage = await outsiderContext.newPage();
+  const outsiderLink = await issueInvitation(owner.page, fixtures.outsiderEmail);
+  const outsider = await openDiagnosticContext(browser, "outsider");
   await verifyOutsiderCannotJoin(
-    outsiderPage,
+    outsider.page,
     outsiderLink,
     fixtures.outsiderEmail,
     fixtures.outsiderPassword,
   );
 
-  const anonymousContext = await browser.newContext();
-  const anonymousPage = await anonymousContext.newPage();
-  await anonymousPage.goto("/account");
-  await expect(anonymousPage).toHaveURL(/\/login/u);
+  const anonymous = await openDiagnosticContext(browser, "anonymous");
+  await anonymous.page.goto("/account");
+  await expect(anonymous.page).toHaveURL(/\/login/u);
 
   await Promise.all([
-    ownerContext.close(),
-    inviteeContext.close(),
-    outsiderContext.close(),
-    anonymousContext.close(),
+    owner.context.close(),
+    invitee.context.close(),
+    outsider.context.close(),
+    anonymous.context.close(),
   ]);
 });

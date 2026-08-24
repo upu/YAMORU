@@ -183,6 +183,18 @@ npx wrangler tail --env production --format pretty
 
 パスワード、JWT、`AUTH_SECRET`、生の招待token・claim secret、招待先メールアドレス本文をログへ出さない。障害調査には時刻、Worker version、HTTP status、非秘匿ID、Cloudflare Ray IDを使う。
 
+### サーバ側の例外を特定する
+
+500応答の原因は、Workers Logsに残るスタックだけでは特定できないことがある(Issue #190)。`instrumentation.ts`の`onRequestError`が、処理されなかったサーバ側例外ごとに1行のJSONを`console.error`へ出す。Observabilityでは`yamoru.request_error`で絞り込む。
+
+```json
+{"digest":null,"event":"yamoru.request_error","message":"D1_ERROR: ...","name":"Error","renderSource":"react-server-components","routePath":"/household","routeType":"render","routerKind":"App Router"}
+```
+
+記録するのは経路の型である`routePath`であり、具体的なrequest URLもヘッダーも含めない。query stringには招待claimが、cookieにはセッションJWTが載るため、この形を変えない。
+
+server actionのように例外を`catch`して利用者向けメッセージへ変換している箇所は、この記録の対象にならない。そこでの失敗を追う必要が出た場合は、同じ方針で記録を足す。
+
 ### URLに秘密情報を含めない確認方法
 
 CloudflareのInvocationログとReal-time logsは、アプリ独自の除去処理より前にrequestのmethodと完全なrequest URL(query string含む)を記録する。招待受諾など秘密値をURLで扱う経路を変更した場合は、実tokenを使わず次の手順で確認する([YDR-024](../decisions/ydr-024-invitation-token-in-url-fragment.md)、Issue #140)。
