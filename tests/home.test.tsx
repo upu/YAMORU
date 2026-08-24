@@ -53,6 +53,7 @@ function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection[
   return [
     { description: "期限を過ぎています", id: "overdue", items: overrides.overdue ?? [], title: "期限切れ" },
     { description: "今日確認したいこと", id: "today", items: overrides.today ?? [], title: "今日" },
+    { description: "実施する時期が決まっていません", id: "undated", items: overrides.undated ?? [], title: "予定日未定" },
     { description: "対応の目安の時期です", id: "reminder", items: overrides.reminder ?? [], title: "そろそろ" },
     { description: "これから7日間の予定", id: "upcoming", items: overrides.upcoming ?? [], title: "近日" },
     { description: "家族が完了したこと", id: "recent", items: overrides.recent ?? [], title: "最近の実施" },
@@ -444,6 +445,54 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     expect(items.today.map((item) => item.id)).toEqual(["today"]);
     expect(items.upcoming.map((item) => item.id)).toEqual(["upcoming"]);
     expect(items.upcoming[0].meta).toBe("8月15日の予定です ・ 繰り返しなし");
+  });
+
+  it("管理対象なしの予定日未定Todoを独立区分から確認・操作できる", () => {
+    renderHome(emptySections({
+      undated: [
+        {
+          assigneeUserId: null,
+          badge: "未定",
+          detail: "管理対象なし",
+          id: "undated-unlinked",
+          managedItemId: null,
+          meta: "予定日: 未定 ・ 繰り返しなし",
+          occurrenceId: "undated-unlinked",
+          oneTimeScheduledFor: null,
+          title: "通知書が届いたら申請",
+          tone: "upcoming",
+        },
+      ],
+    }));
+
+    const section = screen.getByRole("region", { name: "予定日未定" });
+    expect(within(section).getByText("予定日: 未定 ・ 繰り返しなし")).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
+      .toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: "通知書が届いたら申請を記録" }))
+      .toBeInTheDocument();
+  });
+
+  it("予定日未定の一回限りTodoは独立した区分へ分ける", () => {
+    const row = onceRow("undated", "2026-08-11T15:00:00.000Z");
+    row.scheduled_for = null;
+    row.due_at = null;
+    row.task_rules.managed_items = null;
+
+    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+
+    expect(items.undated).toEqual([
+      expect.objectContaining({
+        detail: "管理対象なし",
+        managedItemId: null,
+        meta: "予定日: 未定 ・ 繰り返しなし",
+        occurrenceId: "undated",
+        title: "今回だけ点検",
+      }),
+    ]);
+    expect(items.overdue).toHaveLength(0);
+    expect(items.today).toHaveLength(0);
+    expect(items.upcoming).toHaveLength(0);
   });
 
   it("管理対象なしでも同じ日付基準で分類し、ホーム操作用のOccurrenceを保持する", () => {

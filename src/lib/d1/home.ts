@@ -2,9 +2,9 @@ import { requireCurrentHouseholdId, type D1Session } from "./authorization";
 
 export type PendingOccurrenceRow = {
   assignee_user_id: string | null;
-  due_at: string;
+  due_at: string | null;
   id: string;
-  scheduled_for: string;
+  scheduled_for: string | null;
   task_rules: {
     deadline_kind: string;
     managed_items: { id: string; name: string } | null;

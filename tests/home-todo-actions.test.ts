@@ -89,7 +89,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
     },
   );
 
-  it.each(["", "2026-02-30"])(
+  it.each(["2026-02-30"])(
     "無効な予定日(%s)はRPCへ送らない",
     async (plannedDate) => {
       const result = await createTodo(

@@ -35,6 +35,8 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("曜日・日付で繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("予定日")).not.toBeRequired();
+    expect(screen.getByText(/日付がまだ決まっていない場合は、空欄で登録できます。/)).toBeInTheDocument();
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
     // Issue #173: タイムゾーンの説明は家庭ページへ移し、この画面には表示しない。
     expect(screen.queryByText(/タイムゾーン/)).not.toBeInTheDocument();

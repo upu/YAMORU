@@ -33,7 +33,7 @@ type TodoBasics = {
 };
 type OneTimeTodoInput = TodoBasics & {
   recurrenceBasis: "once";
-  scheduledFor: string;
+  scheduledFor: string | null;
 };
 type CompletionTodoInput = TodoBasics & {
   firstDueAt: string;
@@ -155,10 +155,10 @@ function parseOneTimeTodo(
   formData: FormData,
 ): OneTimeTodoInput | MaintenanceTodoActionState {
   const plannedDate = formData.get("plannedDate");
-  const scheduledFor = typeof plannedDate === "string"
+  const scheduledFor = typeof plannedDate === "string" && plannedDate !== ""
     ? tokyoDateToUtcIso(plannedDate)
     : null;
-  if (scheduledFor === null) {
+  if (typeof plannedDate !== "string" || (plannedDate !== "" && scheduledFor === null)) {
     return { message: "予定日を正しく入力してください。", status: "error" };
   }
   return { ...basics, recurrenceBasis: "once", scheduledFor };

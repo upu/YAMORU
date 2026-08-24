@@ -78,6 +78,18 @@ describe("専用ページのTodo登録操作", () => {
     expect(result).toEqual({ message: "Todoを登録しました。", status: "success" });
   });
 
+  it("一回限りTodoは予定日を空欄のまま登録できる", async () => {
+    const result = await createTodo(INITIAL_STATE, todoForm({ plannedDate: "" }));
+
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "once",
+      scheduledFor: null,
+      title: "家族会議",
+    });
+    expect(result).toEqual({ message: "Todoを登録しました。", status: "success" });
+  });
+
   it("管理対象なしの完了日基準Todoを登録する", async () => {
     await createTodo(
       INITIAL_STATE,

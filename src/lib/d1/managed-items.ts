@@ -28,9 +28,9 @@ export type ActivityLogRow = {
 export type TaskOccurrenceRow = {
   activity_logs: ActivityLogRow[];
   assignee_user_id: string | null;
-  due_at: string;
+  due_at: string | null;
   id: string;
-  scheduled_for: string;
+  scheduled_for: string | null;
   status: string;
 };
 export type TaskRuleRow = {
@@ -353,7 +353,7 @@ export async function loadManagedItemDetail(
          FROM task_occurrences o
          JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
         WHERE r.managed_item_id = ?1 AND o.household_id = ?2
-        ORDER BY o.scheduled_for, o.id`,
+        ORDER BY o.scheduled_for IS NOT NULL, o.scheduled_for, o.id`,
     ).bind(id, householdId).all<FlatOccurrence>(),
     db.prepare(
       // #148: completedの行はcompletion_correctionsに訂正があれば有効値へ

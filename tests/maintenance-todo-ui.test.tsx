@@ -99,6 +99,56 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
 
+  it("予定日未定の一回限りTodoを表示し、延期ではなく予定日設定を案内する", () => {
+    const undatedTodo = {
+      ...ITEM_WITH_TODO.pendingTodos[0],
+      badge: "未定",
+      dueAt: null,
+      meta: "予定日: 未定",
+      recurrenceBasis: "once" as const,
+      scheduledFor: null,
+      title: "通知書が届いたら申請",
+      tone: "upcoming" as const,
+    };
+
+    render(
+      <ManagedItemDetailContent
+        item={{ ...ITEM_WITH_TODO, pendingTodos: [undatedTodo] }}
+      />,
+    );
+
+    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    expect(within(todoList).getByText("予定日: 未定")).toBeInTheDocument();
+    expect(within(todoList).getByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
+      .toBeInTheDocument();
+    expect(within(todoList).queryByRole("button", { name: /延期/ })).not.toBeInTheDocument();
+  });
+
+  it("具体日がある一回限りTodoは予定日を未定に戻せる", () => {
+    const onceTodo = {
+      ...ITEM_WITH_TODO.pendingTodos[0],
+      badge: "予定",
+      dueAt: "2026-10-08T15:00:00.000Z",
+      meta: "10月9日の予定です",
+      recurrenceBasis: "once" as const,
+      scheduledFor: "2026-10-08T15:00:00.000Z",
+      title: "今回だけ点検",
+      tone: "upcoming" as const,
+    };
+
+    render(
+      <ManagedItemDetailContent
+        item={{ ...ITEM_WITH_TODO, pendingTodos: [onceTodo] }}
+      />,
+    );
+
+    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    expect(within(todoList).getByRole("button", { name: "今回だけ点検の予定日を未定に戻す" }))
+      .toBeInTheDocument();
+    expect(within(todoList).getByRole("button", { name: "今回だけ点検を延期する" }))
+      .toBeInTheDocument();
+  });
+
   it("定例日基準Todoを詳細画面で見分けられる", () => {
     const calendarTodo = {
       ...ITEM_WITH_TODO.pendingTodos[0],
