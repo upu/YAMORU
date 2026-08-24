@@ -6,6 +6,8 @@ import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sq
 import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
+import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
+import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -43,7 +45,15 @@ const householdBMember = { email: "b@example.com", userId: "user-b" };
 const nonMember = { email: "o@example.com", userId: "user-outsider" };
 
 function migrationStatements(): string[] {
-  return [schemaSql, authSchemaSql, migrationAuditSql, completionCorrectionsSql, classificationSql].join("\n")
+  return [
+    schemaSql,
+    authSchemaSql,
+    migrationAuditSql,
+    completionCorrectionsSql,
+    classificationSql,
+    propertyTaxSql,
+    kindLabelsSql,
+  ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n")
@@ -211,7 +221,7 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "appliance",
       itemTypeLabel: "家電",
       kindCode: "asset",
-      kindLabel: "モノ・設備",
+      kindLabel: "モノ",
       name: "Item A updated",
     });
     await expect(db.prepare(
