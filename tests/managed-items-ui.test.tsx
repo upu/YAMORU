@@ -16,6 +16,15 @@ import {
 
 afterEach(cleanup);
 
+// 大分類と詳しい種類が連結された一つの文字列へ戻らないことを、
+// バッジ一件ずつの読み上げテキストで確認する(Issue #195)。
+function classificationBadgeTexts(scope: HTMLElement): (string | null)[] {
+  const badges = within(scope).getByRole("list", { name: "分類" });
+  return within(badges)
+    .getAllByRole("listitem")
+    .map((badge) => badge.textContent);
+}
+
 const REGISTERED_ITEM: ManagedItemSummary = {
   id: "item-1",
   itemTypeLabel: "ペット用品",
@@ -80,11 +89,27 @@ describe("家の台帳一覧", () => {
     );
 
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
-    expect(within(list).getByText("モノ・ペット用品")).toBeInTheDocument();
+    expect(classificationBadgeTexts(list)).toEqual([
+      "大分類: モノ",
+      "詳しい種類: ペット用品",
+    ]);
+    expect(within(list).queryByText("モノ・ペット用品")).not.toBeInTheDocument();
     expect(within(list).getByRole("link", { name: "猫の浄水器" })).toHaveAttribute(
       "href",
       "/managed-items/item-1",
     );
+  });
+
+  it("詳しい種類が未設定なら一覧に大分類のバッジだけを表示する", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[{ ...REGISTERED_ITEM, itemTypeLabel: null }]}
+      />,
+    );
+
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    expect(classificationBadgeTexts(list)).toEqual(["大分類: モノ"]);
   });
 });
 
@@ -110,8 +135,10 @@ describe("登録済みManagedItem詳細", () => {
     render(<ManagedItemDetailContent item={item} />);
 
     expect(screen.getByRole("heading", { name: "猫の浄水器" })).toBeInTheDocument();
-    expect(screen.getByText("モノ")).toBeInTheDocument();
-    expect(screen.getByText("詳しい種類: ペット用品")).toBeInTheDocument();
+    expect(classificationBadgeTexts(document.body)).toEqual([
+      "大分類: モノ",
+      "詳しい種類: ペット用品",
+    ]);
     const links = screen.getAllByRole("link", { name: /外部リンクを開く/ });
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("target", "_blank");
@@ -135,6 +162,27 @@ describe("登録済みManagedItem詳細", () => {
     );
 
     expect(screen.getByText("外部リンクは登録されていません。")).toBeInTheDocument();
+  });
+
+  it("詳しい種類が未設定なら詳細に大分類のバッジだけを表示する", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          currentUserId: "user-1",
+          externalLinks: [],
+          itemTypeLabel: null,
+          lastActivity: null,
+          members: [],
+          pendingTodos: [],
+          recentCompletions: [],
+        }}
+      />,
+    );
+
+    expect(classificationBadgeTexts(document.body)).toEqual(["大分類: モノ"]);
+    expect(screen.queryByText(/詳しい種類/)).not.toBeInTheDocument();
   });
 
   it("保存データが壊れていても危険なスキームをリンク表示しない", () => {

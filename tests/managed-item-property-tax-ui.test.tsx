@@ -60,8 +60,12 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         }]}
       />,
     );
-    expect(within(screen.getByRole("region", { name: "登録済みの管理対象" }))
-      .getByText("支払い・手続き・固定資産税")).toBeInTheDocument();
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    const listBadges = within(list).getByRole("list", { name: "分類" });
+    expect(within(listBadges).getAllByRole("listitem").map((badge) => badge.textContent))
+      .toEqual(["大分類: 支払い・手続き", "詳しい種類: 固定資産税"]);
+    // ラベル自体が中黒を含むため、連結表示に戻ると区切りが読み取れなくなる。
+    expect(within(list).queryByText("支払い・手続き・固定資産税")).not.toBeInTheDocument();
     unmount();
 
     render(
@@ -79,7 +83,8 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         recentCompletions: [],
       }} />,
     );
-    expect(screen.getByText("支払い・手続き")).toBeInTheDocument();
-    expect(screen.getByText("詳しい種類: 固定資産税")).toBeInTheDocument();
+    const detailBadges = screen.getByRole("list", { name: "分類" });
+    expect(within(detailBadges).getAllByRole("listitem").map((badge) => badge.textContent))
+      .toEqual(["大分類: 支払い・手続き", "詳しい種類: 固定資産税"]);
   });
 });
