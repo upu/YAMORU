@@ -8,6 +8,7 @@ import completionCorrectionsSql from "../../../d1/migrations/0004_completion_cor
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
+import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -53,6 +54,7 @@ function migrationStatements(): string[] {
     classificationSql,
     propertyTaxSql,
     kindLabelsSql,
+    optionalAttributesSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -178,6 +180,11 @@ describe("D1 formal schema and household authorization", () => {
       .resolves.toEqual([{ id: "item-b", household_id: "household-b", name: "Item B" }]);
   });
 
+});
+
+// ManagedItemの書き込みは家庭境界・原子性ともに独立した関心事のため、
+// 一つのdescribeへまとめる(Issue #42で任意の記録が加わり分割した)。
+describe("D1 ManagedItem writes and household isolation", () => {
   it("new managed items are bound to the session household", async () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
@@ -185,6 +192,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "contract",
       kindCode: "service",
       name: "A contract",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     const aItems = await listManagedItems(db, householdAMember);
     const bItems = await listManagedItems(db, householdBMember);
@@ -199,6 +209,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "contract",
       kindCode: "service",
       name: "Must roll back",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     })).rejects.toThrow();
     await expect(db.prepare(
       "SELECT count(*) AS count FROM managed_items WHERE name = 'Must roll back'",
@@ -212,6 +225,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "appliance",
       kindCode: "asset",
       name: "Item A updated",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
@@ -223,6 +239,9 @@ describe("D1 formal schema and household authorization", () => {
       kindCode: "asset",
       kindLabel: "モノ",
       name: "Item A updated",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await expect(db.prepare(
       "SELECT count(*) AS count FROM external_links WHERE managed_item_id = 'item-a'",
@@ -236,6 +255,9 @@ describe("D1 formal schema and household authorization", () => {
       kindCode: "other",
       kindLabel: "その他",
       name: "Item B",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
   });
 
@@ -246,6 +268,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "other",
       kindCode: "other",
       name: "Item A",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await updateManagedItem(db, householdAMember, "item-a", {
       customItemType: null,
@@ -253,6 +278,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "other",
       kindCode: "other",
       name: "Item A",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
 
     await expect(db.prepare(
@@ -267,6 +295,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "other",
       kindCode: "other",
       name: "Hacked",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     })).rejects.toThrow("管理対象が見つかりません。");
     await expect(getManagedItemForEdit(db, householdAMember, "item-b")).resolves.toBeNull();
     await expect(db.prepare(
@@ -281,6 +312,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "other",
       kindCode: "other",
       name: "Item A",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
 
     await expect(updateManagedItem(db, householdAMember, "item-a", {
@@ -289,6 +323,9 @@ describe("D1 formal schema and household authorization", () => {
       itemTypeCode: "appliance",
       kindCode: "asset",
       name: "Should not persist",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     })).rejects.toThrow();
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
@@ -300,9 +337,15 @@ describe("D1 formal schema and household authorization", () => {
       kindCode: "other",
       kindLabel: "その他",
       name: "Item A",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
   });
 
+});
+
+describe("D1 profile and household creation", () => {
   it("profiles are account-scoped and duplicate submission is idempotent", async () => {
     await createProfile(db, householdAMember, "Alice");
     await createProfile(db, householdAMember, "Ignored duplicate");

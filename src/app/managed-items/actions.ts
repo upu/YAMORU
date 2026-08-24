@@ -9,11 +9,14 @@ import {
   updateManagedItem as updateManagedItemInD1,
 } from "../../lib/d1/managed-items";
 import { isSafeExternalUrl } from "./model";
+import { toPurchaseDate } from "./purchase-date";
 import type { ManagedItemActionState } from "./state";
 
 const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
 const CUSTOM_ITEM_TYPE_MAX_LENGTH = 50;
 const EXTERNAL_URL_MAX_LENGTH = 2048;
+const NOTE_MAX_LENGTH = 1000;
+const PRODUCT_INFO_MAX_LENGTH = 200;
 
 function invalidName(): ManagedItemActionState {
   return {
@@ -29,9 +32,19 @@ type ParsedManagedItemForm =
       itemTypeCode: string | null;
       kindCode: string;
       name: string;
+      note: string | null;
+      productInfo: string | null;
+      purchasedOn: string | null;
       status: "ok";
     }
   | ManagedItemActionState;
+
+type ParsedOptionalAttributes = {
+  note: string | null;
+  productInfo: string | null;
+  purchasedOn: string | null;
+  status: "ok";
+} | ManagedItemActionState;
 
 type ParsedClassification = {
   customItemType: string | null;
@@ -112,8 +125,64 @@ function parseExternalUrl(formData: FormData):
   return { status: "ok", value: externalUrl.length === 0 ? null : externalUrl };
 }
 
-// createManagedItem・updateManagedItemの両方が使う、名前・分類・外部リンクの
-// 入力検証。登録と編集で許可する値・エラー文言を揃える。
+// Issue #42: 任意の自由入力。空欄は未設定として扱う。前後の空白だけを落とし、
+// 大文字小文字・記号・語中の空白・改行は入力どおり保存する(型番の表記を
+// 勝手に変えない)。
+function parseOptionalText(
+  formData: FormData,
+  field: string,
+  label: string,
+  maxLength: number,
+): { status: "ok"; value: string | null } | ManagedItemActionState {
+  const raw = formData.get(field);
+  const value = typeof raw === "string" ? raw.trim() : "";
+  if (Array.from(value).length > maxLength) {
+    return {
+      message: `${label}は${String(maxLength)}文字以内で入力してください。`,
+      status: "error",
+    };
+  }
+  return { status: "ok", value: value.length === 0 ? null : value };
+}
+
+function formValue(formData: FormData, field: string): string {
+  const raw = formData.get(field);
+  return typeof raw === "string" ? raw : "";
+}
+
+function parseOptionalAttributes(formData: FormData): ParsedOptionalAttributes {
+  const note = parseOptionalText(formData, "note", "メモ", NOTE_MAX_LENGTH);
+  if (note.status !== "ok") return note;
+  const productInfo = parseOptionalText(
+    formData,
+    "productInfo",
+    "メーカー・商品名など",
+    PRODUCT_INFO_MAX_LENGTH,
+  );
+  if (productInfo.status !== "ok") return productInfo;
+
+  const purchaseDate = toPurchaseDate({
+    day: formValue(formData, "purchasedDay"),
+    month: formValue(formData, "purchasedMonth"),
+    year: formValue(formData, "purchasedYear"),
+  });
+  if (purchaseDate.status !== "ok") {
+    return {
+      message: "購入時期は、年、年と月、年月日のいずれかで入力してください。",
+      status: "error",
+    };
+  }
+
+  return {
+    note: note.value,
+    productInfo: productInfo.value,
+    purchasedOn: purchaseDate.value,
+    status: "ok",
+  };
+}
+
+// createManagedItem・updateManagedItemの両方が使う、名前・分類・外部リンク・
+// 任意の記録の入力検証。登録と編集で許可する値・エラー文言を揃える。
 function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   const name = parseName(formData);
   if (typeof name !== "string") return name;
@@ -121,6 +190,8 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   if (classification.status !== "ok") return classification;
   const externalUrl = parseExternalUrl(formData);
   if (externalUrl.status !== "ok") return externalUrl;
+  const optional = parseOptionalAttributes(formData);
+  if (optional.status !== "ok") return optional;
 
   return {
     customItemType: classification.customItemType,
@@ -128,6 +199,9 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
     itemTypeCode: classification.itemTypeCode,
     kindCode: classification.kindCode,
     name,
+    note: optional.note,
+    productInfo: optional.productInfo,
+    purchasedOn: optional.purchasedOn,
     status: "ok",
   };
 }
@@ -148,6 +222,9 @@ export async function createManagedItem(
       itemTypeCode: parsed.itemTypeCode,
       kindCode: parsed.kindCode,
       name: parsed.name,
+      note: parsed.note,
+      productInfo: parsed.productInfo,
+      purchasedOn: parsed.purchasedOn,
     });
   } catch {
     return {
@@ -185,6 +262,9 @@ export async function updateManagedItem(
       itemTypeCode: parsed.itemTypeCode,
       kindCode: parsed.kindCode,
       name: parsed.name,
+      note: parsed.note,
+      productInfo: parsed.productInfo,
+      purchasedOn: parsed.purchasedOn,
     });
   } catch {
     return {

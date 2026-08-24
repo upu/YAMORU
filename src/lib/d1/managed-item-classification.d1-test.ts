@@ -8,6 +8,7 @@ import completionCorrectionsSql from "../../../d1/migrations/0004_completion_cor
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
+import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -27,6 +28,7 @@ function migrationStatements(): string[] {
     classificationSql,
     propertyTaxSql,
     kindLabelsSql,
+    optionalAttributesSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -87,6 +89,9 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: null,
       kindCode: "asset",
       name: "猫の給水機",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await expect(getManagedItemForEdit(db, householdMember, itemId)).resolves.toMatchObject({
       itemTypeCode: null,
@@ -112,6 +117,9 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: null,
       kindCode: "asset",
       name: "Item A classified",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
     await db.prepare("UPDATE managed_items SET name = 'Old worker rename' WHERE id = 'item-a'").run();
     await expect(getManagedItemForEdit(db, householdMember, "item-a")).resolves.toMatchObject({
@@ -120,6 +128,9 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeLabel: "猫用給水機",
       kindCode: "asset",
       name: "Old worker rename",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
     });
   });
 
@@ -134,6 +145,9 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
         ...input,
         externalUrl: null,
         name: "Invalid classification",
+        note: null,
+        productInfo: null,
+        purchasedOn: null,
       })).rejects.toThrow("管理対象の分類を選択し直してください。");
     }
     await expect(db.prepare(

@@ -37,7 +37,7 @@ export default async function ManagedItemEditPage({
       <header className="detail-hero">
         <p className="detail-kicker">EDIT</p>
         <h1>{item.name}を編集</h1>
-        <p>名前、種類、外部リンクを変更できます。</p>
+        <p>名前、種類、外部リンク、任意の記録を変更できます。</p>
       </header>
 
       <section aria-labelledby="managed-item-edit-title" className="detail-card">
@@ -50,6 +50,9 @@ export default async function ManagedItemEditPage({
           itemTypeCode={item.itemTypeCode}
           kindCode={item.kindCode}
           name={item.name}
+          note={item.note}
+          productInfo={item.productInfo}
+          purchasedOn={item.purchasedOn}
         />
       </section>
     </main>

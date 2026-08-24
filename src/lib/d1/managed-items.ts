@@ -40,11 +40,22 @@ export type TaskRuleRow = {
   task_occurrences: TaskOccurrenceRow[];
   title: string;
 };
-export type ManagedItemDetailRow = ManagedItemSummary & {
-  external_links: { id: string; url: string }[];
-  household_id: string;
-  task_rules: TaskRuleRow[];
+// Issue #42: 家庭内での呼び名(name)とは別に残す任意の記録。いずれも未設定を許す。
+export type ManagedItemOptionalAttributes = {
+  note: string | null;
+  productInfo: string | null;
+  purchasedOn: string | null;
 };
+export type ManagedItemDetailRow = ManagedItemSummary
+  & ManagedItemOptionalAttributes
+  & {
+    external_links: { id: string; url: string }[];
+    household_id: string;
+    task_rules: TaskRuleRow[];
+  };
+
+const OPTIONAL_ATTRIBUTE_SELECT =
+  "m.note, m.product_info AS productInfo, m.purchased_on AS purchasedOn";
 
 type ClassificationDefinition = { legacyKind: string };
 
@@ -125,10 +136,12 @@ async function requireActiveClassification(
   return definition;
 }
 
-type ManagedItemWriteInput = ManagedItemClassificationInput & {
-  externalUrl: string | null;
-  name: string;
-};
+type ManagedItemWriteInput = ManagedItemClassificationInput
+  & ManagedItemOptionalAttributes
+  & {
+    externalUrl: string | null;
+    name: string;
+  };
 
 export async function createManagedItem(
   db: D1Database,
@@ -138,8 +151,18 @@ export async function createManagedItem(
   const householdId = await requireCurrentHousehold(db, session);
   const classification = await requireActiveClassification(db, input);
   const itemId = crypto.randomUUID();
-  const statements = [db.prepare("INSERT INTO managed_items (id, household_id, name, kind) VALUES (?1, ?2, ?3, ?4)")
-    .bind(itemId, householdId, input.name, classification.legacyKind),
+  const statements = [db.prepare(`INSERT INTO managed_items (
+      id, household_id, name, kind, note, product_info, purchased_on
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`)
+    .bind(
+      itemId,
+      householdId,
+      input.name,
+      classification.legacyKind,
+      input.note,
+      input.productInfo,
+      input.purchasedOn,
+    ),
   db.prepare(`INSERT INTO managed_item_classifications (
       managed_item_id, household_id, kind_code, item_type_code, custom_item_type
     ) VALUES (?1, ?2, ?3, ?4, ?5)`)
@@ -165,10 +188,12 @@ export async function getManagedItemHouseholdId(db: D1Database, session: D1Sessi
   return householdId;
 }
 
-export type ManagedItemEditData = ManagedItemSummary & {
-  customItemType: string | null;
-  externalUrl: string | null;
-};
+export type ManagedItemEditData = ManagedItemSummary
+  & ManagedItemOptionalAttributes
+  & {
+    customItemType: string | null;
+    externalUrl: string | null;
+  };
 
 // Issue #40の編集画面が使う。外部リンクは登録時と同じく高々1件を想定するが、
 // 複数行が存在する場合でもcreated_atの昇順で1件だけを既定値として返す。
@@ -180,6 +205,7 @@ export async function getManagedItemForEdit(
   const householdId = await requireCurrentHousehold(db, session);
   return db.prepare(
     `SELECT item.*,
+            ${OPTIONAL_ATTRIBUTE_SELECT},
             CASE
               WHEN m.kind = coalesce(current_type.legacy_kind, current_kind.legacy_kind)
                 THEN c.custom_item_type
@@ -202,6 +228,8 @@ export async function getManagedItemForEdit(
 
 // Issue #40: 名前・種類・外部リンクをD1側の家庭境界とトランザクションで
 // 一括更新する(YDR-022、クライアントからhousehold_idを受け取らない)。
+// Issue #42のメモ・商品情報・購入時期は名前と同じ行にあるため、同じ
+// UPDATE一文で更新される(未設定化はNULLの書き込みで表す)。
 // 外部リンクは既存行を消してから(未設定ならそのまま、設定ありなら)1件だけ
 // 挿入し直すことで、追加・変更・未設定化のいずれも同じ経路で扱う。
 // createManagedItemと同じくdb.batch()で一括実行し、対象が自家庭に無ければ
@@ -216,8 +244,18 @@ export async function updateManagedItem(
   const classification = await requireActiveClassification(db, input);
   const statements = [
     db.prepare(
-      "UPDATE managed_items SET name = ?1, kind = ?2 WHERE id = ?3 AND household_id = ?4",
-    ).bind(input.name, classification.legacyKind, id, householdId),
+      `UPDATE managed_items
+          SET name = ?1, kind = ?2, note = ?5, product_info = ?6, purchased_on = ?7
+        WHERE id = ?3 AND household_id = ?4`,
+    ).bind(
+      input.name,
+      classification.legacyKind,
+      id,
+      householdId,
+      input.note,
+      input.productInfo,
+      input.purchasedOn,
+    ),
     db.prepare(
       `INSERT INTO managed_item_classifications (
          managed_item_id, household_id, kind_code, item_type_code, custom_item_type
@@ -280,18 +318,30 @@ function attachActivityLogs(
   return occurrencesByRule;
 }
 
+type ManagedItemDetailHead = ManagedItemSummary
+  & ManagedItemOptionalAttributes
+  & { household_id: string };
+
+function loadManagedItemDetailHead(
+  db: D1Database,
+  id: string,
+  householdId: string,
+): Promise<ManagedItemDetailHead | null> {
+  return db.prepare(
+    `SELECT item.*, m.household_id, ${OPTIONAL_ATTRIBUTE_SELECT}
+       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
+              WHERE m.id = ?1 AND m.household_id = ?2) item
+       JOIN managed_items m ON m.id = item.id`,
+  ).bind(id, householdId).first<ManagedItemDetailHead>();
+}
+
 export async function loadManagedItemDetail(
   db: D1Database,
   session: D1Session,
   id: string,
 ): Promise<ManagedItemDetailRow | null> {
   const householdId = await requireCurrentHousehold(db, session);
-  const item = await db.prepare(
-    `SELECT item.*, m.household_id
-       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
-              WHERE m.id = ?1 AND m.household_id = ?2) item
-       JOIN managed_items m ON m.id = item.id`,
-  ).bind(id, householdId).first<ManagedItemSummary & { household_id: string }>();
+  const item = await loadManagedItemDetailHead(db, id, householdId);
   if (item === null) return null;
   const [links, rules, occurrences, logs] = await Promise.all([
     db.prepare("SELECT id, url FROM external_links WHERE managed_item_id = ?1 AND household_id = ?2 ORDER BY created_at, id")

@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import { updateManagedItem } from "../../actions";
 import { ManagedItemClassificationFields } from "../../classification-fields";
 import type { ManagedItemClassificationOptions } from "../../model";
+import { ManagedItemOptionalAttributeFields } from "../../optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "../../state";
 
 function SubmitButton() {
@@ -24,6 +25,17 @@ function SubmitButton() {
   );
 }
 
+type ManagedItemEditFieldValues = {
+  customItemType: string | null;
+  externalUrl: string | null;
+  itemTypeCode: string | null;
+  kindCode: string;
+  name: string;
+  note: string | null;
+  productInfo: string | null;
+  purchasedOn: string | null;
+};
+
 function ManagedItemEditFields({
   classificationOptions,
   customItemType,
@@ -31,26 +43,29 @@ function ManagedItemEditFields({
   itemTypeCode,
   kindCode,
   name,
-}: {
+  note,
+  productInfo,
+  purchasedOn,
+}: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
-  customItemType: string | null;
-  externalUrl: string | null;
-  itemTypeCode: string | null;
-  kindCode: string;
-  name: string;
 }) {
   return (
     <>
       <label htmlFor="managed-item-edit-name">名前</label>
       <input
+        aria-describedby="managed-item-edit-name-help"
         autoComplete="off"
         defaultValue={name}
         id="managed-item-edit-name"
         maxLength={100}
         name="name"
+        placeholder="例: リビングのエアコン"
         required
         type="text"
       />
+      <p id="managed-item-edit-name-help">
+        家庭内でこの管理対象を見分けるための呼び名です。メーカー名や型番は下の欄に書けます。
+      </p>
 
       <ManagedItemClassificationFields
         classificationOptions={classificationOptions}
@@ -74,6 +89,13 @@ function ManagedItemEditFields({
       <p id="managed-item-edit-external-url-help">
         商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。空にすると未設定に戻ります。
       </p>
+
+      <ManagedItemOptionalAttributeFields
+        idPrefix="managed-item-edit"
+        note={note}
+        productInfo={productInfo}
+        purchasedOn={purchasedOn}
+      />
     </>
   );
 }
@@ -83,20 +105,11 @@ function ManagedItemEditFields({
 // 隠しフィールドから読み取る。
 export function ManagedItemEditForm({
   classificationOptions,
-  customItemType,
-  externalUrl,
   id,
-  itemTypeCode,
-  kindCode,
-  name,
-}: {
+  ...values
+}: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
-  customItemType: string | null;
-  externalUrl: string | null;
   id: string;
-  itemTypeCode: string | null;
-  kindCode: string;
-  name: string;
 }) {
   const [state, formAction] = useActionState(
     updateManagedItem,
@@ -108,11 +121,7 @@ export function ManagedItemEditForm({
       <input name="id" type="hidden" value={id} />
       <ManagedItemEditFields
         classificationOptions={classificationOptions}
-        customItemType={customItemType}
-        externalUrl={externalUrl}
-        itemTypeCode={itemTypeCode}
-        kindCode={kindCode}
-        name={name}
+        {...values}
       />
       <div className="nickname-edit-actions">
         <SubmitButton />

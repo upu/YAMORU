@@ -59,6 +59,9 @@ async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
     itemTypeCode: "other",
     kindCode: "other",
     name: TASK_TITLE,
+    note: null,
+    productInfo: null,
+    purchasedOn: null,
   });
   const today = formatDateInput(new Date());
   await createOneTimeTask(db, session, {
