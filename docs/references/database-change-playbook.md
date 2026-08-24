@@ -15,8 +15,8 @@ status: stable
 | 知りたいこと | 正本 |
 |---|---|
 | テーブル、カラム、制約、索引 | `d1/migrations/` |
-| household所属チェックと行単位の絞り込み | `lib/d1/` |
-| 家庭A/B、非メンバー、未認証、IDOR、原子性 | `lib/d1/**/*.d1-test.ts` |
+| household所属チェックと行単位の絞り込み | `src/lib/d1/` |
+| 家庭A/B、非メンバー、未認証、IDOR、原子性 | `src/lib/d1/**/*.d1-test.ts` |
 | 純粋な暦計算や画面actionの契約 | `tests/` |
 | 変更の理由 | `docs/decisions/`のAcceptedなYDR |
 

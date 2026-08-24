@@ -6,11 +6,11 @@ const { completeTaskMock, getD1ContextMock, revalidatePathMock } = vi.hoisted(()
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({ completeTask: completeTaskMock }));
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({ completeTask: completeTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { completeMaintenanceTask } from "../app/managed-items/[id]/actions";
+import { completeMaintenanceTask } from "../src/app/managed-items/[id]/actions";
 
 describe("メンテナンスTodoの完了操作", () => {
   beforeEach(() => {

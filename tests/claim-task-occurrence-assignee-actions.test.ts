@@ -6,11 +6,11 @@ const { claimAssigneeMock, getD1ContextMock, revalidatePathMock } = vi.hoisted((
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({ claimTaskOccurrenceAssignee: claimAssigneeMock }));
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({ claimTaskOccurrenceAssignee: claimAssigneeMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { claimTaskOccurrenceAssignee } from "../app/managed-items/[id]/actions";
+import { claimTaskOccurrenceAssignee } from "../src/app/managed-items/[id]/actions";
 
 describe("未担当Todoを「やるよ」で引き受ける操作(Issue #77)", () => {
   beforeEach(() => {

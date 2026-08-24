@@ -12,8 +12,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: routerRefreshMock }),
 }));
 
-import { ManualRefreshButton, RefreshCoordinator } from "../app/refresh-coordinator";
-import { RefreshOnVisible } from "../app/refresh-on-visible";
+import { ManualRefreshButton, RefreshCoordinator } from "../src/app/refresh-coordinator";
+import { RefreshOnVisible } from "../src/app/refresh-on-visible";
 
 function deferredPromise() {
   let reject!: (reason?: unknown) => void;

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { D1ConflictError } from "../lib/d1/errors";
+import { D1ConflictError } from "../src/lib/d1/errors";
 
 const { bootstrapFirstUserMock, resetPasswordMock } = vi.hoisted(() => ({
   bootstrapFirstUserMock: vi.fn(),
   resetPasswordMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/authentication", () => ({
+vi.mock("../src/lib/d1/authentication", () => ({
   bootstrapFirstUser: bootstrapFirstUserMock,
   resetPassword: resetPasswordMock,
 }));

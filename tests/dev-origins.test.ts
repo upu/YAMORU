@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAllowedDevOrigins } from "../lib/dev-origins";
+import { parseAllowedDevOrigins } from "../src/lib/dev-origins";
 
 describe("開発用接続元の設定", () => {
   it("カンマ区切りのホスト名を空白を除いて読み取る", () => {

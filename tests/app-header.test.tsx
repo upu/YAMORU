@@ -13,8 +13,8 @@ vi.mock("next/navigation", () => ({
   usePathname: usePathnameMock,
 }));
 
-import { AppHeader } from "../app/app-header";
-import { RefreshCoordinator } from "../app/refresh-coordinator";
+import { AppHeader } from "../src/app/app-header";
+import { RefreshCoordinator } from "../src/app/refresh-coordinator";
 
 afterEach(cleanup);
 

@@ -16,11 +16,11 @@ const {
   }),
 );
 
-vi.mock("../lib/d1/context", () => ({
+vi.mock("../src/lib/d1/context", () => ({
   getD1Context: getD1ContextMock,
 }));
 
-vi.mock("../lib/d1/managed-items", () => ({
+vi.mock("../src/lib/d1/managed-items", () => ({
   createManagedItem: createManagedItemInD1Mock,
   updateManagedItem: updateManagedItemInD1Mock,
 }));
@@ -33,7 +33,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import { createManagedItem, updateManagedItem } from "../app/managed-items/actions";
+import { createManagedItem, updateManagedItem } from "../src/app/managed-items/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

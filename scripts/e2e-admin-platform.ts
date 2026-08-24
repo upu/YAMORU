@@ -1,12 +1,12 @@
-import { constantTimeTokenMatch } from "../lib/auth/constant-time-token.ts";
-import { hashPassword } from "../lib/auth/password.ts";
+import { constantTimeTokenMatch } from "../src/lib/auth/constant-time-token.ts";
+import { hashPassword } from "../src/lib/auth/password.ts";
 import {
   PREVIEW_E2E_INVITEE_EMAIL,
   PREVIEW_E2E_OUTSIDER_EMAIL,
   PREVIEW_E2E_OUTSIDER_HOUSEHOLD_NAME,
   PREVIEW_E2E_OUTSIDER_NICKNAME,
   PREVIEW_E2E_OWNER_EMAIL,
-} from "../lib/e2e/preview-fixtures.ts";
+} from "../src/lib/e2e/preview-fixtures.ts";
 
 type E2eAdminPlatformEnv = {
   DB: D1Database;

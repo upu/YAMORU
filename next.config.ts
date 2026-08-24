@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
-import { parseAllowedDevOrigins } from "./lib/dev-origins";
+import { parseAllowedDevOrigins } from "./src/lib/dev-origins";
 
 // next devでもWorkerと同じD1 bindingを取得する。初期化はOpenNext側が
 // 必要なプロセスだけで一度行うため、通常のNext開発では副作用を持たない。

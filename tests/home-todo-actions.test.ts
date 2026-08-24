@@ -6,8 +6,8 @@ const { createOneTimeTaskMock, getD1ContextMock, revalidatePathMock } = vi.hoist
   revalidatePathMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../lib/d1/todos", () => ({
+vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
+vi.mock("../src/lib/d1/todos", () => ({
   createCalendarTask: vi.fn(),
   createMaintenanceTask: vi.fn(),
   createOneTimeTask: createOneTimeTaskMock,
@@ -17,7 +17,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: revalidatePathMock,
 }));
 
-import { createTodo } from "../app/todos/new/actions";
+import { createTodo } from "../src/app/todos/new/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

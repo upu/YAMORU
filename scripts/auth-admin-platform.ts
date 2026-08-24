@@ -1,6 +1,6 @@
-import { constantTimeTokenMatch } from "../lib/auth/constant-time-token.ts";
-import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication.ts";
-import { D1ConflictError } from "../lib/d1/errors.ts";
+import { constantTimeTokenMatch } from "../src/lib/auth/constant-time-token.ts";
+import { bootstrapFirstUser, resetPassword } from "../src/lib/d1/authentication.ts";
+import { D1ConflictError } from "../src/lib/d1/errors.ts";
 
 type AuthAdminPlatformEnv = {
   AUTH_ADMIN_SESSION_TOKEN: string;

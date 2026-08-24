@@ -8,11 +8,11 @@ const { cookiesMock, getD1DatabaseMock, openInvitationClaimMock } = vi.hoisted((
   openInvitationClaimMock: vi.fn(),
 }));
 
-vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
-vi.mock("../lib/d1/invitations", () => ({ openInvitationClaim: openInvitationClaimMock }));
+vi.mock("../src/lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../src/lib/d1/invitations", () => ({ openInvitationClaim: openInvitationClaimMock }));
 vi.mock("next/headers", () => ({ cookies: cookiesMock }));
 
-import { openInvitationClaimAction } from "../app/invitations/accept/actions";
+import { openInvitationClaimAction } from "../src/app/invitations/accept/actions";
 
 function cookieStore() {
   const setMock = vi.fn();

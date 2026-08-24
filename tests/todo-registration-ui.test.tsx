@@ -5,10 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { createTodoMock } = vi.hoisted(() => ({ createTodoMock: vi.fn() }));
 
-vi.mock("../app/todos/new/actions", () => ({ createTodo: createTodoMock }));
-vi.mock("../auth", () => ({ auth: vi.fn() }));
+vi.mock("../src/app/todos/new/actions", () => ({ createTodo: createTodoMock }));
+vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
-import { TodoRegistrationContent } from "../app/todos/new/page";
+import { TodoRegistrationContent } from "../src/app/todos/new/page";
 
 afterEach(cleanup);
 

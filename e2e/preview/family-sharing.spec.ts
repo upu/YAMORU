@@ -9,7 +9,7 @@ import {
 import {
   PREVIEW_E2E_INVITEE_EMAIL,
   PREVIEW_E2E_OUTSIDER_HOUSEHOLD_NAME,
-} from "../../lib/e2e/preview-fixtures";
+} from "../../src/lib/e2e/preview-fixtures";
 import {
   resetPreviewE2eFixtures,
   type PreviewE2eFixtures,

@@ -16,15 +16,15 @@ const {
   signOutMock: vi.fn(),
 }));
 
-vi.mock("../auth", () => ({ signOut: signOutMock }));
-vi.mock("../lib/auth/current-user", () => ({ requireUser: requireUserMock }));
-vi.mock("../lib/d1/authentication", () => ({ changePassword: changePasswordMock }));
-vi.mock("../lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
+vi.mock("../src/auth", () => ({ signOut: signOutMock }));
+vi.mock("../src/lib/auth/current-user", () => ({ requireUser: requireUserMock }));
+vi.mock("../src/lib/d1/authentication", () => ({ changePassword: changePasswordMock }));
+vi.mock("../src/lib/d1/client", () => ({ getD1Database: getD1DatabaseMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
-import { updatePassword } from "../app/account/password-actions";
-import { D1UnauthorizedError } from "../lib/d1/errors";
+import { updatePassword } from "../src/app/account/password-actions";
+import { D1UnauthorizedError } from "../src/lib/d1/errors";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
 

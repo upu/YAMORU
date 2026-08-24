@@ -7,11 +7,11 @@ const { updateNicknameMock } = vi.hoisted(() => ({
   updateNicknameMock: vi.fn(),
 }));
 
-vi.mock("../app/account/actions", () => ({
+vi.mock("../src/app/account/actions", () => ({
   updateNickname: updateNicknameMock,
 }));
 
-import { NicknameEditForm } from "../app/account/nickname-edit-form";
+import { NicknameEditForm } from "../src/app/account/nickname-edit-form";
 
 afterEach(() => {
   cleanup();

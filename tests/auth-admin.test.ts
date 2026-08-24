@@ -8,7 +8,7 @@ import {
   getLocalAuthAdminPlatformOptions,
   parseAuthAdminCommand,
   parseAuthAdminInvocation,
-} from "../lib/auth/admin-command";
+} from "../src/lib/auth/admin-command";
 
 describe("auth admin command boundary", () => {
   it.each(["bootstrap", "reset-password"] as const)("%sだけをサブコマンドとして受け付ける", (command) => {

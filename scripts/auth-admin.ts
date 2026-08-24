@@ -9,10 +9,10 @@ import {
   getAuthAdminFailureMessage,
   getLocalAuthAdminPlatformOptions,
   parseAuthAdminInvocation,
-} from "../lib/auth/admin-command.ts";
-import { hashPassword } from "../lib/auth/password.ts";
-import { MIN_PASSWORD_LENGTH } from "../lib/auth/password-policy.ts";
-import { bootstrapFirstUser, resetPassword } from "../lib/d1/authentication.ts";
+} from "../src/lib/auth/admin-command.ts";
+import { hashPassword } from "../src/lib/auth/password.ts";
+import { MIN_PASSWORD_LENGTH } from "../src/lib/auth/password-policy.ts";
+import { bootstrapFirstUser, resetPassword } from "../src/lib/d1/authentication.ts";
 import {
   RemoteAuthAdminDatabaseError,
   runRemoteAuthAdmin,

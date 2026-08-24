@@ -3,12 +3,12 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../auth", () => ({ auth: vi.fn() }));
+vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
 import {
   ManagedItemDetailContent,
   type ManagedItemDetailData,
-} from "../app/managed-items/[id]/page";
+} from "../src/app/managed-items/[id]/page";
 
 afterEach(cleanup);
 

@@ -1,9 +1,9 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schemaSql from "../../d1/migrations/0001_init.sql?raw";
-import authClaimsSql from "../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
+import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
+import authClaimsSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
+import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import { hashPassword, verifyPassword } from "../auth/password";
 import {
   authenticateCredentials,

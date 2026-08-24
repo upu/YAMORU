@@ -3,9 +3,9 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { metadata, viewport } from "../app/layout";
-import manifest from "../app/manifest";
-import { authMiddlewareConfig as middlewareConfig } from "../auth.config";
+import { metadata, viewport } from "../src/app/layout";
+import manifest from "../src/app/manifest";
+import { authMiddlewareConfig as middlewareConfig } from "../src/auth.config";
 
 function readPng(path: string) {
   const png = readFileSync(join(process.cwd(), path));
@@ -67,16 +67,16 @@ describe("PWA manifest", () => {
 
 describe("PWA metadata", () => {
   it("Next.jsのファイル規約で一般用とApple用のアイコンを公開する", () => {
-    expect(existsSync(join(process.cwd(), "app/icon.png"))).toBe(true);
-    expect(existsSync(join(process.cwd(), "app/apple-icon.png"))).toBe(true);
-    expect(existsSync(join(process.cwd(), "app/manifest.ts"))).toBe(true);
-    expect(existsSync(join(process.cwd(), "app/manifest.webmanifest/route.ts"))).toBe(false);
+    expect(existsSync(join(process.cwd(), "src/app/icon.png"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "src/app/apple-icon.png"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "src/app/manifest.ts"))).toBe(true);
+    expect(existsSync(join(process.cwd(), "src/app/manifest.webmanifest/route.ts"))).toBe(false);
     expect(metadata.icons).toBeUndefined();
     expect(metadata.manifest).toBeUndefined();
 
-    expectPngSize("app/icon.png", 512, 512);
-    expectPngSize("app/apple-icon.png", 180, 180);
-    expectOpaqueRgbPng("app/apple-icon.png");
+    expectPngSize("src/app/icon.png", 512, 512);
+    expectPngSize("src/app/apple-icon.png", 180, 180);
+    expectOpaqueRgbPng("src/app/apple-icon.png");
   });
 
   it("iOSのホーム画面からYAMORUとして独立表示で起動する", () => {

@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { getPlatformProxy, type PlatformProxy } from "wrangler";
 
-import { hashPassword } from "../lib/auth/password";
+import { hashPassword } from "../src/lib/auth/password";
 import { E2E_WRANGLER_ENVIRONMENT } from "../scripts/e2e-environment";
 
 const OWNER = { email: "owner@example.test", password: "owner-password-value" };
