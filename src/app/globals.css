@@ -796,7 +796,6 @@ footer p {
   font-size: 0.8rem;
 }
 
-.kind-badge,
 .sample-label {
   flex: none;
   border-radius: 999px;
@@ -806,9 +805,38 @@ footer p {
   font-weight: 800;
 }
 
-.kind-badge {
+/* 大分類と詳しい種類は別々のバッジとして並べる(Issue #195)。塗りと枠線で
+   見分けられるようにし、判別を色だけに依存させない。 */
+.classification-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.classification-badge {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.classification-badge-kind {
+  background: var(--green-pale);
+}
+
+.classification-badge-item-type {
+  border-color: var(--green-pale);
+  background: var(--paper);
+}
+
+.detail-title-row .classification-badges {
+  flex: none;
   margin-top: 8px;
-  padding: 5px 10px;
 }
 
 .last-activity {
@@ -1113,8 +1141,10 @@ footer p {
   list-style: none;
 }
 
-.ledger-list li {
+/* 直下の項目だけを対象にする。入れ子のバッジ一覧には適用しない。 */
+.ledger-list > li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1133,14 +1163,9 @@ footer p {
   text-underline-offset: 4px;
 }
 
-.ledger-list span {
+.ledger-list .classification-badges {
   flex: none;
-  padding: 3px 8px;
-  border-radius: 999px;
-  color: var(--green);
-  background: var(--green-pale);
-  font-size: 0.7rem;
-  font-weight: 800;
+  justify-content: flex-end;
 }
 
 .external-link-list li {
@@ -1490,8 +1515,7 @@ footer p {
     display: block;
   }
 
-  .kind-badge {
-    display: inline-block;
+  .detail-title-row .classification-badges {
     margin: 0 0 12px;
   }
 

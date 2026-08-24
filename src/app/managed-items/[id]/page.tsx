@@ -12,6 +12,7 @@ import {
 import { getD1Context } from "../../../lib/d1/context";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
 import { selectActiveCompletionLogs } from "../../active-completion";
+import { ClassificationBadges } from "../classification-badges";
 import {
   isSafeExternalUrl,
 } from "../model";
@@ -351,9 +352,8 @@ function ManagedItemHeader({
       <p className="detail-kicker">MANAGED ITEM</p>
       <div className="detail-title-row">
         <h1>{name}</h1>
-        <span className="kind-badge">{kindLabel}</span>
+        <ClassificationBadges itemTypeLabel={itemTypeLabel} kindLabel={kindLabel} />
       </div>
-      {itemTypeLabel === null ? null : <p>詳しい種類: {itemTypeLabel}</p>}
       <p>登録した管理対象と、現在のTodoを確認できます。</p>
       <Link className="ledger-primary-link" href={`/managed-items/${encodeURIComponent(id)}/edit`}>
         編集

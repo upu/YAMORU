@@ -4,6 +4,8 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { listManagedItems } from "../../lib/d1/managed-items";
 import { loadAccountState } from "../../lib/d1/households";
+import { ClassificationBadges } from "./classification-badges";
+
 export type ManagedItemSummary = {
   id: string;
   itemTypeLabel: string | null;
@@ -51,11 +53,10 @@ export function ManagedItemsContent({
                 {items.map((item) => (
                   <li key={item.id}>
                     <Link href={`/managed-items/${item.id}`}>{item.name}</Link>
-                    <span>
-                      {item.itemTypeLabel === null
-                        ? item.kindLabel
-                        : `${item.kindLabel}・${item.itemTypeLabel}`}
-                    </span>
+                    <ClassificationBadges
+                      itemTypeLabel={item.itemTypeLabel}
+                      kindLabel={item.kindLabel}
+                    />
                   </li>
                 ))}
               </ul>
