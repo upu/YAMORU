@@ -18,7 +18,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   externalLinks: [],
   id: "item-1",
   itemTypeLabel: "ペット用品",
-  kindLabel: "モノ・設備",
+  kindLabel: "モノ",
   lastActivity: null,
   members: [],
   name: "猫の浄水器",

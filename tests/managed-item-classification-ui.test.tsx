@@ -16,9 +16,9 @@ const CLASSIFICATION_OPTIONS = {
     { code: "contract", kindCode: "service", label: "契約" },
   ],
   kinds: [
-    { code: "asset", label: "モノ・設備" },
-    { code: "service", label: "サービス・契約" },
-    { code: "obligation", label: "継続的な義務" },
+    { code: "asset", label: "モノ" },
+    { code: "service", label: "サービス" },
+    { code: "obligation", label: "支払い・手続き" },
     { code: "other", label: "その他" },
   ],
 };

@@ -17,8 +17,8 @@ const CLASSIFICATION_OPTIONS = {
     { code: "property_tax", kindCode: "obligation", label: "固定資産税" },
   ],
   kinds: [
-    { code: "asset", label: "モノ・設備" },
-    { code: "obligation", label: "継続的な義務" },
+    { code: "asset", label: "モノ" },
+    { code: "obligation", label: "支払い・手続き" },
   ],
 };
 
@@ -48,20 +48,20 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
     expect(screen.getByLabelText("詳しい種類（任意）")).toHaveValue("property_tax");
   });
 
-  it("一覧と詳細で継続的な義務・固定資産税を識別できる", () => {
+  it("一覧と詳細で大分類「支払い・手続き」と固定資産税を識別できる", () => {
     const { unmount } = render(
       <ManagedItemsContent
         household={{ id: "household-a", name: "家庭A" }}
         items={[{
           id: "property-tax",
           itemTypeLabel: "固定資産税",
-          kindLabel: "継続的な義務",
+          kindLabel: "支払い・手続き",
           name: "2026年度 固定資産税",
         }]}
       />,
     );
     expect(within(screen.getByRole("region", { name: "登録済みの管理対象" }))
-      .getByText("継続的な義務・固定資産税")).toBeInTheDocument();
+      .getByText("支払い・手続き・固定資産税")).toBeInTheDocument();
     unmount();
 
     render(
@@ -71,7 +71,7 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         externalLinks: [],
         id: "property-tax",
         itemTypeLabel: "固定資産税",
-        kindLabel: "継続的な義務",
+        kindLabel: "支払い・手続き",
         lastActivity: null,
         members: [],
         name: "2026年度 固定資産税",
@@ -79,7 +79,7 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         recentCompletions: [],
       }} />,
     );
-    expect(screen.getByText("継続的な義務")).toBeInTheDocument();
+    expect(screen.getByText("支払い・手続き")).toBeInTheDocument();
     expect(screen.getByText("詳しい種類: 固定資産税")).toBeInTheDocument();
   });
 });

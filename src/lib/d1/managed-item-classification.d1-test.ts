@@ -6,6 +6,8 @@ import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sq
 import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
+import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
+import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -17,8 +19,15 @@ const db = env.DB;
 const householdMember = { email: "a@example.com", userId: "user-a" };
 
 function migrationStatements(): string[] {
-  return [schemaSql, authSchemaSql, migrationAuditSql, completionCorrectionsSql, classificationSql]
-    .join("\n")
+  return [
+    schemaSql,
+    authSchemaSql,
+    migrationAuditSql,
+    completionCorrectionsSql,
+    classificationSql,
+    propertyTaxSql,
+    kindLabelsSql,
+  ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n")
@@ -47,6 +56,17 @@ beforeEach(async () => {
 });
 
 describe("ManagedItemの分類データアクセス(Issue #41)", () => {
+  it("大分類を家庭向けのラベルで並び順どおりに取得する(Issue #193)", async () => {
+    await expect(listManagedItemClassificationOptions(db)).resolves.toMatchObject({
+      kinds: [
+        { code: "asset", label: "モノ" },
+        { code: "service", label: "サービス" },
+        { code: "obligation", label: "支払い・手続き" },
+        { code: "other", label: "その他" },
+      ],
+    });
+  });
+
   it("有効な大分類と詳しい種類だけを表示し、自由入力も保存する", async () => {
     await db.prepare("UPDATE managed_item_type_presets SET is_active = 0 WHERE code = 'contract'").run();
     await db.prepare("UPDATE managed_item_kinds SET is_active = 0 WHERE code = 'service'").run();
@@ -56,8 +76,8 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
         expect.objectContaining({ code: "lesson" }),
       ]),
       kinds: expect.arrayContaining([
-        { code: "asset", label: "モノ・設備" },
-        { code: "obligation", label: "継続的な義務" },
+        { code: "asset", label: "モノ" },
+        { code: "obligation", label: "支払い・手続き" },
       ]),
     });
 
@@ -72,7 +92,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: null,
       itemTypeLabel: "猫用給水機",
       kindCode: "asset",
-      kindLabel: "モノ・設備",
+      kindLabel: "モノ",
     });
   });
 
@@ -83,7 +103,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: "contract",
       itemTypeLabel: "契約",
       kindCode: "service",
-      kindLabel: "サービス・契約",
+      kindLabel: "サービス",
     });
 
     await updateManagedItem(db, householdMember, "item-a", {

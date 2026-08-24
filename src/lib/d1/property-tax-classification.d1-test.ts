@@ -7,6 +7,7 @@ import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_aud
 import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
 import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
+import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -26,6 +27,7 @@ function migrationStatements(): string[] {
     completionCorrectionsSql,
     classificationSql,
     propertyTaxSql,
+    kindLabelsSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -62,7 +64,7 @@ beforeEach(async () => {
 });
 
 describe("固定資産税の台帳分類(Issue #177)", () => {
-  it("新規登録と編集で継続的な義務・固定資産税を保存し、既存関連データを保持する", async () => {
+  it("新規登録と編集で支払い・手続き/固定資産税を保存し、既存関連データを保持する", async () => {
     await expect(listManagedItemClassificationOptions(db)).resolves.toMatchObject({
       itemTypes: expect.arrayContaining([
         { code: "property_tax", kindCode: "obligation", label: "固定資産税" },
@@ -80,7 +82,7 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       itemTypeCode: "property_tax",
       itemTypeLabel: "固定資産税",
       kindCode: "obligation",
-      kindLabel: "継続的な義務",
+      kindLabel: "支払い・手続き",
     });
 
     await updateManagedItem(db, householdMember, "item-a", {

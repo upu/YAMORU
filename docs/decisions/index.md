@@ -39,7 +39,8 @@
 | YDR-025 | PBKDF2の反復回数をCloudflare Workersの実行上限(10万回)に合わせる | Accepted | [ydr-025-pbkdf2-iterations-within-workers-limit.md](ydr-025-pbkdf2-iterations-within-workers-limit.md) |
 | YDR-026 | 実施記録の訂正を追記型の訂正イベントとして記録し、有効値を読み取り時に解決する | Accepted | [ydr-026-completion-correction-events.md](ydr-026-completion-correction-events.md) |
 | YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Accepted | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
-| YDR-028 | ManagedItemの大分類、詳しい種類、タグの役割を分離する | Accepted | [ydr-028-managed-item-kind-item-type-tags.md](ydr-028-managed-item-kind-item-type-tags.md) |
+| YDR-028 | ManagedItemの大分類、詳しい種類、タグの役割を分離する | Superseded by YDR-029(初期の表示ラベルの部分のみ) | [ydr-028-managed-item-kind-item-type-tags.md](ydr-028-managed-item-kind-item-type-tags.md) |
+| YDR-029 | 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える | Accepted | [ydr-029-managed-item-kind-labels.md](ydr-029-managed-item-kind-labels.md) |
 
 ## 新しい意思決定の追加
 

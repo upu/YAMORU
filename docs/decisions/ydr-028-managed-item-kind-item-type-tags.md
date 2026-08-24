@@ -5,13 +5,14 @@ title: ManagedItemの大分類、詳しい種類、タグの役割を分離す�
 description: kindは単一の安定した大分類、item_typeは具体的な種類、タグは将来の複数選択可能な文脈ラベルとして分離する
 tags: [yamoru, decisions, ydr, managed-item, classification]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-24
+superseded_by: YDR-029
 ---
 
 # YDR-028: ManagedItemの大分類、詳しい種類、タグの役割を分離する
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-029](ydr-029-managed-item-kind-labels.md)(初期の表示ラベル(`asset`=モノ・設備、`service`=サービス・契約、`obligation`=継続的な義務)のみ置き換え。`kind`・`item_type`・タグの役割分離、プリセットの管理方法、互換列と段階移行の判断は[YDR-029](ydr-029-managed-item-kind-labels.md)でも維持される)
 - 決定日: 2026-08-24
 - 関連する決定: [YDR-002](ydr-002-minimal-managed-item.md)
 
@@ -23,7 +24,7 @@ YDR-002では、家電などの物理的な対象と契約・税金などを`Man
 
 ## 決定
 
-- `kind`は、管理上の性質とライフサイクルを表す単一の大分類とする。初期値は`asset`(モノ・設備)、`service`(サービス・契約)、`obligation`(継続的な義務)、`other`(その他)とする。
+- `kind`は、管理上の性質とライフサイクルを表す単一の大分類とする。初期値は`asset`(モノ・設備)、`service`(サービス・契約)、`obligation`(継続的な義務)、`other`(その他)とする。([YDR-029](ydr-029-managed-item-kind-labels.md)で表示ラベルのみを「モノ」「サービス」「支払い・手続き」「その他」へ置き換えた。codeと分類の意味は変更していない)
 - `item_type`は、`kind`の配下で対象を具体化する一つの種類とする。プリセットからの選択を基本とし、該当する候補がなければ自由入力でき、未指定も許容する。
 - プリセットは無効化可能なマスタとして管理する。登録・編集時は有効な大分類と、その大分類に属する有効な詳しい種類だけを受け付ける。
 - 既存の`managed_items.kind`は移行期間の互換列として保持し、新しい分類を別テーブルへ保存する。既存行はデータ、外部リンク、Todo、Occurrence、履歴を作り直さず分類を補完する。
