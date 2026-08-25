@@ -182,7 +182,7 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.queryByRole("region", { name: "最近の実施" })).not.toBeInTheDocument();
   });
 
-  it("そろそろ区分のTodoから管理対象の詳細へ移動でき、対応状況の件数に反映される", () => {
+  it("そろそろ区分のTodoからTodo詳細・管理対象の詳細へ移動でき、対応状況の件数に反映される", () => {
     const sections = emptySections({
       reminder: [
         {
@@ -193,6 +193,7 @@ describe("ホーム画面(HomeContent)", () => {
           meta: "9月4日までが推奨期間です",
           occurrenceId: "occurrence-1",
           title: "猫の浄水器のフィルター交換",
+          todoHref: "/todos/occurrence-1",
           tone: "reminder",
         },
       ],
@@ -200,10 +201,13 @@ describe("ホーム画面(HomeContent)", () => {
     renderHome(sections);
 
     const reminderSection = screen.getByRole("region", { name: "そろそろ" });
-    const link = within(reminderSection).getByRole("link", {
-      name: "猫の浄水器のフィルター交換",
-    });
-    expect(link).toHaveAttribute("href", "/managed-items/item-1");
+    // Issue #203: Todo名はTodo詳細、管理対象名は管理対象の詳細へ移動する。
+    expect(
+      within(reminderSection).getByRole("link", { name: "猫の浄水器のフィルター交換" }),
+    ).toHaveAttribute("href", "/todos/occurrence-1");
+    expect(
+      within(reminderSection).getByRole("link", { name: "猫の浄水器" }),
+    ).toHaveAttribute("href", "/managed-items/item-1");
     expect(within(reminderSection).getAllByText("そろそろ").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("1件の予定");
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件が期限切れ");

@@ -1173,19 +1173,24 @@ footer p {
   width: 6.5rem;
 }
 
-.managed-item-record-list {
+/* 名称と値の対を並べる一覧。管理対象の任意の記録(#42)とTodo詳細(#203)で
+   同じ見た目にする。 */
+.managed-item-record-list,
+.todo-detail-list {
   display: grid;
   gap: 12px;
   margin: 18px 0 0;
 }
 
-.managed-item-record-list dt {
+.managed-item-record-list dt,
+.todo-detail-list dt {
   color: var(--muted);
   font-size: 0.72rem;
   font-weight: 800;
 }
 
-.managed-item-record-list dd {
+.managed-item-record-list dd,
+.todo-detail-list dd {
   margin: 2px 0 0;
   overflow-wrap: anywhere;
   /* メモの改行を入力どおり表示する。 */

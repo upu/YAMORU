@@ -150,6 +150,20 @@ describe("すべてのTodo画面(TodoListContent)", () => {
       .toEqual(["今回だけ点検", "申請"]);
   });
 
+  it("Todo名からTodo詳細へ、管理対象名から管理対象の詳細へ移動できる(Issue #203)", () => {
+    renderTodoList(buildTodoListItems([onceRow("today", "2026-08-11T15:00:00.000Z")], NOW));
+
+    const section = screen.getByRole("region", { name: "未完了のTodo" });
+    expect(within(section).getByRole("link", { name: "今回だけ点検" })).toHaveAttribute(
+      "href",
+      "/todos/today",
+    );
+    expect(within(section).getByRole("link", { name: "猫の浄水器" })).toHaveAttribute(
+      "href",
+      "/managed-items/item-1",
+    );
+  });
+
   it("未完了Todoが0件のときは空表示と登録導線を出す", () => {
     renderTodoList([]);
 

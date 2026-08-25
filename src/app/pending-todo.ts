@@ -47,7 +47,14 @@ const HOME_UPCOMING_DAYS = 7;
 
 function pendingTodoItemBase(row: PendingOccurrenceRow): Pick<
   TodoCardItem,
-  "assigneeUserId" | "detail" | "detailHref" | "id" | "managedItemId" | "occurrenceId" | "title"
+  | "assigneeUserId"
+  | "detail"
+  | "detailHref"
+  | "id"
+  | "managedItemId"
+  | "occurrenceId"
+  | "title"
+  | "todoHref"
 > {
   const managedItem = row.task_rules.managed_items;
   return {
@@ -58,6 +65,8 @@ function pendingTodoItemBase(row: PendingOccurrenceRow): Pick<
     managedItemId: managedItem?.id ?? null,
     occurrenceId: row.id,
     title: row.task_rules.title,
+    // ホームとTodo一覧のどちらからでも、同じTodo詳細へ移動する(Issue #203)。
+    todoHref: `/todos/${row.id}`,
   };
 }
 

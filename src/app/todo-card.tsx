@@ -29,6 +29,8 @@ export type TodoCardItem = {
   // 一回限りTodoにだけ設定する。nullは予定日未定、文字列は具体日あり。
   oneTimeScheduledFor?: string | null;
   title: string;
+  // pending Todoにだけ設定する、Todo詳細(/todos/:id)への導線(Issue #203)。
+  todoHref?: string;
   tone: TodoTone;
 };
 
@@ -41,20 +43,39 @@ const TONE_LABELS: Record<TodoTone, string> = {
   urgent: "要対応",
 };
 
+// Issue #203: 未完了TodoではTodo名からTodo詳細へ移動し、管理対象名から
+// 管理対象の詳細へ移動する。完了記録にはTodo詳細がないため、従来どおり
+// Todo名から管理対象の詳細へ移動する。
 function TodoCardTitle({ item }: { item: TodoCardItem }) {
+  const titleHref = item.todoHref ?? item.detailHref;
   return (
     <div className="task-title-row">
       <h3>
-        {item.detailHref === undefined ? (
+        {titleHref === undefined ? (
           item.title
         ) : (
-          <Link href={item.detailHref}>{item.title}</Link>
+          <Link href={titleHref}>{item.title}</Link>
         )}
       </h3>
       <span className={`tone-label tone-${item.tone}`}>
         {item.badge ?? TONE_LABELS[item.tone]}
       </span>
     </div>
+  );
+}
+
+function TodoCardDetail({ item }: { item: TodoCardItem }) {
+  // Todo名が管理対象の詳細を指しているとき(完了記録)は、同じリンクを
+  // 二つ並べない。
+  const detailHref = item.todoHref === undefined ? undefined : item.detailHref;
+  return (
+    <p className="item-detail">
+      {detailHref === undefined ? (
+        item.detail
+      ) : (
+        <Link href={detailHref}>{item.detail}</Link>
+      )}
+    </p>
   );
 }
 
@@ -131,7 +152,7 @@ export function TodoCard({
       <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
       <div className="task-copy">
         <TodoCardTitle item={item} />
-        <p className="item-detail">{item.detail}</p>
+        <TodoCardDetail item={item} />
         <p className="item-meta">{item.meta}</p>
         <TodoCardActions
           actorName={actorName}
