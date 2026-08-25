@@ -3,7 +3,6 @@ import Link from "next/link";
 import type { HouseholdMemberOption } from "../lib/d1/profiles";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
-import { CorrectionPanel } from "./managed-items/[id]/correction-panel";
 import { SchedulePanel } from "./managed-items/[id]/schedule-panel";
 import type { TodoTone } from "./task-schedule";
 
@@ -14,10 +13,6 @@ export type TodoCardItem = {
   // pending Todoにだけ設定する。未設定(誰でも可)はnull。
   assigneeUserId?: string | null;
   badge?: string;
-  completedAt?: string;
-  completedOccurrenceId?: string;
-  // completed Todoにだけ設定する(#148の修正で実施者を選び直すための既定値)。
-  completedPerformedByUserId?: string | null;
   detail: string;
   detailHref?: string;
   id: string;
@@ -43,9 +38,8 @@ const TONE_LABELS: Record<TodoTone, string> = {
   urgent: "要対応",
 };
 
-// Issue #203: 未完了TodoではTodo名からTodo詳細へ移動し、管理対象名から
-// 管理対象の詳細へ移動する。完了記録にはTodo詳細がないため、従来どおり
-// Todo名から管理対象の詳細へ移動する。
+// Issue #203・#206: 未完了・完了済みのどちらもTodo名からTodo詳細へ移動し、
+// 管理対象名から管理対象の詳細へ移動する。
 function TodoCardTitle({ item }: { item: TodoCardItem }) {
   const titleHref = item.todoHref ?? item.detailHref;
   return (
@@ -65,8 +59,6 @@ function TodoCardTitle({ item }: { item: TodoCardItem }) {
 }
 
 function TodoCardDetail({ item }: { item: TodoCardItem }) {
-  // Todo名が管理対象の詳細を指しているとき(完了記録)は、同じリンクを
-  // 二つ並べない。
   const detailHref = item.todoHref === undefined ? undefined : item.detailHref;
   return (
     <p className="item-detail">
@@ -122,20 +114,8 @@ function TodoCardActions({
       </>
     );
   }
-  if (item.completedAt === undefined || item.completedOccurrenceId === undefined) {
-    return null;
-  }
-  return (
-    <CorrectionPanel
-      currentUserId={currentUserId}
-      managedItemId={item.managedItemId ?? null}
-      members={members}
-      occurredAt={item.completedAt}
-      occurrenceId={item.completedOccurrenceId}
-      performedByUserId={item.completedPerformedByUserId ?? null}
-      taskTitle={item.title}
-    />
-  );
+  // Issue #206: 完了済みカードは確認専用。訂正・取消はTodo詳細で行う。
+  return null;
 }
 
 // canChangeSchedule: 予定日の設定・未定化をカード内で提供するか(Issue #204)。

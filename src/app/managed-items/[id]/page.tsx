@@ -19,7 +19,6 @@ import {
 import { formatPurchaseDate } from "../purchase-date";
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
-import { CorrectionPanel } from "./correction-panel";
 import { PostponePanel } from "./postpone-panel";
 import { SchedulePanel } from "./schedule-panel";
 import {
@@ -53,7 +52,6 @@ type PendingTodoData = {
 type RecentCompletionData = {
   id: string;
   occurredAt: string;
-  performedByUserId: string | null;
   title: string;
 };
 type LastActivityData = { occurredAt: string; performerName: string };
@@ -216,7 +214,6 @@ function buildRecentCompletions(
         selectActiveCompletionLogs([occurrence]).map((log) => ({
           id: occurrence.id,
           occurredAt: log.occurred_at,
-          performedByUserId: log.performed_by_user_id,
           title: rule.title,
         })),
       );
@@ -328,14 +325,8 @@ function PendingTodoSection({
 
 function RecentCompletionSection({
   completions,
-  currentUserId,
-  managedItemId,
-  members,
 }: {
   completions: RecentCompletionData[];
-  currentUserId: string;
-  managedItemId: string;
-  members: HouseholdMemberOption[];
 }) {
   return (
     <section aria-labelledby="recent-completions-title" className="detail-card">
@@ -347,17 +338,11 @@ function RecentCompletionSection({
         <ul className="maintenance-todo-list">
           {completions.map((completion) => (
             <li key={completion.id}>
-              <strong>{completion.title}</strong>
+              {/* Issue #206: 一覧は確認専用とし、Todo名から完了済み詳細へ移動する。 */}
+              <strong>
+                <Link href={`/todos/${completion.id}`}>{completion.title}</Link>
+              </strong>
               <span>{formatTokyoDate(completion.occurredAt)}に完了</span>
-              <CorrectionPanel
-                currentUserId={currentUserId}
-                managedItemId={managedItemId}
-                members={members}
-                occurredAt={completion.occurredAt}
-                occurrenceId={completion.id}
-                performedByUserId={completion.performedByUserId}
-                taskTitle={completion.title}
-              />
             </li>
           ))}
         </ul>
@@ -530,9 +515,6 @@ export function ManagedItemDetailContent({
 
         <RecentCompletionSection
           completions={item.recentCompletions}
-          currentUserId={item.currentUserId}
-          managedItemId={item.id}
-          members={item.members}
         />
 
         <ExternalLinksSection links={safeLinks} />

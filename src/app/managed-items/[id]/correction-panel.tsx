@@ -45,10 +45,10 @@ function CorrectionTrigger({
   );
 }
 
-// Issue #148: 「最近の実施」の修正は、実施日時の訂正・実施者の訂正・完了の
-// 取消のいずれかを選ぶ入口。取消は既存のundoMaintenanceTaskCompletionをそのまま
-// 使う(YDR-015の仕組みを変えない)。訂正2つは新しいcompletion_correctionsへの
-// 追記になる(YDR-026)。
+// Issue #148・#205: 完了済みTodo詳細の修正は、実施日時の訂正・実施者の訂正・
+// 完了取消のいずれかを選ぶ入口。取消は既存のundoMaintenanceTaskCompletionを
+// そのまま使う(YDR-015の仕組みを変えない)。訂正2つは新しい
+// completion_correctionsへの追記になる(YDR-026)。
 function CorrectionChoice({
   onSelectOccurredAt,
   onSelectPerformer,
