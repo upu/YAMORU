@@ -61,6 +61,9 @@ describe("SchedulePanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "申請の予定日を未定に戻す" }));
     expect(screen.getByRole("dialog", { name: "申請の予定日を未定に戻す" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/ホームには表示されなくなり、「Todo一覧」から確認できます。/u),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "予定日を未定に戻す" }));
 
     expect(unsetTaskOccurrenceScheduleMock).toHaveBeenCalledWith("item-1", "occurrence-1");

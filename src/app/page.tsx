@@ -48,7 +48,7 @@ const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "upcoming",
 ]);
 
-// ホームは「いま対応すること」に絞る。ここへ載せない区分は、すべてのTodo一覧
+// ホームは「いま対応すること」に絞る。ここへ載せない区分はTodo一覧
 // (/todos)で確認する(Issue #201)。
 // - later: 7日より先の予定
 // - before-window: 完了日基準Todoの推奨期間前(YDR-017)
@@ -196,7 +196,7 @@ function HomeSectionView({
           <TodoCard
             actorName={actorName}
             // Issue #204: ホームのカードは確認・担当変更・完了に絞る。予定日の
-            // 設定変更はTodo詳細の編集、またはすべてのTodo一覧から行う。
+            // 設定変更はTodo詳細の編集、またはTodo一覧から行う。
             canChangeSchedule={false}
             currentUserId={currentUserId}
             item={item}
@@ -227,13 +227,9 @@ function HomeHero({
             <Link className="account-link todo-add-link" href="/todos/new">
               Todoを追加
             </Link>
-            {/* ホームは「いま対応すること」だけを表示する。7日より先の予定や
-                予定日未定Todoを含む未完了Todoは、この導線からすべて確認する
-                (Issue #201、#202)。予定日未定Todoの再発見経路はここだけなので、
-                モバイルでも隠さない(下部ナビゲーションは「ホーム」「台帳」の
-                2項目のままにする)。 */}
-            <Link className="account-link" href="/todos">
-              すべてのTodo
+            {/* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */}
+            <Link className="account-link home-todo-list-link" href="/todos">
+              Todo一覧
             </Link>
           </>
         ) : null}
@@ -269,17 +265,17 @@ function HouseholdRequiredNotice() {
 }
 
 // Issue #202: 予定日未定Todoはホームに載せないため、ここが空でも未完了Todoが
-// 残っていることがある。「Todoがない」と言い切らず、すべてのTodoへの導線を示す。
+// 残っていることがある。「Todoがない」と言い切らず、Todo一覧への導線を示す。
 function HomeEmptyState({ householdName }: { householdName: string }) {
   return (
     <section aria-labelledby="home-empty-title" className="detail-card">
       <h2 id="home-empty-title">いま対応することはありません</h2>
       <p>
         {householdName}
-        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoは「すべてのTodo」から確認できます。
+        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。
       </p>
-      <Link className="ledger-primary-link" href="/todos">
-        すべてのTodoを見る
+      <Link className="ledger-primary-link home-todo-list-link" href="/todos">
+        Todo一覧を見る
       </Link>
       <Link className="ledger-primary-link" href="/todos/new">
         最初のTodoを追加

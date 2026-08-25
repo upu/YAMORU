@@ -46,8 +46,8 @@ const STATE_CHANGED_ERROR: MaintenanceTodoActionState = {
   status: "error",
 };
 
-// Todoの状態を表示する画面(ManagedItem詳細・ホーム、Issue #36、すべてのTodo
-// 一覧、Issue #201、Todo詳細、Issue #203・#205)をまとめて再検証する。完了・
+// Todoの状態を表示する画面(ManagedItem詳細・ホーム、Issue #36、Todo一覧、
+// Issue #201、Todo詳細、Issue #203・#205)をまとめて再検証する。完了・
 // 担当変更・延期・予定日変更・完了取消・実施記録の訂正はいずれも同じ画面群へ
 // 反映されるため、同じ組を呼ぶ。
 function revalidateTodoViews(

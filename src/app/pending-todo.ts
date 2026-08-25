@@ -17,7 +17,7 @@ import {
 } from "./time-zone";
 
 // 未完了Todoの分類はこの一箇所で行う。ホームは「いま対応すること」だけを
-// 区分ごとに表示し、すべてのTodo一覧(/todos)は同じ分類結果を日付順に並べて
+// 区分ごとに表示し、Todo一覧(/todos)は同じ分類結果を日付順に並べて
 // すべて表示する(Issue #201)。
 export type PendingTodoCategory =
   // 期限切れ
@@ -42,7 +42,7 @@ export type PendingTodoEntry = {
   sortKey: string | null;
 };
 
-// ホームの「近日」に含める日数。これより先の予定はすべてのTodo一覧で確認する。
+// ホームの「近日」に含める日数。これより先の予定はTodo一覧で確認する。
 const HOME_UPCOMING_DAYS = 7;
 
 function pendingTodoItemBase(row: PendingOccurrenceRow): Pick<

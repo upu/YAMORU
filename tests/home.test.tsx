@@ -124,19 +124,22 @@ describe("ホーム画面(HomeContent)", () => {
     );
   });
 
-  it("すべてのTodo一覧への導線を表示する(Issue #201)", () => {
+  it("Todo一覧へのPC向け導線を表示し、モバイルではタブと重複しない印を付ける", () => {
     renderHome(emptySections());
 
-    expect(screen.getByRole("link", { name: "すべてのTodo" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Todo一覧" })).toHaveAttribute(
       "href",
       "/todos",
+    );
+    expect(screen.getByRole("link", { name: "Todo一覧" })).toHaveClass(
+      "home-todo-list-link",
     );
   });
 
   it("家庭未所属の利用者にはTodo関連の導線を表示しない", () => {
     renderHome([], null);
 
-    expect(screen.queryByRole("link", { name: "すべてのTodo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Todo一覧" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Todoを追加" })).not.toBeInTheDocument();
   });
 
@@ -147,10 +150,15 @@ describe("ホーム画面(HomeContent)", () => {
       screen.getByRole("heading", { name: "いま対応することはありません" }),
     ).toBeInTheDocument();
     // Issue #202: ホームが空でも予定日未定Todoは残りうるため、再発見経路を示す。
-    expect(screen.getByRole("link", { name: "すべてのTodoを見る" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Todo一覧を見る" })).toHaveAttribute(
       "href",
       "/todos",
     );
+    expect(screen.getByRole("link", { name: "Todo一覧を見る" })).toHaveClass(
+      "home-todo-list-link",
+    );
+    expect(screen.getByText(/予定日が決まっていないTodoはTodo一覧で確認できます。/u))
+      .toBeInTheDocument();
     expect(screen.getByRole("link", { name: "家の台帳を開く" })).toHaveAttribute(
       "href",
       "/managed-items",
@@ -416,7 +424,7 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
     return buildPendingSectionItems(rows, nowIso).reminder;
   }
 
-  it("推奨期間前はホームに表示しない(すべてのTodo一覧で確認する)", () => {
+  it("推奨期間前はホームに表示しない(Todo一覧で確認する)", () => {
     const items = buildReminderItems([pendingRow()], "2026-08-01T00:00:00.000Z");
     expect(items).toHaveLength(0);
   });
