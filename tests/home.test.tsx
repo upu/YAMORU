@@ -28,9 +28,8 @@ vi.mock("../src/app/managed-items/[id]/actions", () => ({
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
 import {
-  buildReminderItems,
+  buildPendingSectionItems,
   buildRecentItems,
-  buildStrictItems,
   HomeContent,
   type HomeSection,
   type PendingOccurrenceRow,
@@ -124,6 +123,22 @@ describe("ホーム画面(HomeContent)", () => {
       "href",
       "/todos/new",
     );
+  });
+
+  it("すべてのTodo一覧への導線を表示する(Issue #201)", () => {
+    renderHome(emptySections());
+
+    expect(screen.getByRole("link", { name: "すべてのTodo" })).toHaveAttribute(
+      "href",
+      "/todos",
+    );
+  });
+
+  it("家庭未所属の利用者にはTodo関連の導線を表示しない", () => {
+    renderHome([], null);
+
+    expect(screen.queryByRole("link", { name: "すべてのTodo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Todoを追加" })).not.toBeInTheDocument();
   });
 
   it("家庭は存在するが表示できるTodo・履歴が0件のときは空状態と登録導線を表示する", () => {
@@ -343,7 +358,7 @@ describe("ホームのTodo操作", () => {
   });
 });
 
-describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
+describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () => {
   function pendingRow(overrides: Partial<PendingOccurrenceRow> = {}): PendingOccurrenceRow {
     return {
       assignee_user_id: null,
@@ -360,7 +375,11 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
     };
   }
 
-  it("推奨期間前は表示しない", () => {
+  function buildReminderItems(rows: PendingOccurrenceRow[], nowIso: string) {
+    return buildPendingSectionItems(rows, nowIso).reminder;
+  }
+
+  it("推奨期間前はホームに表示しない(すべてのTodo一覧で確認する)", () => {
     const items = buildReminderItems([pendingRow()], "2026-08-01T00:00:00.000Z");
     expect(items).toHaveLength(0);
   });
@@ -411,7 +430,7 @@ describe("推奨期間による分類(buildReminderItems, YDR-017)", () => {
   });
 });
 
-describe("一回限りTodoの分類(buildStrictItems)", () => {
+describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
   function onceRow(
     id: string,
     scheduledFor: string,
@@ -431,7 +450,7 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
   }
 
   it("予定日を期限切れ・今日・近日へ分け、遠い予定はホームへ出さない", () => {
-    const items = buildStrictItems(
+    const items = buildPendingSectionItems(
       [
         onceRow("overdue", "2026-08-10T15:00:00.000Z"),
         onceRow("today", "2026-08-11T15:00:00.000Z"),
@@ -479,7 +498,7 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     row.due_at = null;
     row.task_rules.managed_items = null;
 
-    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+    const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.undated).toEqual([
       expect.objectContaining({
@@ -499,7 +518,7 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     const row = onceRow("unlinked", "2026-08-11T15:00:00.000Z");
     row.task_rules.managed_items = null;
 
-    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+    const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.today[0]).toMatchObject({
       detail: "管理対象なし",
@@ -515,7 +534,7 @@ describe("一回限りTodoの分類(buildStrictItems)", () => {
     row.task_rules.recurrence_basis = "calendar";
     row.task_rules.title = "毎週の家族会議";
 
-    const items = buildStrictItems([row], "2026-08-12T00:00:00.000Z");
+    const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.upcoming[0]).toMatchObject({
       meta: "8月15日の予定です ・ 曜日・日付で繰り返す",

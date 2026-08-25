@@ -292,7 +292,10 @@ h1 {
 
 .hero-actions {
   display: flex;
+  /* 「Todoを追加」「すべてのTodo」「家の台帳」が狭い幅で収まらない場合は
+     折り返す(Issue #201)。 */
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;

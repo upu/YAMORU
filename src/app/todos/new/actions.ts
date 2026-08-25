@@ -243,6 +243,9 @@ function parseTodo(
 
 function revalidateTodoPages(managedItemId: string | null): void {
   revalidatePath("/");
+  // 追加したTodoは、ホームに載らない予定(7日より先など)でも
+  // すべてのTodo一覧には必ず載る(Issue #201)。
+  revalidatePath("/todos");
   revalidatePath("/todos/new");
   if (managedItemId !== null) {
     revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
