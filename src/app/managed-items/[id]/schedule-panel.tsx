@@ -86,7 +86,11 @@ function ScheduleDialog({
         </form>
       ) : (
         <div className="completion-detail-form">
-          <p>具体日を外し、ホームの「予定日未定」へ戻します。Todoや担当は削除されません。</p>
+          {/* Issue #202: 予定日未定Todoはホームに表示しない。戻した後の
+              確認場所を「すべてのTodo」と明示する。 */}
+          <p>
+            具体日を外し、予定日未定へ戻します。ホームには表示されなくなり、「すべてのTodo」から確認できます。Todoや担当は削除されません。
+          </p>
           <button className="dialog-primary-button" onClick={onUnset} type="button">
             予定日を未定に戻す
           </button>

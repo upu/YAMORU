@@ -41,7 +41,8 @@
 | YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Accepted | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
 | YDR-028 | ManagedItemの大分類、詳しい種類、タグの役割を分離する | Superseded by YDR-029(初期の表示ラベルの部分のみ) | [ydr-028-managed-item-kind-item-type-tags.md](ydr-028-managed-item-kind-item-type-tags.md) |
 | YDR-029 | 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える | Accepted | [ydr-029-managed-item-kind-labels.md](ydr-029-managed-item-kind-labels.md) |
-| YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Accepted | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
+| YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
+| YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Accepted | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
 
 ## 新しい意思決定の追加
 

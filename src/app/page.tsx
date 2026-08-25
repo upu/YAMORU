@@ -27,7 +27,7 @@ import { formatTokyoDate } from "./time-zone";
 
 export type { PendingOccurrenceRow, RecentCompletionRow } from "../lib/d1/home";
 
-export type HomeSectionId = "overdue" | "today" | "undated" | "reminder" | "upcoming" | "recent";
+export type HomeSectionId = "overdue" | "today" | "reminder" | "upcoming" | "recent";
 
 export type HomeSection = {
   description: string;
@@ -44,18 +44,19 @@ type OpenSectionId = Exclude<HomeSectionId, "recent">;
 const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "overdue",
   "today",
-  "undated",
   "reminder",
   "upcoming",
 ]);
 
-// ホームは「いま対応すること」に絞る。7日より先の予定(later)と、完了日基準の
-// 推奨期間前(before-window)はここへ載せず、すべてのTodo一覧(/todos)で確認する
-// (Issue #201)。
+// ホームは「いま対応すること」に絞る。ここへ載せない区分は、すべてのTodo一覧
+// (/todos)で確認する(Issue #201)。
+// - later: 7日より先の予定
+// - before-window: 完了日基準Todoの推奨期間前(YDR-017)
+// - undated: 予定日未定Todo。着手できる時期が決まっていないため、要対応の
+//   表示にも「件の予定」にも含めない(Issue #202、YDR-031)。
 const HOME_SECTION_BY_CATEGORY = new Map<PendingTodoCategory, OpenSectionId>([
   ["overdue", "overdue"],
   ["today", "today"],
-  ["undated", "undated"],
   ["reminder", "reminder"],
   ["upcoming", "upcoming"],
 ]);
@@ -63,7 +64,6 @@ const HOME_SECTION_BY_CATEGORY = new Map<PendingTodoCategory, OpenSectionId>([
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
-  { description: "実施する時期が決まっていません", id: "undated", title: "予定日未定" },
   { description: "対応の目安の時期です", id: "reminder", title: "そろそろ" },
   { description: "これから7日間の予定", id: "upcoming", title: "近日" },
   { description: "家族が完了したこと", id: "recent", title: "最近の実施" },
@@ -81,7 +81,6 @@ export function buildPendingSectionItems(
     overdue: [],
     reminder: [],
     today: [],
-    undated: [],
     upcoming: [],
   };
 
@@ -229,9 +228,10 @@ function HomeHero({
               Todoを追加
             </Link>
             {/* ホームは「いま対応すること」だけを表示する。7日より先の予定や
-                予定日未定を含む未完了Todoは、この導線からすべて確認する
-                (Issue #201)。モバイル下部ナビゲーションは「ホーム」「台帳」の
-                2項目のままにするため、導線はここに置く。 */}
+                予定日未定Todoを含む未完了Todoは、この導線からすべて確認する
+                (Issue #201、#202)。予定日未定Todoの再発見経路はここだけなので、
+                モバイルでも隠さない(下部ナビゲーションは「ホーム」「台帳」の
+                2項目のままにする)。 */}
             <Link className="account-link" href="/todos">
               すべてのTodo
             </Link>
@@ -268,14 +268,19 @@ function HouseholdRequiredNotice() {
   );
 }
 
+// Issue #202: 予定日未定Todoはホームに載せないため、ここが空でも未完了Todoが
+// 残っていることがある。「Todoがない」と言い切らず、すべてのTodoへの導線を示す。
 function HomeEmptyState({ householdName }: { householdName: string }) {
   return (
     <section aria-labelledby="home-empty-title" className="detail-card">
-      <h2 id="home-empty-title">まだ表示できる予定がありません</h2>
+      <h2 id="home-empty-title">いま対応することはありません</h2>
       <p>
         {householdName}
-        には、まだTodoや完了記録がありません。
+        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoは「すべてのTodo」から確認できます。
       </p>
+      <Link className="ledger-primary-link" href="/todos">
+        すべてのTodoを見る
+      </Link>
       <Link className="ledger-primary-link" href="/todos/new">
         最初のTodoを追加
       </Link>

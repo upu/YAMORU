@@ -7,11 +7,12 @@ tags: [yamoru, decisions, ydr, todo]
 status: stable
 decision_status: Accepted
 decision_date: 2026-08-24
+superseded_by: YDR-031
 ---
 
 # YDR-030: 一回限りTodoだけ予定日未定のOccurrenceを許す
 
-- 状態: Accepted
+- 状態: Accepted（ホーム表示に関する決定のみ [YDR-031](ydr-031-undated-todos-out-of-home.md) が置き換え。日付未定Occurrenceの持ち方、往復、延期・完了の扱い、一意制約は本YDRのまま有効）
 - 決定日: 2026-08-24
 
 ## 背景
@@ -28,7 +29,7 @@ YDR-012は`scheduled_for`を本来の予定、`due_at`を現在の期限とし�
 - 日付未定の一回限りTodoへ予定日を設定するときは、`scheduled_for`と`due_at`を同じ具体日にする。
 - 具体日がある一回限りTodoは、両方をNULLにして予定日未定へ戻せる。
 - 日付未定中は延期を提供しない。具体日があるときの延期はYDR-012どおり`scheduled_for`を保ち、`due_at`だけを変更する。
-- 日付未定Todoは期限切れ・今日・近日へ分類せず、ホームの独立した「予定日未定」区分へ表示する。
+- 日付未定Todoは期限切れ・今日・近日へ分類せず、ホームの独立した「予定日未定」区分へ表示する。（[YDR-031](ydr-031-undated-todos-out-of-home.md)により置き換え。現在はホームへ表示せず、すべてのTodo一覧で扱う）
 - `(task_rule_id, scheduled_for)`の一意制約は具体的な予定枠の重複防止として維持する。NULL同士はSQLiteの一意制約では重複とみなされないため、`status = 'pending'`の`task_rule_id`部分一意制約を、日付未定を含む未解決Todo最大1件の保証として維持する。
 - 一回限りTodoは日付未定のまま完了できる。完了時に次のOccurrenceは作らない。
 

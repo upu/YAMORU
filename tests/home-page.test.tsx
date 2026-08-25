@@ -84,7 +84,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     expect(screen.queryByText("暮らしの「いつだっけ？」をなくす。"))
       .not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "まだ表示できる予定がありません" }),
+      screen.getByRole("heading", { name: "いま対応することはありません" }),
     ).toBeInTheDocument();
   });
 });
