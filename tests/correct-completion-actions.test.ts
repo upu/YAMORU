@@ -40,6 +40,9 @@ describe("実施日時の訂正操作(Issue #148)", () => {
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
+    // 訂正後の実施記録はTodo詳細にも表示される(Issue #205)。
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos/occurrence-id");
     expect(result).toEqual({ message: "実施日時を訂正しました。", status: "success" });
   });
 

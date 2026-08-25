@@ -5,7 +5,7 @@ import { requireUser } from "../../../../lib/auth/current-user";
 import { getD1Context } from "../../../../lib/d1/context";
 import { listManagedItems } from "../../../../lib/d1/managed-items";
 import { loadHouseholdMembers } from "../../../../lib/d1/profiles";
-import { loadPendingTodoDetail } from "../../../../lib/d1/todos";
+import { loadTodoDetail } from "../../../../lib/d1/todos";
 import { formatTokyoDateInput } from "../../../time-zone";
 import { TodoEditForm } from "./todo-edit-form";
 
@@ -20,11 +20,12 @@ export default async function TodoEditPage({
   const { id } = await params;
   const { db, session } = await getD1Context(user);
 
-  const todo = await loadPendingTodoDetail(db, session, id);
+  const todo = await loadTodoDetail(db, session, id);
   if (todo === null) notFound();
-  // 繰り返しのあるTodoの内容変更は#203の対象外。詳細画面には編集導線を出して
-  // いないため、URLを直接開いた場合も詳細へ戻す。
-  if (todo.recurrence_basis !== "once") {
+  // 繰り返しのあるTodoの内容変更(#203)と、完了済みTodoの内容変更(#205)は
+  // どちらも対象外。詳細画面には編集導線を出していないため、URLを直接開いた
+  // 場合も詳細へ戻す。
+  if (todo.recurrence_basis !== "once" || todo.status !== "pending") {
     redirect(`/todos/${encodeURIComponent(id)}`);
   }
 

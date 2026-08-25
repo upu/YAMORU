@@ -46,15 +46,20 @@ const STATE_CHANGED_ERROR: MaintenanceTodoActionState = {
   status: "error",
 };
 
-// メンテナンスTodoの状態を表示する画面(詳細・ホーム、Issue #36、すべてのTodo
-// 一覧、Issue #201)をまとめて再検証する。完了・担当変更・延期・予定日変更・
-// 完了取消はいずれも同じ画面群へ反映されるため、同じ組を呼ぶ。
-function revalidateTodoViews(managedItemId: string | null): void {
+// Todoの状態を表示する画面(ManagedItem詳細・ホーム、Issue #36、すべてのTodo
+// 一覧、Issue #201、Todo詳細、Issue #203・#205)をまとめて再検証する。完了・
+// 担当変更・延期・予定日変更・完了取消・実施記録の訂正はいずれも同じ画面群へ
+// 反映されるため、同じ組を呼ぶ。
+function revalidateTodoViews(
+  managedItemId: string | null,
+  occurrenceId: string,
+): void {
   if (managedItemId !== null) {
     revalidatePath(`/managed-items/${encodeURIComponent(managedItemId)}`);
   }
   revalidatePath("/");
   revalidatePath("/todos");
+  revalidatePath(`/todos/${encodeURIComponent(occurrenceId)}`);
 }
 
 const CONFLICT_MESSAGE_FRAGMENT = "is not pending";
@@ -122,7 +127,7 @@ export async function completeMaintenanceTask(
     return mapCompleteMaintenanceTaskError(errorMessage(error));
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "完了を記録しました。",
     status: "success",
@@ -159,7 +164,7 @@ export async function setTaskOccurrenceAssignee(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "担当を変更しました。",
     status: "success",
@@ -196,7 +201,7 @@ export async function claimTaskOccurrenceAssignee(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "担当にしました。",
     status: "success",
@@ -243,7 +248,7 @@ export async function postponeTaskOccurrence(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: `${formatTokyoDate(dueAtIso)}まで延期しました。`,
     status: "success",
@@ -277,7 +282,7 @@ async function updateTaskOccurrenceSchedule(
       { message: "予定日を変更できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return null;
 }
 
@@ -332,7 +337,7 @@ export async function undoMaintenanceTaskCompletion(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "完了の取消を記録しました。",
     status: "success",
@@ -379,7 +384,7 @@ export async function correctCompletionOccurredAt(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "実施日時を訂正しました。",
     status: "success",
@@ -413,7 +418,7 @@ export async function correctCompletionPerformer(
     );
   }
 
-  revalidateTodoViews(managedItemId);
+  revalidateTodoViews(managedItemId, occurrenceId);
   return {
     message: "実施者を訂正しました。",
     status: "success",

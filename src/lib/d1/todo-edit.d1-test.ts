@@ -12,10 +12,13 @@ import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_opti
 import undatedTodosSql from "../../../d1/migrations/0009_undated_one_time_todos.sql?raw";
 import {
   completeTask,
+  correctCompletionOccurredAt,
+  correctCompletionPerformer,
   createCalendarTask,
   createOneTimeTask,
-  loadPendingTodoDetail,
+  loadTodoDetail,
   postponeTaskOccurrence,
+  undoTaskCompletion,
   updateOneTimeTodo,
 } from "./todos";
 
@@ -221,7 +224,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
       scheduled_for: "2026-09-01T15:00:00.000Z",
       title: "B household todo",
     });
-    await expect(loadPendingTodoDetail(db, memberA, occurrenceId)).resolves.toBeNull();
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toBeNull();
   });
 
   it("家庭BのManagedItemを指定した編集は、名前も予定日も変えずに失敗する", async () => {
@@ -305,33 +308,77 @@ describe("Todo編集の家庭間分離と原子性", () => {
   });
 });
 
-describe("Todo詳細の取得(loadPendingTodoDetail)", () => {
-  it("現在の家庭のpending Todoだけを、関連ManagedItemとともに返す", async () => {
+describe("Todo詳細の取得(loadTodoDetail)", () => {
+  it("現在の家庭のpending Todoを、関連ManagedItemとともに返す", async () => {
     const { occurrenceId } = await createHouseholdATodo({ managedItemId: "item-a" });
 
-    await expect(loadPendingTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
       assignee_user_id: null,
+      completed_activity_log_id: null,
       deadline_kind: "strict",
       due_at: "2026-09-01T15:00:00.000Z",
       id: occurrenceId,
       managed_item_id: "item-a",
       managed_item_name: "Item A",
+      occurred_at: null,
+      performed_by_user_id: null,
       recurrence_basis: "once",
       scheduled_for: "2026-09-01T15:00:00.000Z",
+      status: "pending",
       title: "申請する",
     });
-    await expect(loadPendingTodoDetail(db, memberB, occurrenceId)).resolves.toBeNull();
+    await expect(loadTodoDetail(db, memberB, occurrenceId)).resolves.toBeNull();
   });
 
-  it("完了したTodoは返さない", async () => {
+  it("完了したTodoを実施日時・実施者つきで返す(Issue #205)", async () => {
     const { occurrenceId } = await createHouseholdATodo();
     await completeTask(db, memberA, {
       idempotencyKey: "complete-detail",
+      occurredAt: "2026-08-20T15:00:00.000Z",
+      occurrenceId,
+      performedByUserId: "user-a2",
+    });
+
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
+      occurred_at: "2026-08-20T15:00:00.000Z",
+      performed_by_user_id: "user-a2",
+      status: "completed",
+    });
+    await expect(loadTodoDetail(db, memberB, occurrenceId)).resolves.toBeNull();
+  });
+
+  it("訂正済みの完了は、訂正後の実施日時・実施者を返す(YDR-026)", async () => {
+    const { occurrenceId } = await createHouseholdATodo();
+    await completeTask(db, memberA, {
+      idempotencyKey: "complete-corrected",
+      occurredAt: "2026-08-20T15:00:00.000Z",
+      occurrenceId,
+      performedByUserId: "user-a2",
+    });
+    await correctCompletionOccurredAt(
+      db, memberA, occurrenceId, "correct-date", "2026-08-18T15:00:00.000Z",
+    );
+    await correctCompletionPerformer(db, memberA, occurrenceId, "correct-performer", "user-a");
+
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
+      occurred_at: "2026-08-18T15:00:00.000Z",
+      performed_by_user_id: "user-a",
+      status: "completed",
+    });
+  });
+
+  it("完了取消の後は未完了として返す", async () => {
+    const { occurrenceId } = await createHouseholdATodo();
+    await completeTask(db, memberA, {
+      idempotencyKey: "complete-undo-detail",
       occurredAt: null,
       occurrenceId,
       performedByUserId: null,
     });
+    await undoTaskCompletion(db, memberA, occurrenceId, "undo-detail");
 
-    await expect(loadPendingTodoDetail(db, memberA, occurrenceId)).resolves.toBeNull();
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
+      status: "pending",
+    });
   });
 });

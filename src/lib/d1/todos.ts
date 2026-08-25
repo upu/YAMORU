@@ -529,36 +529,71 @@ export async function setOneTimeTaskSchedule(
   }
 }
 
-// Issue #203: Todo詳細・編集画面が読む、未完了Todo一件の内容。TaskRule(名前、
-// 繰り返し方式、関連ManagedItem)と現在のTaskOccurrence(予定日、期限、担当)を
-// 一つの読み取りにまとめる。現在の家庭のpending Occurrenceだけを返す。
-export type PendingTodoDetailRow = {
+// Issue #203 / #205: Todo詳細・編集画面が読む、Todo一件の内容。TaskRule(名前、
+// 繰り返し方式、関連ManagedItem)と現在のTaskOccurrence(予定日、期限、担当、状態)
+// を一つの読み取りにまとめる。完了済みの場合は、現在有効な実施日時・実施者
+// (訂正済みなら訂正後、YDR-026)も返す。現在の家庭のOccurrenceだけを返す。
+export type TodoDetailRow = {
   assignee_user_id: string | null;
+  // 完了済みTodoでだけ非null。実施記録の訂正・取消が対象にする完了ログ。
+  completed_activity_log_id: string | null;
   deadline_kind: string;
   due_at: string | null;
   id: string;
   managed_item_id: string | null;
   managed_item_name: string | null;
+  // 現在有効な実施日時・実施者。完了ログがない間はnull。
+  occurred_at: string | null;
+  performed_by_user_id: string | null;
   recurrence_basis: string;
   scheduled_for: string | null;
+  status: string;
   title: string;
 };
 
-export async function loadPendingTodoDetail(
+export async function loadTodoDetail(
   db: D1Database,
   session: D1Session,
   occurrenceId: string,
-): Promise<PendingTodoDetailRow | null> {
+): Promise<TodoDetailRow | null> {
   const householdId = await requireCurrentHouseholdId(db, session);
+  // 完了→取消→再完了でも、対象は最新のcompletedログ1件に絞る
+  // (loadActiveCompletionと同じ並び)。訂正は日時・実施者を別行として残すため、
+  // それぞれ独立に最新の訂正を引き、なければ元の値へフォールバックする。
   return db.prepare(
-    `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id,
+    `WITH completion AS (
+       SELECT l.id, l.occurred_at, l.performed_by_user_id
+         FROM activity_logs l
+        WHERE l.household_id = ?2 AND l.task_occurrence_id = ?1
+          AND l.action = 'completed'
+        ORDER BY l.recorded_at DESC, l.id DESC
+        LIMIT 1
+     )
+     SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
             r.title, r.recurrence_basis, r.deadline_kind,
-            i.id AS managed_item_id, i.name AS managed_item_name
+            i.id AS managed_item_id, i.name AS managed_item_name,
+            c.id AS completed_activity_log_id,
+            coalesce(
+              (SELECT k.new_occurred_at FROM completion_corrections k
+                 WHERE k.completed_activity_log_id = c.id AND k.household_id = ?2
+                   AND k.new_occurred_at IS NOT NULL
+                 ORDER BY k.corrected_at DESC, k.id DESC LIMIT 1),
+              c.occurred_at
+            ) AS occurred_at,
+            coalesce(
+              (SELECT k.new_performed_by_user_id FROM completion_corrections k
+                 WHERE k.completed_activity_log_id = c.id AND k.household_id = ?2
+                   AND k.new_performed_by_user_id IS NOT NULL
+                 ORDER BY k.corrected_at DESC, k.id DESC LIMIT 1),
+              c.performed_by_user_id
+            ) AS performed_by_user_id
        FROM task_occurrences o
        JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = r.household_id
-      WHERE o.id = ?1 AND o.household_id = ?2 AND o.status = 'pending'`,
-  ).bind(occurrenceId, householdId).first<PendingTodoDetailRow>();
+       LEFT JOIN completion c ON 1 = 1
+      WHERE o.id = ?1 AND o.household_id = ?2
+        AND o.status IN ('pending', 'completed')`,
+  ).bind(occurrenceId, householdId).first<TodoDetailRow>();
 }
 
 export type OneTimeTodoUpdate = {

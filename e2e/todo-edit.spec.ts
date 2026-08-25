@@ -19,6 +19,7 @@ async function clearDatabase(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare("DELETE FROM invitation_claims"),
     db.prepare("DELETE FROM household_invitations"),
+    db.prepare("DELETE FROM completion_corrections"),
     db.prepare("DELETE FROM activity_logs"),
     db.prepare("DELETE FROM task_occurrences"),
     db.prepare("DELETE FROM task_rules"),
