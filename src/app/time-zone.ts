@@ -55,6 +55,13 @@ export function formatTokyoDate(value: string): string {
   }).format(new Date(value));
 }
 
+// Issue #203: 保存済みの予定日を、date入力の初期値(YYYY-MM-DD)へ戻す。
+// Server ComponentはUTCで動くことがあるため、ローカル時刻ではなくAsia/Tokyoの
+// 暦日で戻し、画面表示(formatTokyoDate)と同じ日付を初期値にする。
+export function formatTokyoDateInput(iso: string): string {
+  return toTokyoDateString(iso);
+}
+
 function toTokyoDateString(iso: string): string {
   // en-CAはYYYY-MM-DD形式を返すため、そのまま文字列比較で日付の前後を判定できる。
   return new Intl.DateTimeFormat("en-CA", {

@@ -32,6 +32,7 @@ type OccurrenceWithRule = {
   due_at: string | null;
   household_id: string;
   id: string;
+  managed_item_id: string | null;
   recurrence_basis: string;
   recommended_start_offset: number;
   recommended_until_offset: number;
@@ -165,6 +166,7 @@ async function loadOccurrence(
     `SELECT o.id, o.household_id, o.task_rule_id, o.scheduled_for, o.due_at,
       o.assignee_user_id, o.status,
       r.recurrence_basis, r.recommended_start_offset, r.recommended_until_offset,
+      r.managed_item_id,
       r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
       r.schedule_week_of_month, r.schedule_month
      FROM task_occurrences o
@@ -525,6 +527,177 @@ export async function setOneTimeTaskSchedule(
   if (result.meta.changes !== 1) {
     throw new D1ConflictError("Occurrence is not pending");
   }
+}
+
+// Issue #203: Todo詳細・編集画面が読む、未完了Todo一件の内容。TaskRule(名前、
+// 繰り返し方式、関連ManagedItem)と現在のTaskOccurrence(予定日、期限、担当)を
+// 一つの読み取りにまとめる。現在の家庭のpending Occurrenceだけを返す。
+export type PendingTodoDetailRow = {
+  assignee_user_id: string | null;
+  deadline_kind: string;
+  due_at: string | null;
+  id: string;
+  managed_item_id: string | null;
+  managed_item_name: string | null;
+  recurrence_basis: string;
+  scheduled_for: string | null;
+  title: string;
+};
+
+export async function loadPendingTodoDetail(
+  db: D1Database,
+  session: D1Session,
+  occurrenceId: string,
+): Promise<PendingTodoDetailRow | null> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  return db.prepare(
+    `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id,
+            r.title, r.recurrence_basis, r.deadline_kind,
+            i.id AS managed_item_id, i.name AS managed_item_name
+       FROM task_occurrences o
+       JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
+       LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = r.household_id
+      WHERE o.id = ?1 AND o.household_id = ?2 AND o.status = 'pending'`,
+  ).bind(occurrenceId, householdId).first<PendingTodoDetailRow>();
+}
+
+export type OneTimeTodoUpdate = {
+  assigneeUserId: string | null;
+  managedItemId: string | null;
+  scheduledFor: string | null;
+  title: string;
+};
+
+function isOccurrenceScheduleCollision(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : "";
+  return message.includes("UNIQUE constraint failed")
+    && message.includes("task_occurrences");
+}
+
+// 担当変更は、パネルからの変更(setTaskOccurrenceAssignee)と同じ
+// 'assignee_changed'として履歴に残す(YDR-020)。名前・関連ManagedItem・予定日の
+// 変更に対応するActivityLogのactionはないため、記録するのは担当だけにする。
+function assigneeChangeStatement(
+  db: D1Database,
+  input: {
+    actorId: string;
+    householdId: string;
+    logId: string;
+    newAssigneeUserId: string | null;
+    occurrenceId: string;
+    previousAssigneeUserId: string | null;
+  },
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO activity_logs (
+      id, household_id, task_occurrence_id, action, actor_user_id,
+      occurred_at, assignee_user_id, previous_assignee_user_id,
+      new_assignee_user_id
+    ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
+      WHERE EXISTS (
+        SELECT 1 FROM task_occurrences
+         WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
+      )`,
+  ).bind(
+    input.logId,
+    input.householdId,
+    input.occurrenceId,
+    input.actorId,
+    new Date().toISOString(),
+    input.newAssigneeUserId,
+    input.previousAssigneeUserId,
+  );
+}
+
+function oneTimeTodoStatements(
+  db: D1Database,
+  householdId: string,
+  occurrence: OccurrenceWithRule,
+  input: OneTimeTodoUpdate,
+): D1PreparedStatement[] {
+  return [
+    // TaskRuleとTaskOccurrenceのどちらの更新も、同じpending条件を満たすときだけ
+    // 適用する。片方だけが通って途中状態が残ることを防ぐ(YDR-014)。
+    db.prepare(
+      `UPDATE task_rules SET title = ?1, managed_item_id = ?2
+        WHERE id = ?3 AND household_id = ?4 AND recurrence_basis = 'once'
+          AND EXISTS (
+            SELECT 1 FROM task_occurrences
+             WHERE id = ?5 AND household_id = ?4 AND status = 'pending'
+          )`,
+    ).bind(
+      input.title,
+      input.managedItemId,
+      occurrence.task_rule_id,
+      householdId,
+      occurrence.id,
+    ),
+    // 予定日は変えたときだけ書き換える。延期でdue_atだけを動かしたTodo
+    // (YDR-012)の期限を、名前や担当だけの編集で巻き戻さない。予定日を変えた
+    // ときは、一回限りTodoの往復と同じくscheduled_forとdue_atを揃える(YDR-030)。
+    occurrence.scheduled_for === input.scheduledFor
+      ? db.prepare(
+          `UPDATE task_occurrences SET assignee_user_id = ?1
+            WHERE id = ?2 AND household_id = ?3 AND status = 'pending'`,
+        ).bind(input.assigneeUserId, occurrence.id, householdId)
+      : db.prepare(
+          `UPDATE task_occurrences
+              SET assignee_user_id = ?1, scheduled_for = ?2, due_at = ?2
+            WHERE id = ?3 AND household_id = ?4 AND status = 'pending'`,
+        ).bind(input.assigneeUserId, input.scheduledFor, occurrence.id, householdId),
+  ];
+}
+
+// Issue #203: 繰り返しなしTodoの名前・関連ManagedItem・担当者・予定日を、一つの
+// batch(暗黙のトランザクション)でまとめて更新する。途中で失敗した場合は
+// TaskRule側だけが変わった状態を残さない。戻り値は変更前の関連ManagedItem
+// (呼び出し側が変更前後の詳細画面を再検証するため)。
+export async function updateOneTimeTodo(
+  db: D1Database,
+  session: D1Session,
+  occurrenceId: string,
+  input: OneTimeTodoUpdate,
+): Promise<{ previousManagedItemId: string | null }> {
+  const user = requireD1Session(session);
+  const householdId = await requireCurrentHouseholdId(db, session);
+  if (input.assigneeUserId !== null) {
+    await requireHouseholdUser(db, householdId, input.assigneeUserId, "Assignee not found");
+  }
+  await requireManagedItem(db, householdId, input.managedItemId);
+
+  const occurrence = await loadOccurrence(db, householdId, occurrenceId);
+  if (occurrence.status !== "pending") {
+    throw new D1ConflictError("Occurrence is not pending");
+  }
+  if (occurrence.recurrence_basis !== "once") {
+    throw new D1ConflictError("Only one-time tasks can be edited");
+  }
+
+  const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
+  if (occurrence.assignee_user_id !== input.assigneeUserId) {
+    statements.unshift(assigneeChangeStatement(db, {
+      actorId: user.userId,
+      householdId,
+      logId: crypto.randomUUID(),
+      newAssigneeUserId: input.assigneeUserId,
+      occurrenceId,
+      previousAssigneeUserId: occurrence.assignee_user_id,
+    }));
+  }
+
+  let results: D1Result[];
+  try {
+    results = await db.batch(statements);
+  } catch (error) {
+    if (isOccurrenceScheduleCollision(error)) {
+      throw new D1ConflictError("Occurrence already exists for the schedule");
+    }
+    throw error;
+  }
+  if ((results[results.length - 1]?.meta.changes ?? 0) !== 1) {
+    throw new D1ConflictError("Occurrence is not pending");
+  }
+  return { previousManagedItemId: occurrence.managed_item_id };
 }
 
 type ActiveCompletion = {

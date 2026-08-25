@@ -3,14 +3,12 @@
 import { type ChangeEvent, useState, useTransition } from "react";
 
 import { claimTaskOccurrenceAssignee, setTaskOccurrenceAssignee } from "./actions";
+import { type AssigneeOption, UNASSIGNED_LABEL } from "../../assignee";
 import { OperationFeedback } from "../../operation-feedback";
 
 const UNASSIGNED_VALUE = "";
-// 「誰でも可」の表示文言(YDR-006)。担当者未設定の既定表示として、担当・実施・
-// 操作主体のいずれとも異なるラベルにする(YDR-020「UIでの区別」)。
-export const UNASSIGNED_LABEL = "誰でも可";
 
-export type AssigneeOption = { nickname: string; userId: string };
+export type { AssigneeOption };
 
 // Issue #77: 未担当のときだけ表示する一操作の担当引き受けボタン。誰を担当に
 // するかを選ぶ通常のselect(下記AssigneePanel)とは別に、「自分がやる」を
