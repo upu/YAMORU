@@ -120,6 +120,12 @@ test("ホームから開いたTodo一覧で、自分の家庭の未完了Todoだ
   // ホームは「いま対応すること」に絞るため、7日より先の予定は載せない。
   await expect(page.getByRole("heading", { level: 3, name: TODAY_TODO })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: LATER_TODO })).toHaveCount(0);
+  // 予定日の設定変更はホームのカードに置かない(Issue #204)。担当と完了は残す。
+  await expect(
+    page.getByRole("button", { name: `${TODAY_TODO}の予定日を未定に戻す` }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel(`${TODAY_TODO}の担当`)).toBeVisible();
+  await expect(page.getByRole("button", { name: `${TODAY_TODO}を記録` })).toBeVisible();
 
   await page.getByRole("link", { name: "すべてのTodo" }).click();
   await expect(page).toHaveURL(/\/todos$/u);

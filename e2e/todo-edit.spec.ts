@@ -113,9 +113,10 @@ test("Todo一覧からTodo詳細を開き、名前・予定日・担当・管理
   await page.getByRole("link", { name: ORIGINAL_TITLE }).click();
   await expect(page).toHaveURL(/\/todos\/[^/]+$/u);
   await expect(page.getByRole("heading", { level: 1, name: ORIGINAL_TITLE })).toBeVisible();
-  await expect(page.getByText("関連する管理対象なし")).toBeVisible();
-  await expect(page.getByText("誰でも可")).toBeVisible();
-  await expect(page.getByText("未定")).toBeVisible();
+  const summary = page.getByRole("region", { name: "Todoの内容" });
+  await expect(summary.getByText("関連する管理対象なし")).toBeVisible();
+  await expect(summary.getByText("誰でも可")).toBeVisible();
+  await expect(summary.getByText("未定", { exact: true })).toBeVisible();
   const detailUrl = page.url();
 
   // キャンセルでは保存しない。
@@ -135,9 +136,9 @@ test("Todo一覧からTodo詳細を開き、名前・予定日・担当・管理
 
   await expect(page).toHaveURL(detailUrl);
   await expect(page.getByRole("heading", { level: 1, name: EDITED_TITLE })).toBeVisible();
-  await expect(page.getByRole("link", { name: MANAGED_ITEM_NAME })).toBeVisible();
-  await expect(page.getByText("家族Aさん")).toBeVisible();
-  await expect(page.getByText("未定")).toHaveCount(0);
+  await expect(summary.getByRole("link", { name: MANAGED_ITEM_NAME })).toBeVisible();
+  await expect(summary.getByText("家族Aさん")).toBeVisible();
+  await expect(summary.getByText("未定", { exact: true })).toHaveCount(0);
 
   // ホーム(近日)と管理対象の詳細にも、変更後の内容が反映される。
   await page.goto("/");

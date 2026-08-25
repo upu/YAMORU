@@ -217,6 +217,57 @@ describe("ホーム画面(HomeContent)", () => {
 
 describe("ホームのTodo操作", () => {
 
+  it("予定日の設定・未定化はホームのカードに出さず、担当変更と完了は残す(Issue #204)", () => {
+    renderHome(emptySections({
+      today: [
+        {
+          assigneeUserId: null,
+          detail: "管理対象なし",
+          id: "dated",
+          managedItemId: null,
+          meta: "今日が予定日です ・ 繰り返しなし",
+          occurrenceId: "dated",
+          // 具体日がある一回限りTodo。以前はここに「予定日を未定に戻す」が出ていた。
+          oneTimeScheduledFor: "2026-08-11T15:00:00.000Z",
+          title: "家族会議",
+          todoHref: "/todos/dated",
+          tone: "today",
+        },
+      ],
+      undated: [
+        {
+          assigneeUserId: null,
+          badge: "未定",
+          detail: "管理対象なし",
+          id: "undated",
+          managedItemId: null,
+          meta: "予定日: 未定 ・ 繰り返しなし",
+          occurrenceId: "undated",
+          oneTimeScheduledFor: null,
+          title: "通知書が届いたら申請",
+          todoHref: "/todos/undated",
+          tone: "upcoming",
+        },
+      ],
+    }));
+
+    expect(screen.queryByRole("button", { name: "家族会議の予定日を未定に戻す" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
+      .not.toBeInTheDocument();
+    // 確認と完了のための操作は維持する。
+    expect(screen.getByLabelText("家族会議の担当")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "家族会議を記録" })).toBeInTheDocument();
+    expect(screen.getByLabelText("通知書が届いたら申請の担当")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "通知書が届いたら申請を記録" }))
+      .toBeInTheDocument();
+    // 予定日の変更はTodo詳細から行う。
+    expect(screen.getByRole("link", { name: "家族会議" })).toHaveAttribute(
+      "href",
+      "/todos/dated",
+    );
+  });
+
   it("そろそろ区分のTodoに「やったよ」ボタンを表示し、押すとそのOccurrenceを完了操作する", () => {
     const sections = emptySections({
       reminder: [
@@ -483,6 +534,7 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
           occurrenceId: "undated-unlinked",
           oneTimeScheduledFor: null,
           title: "通知書が届いたら申請",
+          todoHref: "/todos/undated-unlinked",
           tone: "upcoming",
         },
       ],
@@ -490,8 +542,8 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
 
     const section = screen.getByRole("region", { name: "予定日未定" });
     expect(within(section).getByText("予定日: 未定 ・ 繰り返しなし")).toBeInTheDocument();
-    expect(within(section).getByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
-      .toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "通知書が届いたら申請" }))
+      .toHaveAttribute("href", "/todos/undated-unlinked");
     expect(within(section).getByRole("button", { name: "通知書が届いたら申請を記録" }))
       .toBeInTheDocument();
   });
