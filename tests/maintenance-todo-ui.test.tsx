@@ -189,7 +189,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     ).toBeInTheDocument();
   });
 
-  it("直近の完了を日本時間で表示する", () => {
+  it("直近の完了を日本時間で表示し、Todo詳細への導線だけを表示する", () => {
     render(
       <ManagedItemDetailContent
         item={{
@@ -200,7 +200,6 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
             {
               id: "occurrence-0",
               occurredAt: "2026-09-01T15:00:00.000Z",
-              performedByUserId: "user-self",
               title: "フィルター交換",
             },
           ],
@@ -209,9 +208,12 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     );
 
     const recentSection = screen.getByRole("region", { name: "直近の完了" });
-    expect(within(recentSection).getByText("フィルター交換")).toBeInTheDocument();
+    expect(within(recentSection).getByRole("link", { name: "フィルター交換" }))
+      .toHaveAttribute("href", "/todos/occurrence-0");
     expect(
       within(recentSection).getByText("2026年9月2日に完了"),
     ).toBeInTheDocument();
+    expect(within(recentSection).queryByRole("button", { name: "フィルター交換を修正" }))
+      .not.toBeInTheDocument();
   });
 });

@@ -107,9 +107,6 @@ export function buildRecentItems(
     })
     .map((row) => {
       return {
-        completedAt: row.occurred_at,
-        completedOccurrenceId: row.task_occurrence_id,
-        completedPerformedByUserId: row.performed_by_user_id,
         detail: row.managed_item_name ?? "管理対象なし",
         ...(row.managed_item_id === null
           ? {}
@@ -125,6 +122,9 @@ export function buildRecentItems(
             : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
         }が実施`,
         title: row.task_rule_title,
+        // Issue #206: 最近の実施は確認専用とし、訂正・完了取消は
+        // 完了済みTodo詳細へ集約する。管理対象なしでも同じ導線を持つ。
+        todoHref: `/todos/${row.task_occurrence_id}`,
         tone: "done" as const,
       };
     });

@@ -331,39 +331,31 @@ describe("ホームのTodo操作", () => {
     );
   });
 
-  it("管理対象なしの完了もホームから取り消せる", () => {
+  it("管理対象なしの完了もホームから完了済みTodo詳細へ移動できる", () => {
     const sections = emptySections({
       recent: [
         {
-          completedAt: "2026-08-10T00:00:00.000Z",
-          completedOccurrenceId: "occurrence-unlinked",
           detail: "管理対象なし",
           id: "activity-unlinked",
           managedItemId: null,
           meta: "8月10日 ・ ぽっぷが実施",
           title: "家族会議",
+          todoHref: "/todos/occurrence-unlinked",
           tone: "done",
         },
       ],
     });
-    undoMaintenanceTaskCompletionMock.mockResolvedValue({
-      message: "完了の取消を記録しました。",
-      status: "success",
-    });
     renderHome(sections);
 
-    fireEvent.click(screen.getByRole("button", { name: "家族会議を修正" }));
-    fireEvent.click(screen.getByRole("button", { name: "完了を取り消す" }));
-    fireEvent.click(screen.getByRole("button", { name: "この完了を取り消す" }));
-
-    expect(undoMaintenanceTaskCompletionMock).toHaveBeenCalledWith(
-      null,
-      "occurrence-unlinked",
-      expect.any(String),
+    expect(screen.getByRole("link", { name: "家族会議" })).toHaveAttribute(
+      "href",
+      "/todos/occurrence-unlinked",
     );
+    expect(screen.queryByRole("button", { name: "家族会議を修正" }))
+      .not.toBeInTheDocument();
   });
 
-  it("実際の最近の実施データには担当・完了操作を出さず、修正操作だけを表示する", () => {
+  it("実際の最近の実施データは確認情報を保ち、Todo詳細への導線だけを表示する", () => {
     const recentItems = buildRecentItems(
       [
         {
@@ -390,8 +382,14 @@ describe("ホームのTodo操作", () => {
       within(recentSection).queryByRole("button", { name: "フィルター交換を記録" }),
     ).not.toBeInTheDocument();
     expect(
-      within(recentSection).getByRole("button", { name: "フィルター交換を修正" }),
-    ).toBeInTheDocument();
+      within(recentSection).queryByRole("button", { name: "フィルター交換を修正" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(recentSection).getByRole("link", { name: "フィルター交換" }),
+    ).toHaveAttribute("href", "/todos/occurrence-1");
+    expect(
+      within(recentSection).getByRole("link", { name: "猫の浄水器" }),
+    ).toHaveAttribute("href", "/managed-items/item-1");
     // 完了済みは対応状況の「件の予定」には数えない。
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件の予定");
   });
@@ -573,7 +571,7 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     };
   }
 
-  it("実施者名を解決し、ホームからの完了取消に必要な情報を保持する", () => {
+  it("実施者名を解決し、完了済みTodo詳細への導線を保持する", () => {
     const items = buildRecentItems(
       [completionRow()],
       new Map([["user-1", "たろう"]]),
@@ -582,9 +580,8 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     expect(items[0].meta).toContain("たろうが実施");
     expect(items[0].tone).toBe("done");
     expect(items[0]).toMatchObject({
-      completedAt: "2026-08-10T00:00:00.000Z",
-      completedOccurrenceId: "occurrence-1",
       managedItemId: "item-1",
+      todoHref: "/todos/occurrence-1",
     });
   });
 
@@ -615,12 +612,11 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
-      completedAt: "2026-08-09T00:00:00.000Z",
       id: "activity-latest",
     });
   });
 
-  it("管理対象なしの完了履歴も表示し、取消に必要なOccurrence情報を保持する", () => {
+  it("管理対象なしの完了履歴も表示し、Todo詳細への導線を保持する", () => {
     const row = completionRow();
     row.managed_item_id = null;
     row.managed_item_name = null;
@@ -628,10 +624,9 @@ describe("最近の実施の組み立て(buildRecentItems)", () => {
     const items = buildRecentItems([row], new Map([["user-1", "たろう"]]));
 
     expect(items[0]).toMatchObject({
-      completedAt: "2026-08-10T00:00:00.000Z",
-      completedOccurrenceId: "occurrence-1",
       detail: "管理対象なし",
       managedItemId: null,
+      todoHref: "/todos/occurrence-1",
     });
     expect(items[0].detailHref).toBeUndefined();
   });

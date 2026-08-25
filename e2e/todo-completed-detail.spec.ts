@@ -106,7 +106,12 @@ test("完了済みTodoの詳細から実施日を訂正し、完了を取り消�
 }) => {
   await login(page);
 
-  await page.goto(`/todos/${occurrenceId}`);
+  // Issue #206: 最近の実施は確認専用とし、Todo名から完了済み詳細へ移動する。
+  const recentSection = page.getByRole("region", { name: "最近の実施" });
+  await expect(recentSection.getByRole("button", { name: `${TODO_TITLE}を修正` }))
+    .toHaveCount(0);
+  await recentSection.getByRole("link", { name: TODO_TITLE }).click();
+  await expect(page).toHaveURL(`/todos/${occurrenceId}`);
   const summary = page.getByRole("region", { name: "Todoの内容" });
   await expect(page.getByRole("heading", { level: 1, name: TODO_TITLE })).toBeVisible();
   await expect(summary.getByText("完了", { exact: true })).toBeVisible();
