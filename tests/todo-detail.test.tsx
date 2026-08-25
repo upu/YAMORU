@@ -123,7 +123,7 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.getByText("繰り返しなし")).toBeInTheDocument();
     expect(screen.getByText("ぽっぷ")).toBeInTheDocument();
     expect(screen.getByText("2026年9月2日")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "← すべてのTodoへ戻る" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "← Todo一覧へ戻る" })).toHaveAttribute(
       "href",
       "/todos",
     );

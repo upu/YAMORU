@@ -6,7 +6,7 @@ import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import { SchedulePanel } from "./managed-items/[id]/schedule-panel";
 import type { TodoTone } from "./task-schedule";
 
-// ホーム(app/page.tsx)とすべてのTodo一覧(app/todos/page.tsx)は、同じTodoを
+// ホーム(app/page.tsx)とTodo一覧(app/todos/page.tsx)は、同じTodoを
 // 同じ見た目・同じ操作で扱う(Issue #201)。カードの表示と操作はここに一つだけ
 // 置き、画面側は「どのTodoを、どの順序で並べるか」だけを決める。
 export type TodoCardItem = {
@@ -120,7 +120,7 @@ function TodoCardActions({
 
 // canChangeSchedule: 予定日の設定・未定化をカード内で提供するか(Issue #204)。
 // ホームは「いま対応すること」を確認して完了する画面に絞るためfalse、
-// すべてのTodo一覧は予定日未定Todoの再発見と予定日設定の場(#201, #202)の
+// Todo一覧は予定日未定Todoの再発見と予定日設定の場(#201, #202)の
 // ためtrueにする。どちらの画面でも、予定日はTodo詳細の編集からも変更できる。
 export function TodoCard({
   actorName,

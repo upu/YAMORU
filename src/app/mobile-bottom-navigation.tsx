@@ -14,6 +14,16 @@ function HomeIcon() {
   );
 }
 
+function TodoIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m3.5 6 1.4 1.4L7.5 4.8M9.5 6H20" />
+      <path d="m3.5 12 1.4 1.4 2.6-2.6M9.5 12H20" />
+      <path d="m3.5 18 1.4 1.4 2.6-2.6M9.5 18H20" />
+    </svg>
+  );
+}
+
 function LedgerIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -28,6 +38,7 @@ export function MobileBottomNavigation() {
   if (isPublicPath(pathname)) return null;
 
   const isHome = pathname === "/";
+  const isTodo = pathname === "/todos" || pathname.startsWith("/todos/");
   const isLedger =
     pathname === "/managed-items" || pathname.startsWith("/managed-items/");
 
@@ -38,6 +49,10 @@ export function MobileBottomNavigation() {
         <Link aria-current={isHome ? "page" : undefined} href="/">
           <HomeIcon />
           <span>ホーム</span>
+        </Link>
+        <Link aria-current={isTodo ? "page" : undefined} href="/todos">
+          <TodoIcon />
+          <span>Todo</span>
         </Link>
         <Link
           aria-current={isLedger ? "page" : undefined}

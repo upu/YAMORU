@@ -134,16 +134,17 @@ describe("未完了Todoの並び(buildTodoListItems)", () => {
   });
 });
 
-describe("すべてのTodo画面(TodoListContent)", () => {
-  it("見出しと件数、ホームへ戻る導線を表示する", () => {
+describe("Todo一覧画面(TodoListContent)", () => {
+  it("簡潔な見出しと説明、件数を表示し、ホームへ戻る導線は置かない", () => {
     const items = buildTodoListItems(
       [onceRow("today", "2026-08-11T15:00:00.000Z"), onceRow("undated", null, "申請")],
       NOW,
     );
     renderTodoList(items);
 
-    expect(screen.getByRole("heading", { level: 1, name: "すべてのTodo" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "← ホームへ戻る" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("heading", { level: 1, name: "Todo一覧" })).toBeInTheDocument();
+    expect(screen.getByText("未完了のTodoをまとめて確認できます。")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "← ホームへ戻る" })).not.toBeInTheDocument();
     const section = screen.getByRole("region", { name: "未完了のTodo" });
     expect(within(section).getByLabelText("2件")).toBeInTheDocument();
     expect(within(section).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent))

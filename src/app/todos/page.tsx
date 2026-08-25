@@ -36,10 +36,8 @@ function TodoListHero({ hasHousehold }: { hasHousehold: boolean }) {
   return (
     <header className="detail-hero">
       <p className="detail-kicker">ALL TODOS</p>
-      <h1>すべてのTodo</h1>
-      <p>
-        まだ完了していないTodoを、予定日の遠近や管理対象との関連にかかわらずまとめて確認できます。
-      </p>
+      <h1>Todo一覧</h1>
+      <p>未完了のTodoをまとめて確認できます。</p>
       {hasHousehold ? (
         <Link className="ledger-primary-link" href="/todos/new">
           Todoを追加
@@ -149,10 +147,6 @@ function TodoListBody({
 export function TodoListContent(props: TodoListContentProps) {
   return (
     <main className="detail-page todo-list-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/">← ホームへ戻る</Link>
-      </nav>
-
       <TodoListHero hasHousehold={props.household !== null} />
 
       <TodoListBody {...props} />

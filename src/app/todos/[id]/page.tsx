@@ -195,7 +195,7 @@ export function TodoDetailContent({
   return (
     <main className="detail-page todo-detail-page">
       <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/todos">← すべてのTodoへ戻る</Link>
+        <Link href="/todos">← Todo一覧へ戻る</Link>
       </nav>
 
       <header className="detail-hero">

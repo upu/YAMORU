@@ -292,7 +292,7 @@ h1 {
 
 .hero-actions {
   display: flex;
-  /* 「Todoを追加」「すべてのTodo」「家の台帳」が狭い幅で収まらない場合は
+  /* 「Todoを追加」「Todo一覧」「家の台帳」が狭い幅で収まらない場合は
      折り返す(Issue #201)。 */
   flex: none;
   flex-wrap: wrap;
@@ -1479,6 +1479,10 @@ footer p {
     display: none;
   }
 
+  .home-todo-list-link {
+    display: none;
+  }
+
   :root {
     /* 完了記録・延期ダイアログ(.completion-dialog-backdrop)が下部ナビゲーション
        と重ならないよう、両者で同じ高さを共有する。 */
@@ -1497,7 +1501,7 @@ footer p {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
     border-top: 1px solid rgb(49 92 73 / 18%);

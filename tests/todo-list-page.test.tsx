@@ -42,7 +42,7 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-describe("すべてのTodo画面(TodoListPage、サーバーコンポーネント)", () => {
+describe("Todo一覧画面(TodoListPage、サーバーコンポーネント)", () => {
   it("家庭未所属の利用者では家庭作成を案内し、家庭専用データの取得を呼ばない", async () => {
     loadAccountStateMock.mockResolvedValue({ household: null, nickname: null });
 

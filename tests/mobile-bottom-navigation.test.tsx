@@ -15,29 +15,34 @@ import { MobileBottomNavigation } from "../src/app/mobile-bottom-navigation";
 
 afterEach(cleanup);
 
-describe("モバイル下部ナビゲーション(Issue #146)", () => {
+describe("モバイル下部ナビゲーション(Issue #146、#213)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePathnameMock.mockReturnValue("/");
   });
 
-  it("ホームと台帳だけを、アイコンと短いラベル付きで表示する", () => {
+  it("ホーム、Todo、台帳をアイコンと短いラベル付きで表示する", () => {
     render(<MobileBottomNavigation />);
 
     const navigation = screen.getByRole("navigation", {
       name: "主要ナビゲーション",
     });
     const links = within(navigation).getAllByRole("link");
-    expect(links).toHaveLength(2);
+    expect(links).toHaveLength(3);
+    expect(links.map((link) => link.textContent)).toEqual(["ホーム", "Todo", "台帳"]);
     expect(within(navigation).getByRole("link", { name: "ホーム" })).toHaveAttribute(
       "href",
       "/",
+    );
+    expect(within(navigation).getByRole("link", { name: "Todo" })).toHaveAttribute(
+      "href",
+      "/todos",
     );
     expect(within(navigation).getByRole("link", { name: "台帳" })).toHaveAttribute(
       "href",
       "/managed-items",
     );
-    expect(navigation.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(2);
+    expect(navigation.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(3);
   });
 
   it("ホームではホームを現在地として示す", () => {
@@ -46,6 +51,9 @@ describe("モバイル下部ナビゲーション(Issue #146)", () => {
     expect(screen.getByRole("link", { name: "ホーム" })).toHaveAttribute(
       "aria-current",
       "page",
+    );
+    expect(screen.getByRole("link", { name: "Todo" })).not.toHaveAttribute(
+      "aria-current",
     );
     expect(screen.getByRole("link", { name: "台帳" })).not.toHaveAttribute(
       "aria-current",
@@ -62,23 +70,33 @@ describe("モバイル下部ナビゲーション(Issue #146)", () => {
         "aria-current",
         "page",
       );
+      expect(screen.getByRole("link", { name: "Todo" })).not.toHaveAttribute(
+        "aria-current",
+      );
       expect(screen.getByRole("link", { name: "ホーム" })).not.toHaveAttribute(
         "aria-current",
       );
     },
   );
 
-  it("Todo追加など主要2画面以外では選択状態を付けない", () => {
-    usePathnameMock.mockReturnValue("/todos/new");
-    render(<MobileBottomNavigation />);
+  it.each(["/todos", "/todos/new", "/todos/occurrence-1"])(
+    "%sではTodoを現在地として示す",
+    (pathname) => {
+      usePathnameMock.mockReturnValue(pathname);
+      render(<MobileBottomNavigation />);
 
-    expect(screen.getByRole("link", { name: "ホーム" })).not.toHaveAttribute(
-      "aria-current",
-    );
-    expect(screen.getByRole("link", { name: "台帳" })).not.toHaveAttribute(
-      "aria-current",
-    );
-  });
+      expect(screen.getByRole("link", { name: "Todo" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(screen.getByRole("link", { name: "ホーム" })).not.toHaveAttribute(
+        "aria-current",
+      );
+      expect(screen.getByRole("link", { name: "台帳" })).not.toHaveAttribute(
+        "aria-current",
+      );
+    },
+  );
 
   it.each(["/login", "/invitations/accept", "/invitations/accept/confirm"])(
     "公開画面 %s では表示しない",

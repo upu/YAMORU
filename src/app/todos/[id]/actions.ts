@@ -108,7 +108,7 @@ function mapEditError(error: unknown): MaintenanceTodoActionState {
     : { message: matched.message, status: "error" };
 }
 
-// 保存後に反映する画面。ホーム(#36)、すべてのTodo一覧(#201)、Todo詳細と
+// 保存後に反映する画面。ホーム(#36)、Todo一覧(#201)、Todo詳細と
 // 編集画面、そして関連ManagedItemの詳細を、変更前後の両方について再検証する。
 function revalidateTodoEditViews(
   occurrenceId: string,
