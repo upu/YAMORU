@@ -196,6 +196,9 @@ function HomeSectionView({
         {section.items.map((item) => (
           <TodoCard
             actorName={actorName}
+            // Issue #204: ホームのカードは確認・担当変更・完了に絞る。予定日の
+            // 設定変更はTodo詳細の編集、またはすべてのTodo一覧から行う。
+            canChangeSchedule={false}
             currentUserId={currentUserId}
             item={item}
             key={item.id}

@@ -100,7 +100,7 @@ function TodoEditSection({ todo }: { todo: TodoDetailData }) {
       <p className="detail-kicker">EDIT</p>
       <h2 id="todo-edit-title">内容の変更</h2>
       <p className="detail-note">
-        Todo名、関連する管理対象、担当、予定日を変更できます。
+        Todo名、関連する管理対象、担当、予定日を変更できます。予定日は具体日と未定を行き来できます。
       </p>
       <Link
         className="ledger-primary-link"

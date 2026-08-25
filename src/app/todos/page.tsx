@@ -103,6 +103,9 @@ function TodoListSection({
         {items.map((item) => (
           <TodoCard
             actorName={actorName}
+            // 予定日未定Todoを再発見し、その場で予定日を決められるようにする
+            // (#201、#202)。ホームのカードでは提供しない(#204)。
+            canChangeSchedule
             currentUserId={currentUserId}
             item={item}
             key={item.id}

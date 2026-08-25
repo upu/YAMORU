@@ -81,11 +81,13 @@ function TodoCardDetail({ item }: { item: TodoCardItem }) {
 
 function TodoCardActions({
   actorName,
+  canChangeSchedule,
   currentUserId,
   item,
   members,
 }: {
   actorName: string;
+  canChangeSchedule: boolean;
   currentUserId: string;
   item: TodoCardItem;
   members: HouseholdMemberOption[];
@@ -109,7 +111,7 @@ function TodoCardActions({
           occurrenceId={pendingOccurrenceId}
           taskTitle={item.title}
         />
-        {item.oneTimeScheduledFor !== undefined ? (
+        {canChangeSchedule && item.oneTimeScheduledFor !== undefined ? (
           <SchedulePanel
             managedItemId={item.managedItemId ?? null}
             occurrenceId={pendingOccurrenceId}
@@ -136,13 +138,19 @@ function TodoCardActions({
   );
 }
 
+// canChangeSchedule: 予定日の設定・未定化をカード内で提供するか(Issue #204)。
+// ホームは「いま対応すること」を確認して完了する画面に絞るためfalse、
+// すべてのTodo一覧は予定日未定Todoの再発見と予定日設定の場(#201, #202)の
+// ためtrueにする。どちらの画面でも、予定日はTodo詳細の編集からも変更できる。
 export function TodoCard({
   actorName,
+  canChangeSchedule,
   currentUserId,
   item,
   members,
 }: {
   actorName: string;
+  canChangeSchedule: boolean;
   currentUserId: string;
   item: TodoCardItem;
   members: HouseholdMemberOption[];
@@ -156,6 +164,7 @@ export function TodoCard({
         <p className="item-meta">{item.meta}</p>
         <TodoCardActions
           actorName={actorName}
+          canChangeSchedule={canChangeSchedule}
           currentUserId={currentUserId}
           item={item}
           members={members}
