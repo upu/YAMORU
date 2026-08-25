@@ -13,61 +13,33 @@ import { getD1Context } from "../lib/d1/context";
 import {
   listPendingOccurrences,
   listRecentActiveCompletions,
+  type PendingOccurrenceRow,
+  type RecentCompletionRow,
 } from "../lib/d1/home";
 import { loadAccountState } from "../lib/d1/households";
 import type { D1Session } from "../lib/d1/authorization";
-import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
-import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
-import { CorrectionPanel } from "./managed-items/[id]/correction-panel";
-import { SchedulePanel } from "./managed-items/[id]/schedule-panel";
 import {
-  MAINTENANCE_DISPLAY_COPY,
-  STRICT_DISPLAY_COPY,
-  toDeadlineKind,
-  toRecurrenceBasis,
-  type TodoTone,
-} from "./task-schedule";
-import {
-  describeMaintenanceWindowFromIso,
-  describeStrictScheduleFromIso,
-  formatTokyoDate,
-  getMaintenanceDisplayStateFromIso,
-  getStrictDisplayStateFromIso,
-  getTokyoDayDistance,
-} from "./time-zone";
+  buildPendingTodoEntries,
+  type PendingTodoCategory,
+} from "./pending-todo";
+import { TodoCard, type TodoCardItem } from "./todo-card";
+import { formatTokyoDate } from "./time-zone";
 
-export type HomeItem = {
-  // pending Todoにだけ設定する。未設定(誰でも可)はnull。
-  assigneeUserId?: string | null;
-  badge?: string;
-  completedAt?: string;
-  completedOccurrenceId?: string;
-  // completed Todoにだけ設定する(#148の修正で実施者を選び直すための既定値)。
-  completedPerformedByUserId?: string | null;
-  detail: string;
-  detailHref?: string;
-  id: string;
-  // Todoに関連する管理対象。家庭共通Todoではnull、完了・未完了のどちらにも設定する。
-  managedItemId?: string | null;
-  meta: string;
-  // pending Todoにだけ設定し、ホームの担当・完了操作を有効にする。
-  occurrenceId?: string;
-  // 一回限りTodoにだけ設定する。nullは予定日未定、文字列は具体日あり。
-  oneTimeScheduledFor?: string | null;
-  title: string;
-  tone: TodoTone;
-};
+export type { PendingOccurrenceRow, RecentCompletionRow } from "../lib/d1/home";
 
 export type HomeSectionId = "overdue" | "today" | "undated" | "reminder" | "upcoming" | "recent";
 
 export type HomeSection = {
   description: string;
   id: HomeSectionId;
-  items: HomeItem[];
+  items: TodoCardItem[];
   title: string;
 };
 
 export type HomeHouseholdSummary = { id: string; name: string };
+
+// 未完了Todoを表示する区分。完了記録の「最近の実施」だけは別扱いにする。
+type OpenSectionId = Exclude<HomeSectionId, "recent">;
 
 const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "overdue",
@@ -77,17 +49,17 @@ const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "upcoming",
 ]);
 
-const TONE_LABELS: Record<TodoTone, string> = {
-  caution: "要確認",
-  done: "完了",
-  reminder: "そろそろ",
-  today: "今日",
-  upcoming: "予定",
-  urgent: "要対応",
-};
+// ホームは「いま対応すること」に絞る。7日より先の予定(later)と、完了日基準の
+// 推奨期間前(before-window)はここへ載せず、すべてのTodo一覧(/todos)で確認する
+// (Issue #201)。
+const HOME_SECTION_BY_CATEGORY = new Map<PendingTodoCategory, OpenSectionId>([
+  ["overdue", "overdue"],
+  ["today", "today"],
+  ["undated", "undated"],
+  ["reminder", "reminder"],
+  ["upcoming", "upcoming"],
+]);
 
-// 期限切れ/今日/近日はdeadline_kind='strict'向けの区分。一回限りと
-// 定例日基準を同じ日付分類へ載せるが、繰り返し方式は表示で区別する。
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
@@ -99,153 +71,24 @@ const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
 
 const RECENT_COMPLETIONS_LIMIT = 10;
 
-export type PendingOccurrenceRow = {
-  assignee_user_id: string | null;
-  due_at: string | null;
-  id: string;
-  scheduled_for: string | null;
-  task_rules: {
-    deadline_kind: string;
-    managed_items: { id: string; name: string } | null;
-    recurrence_basis: string;
-    title: string;
-  };
-};
-
-export type RecentCompletionRow = {
-  activity_log_id: string;
-  managed_item_id: string | null;
-  managed_item_name: string | null;
-  occurred_at: string;
-  performed_by_user_id: string | null;
-  task_occurrence_id: string;
-  task_rule_title: string;
-};
-
-export function buildReminderItems(
+// 未完了Todoをホームの区分へ振り分ける。分類そのものはpending-todo.tsが持ち、
+// ここでは「ホームに載せる区分か」だけを決める(Issue #201)。
+export function buildPendingSectionItems(
   rows: PendingOccurrenceRow[],
   nowIso: string,
-): HomeItem[] {
-  return rows
-    .slice()
-    .sort((left, right) => (left.due_at ?? "").localeCompare(right.due_at ?? ""))
-    .flatMap((row) => {
-      const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
-      const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
-      if (recurrenceBasis !== "completion") return [];
-      if (deadlineKind !== "maintenance") {
-        throw new Error("完了日基準Todoの期限方式が不正です。");
-      }
-      if (row.scheduled_for === null || row.due_at === null) {
-        throw new Error("繰り返しTodoの予定日が未設定です。");
-      }
-
-      const window = { dueAt: row.due_at, scheduledFor: row.scheduled_for };
-      const state = getMaintenanceDisplayStateFromIso(window, nowIso);
-      // 推奨期間前(before-window)は交換・対応を急かさないため表示しない。
-      if (state === "before-window") return [];
-
-      const copy = MAINTENANCE_DISPLAY_COPY[state];
-      return [
-        {
-          assigneeUserId: row.assignee_user_id,
-          detail: row.task_rules.managed_items?.name ?? "管理対象なし",
-          ...(row.task_rules.managed_items === null
-            ? {}
-            : { detailHref: `/managed-items/${row.task_rules.managed_items.id}` }),
-          id: row.id,
-          managedItemId: row.task_rules.managed_items?.id ?? null,
-          meta: describeMaintenanceWindowFromIso(state, window),
-          occurrenceId: row.id,
-          title: row.task_rules.title,
-          tone: copy.tone,
-        },
-      ];
-    });
-}
-
-type StrictItems = Record<"overdue" | "today" | "undated" | "upcoming", HomeItem[]>;
-
-function pendingHomeItemBase(row: PendingOccurrenceRow): Pick<
-  HomeItem,
-  "assigneeUserId" | "detail" | "detailHref" | "id" | "managedItemId" | "occurrenceId" | "title"
-> {
-  const managedItem = row.task_rules.managed_items;
-  return {
-    assigneeUserId: row.assignee_user_id,
-    detail: managedItem?.name ?? "管理対象なし",
-    ...(managedItem === null ? {} : { detailHref: `/managed-items/${managedItem.id}` }),
-    id: row.id,
-    managedItemId: managedItem?.id ?? null,
-    occurrenceId: row.id,
-    title: row.task_rules.title,
+): Record<OpenSectionId, TodoCardItem[]> {
+  const result: Record<OpenSectionId, TodoCardItem[]> = {
+    overdue: [],
+    reminder: [],
+    today: [],
+    undated: [],
+    upcoming: [],
   };
-}
 
-function buildUndatedStrictItem(row: PendingOccurrenceRow): HomeItem {
-  const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
-  const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
-  if (recurrenceBasis !== "once" || deadlineKind !== "strict") {
-    throw new Error("予定日未定を利用できないTodoです。");
-  }
-  return {
-    ...pendingHomeItemBase(row),
-    badge: "未定",
-    meta: "予定日: 未定 ・ 繰り返しなし",
-    oneTimeScheduledFor: null,
-    tone: "upcoming",
-  };
-}
-
-function buildDatedStrictItem(
-  row: PendingOccurrenceRow,
-  dueAt: string,
-  scheduledFor: string,
-  nowIso: string,
-): { item: HomeItem; sectionId: "overdue" | "today" | "upcoming" } | null {
-  const recurrenceBasis = toRecurrenceBasis(row.task_rules.recurrence_basis);
-  if (recurrenceBasis === "completion") return null;
-  if (toDeadlineKind(row.task_rules.deadline_kind) !== "strict") {
-    throw new Error("厳密な期限Todoの期限方式が不正です。");
-  }
-  const state = getStrictDisplayStateFromIso(dueAt, nowIso);
-  if (state === "upcoming" && getTokyoDayDistance(nowIso, dueAt) > 7) return null;
-  const sectionId = state === "due-today" ? "today" : state;
-  return {
-    item: {
-      ...pendingHomeItemBase(row),
-      meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
-        recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
-      }`,
-      ...(recurrenceBasis === "once" ? { oneTimeScheduledFor: scheduledFor } : {}),
-      tone: STRICT_DISPLAY_COPY[state].tone,
-    },
-    sectionId,
-  };
-}
-
-export function buildStrictItems(
-  rows: PendingOccurrenceRow[],
-  nowIso: string,
-): StrictItems {
-  const result: StrictItems = { overdue: [], today: [], undated: [], upcoming: [] };
-
-  rows
-    .slice()
-    .sort((left, right) => (left.due_at ?? "").localeCompare(right.due_at ?? ""))
-    .forEach((row) => {
-      const scheduledFor = row.scheduled_for;
-      const dueAt = row.due_at;
-      if ((scheduledFor === null) !== (dueAt === null)) {
-        throw new Error("Todoの予定日と期限の組み合わせが不正です。");
-      }
-      if (scheduledFor === null || dueAt === null) {
-        result.undated.push(buildUndatedStrictItem(row));
-        return;
-      }
-      const dated = buildDatedStrictItem(row, dueAt, scheduledFor, nowIso);
-      if (dated !== null) result[dated.sectionId].push(dated.item);
-    });
+  buildPendingTodoEntries(rows, nowIso).forEach((entry) => {
+    const sectionId = HOME_SECTION_BY_CATEGORY.get(entry.category);
+    if (sectionId !== undefined) result[sectionId].push(entry.item);
+  });
 
   return result;
 }
@@ -253,7 +96,7 @@ export function buildStrictItems(
 export function buildRecentItems(
   rows: RecentCompletionRow[],
   performerNames: Map<string, string>,
-): HomeItem[] {
+): TodoCardItem[] {
   const displayedOccurrences = new Set<string>();
   return rows
     // RPC側でOccurrenceごとの有効な完了を一件へ絞る。ここでも重複を除き、
@@ -289,17 +132,12 @@ export function buildRecentItems(
 }
 
 function buildHomeSections(
-  reminderItems: HomeItem[],
-  recentItems: HomeItem[],
-  strictItems: StrictItems,
+  pendingItems: Record<OpenSectionId, TodoCardItem[]>,
+  recentItems: TodoCardItem[],
 ): HomeSection[] {
-  const itemsBySectionId: Record<HomeSectionId, HomeItem[]> = {
-    overdue: strictItems.overdue,
-    reminder: reminderItems,
+  const itemsBySectionId: Record<HomeSectionId, TodoCardItem[]> = {
+    ...pendingItems,
     recent: recentItems,
-    today: strictItems.today,
-    undated: strictItems.undated,
-    upcoming: strictItems.upcoming,
   };
 
   return HOME_SECTION_SKELETON.map((section) => ({
@@ -326,112 +164,8 @@ async function loadHomeSections(
   const performerNames = await loadProfileNames(db, session, performerIds);
 
   return buildHomeSections(
-    buildReminderItems(occurrenceRows, nowIso),
+    buildPendingSectionItems(occurrenceRows, nowIso),
     buildRecentItems(activityRows, performerNames),
-    buildStrictItems(occurrenceRows, nowIso),
-  );
-}
-
-function TaskTitle({ item }: { item: HomeItem }) {
-  return (
-    <div className="task-title-row">
-      <h3>
-        {item.detailHref === undefined ? (
-          item.title
-        ) : (
-          <Link href={item.detailHref}>{item.title}</Link>
-        )}
-      </h3>
-      <span className={`tone-label tone-${item.tone}`}>
-        {item.badge ?? TONE_LABELS[item.tone]}
-      </span>
-    </div>
-  );
-}
-
-function TaskActions({
-  actorName,
-  currentUserId,
-  item,
-  members,
-}: {
-  actorName: string;
-  currentUserId: string;
-  item: HomeItem;
-  members: HouseholdMemberOption[];
-}) {
-  const pendingOccurrenceId = item.occurrenceId;
-  if (pendingOccurrenceId !== undefined) {
-    return (
-      <>
-        <AssigneePanel
-          assigneeUserId={item.assigneeUserId ?? null}
-          managedItemId={item.managedItemId ?? null}
-          members={members}
-          occurrenceId={pendingOccurrenceId}
-          taskTitle={item.title}
-        />
-        <CompleteTodoPanel
-          actorName={actorName}
-          currentUserId={currentUserId}
-          managedItemId={item.managedItemId ?? null}
-          members={members}
-          occurrenceId={pendingOccurrenceId}
-          taskTitle={item.title}
-        />
-        {item.oneTimeScheduledFor !== undefined ? (
-          <SchedulePanel
-            managedItemId={item.managedItemId ?? null}
-            occurrenceId={pendingOccurrenceId}
-            scheduledFor={item.oneTimeScheduledFor}
-            taskTitle={item.title}
-          />
-        ) : null}
-      </>
-    );
-  }
-  if (item.completedAt === undefined || item.completedOccurrenceId === undefined) {
-    return null;
-  }
-  return (
-    <CorrectionPanel
-      currentUserId={currentUserId}
-      managedItemId={item.managedItemId ?? null}
-      members={members}
-      occurredAt={item.completedAt}
-      occurrenceId={item.completedOccurrenceId}
-      performedByUserId={item.completedPerformedByUserId ?? null}
-      taskTitle={item.title}
-    />
-  );
-}
-
-function TaskCard({
-  actorName,
-  currentUserId,
-  item,
-  members,
-}: {
-  actorName: string;
-  currentUserId: string;
-  item: HomeItem;
-  members: HouseholdMemberOption[];
-}) {
-  return (
-    <article className="task-card">
-      <div className={`status-mark status-${item.tone}`} aria-hidden="true" />
-      <div className="task-copy">
-        <TaskTitle item={item} />
-        <p className="item-detail">{item.detail}</p>
-        <p className="item-meta">{item.meta}</p>
-        <TaskActions
-          actorName={actorName}
-          currentUserId={currentUserId}
-          item={item}
-          members={members}
-        />
-      </div>
-    </article>
   );
 }
 
@@ -460,7 +194,7 @@ function HomeSectionView({
 
       <div className="card-list">
         {section.items.map((item) => (
-          <TaskCard
+          <TodoCard
             actorName={actorName}
             currentUserId={currentUserId}
             item={item}
@@ -474,11 +208,11 @@ function HomeSectionView({
 }
 
 function HomeHero({
-  canAddTodo,
+  hasHousehold,
   openItemCount,
   overdueItemCount,
 }: {
-  canAddTodo: boolean;
+  hasHousehold: boolean;
   openItemCount: number;
   overdueItemCount: number;
 }) {
@@ -486,10 +220,19 @@ function HomeHero({
     <header className="hero">
       <h1 className="sr-only">ホーム</h1>
       <nav aria-label="ホームの操作" className="hero-actions">
-        {canAddTodo ? (
-          <Link className="account-link todo-add-link" href="/todos/new">
-            Todoを追加
-          </Link>
+        {hasHousehold ? (
+          <>
+            <Link className="account-link todo-add-link" href="/todos/new">
+              Todoを追加
+            </Link>
+            {/* ホームは「いま対応すること」だけを表示する。7日より先の予定や
+                予定日未定を含む未完了Todoは、この導線からすべて確認する
+                (Issue #201)。モバイル下部ナビゲーションは「ホーム」「台帳」の
+                2項目のままにするため、導線はここに置く。 */}
+            <Link className="account-link" href="/todos">
+              すべてのTodo
+            </Link>
+          </>
         ) : null}
         <Link className="account-link home-ledger-link" href="/managed-items">
           家の台帳
@@ -591,7 +334,7 @@ export function HomeContent({
   return (
     <main>
       <HomeHero
-        canAddTodo={household !== null}
+        hasHousehold={household !== null}
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}
       />

@@ -74,6 +74,8 @@ describe("専用ページのTodo登録操作", () => {
       title: "家族会議",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
+    // 登録直後のTodoは、ホームに載らない予定でもすべてのTodo一覧には載る(Issue #201)。
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
     expect(revalidatePathMock).toHaveBeenCalledWith("/todos/new");
     expect(result).toEqual({ message: "Todoを登録しました。", status: "success" });
   });

@@ -42,6 +42,8 @@ describe("一回限りTodoの予定日変更", () => {
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
+    // 予定日を未定へ戻したTodoは、ホームだけでなくすべてのTodo一覧にも残る(Issue #201)。
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
     expect(result).toEqual({ message: "予定日を未定に戻しました。", status: "success" });
   });
 
