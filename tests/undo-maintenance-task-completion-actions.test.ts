@@ -28,6 +28,9 @@ describe("メンテナンスTodo完了の取消操作", () => {
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
+    // 取消後に未完了へ戻った状態は、Todo詳細にも反映される(Issue #205)。
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos/occurrence-id");
     expect(result).toEqual({ message: "完了の取消を記録しました。", status: "success" });
   });
 
