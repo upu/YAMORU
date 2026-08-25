@@ -52,7 +52,6 @@ function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection[
   return [
     { description: "期限を過ぎています", id: "overdue", items: overrides.overdue ?? [], title: "期限切れ" },
     { description: "今日確認したいこと", id: "today", items: overrides.today ?? [], title: "今日" },
-    { description: "実施する時期が決まっていません", id: "undated", items: overrides.undated ?? [], title: "予定日未定" },
     { description: "対応の目安の時期です", id: "reminder", items: overrides.reminder ?? [], title: "そろそろ" },
     { description: "これから7日間の予定", id: "upcoming", items: overrides.upcoming ?? [], title: "近日" },
     { description: "家族が完了したこと", id: "recent", items: overrides.recent ?? [], title: "最近の実施" },
@@ -145,8 +144,13 @@ describe("ホーム画面(HomeContent)", () => {
     renderHome(emptySections());
 
     expect(
-      screen.getByRole("heading", { name: "まだ表示できる予定がありません" }),
+      screen.getByRole("heading", { name: "いま対応することはありません" }),
     ).toBeInTheDocument();
+    // Issue #202: ホームが空でも予定日未定Todoは残りうるため、再発見経路を示す。
+    expect(screen.getByRole("link", { name: "すべてのTodoを見る" })).toHaveAttribute(
+      "href",
+      "/todos",
+    );
     expect(screen.getByRole("link", { name: "家の台帳を開く" })).toHaveAttribute(
       "href",
       "/managed-items",
@@ -234,33 +238,13 @@ describe("ホームのTodo操作", () => {
           tone: "today",
         },
       ],
-      undated: [
-        {
-          assigneeUserId: null,
-          badge: "未定",
-          detail: "管理対象なし",
-          id: "undated",
-          managedItemId: null,
-          meta: "予定日: 未定 ・ 繰り返しなし",
-          occurrenceId: "undated",
-          oneTimeScheduledFor: null,
-          title: "通知書が届いたら申請",
-          todoHref: "/todos/undated",
-          tone: "upcoming",
-        },
-      ],
     }));
 
     expect(screen.queryByRole("button", { name: "家族会議の予定日を未定に戻す" }))
       .not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
-      .not.toBeInTheDocument();
     // 確認と完了のための操作は維持する。
     expect(screen.getByLabelText("家族会議の担当")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "家族会議を記録" })).toBeInTheDocument();
-    expect(screen.getByLabelText("通知書が届いたら申請の担当")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "通知書が届いたら申請を記録" }))
-      .toBeInTheDocument();
     // 予定日の変更はTodo詳細から行う。
     expect(screen.getByRole("link", { name: "家族会議" })).toHaveAttribute(
       "href",
@@ -521,53 +505,29 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
     expect(items.upcoming[0].meta).toBe("8月15日の予定です ・ 繰り返しなし");
   });
 
-  it("管理対象なしの予定日未定Todoを独立区分から確認・操作できる", () => {
-    renderHome(emptySections({
-      undated: [
-        {
-          assigneeUserId: null,
-          badge: "未定",
-          detail: "管理対象なし",
-          id: "undated-unlinked",
-          managedItemId: null,
-          meta: "予定日: 未定 ・ 繰り返しなし",
-          occurrenceId: "undated-unlinked",
-          oneTimeScheduledFor: null,
-          title: "通知書が届いたら申請",
-          todoHref: "/todos/undated-unlinked",
-          tone: "upcoming",
-        },
-      ],
-    }));
+  it("予定日未定Todoはホームのどの区分にも入れない(Issue #202、YDR-031)", () => {
+    const undatedRow = onceRow("undated", "2026-08-11T15:00:00.000Z");
+    undatedRow.scheduled_for = null;
+    undatedRow.due_at = null;
 
-    const section = screen.getByRole("region", { name: "予定日未定" });
-    expect(within(section).getByText("予定日: 未定 ・ 繰り返しなし")).toBeInTheDocument();
-    expect(within(section).getByRole("link", { name: "通知書が届いたら申請" }))
-      .toHaveAttribute("href", "/todos/undated-unlinked");
-    expect(within(section).getByRole("button", { name: "通知書が届いたら申請を記録" }))
-      .toBeInTheDocument();
+    const items = buildPendingSectionItems(
+      [undatedRow, onceRow("today", "2026-08-11T15:00:00.000Z")],
+      "2026-08-12T00:00:00.000Z",
+    );
+
+    expect(items.today.map((item) => item.id)).toEqual(["today"]);
+    expect(items.overdue).toHaveLength(0);
+    expect(items.upcoming).toHaveLength(0);
+    expect(items.reminder).toHaveLength(0);
+    expect(Object.values(items).flat().map((item) => item.id)).not.toContain("undated");
   });
 
-  it("予定日未定の一回限りTodoは独立した区分へ分ける", () => {
-    const row = onceRow("undated", "2026-08-11T15:00:00.000Z");
-    row.scheduled_for = null;
-    row.due_at = null;
-    row.task_rules.managed_items = null;
+  it("予定日を設定したTodoは日付に応じてホームへ戻る(Issue #202)", () => {
+    const scheduled = onceRow("undated", "2026-08-14T15:00:00.000Z");
 
-    const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
+    const items = buildPendingSectionItems([scheduled], "2026-08-12T00:00:00.000Z");
 
-    expect(items.undated).toEqual([
-      expect.objectContaining({
-        detail: "管理対象なし",
-        managedItemId: null,
-        meta: "予定日: 未定 ・ 繰り返しなし",
-        occurrenceId: "undated",
-        title: "今回だけ点検",
-      }),
-    ]);
-    expect(items.overdue).toHaveLength(0);
-    expect(items.today).toHaveLength(0);
-    expect(items.upcoming).toHaveLength(0);
+    expect(items.upcoming.map((item) => item.id)).toEqual(["undated"]);
   });
 
   it("管理対象なしでも同じ日付基準で分類し、ホーム操作用のOccurrenceを保持する", () => {
