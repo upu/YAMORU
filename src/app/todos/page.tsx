@@ -67,10 +67,27 @@ function toAssigneeFilter(assigneeParam: string | undefined): AssigneeFilter | u
   return { type: "member", userId: assigneeParam };
 }
 
-function buildTodoListHref(status: TodoStatusFilter, assigneeParam: string | undefined): string {
+// Issue #225: Todo一覧のフリーワード検索。qクエリーパラメーターをサーバー側の
+// 取得条件へ反映する案1を採用する(issue本文の設計メモ)。件数がまだ少なく
+// 専用インデックスを要しない現段階では、クライアント側絞り込み(案2)より
+// 状態・担当条件と同じ仕組みで組み合わせられる利点を優先し、将来件数が
+// 増えた場合にSQLite FTS(案3)へ移行する余地は残す。前後の空白は取り除き、
+// 空文字ならクエリーからも省く(絞り込みなしとして扱う、受け入れ基準)。
+function parseSearchParam(value: string | string[] | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function buildTodoListHref(
+  status: TodoStatusFilter,
+  assigneeParam: string | undefined,
+  searchParam: string | undefined,
+): string {
   const params = new URLSearchParams();
   if (status === "completed") params.set("status", "completed");
   if (assigneeParam !== undefined) params.set("assignee", assigneeParam);
+  if (searchParam !== undefined) params.set("q", searchParam);
   const query = params.toString();
   return query === "" ? "/todos" : `/todos?${query}`;
 }
@@ -134,9 +151,11 @@ function TodoListHero({
 // Issue #223の担当条件は失われない(assigneeParamをhrefへ引き継ぐ)。
 function TodoStatusSwitch({
   assigneeParam,
+  searchParam,
   status,
 }: {
   assigneeParam: string | undefined;
+  searchParam: string | undefined;
   status: TodoStatusFilter;
 }) {
   return (
@@ -144,14 +163,14 @@ function TodoStatusSwitch({
       <Link
         aria-current={status === "pending" ? "page" : undefined}
         className="status-switch-option"
-        href={buildTodoListHref("pending", assigneeParam)}
+        href={buildTodoListHref("pending", assigneeParam, searchParam)}
       >
         未完了
       </Link>
       <Link
         aria-current={status === "completed" ? "page" : undefined}
         className="status-switch-option"
-        href={buildTodoListHref("completed", assigneeParam)}
+        href={buildTodoListHref("completed", assigneeParam, searchParam)}
       >
         実施済み
       </Link>
@@ -160,16 +179,19 @@ function TodoStatusSwitch({
 }
 
 // Issue #223: 担当予定者で絞り込む。「全員」で解除できる。状態タブ
-// (TodoStatusSwitch)を切り替えても、この条件は失われない。
+// (TodoStatusSwitch)や検索語(TodoSearchForm)を切り替えても、この条件は
+// 失われない。
 function AssigneeFilterNav({
   assigneeParam,
   currentUserId,
   members,
+  searchParam,
   status,
 }: {
   assigneeParam: string | undefined;
   currentUserId: string;
   members: HouseholdMemberOption[];
+  searchParam: string | undefined;
   status: TodoStatusFilter;
 }) {
   const otherMembers = members.filter((member) => member.userId !== currentUserId);
@@ -178,14 +200,14 @@ function AssigneeFilterNav({
       <Link
         aria-current={assigneeParam === undefined ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, undefined)}
+        href={buildTodoListHref(status, undefined, searchParam)}
       >
         全員
       </Link>
       <Link
         aria-current={assigneeParam === currentUserId ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, currentUserId)}
+        href={buildTodoListHref(status, currentUserId, searchParam)}
       >
         自分
       </Link>
@@ -193,7 +215,7 @@ function AssigneeFilterNav({
         <Link
           aria-current={assigneeParam === member.userId ? "page" : undefined}
           className="assignee-filter-option"
-          href={buildTodoListHref(status, member.userId)}
+          href={buildTodoListHref(status, member.userId, searchParam)}
           key={member.userId}
         >
           {member.nickname}
@@ -202,11 +224,46 @@ function AssigneeFilterNav({
       <Link
         aria-current={assigneeParam === UNASSIGNED_FILTER_VALUE ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, UNASSIGNED_FILTER_VALUE)}
+        href={buildTodoListHref(status, UNASSIGNED_FILTER_VALUE, searchParam)}
       >
         担当未定
       </Link>
     </nav>
+  );
+}
+
+// Issue #225: Todo名のフリーワード検索。ネイティブのGETフォームでサーバー
+// 側取得へ反映する(JSを要さず、他の絞り込みと同じくURLだけで状態を復元
+// できる)。状態タブ・担当条件はhidden inputで引き継ぎ、送信のたびに失わ
+// れないようにする。
+function TodoSearchForm({
+  assigneeParam,
+  searchParam,
+  status,
+}: {
+  assigneeParam: string | undefined;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+}) {
+  const inputId = "todo-search-q";
+  return (
+    <form action="/todos" aria-label="Todoをフリーワードで検索" className="auth-form todo-search-form" method="get">
+      {status === "completed" ? <input name="status" type="hidden" value="completed" /> : null}
+      {assigneeParam === undefined ? null : (
+        <input name="assignee" type="hidden" value={assigneeParam} />
+      )}
+      <label className="sr-only" htmlFor={inputId}>
+        Todo名で検索
+      </label>
+      <input
+        defaultValue={searchParam ?? ""}
+        id={inputId}
+        name="q"
+        placeholder="Todo名の一部を入力"
+        type="search"
+      />
+      <button type="submit">検索</button>
+    </form>
   );
 }
 
@@ -222,13 +279,30 @@ function HouseholdRequiredNotice() {
   );
 }
 
+// Issue #225: 検索語が0件になったときは、家庭にTodoがないのか検索語に
+// 一致しないだけなのかを区別できる案内にする(受け入れ基準の「0件時の
+// 案内」)。
 function TodoListEmptyState({
   householdName,
+  searchParam,
   status,
 }: {
   householdName: string;
+  searchParam: string | undefined;
   status: TodoStatusFilter;
 }) {
+  if (searchParam !== undefined) {
+    return (
+      <section aria-labelledby="todo-list-empty-title" className="detail-card">
+        <h2 id="todo-list-empty-title">
+          「
+          {searchParam}
+          」に一致するTodoはありません
+        </h2>
+        <p>検索語を変えるか、絞り込みを解除してお試しください。</p>
+      </section>
+    );
+  }
   if (status === "completed") {
     return (
       <section aria-labelledby="todo-list-empty-title" className="detail-card">
@@ -257,16 +331,42 @@ function TodoListEmptyState({
 function TodoListLoadMore({
   assigneeParam,
   nextLimit,
+  searchParam,
 }: {
   assigneeParam: string | undefined;
   nextLimit: number;
+  searchParam: string | undefined;
 }) {
   const params = new URLSearchParams({ limit: String(nextLimit), status: "completed" });
   if (assigneeParam !== undefined) params.set("assignee", assigneeParam);
+  if (searchParam !== undefined) params.set("q", searchParam);
   return (
     <Link className="ledger-primary-link todo-list-load-more" href={`/todos?${params.toString()}`}>
       もっと見る
     </Link>
+  );
+}
+
+// Issue #223/#225: 適用中の担当条件・検索語が分かるよう、見出しの説明に
+// 添える(解除はそれぞれ絞り込みナビの「全員」・検索欄を空にして再送信)。
+function TodoListSectionDescription({
+  assigneeLabel,
+  searchParam,
+  status,
+}: {
+  assigneeLabel: string | null;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+}) {
+  const base = status === "completed"
+    ? "実施日が新しいものから並びます"
+    : "予定日が早いものから並び、予定日未定は最後に並びます";
+  return (
+    <p>
+      {base}
+      {assigneeLabel === null ? "" : ` ・ 担当予定者: ${assigneeLabel}`}
+      {searchParam === undefined ? "" : ` ・ 検索語: 「${searchParam}」`}
+    </p>
   );
 }
 
@@ -277,6 +377,7 @@ function TodoListSection({
   items,
   members,
   nextLimit,
+  searchParam,
   showLoadMore,
   status,
 }: {
@@ -286,25 +387,18 @@ function TodoListSection({
   items: TodoCardItem[];
   members: HouseholdMemberOption[];
   nextLimit: number;
+  searchParam: string | undefined;
   showLoadMore: boolean;
   status: TodoStatusFilter;
 }) {
   const heading = status === "completed" ? "実施済みのTodo" : "未完了のTodo";
-  const description = status === "completed"
-    ? "実施日が新しいものから並びます"
-    : "予定日が早いものから並び、予定日未定は最後に並びます";
-  // Issue #223: 適用中の担当条件が分かるよう、見出しの説明に添える
-  // (解除は絞り込みナビの「全員」から行う)。
   const assigneeLabel = describeAssigneeFilter(assigneeParam, currentUserId, members);
   return (
     <section aria-labelledby="todo-list-title" className="home-section">
       <div className="section-heading">
         <div>
           <h2 id="todo-list-title">{heading}</h2>
-          <p>
-            {description}
-            {assigneeLabel === null ? "" : ` ・ 担当予定者: ${assigneeLabel}`}
-          </p>
+          <TodoListSectionDescription assigneeLabel={assigneeLabel} searchParam={searchParam} status={status} />
         </div>
         <span className="count" aria-label={`${String(items.length)}件`}>
           {items.length}
@@ -328,7 +422,9 @@ function TodoListSection({
         ))}
       </div>
 
-      {showLoadMore ? <TodoListLoadMore assigneeParam={assigneeParam} nextLimit={nextLimit} /> : null}
+      {showLoadMore ? (
+        <TodoListLoadMore assigneeParam={assigneeParam} nextLimit={nextLimit} searchParam={searchParam} />
+      ) : null}
     </section>
   );
 }
@@ -346,6 +442,10 @@ type TodoListContentProps = {
   // 実施済み(status="completed")のときだけ意味を持つ。既定値は未完了の
   // 呼び出し元(既存の呼び出し・テスト含む)を変えずに済むよう省略可能にする。
   nextLimit?: number;
+  // Issue #225: URLの生の値(表示・href組み立て用)。trim済み・空文字は
+  // undefined(parseSearchParam参照)。既定値は既存の呼び出し元(既存の
+  // 呼び出し・テスト含む)を変えずに済むよう省略可能にする。
+  searchParam?: string | undefined;
   showLoadMore?: boolean;
   status?: TodoStatusFilter;
 };
@@ -358,12 +458,13 @@ function TodoListBody({
   items,
   members,
   nextLimit,
+  searchParam,
   showLoadMore,
   status,
 }: TodoListContentProps & { nextLimit: number; showLoadMore: boolean; status: TodoStatusFilter }) {
   if (household === null) return <HouseholdRequiredNotice />;
   if (items.length === 0) {
-    return <TodoListEmptyState householdName={household.name} status={status} />;
+    return <TodoListEmptyState householdName={household.name} searchParam={searchParam} status={status} />;
   }
   return (
     <TodoListSection
@@ -373,6 +474,7 @@ function TodoListBody({
       items={items}
       members={members}
       nextLimit={nextLimit}
+      searchParam={searchParam}
       showLoadMore={showLoadMore}
       status={status}
     />
@@ -390,13 +492,19 @@ export function TodoListContent({
       <TodoListHero hasHousehold={rest.household !== null} status={status} />
       {rest.household === null ? null : (
         <>
-          <TodoStatusSwitch assigneeParam={rest.assigneeParam} status={status} />
+          <TodoStatusSwitch
+            assigneeParam={rest.assigneeParam}
+            searchParam={rest.searchParam}
+            status={status}
+          />
           <AssigneeFilterNav
             assigneeParam={rest.assigneeParam}
             currentUserId={rest.currentUserId}
             members={rest.members}
+            searchParam={rest.searchParam}
             status={status}
           />
+          <TodoSearchForm assigneeParam={rest.assigneeParam} searchParam={rest.searchParam} status={status} />
         </>
       )}
 
@@ -417,6 +525,7 @@ async function loadCompletedTodoListContent(
   household: TodoListHouseholdSummary,
   limit: number,
   assigneeParam: string | undefined,
+  searchParam: string | undefined,
 ): Promise<TodoListContentProps> {
   const [actorName, completionRows, members] = await Promise.all([
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
@@ -424,7 +533,8 @@ async function loadCompletedTodoListContent(
     // (src/lib/d1/home.ts)。他家庭のTodoはこの取得経路に載らない。
     // Issue #223: assigneeParamは担当予定者(assignee_user_id)による絞り込み
     // であり、この完了を実際に行った実施者とは別の条件として扱う。
-    listRecentActiveCompletions(db, session, limit, toAssigneeFilter(assigneeParam)),
+    // Issue #225: searchParamはTodo名(task_rule_title)の部分一致検索。
+    listRecentActiveCompletions(db, session, limit, toAssigneeFilter(assigneeParam), searchParam),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
     loadHouseholdMembers(db, session),
   ]);
@@ -446,6 +556,7 @@ async function loadCompletedTodoListContent(
     // まだ続きがある可能性として次のリンクを出す(上限はlistRecentActiveCompletions
     // 自体が持つCOMPLETED_LIMIT_MAXのクランプに委ねる)。
     nextLimit: Math.min(limit + COMPLETED_PAGE_SIZE, COMPLETED_LIMIT_MAX),
+    searchParam,
     showLoadMore: completionRows.length === limit && limit < COMPLETED_LIMIT_MAX,
     status: "completed",
   };
@@ -458,13 +569,15 @@ async function loadPendingTodoListContent(
   household: TodoListHouseholdSummary,
   nowIso: string,
   assigneeParam: string | undefined,
+  searchParam: string | undefined,
 ): Promise<TodoListContentProps> {
   const [actorName, occurrenceRows, members] = await Promise.all([
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     // 現在の家庭のpending Occurrenceだけを返す(src/lib/d1/home.ts)。他家庭の
     // Todoはこの取得経路に載らない。Issue #223: assigneeParamは担当予定者
-    // (assignee_user_id)による絞り込み。
-    listPendingOccurrences(db, session, toAssigneeFilter(assigneeParam)),
+    // (assignee_user_id)による絞り込み。Issue #225: searchParamはTodo名
+    // (task_rules.title)の部分一致検索。
+    listPendingOccurrences(db, session, toAssigneeFilter(assigneeParam), searchParam),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。
     loadHouseholdMembers(db, session),
   ]);
@@ -476,6 +589,7 @@ async function loadPendingTodoListContent(
     household,
     items: buildTodoListItems(occurrenceRows, nowIso),
     members,
+    searchParam,
     status: "pending",
   };
 }
@@ -491,6 +605,7 @@ export default async function TodoListPage({
   const resolvedSearchParams = await searchParams;
   const status = parseStatusFilter(resolvedSearchParams.status);
   const assigneeParam = parseAssigneeParam(resolvedSearchParams.assignee);
+  const searchParam = parseSearchParam(resolvedSearchParams.q);
 
   // ホーム(app/page.tsx)と同じく、家庭所属チェックを先に確定させる。家庭専用の
   // 取得関数は家庭未所属だと例外を投げるため、並列化できない(Issue #144)。
@@ -517,8 +632,9 @@ export default async function TodoListPage({
       household,
       parseCompletedLimit(resolvedSearchParams.limit),
       assigneeParam,
+      searchParam,
     )
-    : await loadPendingTodoListContent(db, session, user, household, nowIso, assigneeParam);
+    : await loadPendingTodoListContent(db, session, user, household, nowIso, assigneeParam, searchParam);
 
   return <TodoListContent {...content} />;
 }
