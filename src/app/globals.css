@@ -385,6 +385,39 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+/* Issue #222: Todo一覧の未完了/実施済み切り替え。押しやすさを優先し、
+   選択中はaria-current="page"で示す(モバイル下部ナビと同じ考え方)。 */
+.status-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--green-pale);
+}
+
+.status-switch-option {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.status-switch-option[aria-current="page"] {
+  color: var(--paper);
+  background: var(--green);
+}
+
+.todo-list-load-more {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
