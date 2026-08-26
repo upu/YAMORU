@@ -160,6 +160,66 @@ export const STRICT_DISPLAY_COPY: Record<
   overdue: { badge: "期限切れ", tone: "urgent" },
 };
 
+// Issue #227 / YDR-032: 定例日基準Todoの繰り返しパターンを、登録フォームと
+// 同じ言い回しで表示する。候補計算(src/lib/d1/calendar.ts)には使わない、
+// 表示専用の変換。
+const CALENDAR_WEEKDAY_LABELS: Record<number, string> = {
+  1: "月曜日",
+  2: "火曜日",
+  3: "水曜日",
+  4: "木曜日",
+  5: "金曜日",
+  6: "土曜日",
+  7: "日曜日",
+};
+
+export type CalendarScheduleRule = {
+  scheduleDayOfMonth: number | null;
+  scheduleDayOfWeek: number | null;
+  scheduleKind: string | null;
+  scheduleMonth: number | null;
+  scheduleMonthEnd: boolean;
+  scheduleWeekOfMonth: number | null;
+};
+
+function describeMonthlyDaySchedule(schedule: CalendarScheduleRule): string | null {
+  if (schedule.scheduleMonthEnd) return "毎月末";
+  return schedule.scheduleDayOfMonth === null
+    ? null
+    : `毎月${String(schedule.scheduleDayOfMonth)}日`;
+}
+
+function describeMonthlyNthWeekdaySchedule(
+  schedule: CalendarScheduleRule,
+  weekday: string | null,
+): string | null {
+  if (weekday === null || schedule.scheduleWeekOfMonth === null) return null;
+  return `毎月第${String(schedule.scheduleWeekOfMonth)}${weekday}`;
+}
+
+function describeYearlySchedule(schedule: CalendarScheduleRule): string | null {
+  if (schedule.scheduleMonth === null || schedule.scheduleDayOfMonth === null) return null;
+  return `毎年${String(schedule.scheduleMonth)}月${String(schedule.scheduleDayOfMonth)}日`;
+}
+
+export function describeCalendarSchedule(schedule: CalendarScheduleRule): string | null {
+  const weekday = schedule.scheduleDayOfWeek === null
+    ? null
+    : CALENDAR_WEEKDAY_LABELS[schedule.scheduleDayOfWeek] ?? null;
+  switch (schedule.scheduleKind) {
+    case "weekly":
+      return weekday === null ? null : `毎週${weekday}`;
+    case "monthly_day":
+      return describeMonthlyDaySchedule(schedule);
+    case "monthly_nth_weekday":
+      return describeMonthlyNthWeekdaySchedule(schedule, weekday);
+    case "yearly":
+      return describeYearlySchedule(schedule);
+    default:
+      return null;
+  }
+}
+
 export function describeMaintenanceSchedule(
   state: MaintenanceDisplayState,
   window: MaintenanceWindow,

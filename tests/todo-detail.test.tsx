@@ -49,6 +49,7 @@ const MEMBERS = [
 function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
   return {
     assigneeName: null,
+    calendarScheduleLabel: null,
     completion: null,
     dueAt: "2026-09-01T15:00:00.000Z",
     id: "occurrence-1",
@@ -94,6 +95,12 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     performed_by_user_id: null,
     recurrence_basis: "once",
     scheduled_for: "2026-09-01T15:00:00.000Z",
+    schedule_day_of_month: null,
+    schedule_day_of_week: null,
+    schedule_kind: null,
+    schedule_month: null,
+    schedule_month_end: 0,
+    schedule_week_of_month: null,
     status: "pending",
     title: "通知書が届いたら申請",
     ...overrides,
@@ -182,6 +189,20 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
       screen.getByText(/繰り返しのあるTodoの内容は、この画面からは変更できません。/u),
     ).toBeInTheDocument();
   });
+
+  // Issue #227 / YDR-032
+  it("定例日基準Todoでは繰り返しパターンを表示する", () => {
+    renderDetail(todo({ calendarScheduleLabel: "毎月末", recurrenceBasis: "calendar" }));
+
+    expect(screen.getByText("定例日")).toBeInTheDocument();
+    expect(screen.getByText("毎月末")).toBeInTheDocument();
+  });
+
+  it("定例日基準以外では繰り返しパターンの行を出さない", () => {
+    renderDetail(todo());
+
+    expect(screen.queryByText("定例日")).not.toBeInTheDocument();
+  });
 });
 
 describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
@@ -261,6 +282,20 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
       "user-2",
       "メンバー",
     );
+  });
+
+  it("毎月末の定例日基準Todoでは「毎月末」を表示する(Issue #227 / YDR-032)", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      recurrence_basis: "calendar",
+      schedule_day_of_month: 31,
+      schedule_kind: "monthly_day",
+      schedule_month_end: 1,
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("定例日")).toBeInTheDocument();
+    expect(screen.getByText("毎月末")).toBeInTheDocument();
   });
 
   it("他家庭のTodoは見つからないものとして扱う", async () => {

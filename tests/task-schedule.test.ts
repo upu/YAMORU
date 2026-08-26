@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type CalendarScheduleRule,
   computeMaintenanceWindow,
+  describeCalendarSchedule,
   describeMaintenanceSchedule,
   getMaintenanceDisplayState,
   getStrictDisplayState,
@@ -16,6 +18,61 @@ import {
 
 it("定例日基準を既知の繰り返し方式として扱う", () => {
   expect(toRecurrenceBasis("calendar")).toBe("calendar");
+});
+
+// Issue #227 / YDR-032
+describe("定例日基準Todoの繰り返しパターン表示", () => {
+  const EMPTY: CalendarScheduleRule = {
+    scheduleDayOfMonth: null,
+    scheduleDayOfWeek: null,
+    scheduleKind: null,
+    scheduleMonth: null,
+    scheduleMonthEnd: false,
+    scheduleWeekOfMonth: null,
+  };
+
+  it("毎週の曜日を表示する", () => {
+    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfWeek: 1, scheduleKind: "weekly" }))
+      .toBe("毎週月曜日");
+  });
+
+  it("毎月の固定日を表示する", () => {
+    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfMonth: 25, scheduleKind: "monthly_day" }))
+      .toBe("毎月25日");
+  });
+
+  it("固定日31日と月末を区別して表示する", () => {
+    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfMonth: 31, scheduleKind: "monthly_day" }))
+      .toBe("毎月31日");
+    expect(describeCalendarSchedule({
+      ...EMPTY,
+      scheduleDayOfMonth: 31,
+      scheduleKind: "monthly_day",
+      scheduleMonthEnd: true,
+    })).toBe("毎月末");
+  });
+
+  it("毎月の第N曜日を表示する", () => {
+    expect(describeCalendarSchedule({
+      ...EMPTY,
+      scheduleDayOfWeek: 2,
+      scheduleKind: "monthly_nth_weekday",
+      scheduleWeekOfMonth: 5,
+    })).toBe("毎月第5火曜日");
+  });
+
+  it("毎年の月日を表示する", () => {
+    expect(describeCalendarSchedule({
+      ...EMPTY,
+      scheduleDayOfMonth: 29,
+      scheduleKind: "yearly",
+      scheduleMonth: 2,
+    })).toBe("毎年2月29日");
+  });
+
+  it("繰り返しなし・完了日基準では表示しない", () => {
+    expect(describeCalendarSchedule(EMPTY)).toBeNull();
+  });
 });
 
 describe("推奨期間の計算", () => {

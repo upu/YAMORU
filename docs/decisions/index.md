@@ -43,6 +43,7 @@
 | YDR-029 | 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える | Accepted | [ydr-029-managed-item-kind-labels.md](ydr-029-managed-item-kind-labels.md) |
 | YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
 | YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Accepted | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
+| YDR-032 | 毎月の定例日指定に「月末」を固定日1〜31とは別の意味として追加する | Accepted | [ydr-032-monthly-day-month-end.md](ydr-032-monthly-day-month-end.md) |
 
 ## 新しい意思決定の追加
 

@@ -23,6 +23,10 @@ export type CalendarTaskInput = TaskBasics & {
   scheduleDayOfMonth: number | null;
   scheduleDayOfWeek: number | null;
   scheduleKind: string;
+  // Issue #227 / YDR-032: 「毎月末」は schedule_kind='monthly_day' /
+  // scheduleDayOfMonth=31 と組み合わせて保存する。候補計算には使わない
+  // (src/lib/d1/calendar.tsは変更しない)。
+  scheduleMonthEnd: boolean;
   scheduleMonth: number | null;
   scheduleWeekOfMonth: number | null;
 };
@@ -82,8 +86,8 @@ async function insertTask(
         id, household_id, managed_item_id, title, recurrence_basis,
         deadline_kind, recommended_start_offset, recommended_until_offset,
         schedule_kind, schedule_day_of_week, schedule_day_of_month,
-        schedule_week_of_month, schedule_month
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
+        schedule_week_of_month, schedule_month, schedule_month_end
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
     ).bind(
       taskRuleId,
       householdId,
@@ -98,6 +102,7 @@ async function insertTask(
       schedule?.scheduleDayOfMonth ?? null,
       schedule?.scheduleWeekOfMonth ?? null,
       schedule?.scheduleMonth ?? null,
+      schedule?.scheduleMonthEnd === true ? 1 : 0,
     ),
     db.prepare(
       "INSERT INTO task_occurrences (id, household_id, task_rule_id, scheduled_for, due_at) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -547,6 +552,14 @@ export type TodoDetailRow = {
   performed_by_user_id: string | null;
   recurrence_basis: string;
   scheduled_for: string | null;
+  // recurrence_basis='calendar'のときだけ非null。定例パターンの表示に使う
+  // (Issue #227 / YDR-032)。
+  schedule_day_of_month: number | null;
+  schedule_day_of_week: number | null;
+  schedule_kind: string | null;
+  schedule_month: number | null;
+  schedule_month_end: number;
+  schedule_week_of_month: number | null;
   status: string;
   title: string;
 };
@@ -571,6 +584,8 @@ export async function loadTodoDetail(
      )
      SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
             r.title, r.recurrence_basis, r.deadline_kind,
+            r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
+            r.schedule_week_of_month, r.schedule_month, r.schedule_month_end,
             i.id AS managed_item_id, i.name AS managed_item_name,
             c.id AS completed_activity_log_id,
             coalesce(

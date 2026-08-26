@@ -10,6 +10,7 @@ import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.s
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
 import undatedTodosSql from "../../../d1/migrations/0009_undated_one_time_todos.sql?raw";
+import monthEndSql from "../../../d1/migrations/0010_monthly_day_month_end.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -112,6 +113,7 @@ async function createHouseholdAMaintenanceTask(): Promise<{
 beforeAll(async () => {
   await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
   await db.batch(triggerAwareStatements(undatedTodosSql).map((statement) => db.prepare(statement)));
+  await db.batch(triggerAwareStatements(monthEndSql).map((statement) => db.prepare(statement)));
 });
 
 beforeEach(async () => {
@@ -505,6 +507,7 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
       scheduleDayOfWeek: 1,
       scheduleKind: "weekly",
       scheduleMonth: null,
+      scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "B calendar task",
     }, new Date("2026-08-20T00:00:00.000Z"));

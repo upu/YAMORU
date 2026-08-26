@@ -9,6 +9,7 @@ import classificationSql from "../../../d1/migrations/0005_managed_item_classifi
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
+import monthEndSql from "../../../d1/migrations/0010_monthly_day_month_end.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -39,8 +40,24 @@ function migrationStatements(): string[] {
     .filter(Boolean);
 }
 
+function triggerAwareStatements(sql: string): string[] {
+  const cleaned = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+  const triggers = [...cleaned.matchAll(/CREATE TRIGGER[\s\S]*?END;/g)]
+    .map(([statement]) => statement.trim());
+  const regular = cleaned
+    .replaceAll(/CREATE TRIGGER[\s\S]*?END;/g, "")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+  return [...regular, ...triggers];
+}
+
 beforeAll(async () => {
   await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
+  await db.batch(triggerAwareStatements(monthEndSql).map((statement) => db.prepare(statement)));
 });
 
 beforeEach(async () => {
@@ -136,6 +153,7 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       scheduleDayOfWeek: null,
       scheduleKind: "yearly",
       scheduleMonth: 5,
+      scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "固定資産税の納期限確認",
     }, new Date("2026-08-24T00:00:00.000Z"));
