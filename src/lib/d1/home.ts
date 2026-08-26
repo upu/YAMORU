@@ -1,5 +1,24 @@
 import { requireCurrentHouseholdId, type D1Session } from "./authorization";
 
+// Issue #223: Todo一覧の担当予定者(assignee_user_id)による絞り込み。
+// 完了記録の実施者(performed_by_user_id、YDR-020)とは別の意味であり、
+// 混同しないよう別の型・別のクエリー条件として扱う。
+export type AssigneeFilter =
+  | { type: "member"; userId: string }
+  | { type: "unassigned" };
+
+// household_idによる絞り込み(このファイルの各クエリー)がすでに家庭間分離を
+// 保証しているため、ここでのuserIdは呼び出し元がhousehold外の値を渡しても
+// 単に0件になるだけで安全である(情報は漏れない)。表示名の解決・値の妥当性
+// 確認はUI側(呼び出し元)の責務とする。
+function assigneeFilterParams(
+  filter: AssigneeFilter | undefined,
+): { unassignedOnly: number; userId: string | null } {
+  if (filter === undefined) return { unassignedOnly: 0, userId: null };
+  if (filter.type === "unassigned") return { unassignedOnly: 1, userId: null };
+  return { unassignedOnly: 0, userId: filter.userId };
+}
+
 export type PendingOccurrenceRow = {
   assignee_user_id: string | null;
   due_at: string | null;
@@ -34,8 +53,10 @@ type FlatPendingRow = Omit<PendingOccurrenceRow, "task_rules"> & {
 export async function listPendingOccurrences(
   db: D1Database,
   session: D1Session,
+  assigneeFilter?: AssigneeFilter,
 ): Promise<PendingOccurrenceRow[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
+  const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
   const { results } = await db.prepare(
     `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id,
             r.title, r.deadline_kind, r.recurrence_basis,
@@ -43,8 +64,13 @@ export async function listPendingOccurrences(
        FROM task_occurrences o
        JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = r.household_id
-      WHERE o.household_id = ?1 AND o.status = 'pending'`,
-  ).bind(householdId).all<FlatPendingRow>();
+      WHERE o.household_id = ?1 AND o.status = 'pending'
+        AND (
+          (?2 IS NULL AND ?3 = 0)
+          OR (?3 = 1 AND o.assignee_user_id IS NULL)
+          OR o.assignee_user_id = ?2
+        )`,
+  ).bind(householdId, userId, unassignedOnly).all<FlatPendingRow>();
   return results.map((row) => ({
     assignee_user_id: row.assignee_user_id,
     due_at: row.due_at,
@@ -65,13 +91,17 @@ export async function listRecentActiveCompletions(
   db: D1Database,
   session: D1Session,
   limit: number,
+  assigneeFilter?: AssigneeFilter,
 ): Promise<RecentCompletionRow[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const boundedLimit = Math.min(Math.max(limit, 0), 100);
+  const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
   // #148: occurred_at・performed_by_user_idは、元のcompletedログの値ではなく、
   // completion_correctionsで訂正済みなら訂正後の有効値を返す(YDR-026)。
   // 日時訂正と実施者訂正は別行として記録されるため、それぞれ独立に最新の
   // 訂正を相関サブクエリで引き、なければ元の値へフォールバックする。
+  // Issue #223: 絞り込みはOccurrenceの担当予定者(assignee_user_id)を対象と
+  // し、この完了を実際に行った実施者(performed_by_user_id)は対象にしない。
   const { results } = await db.prepare(
     `WITH ranked AS (
        SELECT l.id, l.occurred_at, l.recorded_at, l.performed_by_user_id,
@@ -85,6 +115,11 @@ export async function listRecentActiveCompletions(
            ON o.id = l.task_occurrence_id AND o.household_id = l.household_id
         WHERE l.household_id = ?1 AND l.action = 'completed'
           AND o.status = 'completed'
+          AND (
+            (?3 IS NULL AND ?4 = 0)
+            OR (?4 = 1 AND o.assignee_user_id IS NULL)
+            OR o.assignee_user_id = ?3
+          )
      )
      SELECT ranked.id AS activity_log_id,
             coalesce(
@@ -110,6 +145,6 @@ export async function listRecentActiveCompletions(
       WHERE ranked.position = 1
       ORDER BY ranked.occurred_at DESC, ranked.recorded_at DESC, ranked.id DESC
       LIMIT ?2`,
-  ).bind(householdId, boundedLimit).all<RecentCompletionRow>();
+  ).bind(householdId, boundedLimit, userId, unassignedOnly).all<RecentCompletionRow>();
   return results;
 }

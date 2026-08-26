@@ -418,6 +418,35 @@ h1 {
   text-align: center;
 }
 
+/* Issue #223: Todo一覧の担当予定者による絞り込み。メンバー数が多くても
+   折り返さず横スクロールできるようにする(status-switchは2択固定のため
+   flexで並べているが、こちらは可変長のため別スタイルにする)。 */
+.assignee-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.assignee-filter-option {
+  flex: none;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.assignee-filter-option[aria-current="page"] {
+  border-color: var(--green);
+  color: var(--paper);
+  background: var(--green);
+}
+
 .section-heading {
   display: flex;
   align-items: center;
