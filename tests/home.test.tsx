@@ -80,9 +80,8 @@ describe("ホーム画面(HomeContent)", () => {
       .not.toBeInTheDocument();
     expect(screen.queryByText("暮らしの「いつだっけ？」をなくす。"))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
-      "href",
-      "/todos/new",
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveClass(
+      "floating-add-button",
     );
     expect(screen.getByRole("link", { name: "家の台帳" })).toHaveAttribute(
       "href",
@@ -114,7 +113,7 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
   });
 
-  it("ホームではTodo登録フォームを表示せず、専用登録ページへのリンクだけを表示する", () => {
+  it("ホームではTodo登録フォームを表示せず、右下の共通追加ボタンだけを表示する", () => {
     renderHome(emptySections());
 
     expect(screen.queryByRole("region", { name: "Todoを追加" })).not.toBeInTheDocument();
@@ -122,6 +121,7 @@ describe("ホーム画面(HomeContent)", () => {
       "href",
       "/todos/new",
     );
+    expect(screen.getAllByRole("link", { name: /Todoを追加/u })).toHaveLength(1);
   });
 
   it("Todo一覧へのPC向け導線を表示し、モバイルではタブと重複しない印を付ける", () => {
@@ -163,7 +163,9 @@ describe("ホーム画面(HomeContent)", () => {
       "href",
       "/managed-items",
     );
-    expect(screen.getByRole("link", { name: "最初のTodoを追加" })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: "最初のTodoを追加" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
       "href",
       "/todos/new",
     );

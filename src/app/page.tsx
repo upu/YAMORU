@@ -9,6 +9,7 @@ import {
   loadHouseholdMembers,
   loadProfileNames,
 } from "../lib/d1/profiles";
+import { FloatingAddButton } from "./floating-add-button";
 import { getD1Context } from "../lib/d1/context";
 import {
   listPendingOccurrences,
@@ -223,15 +224,10 @@ function HomeHero({
       <h1 className="sr-only">ホーム</h1>
       <nav aria-label="ホームの操作" className="hero-actions">
         {hasHousehold ? (
-          <>
-            <Link className="account-link todo-add-link" href="/todos/new">
-              Todoを追加
-            </Link>
-            {/* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */}
-            <Link className="account-link home-todo-list-link" href="/todos">
-              Todo一覧
-            </Link>
-          </>
+          /* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */
+          <Link className="account-link home-todo-list-link" href="/todos">
+            Todo一覧
+          </Link>
         ) : null}
         <Link className="account-link home-ledger-link" href="/managed-items">
           家の台帳
@@ -272,13 +268,10 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
       <h2 id="home-empty-title">いま対応することはありません</h2>
       <p>
         {householdName}
-        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。
+        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の⊕から追加できます。
       </p>
       <Link className="ledger-primary-link home-todo-list-link" href="/todos">
         Todo一覧を見る
-      </Link>
-      <Link className="ledger-primary-link" href="/todos/new">
-        最初のTodoを追加
       </Link>
       <Link className="ledger-primary-link" href="/managed-items">
         家の台帳を開く
@@ -359,6 +352,8 @@ export function HomeContent({
           )}
         </div>
       )}
+
+      {household === null ? null : <FloatingAddButton destination="todo" />}
 
     </main>
   );
