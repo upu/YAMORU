@@ -20,6 +20,7 @@ import {
 import { buildPendingTodoEntries } from "../pending-todo";
 import { buildRecentItems } from "../page";
 import { TodoCard, type TodoCardItem } from "../todo-card";
+import { FloatingAddButton } from "../floating-add-button";
 
 export type TodoListHouseholdSummary = { id: string; name: string };
 
@@ -105,10 +106,8 @@ export function buildTodoListItems(
 }
 
 function TodoListHero({
-  hasHousehold,
   status,
 }: {
-  hasHousehold: boolean;
   status: TodoStatusFilter;
 }) {
   return (
@@ -120,11 +119,6 @@ function TodoListHero({
           ? "過去に実施したTodoを確認できます。"
           : "未完了のTodoをまとめて確認できます。"}
       </p>
-      {hasHousehold ? (
-        <Link className="ledger-primary-link" href="/todos/new">
-          Todoを追加
-        </Link>
-      ) : null}
     </header>
   );
 }
@@ -245,11 +239,8 @@ function TodoListEmptyState({
       <h2 id="todo-list-empty-title">未完了のTodoはありません</h2>
       <p>
         {householdName}
-        には、いま残っているTodoがありません。
+        には、いま残っているTodoがありません。新しいTodoは右下の⊕から追加できます。
       </p>
-      <Link className="ledger-primary-link" href="/todos/new">
-        最初のTodoを追加
-      </Link>
     </section>
   );
 }
@@ -387,7 +378,7 @@ export function TodoListContent({
 }: TodoListContentProps) {
   return (
     <main className="detail-page todo-list-page">
-      <TodoListHero hasHousehold={rest.household !== null} status={status} />
+      <TodoListHero status={status} />
       {rest.household === null ? null : (
         <>
           <TodoStatusSwitch assigneeParam={rest.assigneeParam} status={status} />
@@ -406,6 +397,7 @@ export function TodoListContent({
         showLoadMore={showLoadMore}
         status={status}
       />
+      {rest.household === null ? null : <FloatingAddButton destination="todo" />}
     </main>
   );
 }

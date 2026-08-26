@@ -165,13 +165,15 @@ describe("Todo一覧画面(TodoListContent)", () => {
     );
   });
 
-  it("未完了Todoが0件のときは空表示と登録導線を出す", () => {
+  it("未完了Todoが0件のときも右下の共通追加ボタンから登録できる", () => {
     renderTodoList([]);
 
     expect(
       screen.getByRole("heading", { name: "未完了のTodoはありません" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "最初のTodoを追加" })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: "最初のTodoを追加" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
       "href",
       "/todos/new",
     );

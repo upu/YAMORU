@@ -317,14 +317,39 @@ h1 {
   background: rgb(49 92 73 / 8%);
 }
 
-.todo-add-link {
+.floating-add-button {
+  position: fixed;
+  z-index: 9;
+  right: calc(24px + env(safe-area-inset-right));
+  bottom: 24px;
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 50%;
   color: var(--paper);
-  border-color: var(--green);
   background: var(--green);
+  box-shadow: 0 12px 30px rgb(37 54 45 / 28%);
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  touch-action: manipulation;
 }
 
-.todo-add-link:hover {
+.floating-add-button:hover {
   background: #274b3b;
+  transform: translateY(-1px);
+}
+
+.floating-add-button:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 48%);
+  outline-offset: 3px;
+}
+
+.floating-add-button-space {
+  height: 76px;
 }
 
 .mobile-bottom-navigation,
@@ -1560,6 +1585,17 @@ h1 {
     /* 完了記録・延期ダイアログ(.completion-dialog-backdrop)が下部ナビゲーション
        と重ならないよう、両者で同じ高さを共有する。 */
     --mobile-nav-height: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  .floating-add-button {
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(var(--mobile-nav-height) + 16px);
+    width: 56px;
+    height: 56px;
+  }
+
+  .floating-add-button-space {
+    height: 72px;
   }
 
   .mobile-bottom-navigation-space {

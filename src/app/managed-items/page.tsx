@@ -4,6 +4,7 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { listManagedItems } from "../../lib/d1/managed-items";
 import { loadAccountState } from "../../lib/d1/households";
+import { FloatingAddButton } from "../floating-add-button";
 import { ClassificationBadges } from "./classification-badges";
 
 export type ManagedItemSummary = {
@@ -43,11 +44,10 @@ export function ManagedItemsContent({
           <section aria-labelledby="registered-items-title" className="detail-card">
             <p className="detail-kicker">ITEMS</p>
             <h2 id="registered-items-title">登録済みの管理対象</h2>
-            <Link className="ledger-primary-link" href="/managed-items/new">
-              管理対象を登録
-            </Link>
             {items.length === 0 ? (
-              <p className="ledger-empty">まだ管理対象はありません。</p>
+              <p className="ledger-empty">
+                まだ管理対象はありません。右下の⊕から台帳に追加できます。
+              </p>
             ) : (
               <ul className="ledger-list">
                 {items.map((item) => (
@@ -63,6 +63,9 @@ export function ManagedItemsContent({
             )}
           </section>
         </div>
+      )}
+      {household === null ? null : (
+        <FloatingAddButton destination="managed-item" />
       )}
     </main>
   );

@@ -44,6 +44,8 @@ describe("家の台帳一覧", () => {
       "href",
       "/account",
     );
+    expect(screen.queryByRole("link", { name: "台帳に追加" }))
+      .not.toBeInTheDocument();
   });
 
   it("家庭所属済みなら一覧を主要内容として空状態から登録ページへ進める", () => {
@@ -55,10 +57,14 @@ describe("家の台帳一覧", () => {
     );
 
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
-    expect(within(list).getByText("まだ管理対象はありません。")).toBeInTheDocument();
-    expect(
-      within(list).getByRole("link", { name: "管理対象を登録" }),
-    ).toHaveAttribute("href", "/managed-items/new");
+    expect(within(list).getByText(/まだ管理対象はありません。/u))
+      .toBeInTheDocument();
+    expect(within(list).queryByRole("link", { name: "管理対象を登録" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
+      "href",
+      "/managed-items/new",
+    );
     expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /ホームへ戻る/ }),
@@ -73,7 +79,9 @@ describe("家の台帳一覧", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: "管理対象を登録" })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: "管理対象を登録" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
       "href",
       "/managed-items/new",
     );
