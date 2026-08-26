@@ -1,5 +1,17 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
 import { D1NotFoundError } from "./errors";
+import { likeSearchPattern } from "./text-search";
+
+// Issue #218: 台帳一覧の検索・絞り込み。大分類(kindCode)・詳しい種類
+// (itemTypeCode)は既存の分類候補(listManagedItemClassificationOptions)の
+// コード値と一致するものだけを絞り込み条件にする(利用者向けラベルと
+// データモデルを混同しない、issue本文の設計メモ)。カスタム入力の詳しい種類
+// (itemTypeCode未設定)は、itemTypeCodeでの絞り込みには一致しない。
+export type ManagedItemFilter = {
+  itemTypeCode?: string;
+  kindCode?: string;
+  search?: string;
+};
 
 export type ManagedItemClassificationOptions = {
   itemTypes: { code: string; kindCode: string; label: string }[];
@@ -91,11 +103,35 @@ async function requireCurrentHousehold(db: D1Database, session: D1Session): Prom
   return householdId;
 }
 
-export async function listManagedItems(db: D1Database, session: D1Session): Promise<ManagedItemSummary[]> {
+// Issue #218: 家庭内の管理対象を、任意で名前検索・大分類・詳しい種類の
+// 各条件を組み合わせて絞り込む。household_idによる絞り込み(サブクエリの
+// WHERE句)が先に効くため、他家庭の管理対象は検索候補・結果のどちらにも
+// 現れない。フィルターを何も渡さない既存呼び出しは、これまでどおり全件を
+// 返す。
+export async function listManagedItems(
+  db: D1Database,
+  session: D1Session,
+  filter?: ManagedItemFilter,
+): Promise<ManagedItemSummary[]> {
   const householdId = await requireCurrentHousehold(db, session);
-  const { results } = await db.prepare(`${MANAGED_ITEM_CLASSIFICATION_SELECT}
-      WHERE m.household_id = ?1 ORDER BY m.created_at DESC, m.id DESC`)
-    .bind(householdId).all<ManagedItemSummary>();
+  const kindCode = filter?.kindCode ?? null;
+  const itemTypeCode = filter?.itemTypeCode ?? null;
+  const searchPattern = likeSearchPattern(filter?.search);
+  // MANAGED_ITEM_CLASSIFICATION_SELECT自体にはcreated_atを含めない(他の
+  // 呼び出し元(getManagedItem等)の公開する行の形へ意図せず漏らさないため)。
+  // 並び替えのためだけにmanaged_itemsへ結合し直す(getManagedItemForEdit等と
+  // 同じ「サブクエリを結合し直す」パターン)。
+  const { results } = await db.prepare(
+    `SELECT item.id, item.name, item.kindCode, item.kindLabel,
+            item.itemTypeCode, item.itemTypeLabel
+       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
+              WHERE m.household_id = ?1) item
+       JOIN managed_items m ON m.id = item.id
+      WHERE (?2 IS NULL OR item.kindCode = ?2)
+        AND (?3 IS NULL OR item.itemTypeCode = ?3)
+        AND (?4 IS NULL OR LOWER(item.name) LIKE ?4 ESCAPE '\\')
+      ORDER BY m.created_at DESC, m.id DESC`,
+  ).bind(householdId, kindCode, itemTypeCode, searchPattern).all<ManagedItemSummary>();
   return results;
 }
 

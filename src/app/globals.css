@@ -1428,6 +1428,59 @@ h1 {
   justify-content: flex-end;
 }
 
+/* Issue #218: 台帳一覧の検索・絞り込み。見出しと件数バッジ(count)を
+   横並びにし、下に検索・絞り込みフォームを続ける。 */
+.ledger-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.ledger-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.ledger-search-form input[type="search"] {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.ledger-search-form select {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.ledger-search-form button {
+  flex: none;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--paper);
+  background: var(--green);
+  font-weight: 700;
+}
+
+.ledger-filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ledger-filter-clear {
+  color: var(--green);
+  font-weight: 800;
+  text-underline-offset: 3px;
+}
+
 .external-link-list li {
   padding-top: 12px;
   border-top: 1px solid var(--line);

@@ -805,6 +805,177 @@ describe("D1 title search authorization (Issue #225)", () => {
   });
 });
 
+describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
+  it("管理対象名の部分一致(日本語)で絞り込む", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "浄水フィルター",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { search: "浄水" });
+    expect(filtered.map(({ name }) => name)).toEqual(["浄水フィルター"]);
+  });
+
+  it("英字の大文字・小文字を区別せず一致させる", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "AEDトレーナー",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const lowerFiltered = await listManagedItems(db, householdAMember, { search: "aed" });
+    expect(lowerFiltered.map(({ name }) => name)).toEqual(["AEDトレーナー"]);
+  });
+
+  it("前後の空白を無視し、空文字・空白のみは絞り込みなしとして扱う", async () => {
+    const paddedResult = await listManagedItems(db, householdAMember, { search: "  Item  " });
+    expect(paddedResult.map(({ name }) => name)).toEqual(["Item A"]);
+
+    const blankResult = await listManagedItems(db, householdAMember, { search: "   " });
+    expect(blankResult.map(({ name }) => name)).toEqual(["Item A"]);
+
+    const emptyResult = await listManagedItems(db, householdAMember, { search: "" });
+    expect(emptyResult.map(({ name }) => name)).toEqual(["Item A"]);
+  });
+
+  it("検索語に含まれるLIKEのワイルドカード(%, _)を文字通りの部分文字列として扱う", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "10%OFFクーポン家電",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "10円玉OFFクーポン家電",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { search: "10%OFF" });
+    expect(filtered.map(({ name }) => name)).toEqual(["10%OFFクーポン家電"]);
+  });
+
+  it("大分類(kindCode)で絞り込む", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "冷蔵庫",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { kindCode: "asset" });
+    expect(filtered.map(({ name }) => name)).toEqual(["冷蔵庫"]);
+    // item-a(その他/その他)は大分類がasset以外なので一致しない。
+    expect(filtered.map(({ name }) => name)).not.toContain("Item A");
+  });
+
+  it("詳しい種類(itemTypeCode)で絞り込み、カスタム入力(未設定)の詳しい種類は一致しない", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "冷蔵庫",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: "特注の棚",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "オーダー家具",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { itemTypeCode: "appliance" });
+    expect(filtered.map(({ name }) => name)).toEqual(["冷蔵庫"]);
+  });
+
+  it("検索語・大分類・詳しい種類を組み合わせて絞り込む", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "リビングの冷蔵庫",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "キッチンの冷蔵庫",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const combined = await listManagedItems(db, householdAMember, {
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      search: "リビング",
+    });
+    expect(combined.map(({ name }) => name)).toEqual(["リビングの冷蔵庫"]);
+  });
+
+  it("別家庭の管理対象は検索結果へ混ざらない", async () => {
+    await createManagedItem(db, householdBMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "共通のキーワード用B",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "other",
+      kindCode: "other",
+      name: "共通のキーワード用A",
+      note: null,
+      productInfo: null,
+      purchasedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { search: "共通のキーワード" });
+    expect(filtered.map(({ name }) => name)).toEqual(["共通のキーワード用A"]);
+  });
+});
+
 describe("D1 Todo atomicity and IDOR resistance", () => {
   it("creates unlinked one-time and calendar tasks in the session household", async () => {
     await createOneTimeTask(db, householdAMember, {
