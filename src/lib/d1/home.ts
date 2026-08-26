@@ -19,6 +19,24 @@ function assigneeFilterParams(
   return { unassignedOnly: 0, userId: filter.userId };
 }
 
+// Issue #225: Todo一覧のフリーワード検索。対象はTodo名(task_rules.title)
+// だけとする(受け入れ基準、issue本文の設計メモ)。LIKEの特殊文字(%, _)は
+// 検索語として入力されても、ワイルドカードではなく文字通りの部分文字列と
+// して扱う(ESCAPE句で無害化)。SQLite標準のLOWER()はASCIIだけを小文字化
+// するため、大文字・小文字の違いは英数字部分にだけ影響し、日本語部分は
+// もともと大文字小文字の区別がないため挙動に影響しない。前後の空白・
+// 空文字は絞り込みなしとして扱う。
+function escapeLikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+function titleSearchPattern(search: string | undefined): string | null {
+  if (search === undefined) return null;
+  const trimmed = search.trim();
+  if (trimmed === "") return null;
+  return `%${escapeLikePattern(trimmed.toLocaleLowerCase("ja-JP"))}%`;
+}
+
 export type PendingOccurrenceRow = {
   assignee_user_id: string | null;
   due_at: string | null;
@@ -54,9 +72,11 @@ export async function listPendingOccurrences(
   db: D1Database,
   session: D1Session,
   assigneeFilter?: AssigneeFilter,
+  search?: string,
 ): Promise<PendingOccurrenceRow[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
+  const searchPattern = titleSearchPattern(search);
   const { results } = await db.prepare(
     `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id,
             r.title, r.deadline_kind, r.recurrence_basis,
@@ -69,8 +89,9 @@ export async function listPendingOccurrences(
           (?2 IS NULL AND ?3 = 0)
           OR (?3 = 1 AND o.assignee_user_id IS NULL)
           OR o.assignee_user_id = ?2
-        )`,
-  ).bind(householdId, userId, unassignedOnly).all<FlatPendingRow>();
+        )
+        AND (?4 IS NULL OR LOWER(r.title) LIKE ?4 ESCAPE '\\')`,
+  ).bind(householdId, userId, unassignedOnly, searchPattern).all<FlatPendingRow>();
   return results.map((row) => ({
     assignee_user_id: row.assignee_user_id,
     due_at: row.due_at,
@@ -92,10 +113,12 @@ export async function listRecentActiveCompletions(
   session: D1Session,
   limit: number,
   assigneeFilter?: AssigneeFilter,
+  search?: string,
 ): Promise<RecentCompletionRow[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const boundedLimit = Math.min(Math.max(limit, 0), 100);
   const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
+  const searchPattern = titleSearchPattern(search);
   // #148: occurred_at・performed_by_user_idは、元のcompletedログの値ではなく、
   // completion_correctionsで訂正済みなら訂正後の有効値を返す(YDR-026)。
   // 日時訂正と実施者訂正は別行として記録されるため、それぞれ独立に最新の
@@ -143,8 +166,9 @@ export async function listRecentActiveCompletions(
        JOIN task_rules r ON r.id = ranked.task_rule_id AND r.household_id = ?1
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = ?1
       WHERE ranked.position = 1
+        AND (?5 IS NULL OR LOWER(r.title) LIKE ?5 ESCAPE '\\')
       ORDER BY ranked.occurred_at DESC, ranked.recorded_at DESC, ranked.id DESC
       LIMIT ?2`,
-  ).bind(householdId, boundedLimit, userId, unassignedOnly).all<RecentCompletionRow>();
+  ).bind(householdId, boundedLimit, userId, unassignedOnly, searchPattern).all<RecentCompletionRow>();
   return results;
 }

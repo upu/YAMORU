@@ -472,6 +472,30 @@ h1 {
   background: var(--green);
 }
 
+/* Issue #225: Todo一覧のフリーワード検索フォーム。auth-formの入力枠を
+   流用しつつ、検索欄とボタンを横並びにする。 */
+.todo-search-form {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.todo-search-form input[type="search"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-search-form button {
+  flex: none;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--paper);
+  background: var(--green);
+  font-weight: 700;
+}
+
 .section-heading {
   display: flex;
   align-items: center;

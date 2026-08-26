@@ -90,7 +90,8 @@ describe("Todo一覧画面(TodoListPage、サーバーコンポーネント)", (
 
     render(await TodoListPage({ searchParams: Promise.resolve({}) }));
 
-    expect(listPendingOccurrencesMock).toHaveBeenCalledWith({}, { userId: "user-1" }, undefined);
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(
       screen.getByRole("heading", { level: 3, name: "通知書が届いたら申請" }),
     ).toBeInTheDocument();
@@ -155,7 +156,7 @@ describe("Todo一覧画面の実施済みタブ(TodoListPage、Issue #222)", () 
 
     expect(listPendingOccurrencesMock).not.toHaveBeenCalled();
     expect(listRecentActiveCompletionsMock)
-      .toHaveBeenCalledWith({}, { userId: "user-1" }, 20, undefined);
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, 20, undefined, undefined);
     expect(screen.getByRole("link", { name: "実施済み" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { name: "実施済みのTodo" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "フィルター交換" });
@@ -221,7 +222,7 @@ describe("Todo一覧画面の実施済みタブ(TodoListPage、Issue #222)", () 
     }));
 
     expect(listRecentActiveCompletionsMock)
-      .toHaveBeenCalledWith({}, { userId: "user-1" }, 100, undefined);
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, 100, undefined, undefined);
     // 上限に達しているため、これ以上の「もっと見る」は出さない。
     expect(screen.queryByRole("link", { name: "もっと見る" })).not.toBeInTheDocument();
   });
@@ -263,7 +264,8 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
   it("assignee未指定では絞り込みを渡さず、「全員」を選択状態にする", async () => {
     render(await TodoListPage({ searchParams: Promise.resolve({}) }));
 
-    expect(listPendingOccurrencesMock).toHaveBeenCalledWith({}, { userId: "user-1" }, undefined);
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "自分" })).not.toHaveAttribute("aria-current");
   });
@@ -276,6 +278,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       {},
       { userId: "user-1" },
       { type: "member", userId: "user-1" },
+      undefined,
     );
     expect(screen.getByRole("link", { name: "自分" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "全員" })).not.toHaveAttribute("aria-current");
@@ -290,6 +293,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       {},
       { userId: "user-1" },
       { type: "member", userId: "user-2" },
+      undefined,
     );
     expect(screen.getByRole("link", { name: "たろう" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/担当予定者: たろう/)).toBeInTheDocument();
@@ -303,6 +307,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       {},
       { userId: "user-1" },
       { type: "unassigned" },
+      undefined,
     );
     expect(screen.getByRole("link", { name: "担当未定" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/担当予定者: 担当未定/)).toBeInTheDocument();
@@ -344,6 +349,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       {},
       { userId: "user-1" },
       { type: "member", userId: "someone-elses-id" },
+      undefined,
     );
     // 家庭外の値では、どのチップも選択状態にならず、適用中の条件も説明しない
     // (household_idで絞り込むlistPendingOccurrences自体が安全に0件を返す。
@@ -353,5 +359,101 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
     expect(screen.getByRole("link", { name: "たろう" })).not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: "担当未定" })).not.toHaveAttribute("aria-current");
     expect(screen.queryByText(/担当予定者:/)).not.toBeInTheDocument();
+  });
+});
+
+// Issue #225
+describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)", () => {
+  beforeEach(() => {
+    loadAccountStateMock.mockResolvedValue({
+      household: { id: "household-1", name: "テスト家庭" },
+      nickname: "ぽっぷ",
+    });
+    loadActorNameMock.mockResolvedValue("ぽっぷ");
+    loadHouseholdMembersMock.mockResolvedValue(FILTER_MEMBERS);
+  });
+
+  it("q未指定では検索条件を渡さず、検索欄は空にする", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({}) }));
+
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
+    expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toHaveValue("");
+  });
+
+  it("qでTodo名の検索条件を渡し、適用中の検索語と検索欄の値を表示する", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow({
+      task_rules: {
+        deadline_kind: "strict",
+        managed_items: null,
+        recurrence_basis: "once",
+        title: "洗剤を補充",
+      },
+    })]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ q: "洗剤" }) }));
+
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, "洗剤");
+    expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toHaveValue("洗剤");
+    expect(screen.getByText(/検索語: 「洗剤」/)).toBeInTheDocument();
+  });
+
+  it("前後の空白は取り除き、空白だけ・空文字なら検索条件なしとして扱う", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ q: "  洗剤  " }) }));
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, "洗剤");
+
+    listPendingOccurrencesMock.mockClear();
+    render(await TodoListPage({ searchParams: Promise.resolve({ q: "   " }) }));
+    expect(listPendingOccurrencesMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
+  });
+
+  it("検索結果が0件のときは検索語を含む専用の案内を出す(家庭が空のときの案内とは区別する)", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ q: "存在しない" }) }));
+
+    expect(
+      screen.getByRole("heading", { name: "「存在しない」に一致するTodoはありません" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "未完了のTodoはありません" })).not.toBeInTheDocument();
+  });
+
+  it("状態タブ・担当条件を切り替えても検索語を保つ", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ assignee: "user-2", q: "洗剤" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "実施済み" })).toHaveAttribute(
+      "href",
+      "/todos?status=completed&assignee=user-2&q=%E6%B4%97%E5%89%A4",
+    );
+    expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute(
+      "href",
+      "/todos?q=%E6%B4%97%E5%89%A4",
+    );
+  });
+
+  it("検索語と担当条件を組み合わせて両方渡す", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ assignee: "user-1", q: "洗剤" }),
+    }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { type: "member", userId: "user-1" },
+      "洗剤",
+    );
   });
 });
