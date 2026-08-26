@@ -29,7 +29,9 @@ export type TodoCardItem = {
   tone: TodoTone;
 };
 
-const TONE_LABELS: Record<TodoTone, string> = {
+// Issue #224: コンパクトなリスト表示(todo-list-row.tsx)でも同じ既定ラベルを
+// 使うため、ここでexportして単一の定義を共有する。
+export const TONE_LABELS: Record<TodoTone, string> = {
   caution: "要確認",
   done: "完了",
   reminder: "そろそろ",

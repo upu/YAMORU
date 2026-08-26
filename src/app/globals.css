@@ -496,6 +496,71 @@ h1 {
   font-weight: 700;
 }
 
+/* Issue #224: カード表示とコンパクトなリスト表示の切り替え。トグル自体は
+   status-switchのpillスタイルを再利用する(margin-bottomだけ上書き)。 */
+.view-switch {
+  margin-bottom: 20px;
+}
+
+/* コンパクトなリスト表示。行全体がTodo詳細への単一の導線(誤操作を避ける
+   ため、カードと同じ操作は置かない、issue #224の設計メモ)。 */
+.todo-list-rows {
+  display: grid;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.todo-list-row + .todo-list-row {
+  border-top: 1px solid var(--line);
+}
+
+.todo-list-row-link {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.todo-list-row-link:hover {
+  background: var(--green-pale);
+}
+
+.todo-list-row-link:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: -3px;
+}
+
+.todo-list-row-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.todo-list-row-title-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.todo-list-row-title {
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.todo-list-row-meta {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -1699,6 +1764,10 @@ h1 {
 
   .task-title-row {
     gap: 8px;
+  }
+
+  .todo-list-row-link {
+    padding: 10px 12px;
   }
 
   .completion-dialog-backdrop {
