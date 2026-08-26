@@ -313,7 +313,7 @@ function TodoListEmptyState({
       <h2 id="todo-list-empty-title">未完了のTodoはありません</h2>
       <p>
         {householdName}
-        には、いま残っているTodoがありません。新しいTodoは右下の⊕から追加できます。
+        には、いま残っているTodoがありません。新しいTodoは右下の「＋」ボタンから追加できます。
       </p>
     </section>
   );
