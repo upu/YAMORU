@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { AppFooter } from "./app-footer";
 import { AppHeader } from "./app-header";
+import { APP_VERSION_INFO } from "./app-version";
 import { MobileBottomNavigation } from "./mobile-bottom-navigation";
 import { RefreshCoordinator } from "./refresh-coordinator";
 import { RefreshOnVisible } from "./refresh-on-visible";
@@ -41,6 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           <RefreshOnVisible />
           <AppHeader />
           {children}
+          <AppFooter versionInfo={APP_VERSION_INFO} />
           <MobileBottomNavigation />
         </RefreshCoordinator>
       </body>

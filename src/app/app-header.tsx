@@ -7,10 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { isPublicPath } from "./public-paths";
 import { ManualRefreshButton } from "./refresh-coordinator";
 
-function AccountIcon() {
+function SettingsIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0" />
+      <path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4A2 2 0 0 0 4 9.9l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
@@ -28,7 +29,7 @@ function AccountMenuPanel({
 }) {
   return (
     <nav
-      aria-label="アカウントメニュー"
+      aria-label="設定メニュー"
       className="account-menu-panel"
       id="account-menu-panel"
     >
@@ -45,6 +46,13 @@ function AccountMenuPanel({
         onClick={onClose}
       >
         家庭
+      </Link>
+      <Link
+        aria-current={pathname.startsWith("/help") ? "page" : undefined}
+        href="/help"
+        onClick={onClose}
+      >
+        ヘルプ
       </Link>
       <form action="/auth/signout" method="post" onSubmit={onSignOut}>
         <button disabled={isSigningOut} type="submit">
@@ -92,7 +100,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
       <button
         aria-controls="account-menu-panel"
         aria-expanded={isOpen}
-        aria-label="アカウントメニュー"
+        aria-label="設定メニュー"
         className="account-menu-trigger"
         onClick={() => {
           setIsOpen((current) => !current);
@@ -100,7 +108,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
         ref={triggerRef}
         type="button"
       >
-        <AccountIcon />
+        <SettingsIcon />
       </button>
       {isOpen ? (
         <AccountMenuPanel
