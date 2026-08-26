@@ -22,7 +22,7 @@ import {
   listHouseholdInvitations,
 } from "./invitations";
 import { createFirstHousehold, createProfile, updateProfile } from "./households";
-import { listPendingOccurrences } from "./home";
+import { listPendingOccurrences, listRecentActiveCompletions } from "./home";
 import {
   createManagedItem,
   getManagedItem,
@@ -491,6 +491,72 @@ describe("D1 undated one-time Todo constraints and authorization", () => {
       due_at: null,
       scheduled_for: null,
     });
+  });
+});
+
+describe("D1 recent completions authorization (Issue #222)", () => {
+  it("実施済みの取得は所属家庭のOccurrenceだけに限る", async () => {
+    const aRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "A task",
+    });
+    const aOccurrence = await occurrenceForRule(aRuleId);
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "complete-a",
+      occurredAt: "2026-08-02T00:00:00.000Z",
+      occurrenceId: aOccurrence.id,
+      performedByUserId: null,
+    });
+
+    const bRuleId = await createOneTimeTask(db, householdBMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "B task",
+    });
+    const bOccurrence = await occurrenceForRule(bRuleId);
+    await completeTask(db, householdBMember, {
+      idempotencyKey: "complete-b",
+      occurredAt: "2026-08-02T00:00:00.000Z",
+      occurrenceId: bOccurrence.id,
+      performedByUserId: null,
+    });
+
+    const aCompletions = await listRecentActiveCompletions(db, householdAMember, 20);
+    expect(aCompletions.map((row) => row.task_occurrence_id)).toContain(aOccurrence.id);
+    expect(aCompletions.map((row) => row.task_occurrence_id)).not.toContain(bOccurrence.id);
+
+    const bCompletions = await listRecentActiveCompletions(db, householdBMember, 20);
+    expect(bCompletions.map((row) => row.task_occurrence_id)).toContain(bOccurrence.id);
+    expect(bCompletions.map((row) => row.task_occurrence_id)).not.toContain(aOccurrence.id);
+  });
+
+  it("完了取消後は実施済み一覧から外れ、未完了一覧へ戻る", async () => {
+    const ruleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Undo task",
+    });
+    const occurrence = await occurrenceForRule(ruleId);
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "complete-undo",
+      occurredAt: "2026-08-02T00:00:00.000Z",
+      occurrenceId: occurrence.id,
+      performedByUserId: null,
+    });
+    expect(
+      (await listRecentActiveCompletions(db, householdAMember, 20))
+        .map((row) => row.task_occurrence_id),
+    ).toContain(occurrence.id);
+
+    await undoTaskCompletion(db, householdAMember, occurrence.id, "undo-1");
+
+    expect(
+      (await listRecentActiveCompletions(db, householdAMember, 20))
+        .map((row) => row.task_occurrence_id),
+    ).not.toContain(occurrence.id);
+    expect((await listPendingOccurrences(db, householdAMember)).map((row) => row.id))
+      .toContain(occurrence.id);
   });
 });
 
