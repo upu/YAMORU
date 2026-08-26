@@ -42,18 +42,18 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
     );
   });
 
-  it("右上の丸いボタンからアカウント・家庭・ログアウトを選べる", () => {
+  it("右上の歯車ボタンからアカウント・家庭・ヘルプ・ログアウトを選べる", () => {
     renderHeader();
 
     const header = screen.getByRole("banner", { name: "共通ヘッダー" });
-    const trigger = within(header).getByRole("button", { name: "アカウントメニュー" });
+    const trigger = within(header).getByRole("button", { name: "設定メニュー" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     const navigation = within(header).getByRole("navigation", {
-      name: "アカウントメニュー",
+      name: "設定メニュー",
     });
     expect(within(navigation).getByRole("link", { name: "アカウント" })).toHaveAttribute(
       "href",
@@ -63,6 +63,10 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
       "href",
       "/household",
     );
+    expect(within(navigation).getByRole("link", { name: "ヘルプ" })).toHaveAttribute(
+      "href",
+      "/help",
+    );
     expect(within(navigation).getByRole("button", { name: "ログアウト" }))
       .toBeInTheDocument();
   });
@@ -71,7 +75,7 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
     usePathnameMock.mockReturnValue("/account");
     renderHeader();
 
-    const trigger = screen.getByRole("button", { name: "アカウントメニュー" });
+    const trigger = screen.getByRole("button", { name: "設定メニュー" });
     fireEvent.click(trigger);
     expect(screen.getByRole("link", { name: "アカウント" })).toHaveAttribute(
       "aria-current",
@@ -80,7 +84,7 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(screen.queryByRole("navigation", { name: "アカウントメニュー" }))
+    expect(screen.queryByRole("navigation", { name: "設定メニュー" }))
       .not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
@@ -88,10 +92,10 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
   it("外側を押すか項目を選ぶと閉じる", () => {
     renderHeader();
 
-    const trigger = screen.getByRole("button", { name: "アカウントメニュー" });
+    const trigger = screen.getByRole("button", { name: "設定メニュー" });
     fireEvent.click(trigger);
     fireEvent.pointerDown(document.body);
-    expect(screen.queryByRole("navigation", { name: "アカウントメニュー" }))
+    expect(screen.queryByRole("navigation", { name: "設定メニュー" }))
       .not.toBeInTheDocument();
 
     fireEvent.click(trigger);
@@ -100,13 +104,13 @@ describe("認証済み画面の共通ヘッダー(Issue #147)", () => {
       event.preventDefault();
     });
     fireEvent.click(householdLink);
-    expect(screen.queryByRole("navigation", { name: "アカウントメニュー" }))
+    expect(screen.queryByRole("navigation", { name: "設定メニュー" }))
       .not.toBeInTheDocument();
   });
 
   it("ログアウト送信後は処理中表示にして連打を防ぐ", () => {
     renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: "アカウントメニュー" }));
+    fireEvent.click(screen.getByRole("button", { name: "設定メニュー" }));
     const logoutButton = screen.getByRole("button", { name: "ログアウト" });
 
     const logoutForm = logoutButton.closest("form");

@@ -30,8 +30,13 @@ describe("Cloudflare preview deploy workflow", () => {
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
     expect(workflow).toContain("github.event.workflow_run.event == 'push'");
     expect(workflow).toContain("ref: ${{ github.event.workflow_run.head_sha }}");
+    expect(workflow).toContain("fetch-depth: 0");
     expect(workflow).toContain("name: preview");
     expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
+    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: preview");
+    expect(workflow).toContain(
+      "YAMORU_BUILD_ID: ${{ github.event.workflow_run.head_sha }}",
+    );
 
     expectOrderedCommands(workflow, [
       "npm run cf:config:check",
@@ -91,6 +96,10 @@ describe("Cloudflare production deploy workflow", () => {
     expect(workflow).toContain("needs: quality");
     expect(workflow).toContain("ref: ${{ github.event.release.tag_name }}");
     expect(workflow).toContain("RELEASE_TAG: ${{ github.event.release.tag_name }}");
+    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: production");
+    expect(workflow).toContain(
+      "YAMORU_APP_VERSION: ${{ github.event.release.tag_name }}",
+    );
     expect(workflow).toContain("node scripts/release-target.ts");
     expect(workflow).toContain("name: production");
 

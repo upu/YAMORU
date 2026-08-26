@@ -723,7 +723,7 @@ h1 {
   font-weight: 600;
 }
 
-footer {
+.app-footer {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -733,7 +733,7 @@ footer {
   font-size: 0.75rem;
 }
 
-footer p {
+.app-footer p {
   margin: 0;
 }
 
@@ -747,6 +747,17 @@ footer p {
   color: var(--green);
   font-family: Georgia, serif;
   font-size: 0.72rem;
+}
+
+.app-version-detail {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--green-pale);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+  user-select: all;
 }
 
 .detail-page {

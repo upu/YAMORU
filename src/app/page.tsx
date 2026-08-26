@@ -360,10 +360,6 @@ export function HomeContent({
         </div>
       )}
 
-      <footer>
-        <span className="footer-mark" aria-hidden="true">Y</span>
-        <p>今日は、家のことが見えています。</p>
-      </footer>
     </main>
   );
 }
