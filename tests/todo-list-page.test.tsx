@@ -90,7 +90,7 @@ describe("Todo一覧画面(TodoListPage、サーバーコンポーネント)", (
 
     render(await TodoListPage({ searchParams: Promise.resolve({}) }));
 
-    expect(listPendingOccurrencesMock).toHaveBeenCalledWith({}, { userId: "user-1" });
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith({}, { userId: "user-1" }, undefined);
     expect(
       screen.getByRole("heading", { level: 3, name: "通知書が届いたら申請" }),
     ).toBeInTheDocument();
@@ -154,7 +154,8 @@ describe("Todo一覧画面の実施済みタブ(TodoListPage、Issue #222)", () 
     render(await TodoListPage({ searchParams: Promise.resolve({ status: "completed" }) }));
 
     expect(listPendingOccurrencesMock).not.toHaveBeenCalled();
-    expect(listRecentActiveCompletionsMock).toHaveBeenCalledWith({}, { userId: "user-1" }, 20);
+    expect(listRecentActiveCompletionsMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, 20, undefined);
     expect(screen.getByRole("link", { name: "実施済み" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { name: "実施済みのTodo" })).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "フィルター交換" });
@@ -195,7 +196,7 @@ describe("Todo一覧画面の実施済みタブ(TodoListPage、Issue #222)", () 
 
     expect(screen.getByRole("link", { name: "もっと見る" })).toHaveAttribute(
       "href",
-      "/todos?status=completed&limit=40",
+      "/todos?limit=40&status=completed",
     );
   });
 
@@ -219,8 +220,138 @@ describe("Todo一覧画面の実施済みタブ(TodoListPage、Issue #222)", () 
       searchParams: Promise.resolve({ limit: "500", status: "completed" }),
     }));
 
-    expect(listRecentActiveCompletionsMock).toHaveBeenCalledWith({}, { userId: "user-1" }, 100);
+    expect(listRecentActiveCompletionsMock)
+      .toHaveBeenCalledWith({}, { userId: "user-1" }, 100, undefined);
     // 上限に達しているため、これ以上の「もっと見る」は出さない。
     expect(screen.queryByRole("link", { name: "もっと見る" })).not.toBeInTheDocument();
+  });
+});
+
+// Issue #223
+const FILTER_MEMBERS = [
+  { nickname: "ぽっぷ", userId: "user-1" },
+  { nickname: "たろう", userId: "user-2" },
+];
+
+function pendingRow(overrides: Record<string, unknown> = {}) {
+  return {
+    assignee_user_id: null,
+    due_at: null,
+    id: "occurrence-1",
+    scheduled_for: null,
+    task_rules: {
+      deadline_kind: "strict",
+      managed_items: null,
+      recurrence_basis: "once",
+      title: "家族会議",
+    },
+    ...overrides,
+  };
+}
+
+describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage、Issue #223)", () => {
+  beforeEach(() => {
+    loadAccountStateMock.mockResolvedValue({
+      household: { id: "household-1", name: "テスト家庭" },
+      nickname: "ぽっぷ",
+    });
+    loadActorNameMock.mockResolvedValue("ぽっぷ");
+    loadHouseholdMembersMock.mockResolvedValue(FILTER_MEMBERS);
+    listPendingOccurrencesMock.mockResolvedValue([]);
+  });
+
+  it("assignee未指定では絞り込みを渡さず、「全員」を選択状態にする", async () => {
+    render(await TodoListPage({ searchParams: Promise.resolve({}) }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith({}, { userId: "user-1" }, undefined);
+    expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "自分" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("assignee=自分のuserIdで、自分を担当予定者とする条件を渡す", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
+    render(await TodoListPage({ searchParams: Promise.resolve({ assignee: "user-1" }) }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { type: "member", userId: "user-1" },
+    );
+    expect(screen.getByRole("link", { name: "自分" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "全員" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByText(/担当予定者: 自分/)).toBeInTheDocument();
+  });
+
+  it("assignee=他メンバーのuserIdで、その名前を選択状態にする", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
+    render(await TodoListPage({ searchParams: Promise.resolve({ assignee: "user-2" }) }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { type: "member", userId: "user-2" },
+    );
+    expect(screen.getByRole("link", { name: "たろう" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/担当予定者: たろう/)).toBeInTheDocument();
+  });
+
+  it("assignee=unassignedで担当未定の条件を渡す", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
+    render(await TodoListPage({ searchParams: Promise.resolve({ assignee: "unassigned" }) }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { type: "unassigned" },
+    );
+    expect(screen.getByRole("link", { name: "担当未定" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/担当予定者: 担当未定/)).toBeInTheDocument();
+  });
+
+  it("状態タブを切り替えても担当条件を保つ", async () => {
+    render(await TodoListPage({ searchParams: Promise.resolve({ assignee: "user-2" }) }));
+
+    expect(screen.getByRole("link", { name: "実施済み" })).toHaveAttribute(
+      "href",
+      "/todos?status=completed&assignee=user-2",
+    );
+    expect(screen.getByRole("link", { name: "未完了" })).toHaveAttribute(
+      "href",
+      "/todos?assignee=user-2",
+    );
+  });
+
+  it("担当条件を切り替えても状態(実施済み)を保つ", async () => {
+    listRecentActiveCompletionsMock.mockResolvedValue([]);
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ status: "completed" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "たろう" })).toHaveAttribute(
+      "href",
+      "/todos?status=completed&assignee=user-2",
+    );
+    expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute("href", "/todos?status=completed");
+  });
+
+  it("別家庭・不正なuserIdを指定しても、実在する家庭メンバーの表示名は出さない", async () => {
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ assignee: "someone-elses-id" }),
+    }));
+
+    expect(listPendingOccurrencesMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { type: "member", userId: "someone-elses-id" },
+    );
+    // 家庭外の値では、どのチップも選択状態にならず、適用中の条件も説明しない
+    // (household_idで絞り込むlistPendingOccurrences自体が安全に0件を返す。
+    // src/lib/d1/home.tsのD1テスト参照)。
+    expect(screen.getByRole("link", { name: "全員" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "自分" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "たろう" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "担当未定" })).not.toHaveAttribute("aria-current");
+    expect(screen.queryByText(/担当予定者:/)).not.toBeInTheDocument();
   });
 });

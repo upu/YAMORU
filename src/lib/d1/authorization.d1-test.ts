@@ -560,6 +560,122 @@ describe("D1 recent completions authorization (Issue #222)", () => {
   });
 });
 
+describe("D1 assignee filter authorization (Issue #223)", () => {
+  async function addSecondHouseholdAMember(): Promise<{ email: string; userId: string }> {
+    await db.batch([
+      db.prepare("INSERT INTO users (id, email) VALUES ('user-a2','a2@example.com')"),
+      db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a','user-a2')"),
+    ]);
+    return { email: "a2@example.com", userId: "user-a2" };
+  }
+
+  it("担当予定者(自分・家族・担当未定)で未完了Todoを絞り込む", async () => {
+    const memberA2 = await addSecondHouseholdAMember();
+    const unassignedRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Unassigned task",
+    });
+    const unassignedOccurrence = await occurrenceForRule(unassignedRuleId);
+
+    const selfRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Self task",
+    });
+    const selfOccurrence = await occurrenceForRule(selfRuleId);
+    await setTaskOccurrenceAssignee(db, householdAMember, selfOccurrence.id, "user-a");
+
+    const otherRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Other member task",
+    });
+    const otherOccurrence = await occurrenceForRule(otherRuleId);
+    await setTaskOccurrenceAssignee(db, householdAMember, otherOccurrence.id, "user-a2");
+
+    const selfFiltered = await listPendingOccurrences(
+      db, householdAMember, { type: "member", userId: "user-a" },
+    );
+    expect(selfFiltered.map((row) => row.id)).toEqual([selfOccurrence.id]);
+
+    const otherFiltered = await listPendingOccurrences(
+      db, householdAMember, { type: "member", userId: memberA2.userId },
+    );
+    expect(otherFiltered.map((row) => row.id)).toEqual([otherOccurrence.id]);
+
+    const unassignedFiltered = await listPendingOccurrences(
+      db, householdAMember, { type: "unassigned" },
+    );
+    expect(unassignedFiltered.map((row) => row.id)).toEqual([unassignedOccurrence.id]);
+  });
+
+  it("別家庭のuserIdや存在しないuserIdを指定しても、家庭内のTodoは漏れない", async () => {
+    await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "A task",
+    });
+    const bRuleId = await createOneTimeTask(db, householdBMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "B task",
+    });
+    const bOccurrence = await occurrenceForRule(bRuleId);
+    await setTaskOccurrenceAssignee(db, householdBMember, bOccurrence.id, "user-b");
+
+    // 家庭Bのメンバーで家庭Aの一覧を絞り込んでも、家庭Bの担当情報は漏れない
+    // (household_idによる絞り込みが先に効くため0件になる)。
+    await expect(
+      listPendingOccurrences(db, householdAMember, { type: "member", userId: "user-b" }),
+    ).resolves.toEqual([]);
+    // 実在しないuserIdでも同様に0件になるだけで、エラーにも全件表示にもならない。
+    await expect(
+      listPendingOccurrences(db, householdAMember, { type: "member", userId: "no-such-user" }),
+    ).resolves.toEqual([]);
+  });
+
+  it("担当予定者(自分・担当未定)で実施済みTodoを絞り込む", async () => {
+    const assignedRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Assigned then completed",
+    });
+    const assignedOccurrence = await occurrenceForRule(assignedRuleId);
+    await setTaskOccurrenceAssignee(db, householdAMember, assignedOccurrence.id, "user-a");
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "complete-assigned",
+      occurredAt: "2026-08-02T00:00:00.000Z",
+      occurrenceId: assignedOccurrence.id,
+      performedByUserId: null,
+    });
+
+    const unassignedRuleId = await createOneTimeTask(db, householdAMember, {
+      managedItemId: null,
+      scheduledFor: "2026-08-01T15:00:00.000Z",
+      title: "Unassigned then completed",
+    });
+    const unassignedOccurrence = await occurrenceForRule(unassignedRuleId);
+    await completeTask(db, householdAMember, {
+      idempotencyKey: "complete-unassigned",
+      occurredAt: "2026-08-02T00:00:00.000Z",
+      occurrenceId: unassignedOccurrence.id,
+      performedByUserId: null,
+    });
+
+    const selfFiltered = await listRecentActiveCompletions(
+      db, householdAMember, 20, { type: "member", userId: "user-a" },
+    );
+    expect(selfFiltered.map((row) => row.task_occurrence_id)).toEqual([assignedOccurrence.id]);
+
+    const unassignedFiltered = await listRecentActiveCompletions(
+      db, householdAMember, 20, { type: "unassigned" },
+    );
+    expect(unassignedFiltered.map((row) => row.task_occurrence_id))
+      .toEqual([unassignedOccurrence.id]);
+  });
+});
+
 describe("D1 Todo atomicity and IDOR resistance", () => {
   it("creates unlinked one-time and calendar tasks in the session household", async () => {
     await createOneTimeTask(db, householdAMember, {
