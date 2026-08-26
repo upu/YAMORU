@@ -12,7 +12,12 @@ import {
 } from "../../../lib/d1/profiles";
 import { UNASSIGNED_LABEL } from "../../assignee";
 import { CorrectionPanel } from "../../managed-items/[id]/correction-panel";
-import { toDeadlineKind, toRecurrenceBasis, type RecurrenceBasis } from "../../task-schedule";
+import {
+  describeCalendarSchedule,
+  toDeadlineKind,
+  toRecurrenceBasis,
+  type RecurrenceBasis,
+} from "../../task-schedule";
 import { formatTokyoDate } from "../../time-zone";
 
 // 繰り返し方の表現は、Todo登録フォームの選択肢と同じ言い回しに揃える。
@@ -32,6 +37,8 @@ export type TodoCompletionData = {
 
 export type TodoDetailData = {
   assigneeName: string | null;
+  // recurrenceBasis='calendar'のときだけ非null(Issue #227 / YDR-032)。
+  calendarScheduleLabel: string | null;
   completion: TodoCompletionData | null;
   dueAt: string | null;
   id: string;
@@ -94,6 +101,12 @@ function TodoDetailList({ todo }: { todo: TodoDetailData }) {
         <dt>繰り返し方</dt>
         <dd>{RECURRENCE_LABELS[todo.recurrenceBasis]}</dd>
       </div>
+      {todo.calendarScheduleLabel === null ? null : (
+        <div>
+          <dt>定例日</dt>
+          <dd>{todo.calendarScheduleLabel}</dd>
+        </div>
+      )}
       <div>
         <dt>関連する管理対象</dt>
         <dd>
@@ -260,6 +273,16 @@ export default async function TodoDetailPage({
       members={members}
       todo={{
         assigneeName,
+        calendarScheduleLabel: toRecurrenceBasis(row.recurrence_basis) === "calendar"
+          ? describeCalendarSchedule({
+              scheduleDayOfMonth: row.schedule_day_of_month,
+              scheduleDayOfWeek: row.schedule_day_of_week,
+              scheduleKind: row.schedule_kind,
+              scheduleMonth: row.schedule_month,
+              scheduleMonthEnd: row.schedule_month_end === 1,
+              scheduleWeekOfMonth: row.schedule_week_of_month,
+            })
+          : null,
         completion: isCompleted && row.occurred_at !== null
           ? {
               occurredAt: row.occurred_at,

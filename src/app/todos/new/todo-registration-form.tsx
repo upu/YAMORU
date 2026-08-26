@@ -130,14 +130,55 @@ function DayOfMonthInput({ helpText }: { helpText: string }) {
   );
 }
 
+// Issue #227 / YDR-032: 「毎月31日」と「毎月末」は意味が異なる別の指定として
+// 扱う。月末を選ぶと日付の入力自体が不要になる。
+function MonthlyDayFields() {
+  const [monthEnd, setMonthEnd] = useState(false);
+  return (
+    <>
+      <fieldset className="todo-fieldset">
+        <legend>指定方法</legend>
+        <label className="radio-option">
+          <input
+            checked={!monthEnd}
+            name="scheduleDayMode"
+            onChange={() => { setMonthEnd(false); }}
+            type="radio"
+            value="fixed_day"
+          />
+          日付を指定
+        </label>
+        <label className="radio-option">
+          <input
+            checked={monthEnd}
+            name="scheduleDayMode"
+            onChange={() => { setMonthEnd(true); }}
+            type="radio"
+            value="month_end"
+          />
+          毎月末
+        </label>
+      </fieldset>
+      {monthEnd ? (
+        <>
+          <input name="scheduleMonthEnd" type="hidden" value="1" />
+          <p className="input-help">
+            その月の最終日(1月31日、2月28日/29日、4月30日など)を予定日にします。
+          </p>
+        </>
+      ) : (
+        <DayOfMonthInput helpText="1〜31の日付を入力してください。存在しない日は、その月の月末に合わせます。" />
+      )}
+    </>
+  );
+}
+
 function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind }) {
   switch (scheduleKind) {
     case "weekly":
       return <WeekdaySelect />;
     case "monthly_day":
-      return (
-        <DayOfMonthInput helpText="1〜31の日付を入力してください。存在しない日は、その月の月末に合わせます。" />
-      );
+      return <MonthlyDayFields />;
     case "monthly_nth_weekday":
       return (
         <>

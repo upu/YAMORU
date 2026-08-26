@@ -51,6 +51,9 @@ type CalendarTodoInput = TodoBasics & {
   scheduleDayOfMonth?: number;
   scheduleDayOfWeek?: number;
   scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
+  // Issue #227 / YDR-032: monthly_dayのときだけ、固定日ではなく毎月末を
+  // 意味する。日付は常に31を渡す(既存の月末補正規則、YDR-021)。
+  scheduleMonthEnd: boolean;
   scheduleMonth?: number;
   scheduleWeekOfMonth?: number;
 };
@@ -110,6 +113,32 @@ function isValidYearlyDate(month: number, day: number): boolean {
   return candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
 }
 
+// Issue #227 / YDR-032: 「毎月末」は日付入力を求めず、常に31日として保存する
+// (既存の月末補正規則、YDR-021)。
+function parseMonthlyDayCalendarTodo(
+  basics: TodoBasics,
+  formData: FormData,
+  dayOfMonth: number | null,
+): CalendarTodoInput | null {
+  if (formData.get("scheduleMonthEnd") === "1") {
+    return {
+      ...basics,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: 31,
+      scheduleKind: "monthly_day",
+      scheduleMonthEnd: true,
+    };
+  }
+  if (dayOfMonth === null) return null;
+  return {
+    ...basics,
+    recurrenceBasis: "calendar",
+    scheduleDayOfMonth: dayOfMonth,
+    scheduleKind: "monthly_day",
+    scheduleMonthEnd: false,
+  };
+}
+
 function parseCalendarTodo(
   basics: TodoBasics,
   formData: FormData,
@@ -121,10 +150,17 @@ function parseCalendarTodo(
   const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
 
   if (scheduleKind === "weekly" && dayOfWeek !== null) {
-    return { ...basics, recurrenceBasis: "calendar", scheduleDayOfWeek: dayOfWeek, scheduleKind };
+    return {
+      ...basics,
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: dayOfWeek,
+      scheduleKind,
+      scheduleMonthEnd: false,
+    };
   }
-  if (scheduleKind === "monthly_day" && dayOfMonth !== null) {
-    return { ...basics, recurrenceBasis: "calendar", scheduleDayOfMonth: dayOfMonth, scheduleKind };
+  if (scheduleKind === "monthly_day") {
+    const parsed = parseMonthlyDayCalendarTodo(basics, formData, dayOfMonth);
+    if (parsed !== null) return parsed;
   }
   if (scheduleKind === "monthly_nth_weekday" && dayOfWeek !== null && weekOfMonth !== null) {
     return {
@@ -132,6 +168,7 @@ function parseCalendarTodo(
       recurrenceBasis: "calendar",
       scheduleDayOfWeek: dayOfWeek,
       scheduleKind,
+      scheduleMonthEnd: false,
       scheduleWeekOfMonth: weekOfMonth,
     };
   }
@@ -145,6 +182,7 @@ function parseCalendarTodo(
       scheduleDayOfMonth: dayOfMonth,
       scheduleKind,
       scheduleMonth: month,
+      scheduleMonthEnd: false,
     };
   }
   return INVALID_CALENDAR_SCHEDULE;

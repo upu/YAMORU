@@ -136,6 +136,7 @@ describe("専用ページのTodo登録操作", () => {
       scheduleDayOfWeek: 3,
       scheduleKind: "weekly",
       scheduleMonth: null,
+      scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "家族会議",
     });
@@ -168,9 +169,35 @@ describe("専用ページのTodo登録操作", () => {
       scheduleDayOfWeek: null,
       scheduleKind,
       scheduleMonth: null,
+      scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "家族会議",
       ...expected,
+    });
+  });
+
+  // Issue #227 / YDR-032
+  it("毎月末は日付31日として保存し、固定日と区別するフラグを立てる", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        recurrenceBasis: "calendar",
+        scheduleDayOfMonth: "15",
+        scheduleKind: "monthly_day",
+        scheduleMonthEnd: "1",
+      }),
+    );
+
+    expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: null,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: 31,
+      scheduleDayOfWeek: null,
+      scheduleKind: "monthly_day",
+      scheduleMonth: null,
+      scheduleMonthEnd: true,
+      scheduleWeekOfMonth: null,
+      title: "家族会議",
     });
   });
 

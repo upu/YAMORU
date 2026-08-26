@@ -126,6 +126,32 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("日付")).toHaveValue(1);
   });
 
+  // Issue #227 / YDR-032
+  it("毎月の日付で「毎月末」を選ぶと日付入力を出さない", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "monthly_day" },
+    });
+
+    expect(screen.getByLabelText("日付を指定")).toBeChecked();
+    expect(screen.getByLabelText("日付")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("毎月末"));
+
+    expect(screen.queryByLabelText("日付")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/その月の最終日\(1月31日、2月28日\/29日、4月30日など\)を予定日にします。/),
+    ).toBeInTheDocument();
+  });
+
   it("毎月の日付が範囲外なら入力欄の近くに関連付いたエラーを表示する", () => {
     render(
       <TodoRegistrationContent
