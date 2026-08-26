@@ -79,6 +79,7 @@ test.describe("モバイル幅", () => {
     const todoAdd = page.getByRole("link", { name: "Todoを追加" });
     const navigation = page.getByRole("navigation", { name: "主要ナビゲーション" });
     await expect(todoAdd).toBeVisible();
+    await expect(todoAdd).toHaveText("＋");
     const [todoAddBox, navigationBox] = await Promise.all([
       todoAdd.boundingBox(),
       navigation.boundingBox(),
@@ -110,6 +111,7 @@ test.describe("PC幅", () => {
     await login(page);
 
     const addButton = page.getByRole("link", { name: "Todoを追加" });
+    await expect(addButton).toHaveText("＋");
     const box = await addButton.boundingBox();
     expect(box).not.toBeNull();
     expect(Math.abs(1280 - ((box?.x ?? 0) + (box?.width ?? 0)) - 24))

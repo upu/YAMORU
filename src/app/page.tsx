@@ -268,7 +268,7 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
       <h2 id="home-empty-title">いま対応することはありません</h2>
       <p>
         {householdName}
-        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の⊕から追加できます。
+        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の「＋」ボタンから追加できます。
       </p>
       <Link className="ledger-primary-link home-todo-list-link" href="/todos">
         Todo一覧を見る

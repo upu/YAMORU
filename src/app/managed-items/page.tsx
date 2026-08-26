@@ -46,7 +46,7 @@ export function ManagedItemsContent({
             <h2 id="registered-items-title">登録済みの管理対象</h2>
             {items.length === 0 ? (
               <p className="ledger-empty">
-                まだ管理対象はありません。右下の⊕から台帳に追加できます。
+                まだ管理対象はありません。右下の「＋」ボタンから台帳に追加できます。
               </p>
             ) : (
               <ul className="ledger-list">

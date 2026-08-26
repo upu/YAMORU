@@ -23,7 +23,7 @@ export function FloatingAddButton({
         href={href}
         title={label}
       >
-        <span aria-hidden="true">⊕</span>
+        <span aria-hidden="true">＋</span>
       </Link>
     </>
   );
