@@ -21,6 +21,7 @@ import { buildPendingTodoEntries } from "../pending-todo";
 import { buildRecentItems } from "../page";
 import { TodoCard, type TodoCardItem } from "../todo-card";
 import { FloatingAddButton } from "../floating-add-button";
+import { TodoListRow } from "./todo-list-row";
 
 export type TodoListHouseholdSummary = { id: string; name: string };
 
@@ -80,16 +81,34 @@ function parseSearchParam(value: string | string[] | undefined): string | undefi
   return trimmed === "" ? undefined : trimmed;
 }
 
-function buildTodoListHref(
-  status: TodoStatusFilter,
-  assigneeParam: string | undefined,
-  searchParam: string | undefined,
-): string {
-  const params = new URLSearchParams();
-  if (status === "completed") params.set("status", "completed");
-  if (assigneeParam !== undefined) params.set("assignee", assigneeParam);
-  if (searchParam !== undefined) params.set("q", searchParam);
-  const query = params.toString();
+// Issue #224: カード表示とコンパクトなリスト表示の切り替え。案1(viewクエリー
+// パラメーターをサーバー側の描画へ反映)を採用する(issue本文の設計メモ)。
+// 状態(#222)・担当予定者(#223)・検索語(#225)と同じ「URLだけで状態を復元
+// できる」仕組みで統一でき、共有・再読み込みにも強い。案2(localStorage)は
+// このページがサーバーコンポーネントのみで完結する構成にクライアント状態を
+// 持ち込む必要があり、初回描画とその後の食い違い(ハイドレーション)を
+// 避けにくい。案3(プロフィール設定)はDB変更を要し、他の絞り込みと保持範囲が
+// そろわない。既定はカード表示(現在の操作性を維持する、受け入れ基準)。
+export type TodoListViewMode = "card" | "list";
+
+function parseViewParam(value: string | string[] | undefined): TodoListViewMode {
+  return value === "list" ? "list" : "card";
+}
+
+type TodoListLinkParams = {
+  assigneeParam: string | undefined;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+};
+
+function buildTodoListHref(params: TodoListLinkParams): string {
+  const searchParams = new URLSearchParams();
+  if (params.status === "completed") searchParams.set("status", "completed");
+  if (params.assigneeParam !== undefined) searchParams.set("assignee", params.assigneeParam);
+  if (params.searchParam !== undefined) searchParams.set("q", params.searchParam);
+  if (params.viewParam === "list") searchParams.set("view", "list");
+  const query = searchParams.toString();
   return query === "" ? "/todos" : `/todos?${query}`;
 }
 
@@ -147,24 +166,26 @@ function TodoStatusSwitch({
   assigneeParam,
   searchParam,
   status,
+  viewParam,
 }: {
   assigneeParam: string | undefined;
   searchParam: string | undefined;
   status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
 }) {
   return (
     <nav aria-label="Todoの状態を切り替え" className="status-switch">
       <Link
         aria-current={status === "pending" ? "page" : undefined}
         className="status-switch-option"
-        href={buildTodoListHref("pending", assigneeParam, searchParam)}
+        href={buildTodoListHref({ assigneeParam, searchParam, status: "pending", viewParam })}
       >
         未完了
       </Link>
       <Link
         aria-current={status === "completed" ? "page" : undefined}
         className="status-switch-option"
-        href={buildTodoListHref("completed", assigneeParam, searchParam)}
+        href={buildTodoListHref({ assigneeParam, searchParam, status: "completed", viewParam })}
       >
         実施済み
       </Link>
@@ -173,20 +194,22 @@ function TodoStatusSwitch({
 }
 
 // Issue #223: 担当予定者で絞り込む。「全員」で解除できる。状態タブ
-// (TodoStatusSwitch)や検索語(TodoSearchForm)を切り替えても、この条件は
-// 失われない。
+// (TodoStatusSwitch)や検索語(TodoSearchForm)、表示形式(TodoViewSwitch)を
+// 切り替えても、この条件は失われない。
 function AssigneeFilterNav({
   assigneeParam,
   currentUserId,
   members,
   searchParam,
   status,
+  viewParam,
 }: {
   assigneeParam: string | undefined;
   currentUserId: string;
   members: HouseholdMemberOption[];
   searchParam: string | undefined;
   status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
 }) {
   const otherMembers = members.filter((member) => member.userId !== currentUserId);
   return (
@@ -194,14 +217,14 @@ function AssigneeFilterNav({
       <Link
         aria-current={assigneeParam === undefined ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, undefined, searchParam)}
+        href={buildTodoListHref({ assigneeParam: undefined, searchParam, status, viewParam })}
       >
         全員
       </Link>
       <Link
         aria-current={assigneeParam === currentUserId ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, currentUserId, searchParam)}
+        href={buildTodoListHref({ assigneeParam: currentUserId, searchParam, status, viewParam })}
       >
         自分
       </Link>
@@ -209,7 +232,7 @@ function AssigneeFilterNav({
         <Link
           aria-current={assigneeParam === member.userId ? "page" : undefined}
           className="assignee-filter-option"
-          href={buildTodoListHref(status, member.userId, searchParam)}
+          href={buildTodoListHref({ assigneeParam: member.userId, searchParam, status, viewParam })}
           key={member.userId}
         >
           {member.nickname}
@@ -218,9 +241,44 @@ function AssigneeFilterNav({
       <Link
         aria-current={assigneeParam === UNASSIGNED_FILTER_VALUE ? "page" : undefined}
         className="assignee-filter-option"
-        href={buildTodoListHref(status, UNASSIGNED_FILTER_VALUE, searchParam)}
+        href={buildTodoListHref({
+          assigneeParam: UNASSIGNED_FILTER_VALUE, searchParam, status, viewParam,
+        })}
       >
         担当未定
+      </Link>
+    </nav>
+  );
+}
+
+// Issue #224: カード表示とコンパクトなリスト表示を切り替える。状態タブと同じ
+// pill型のトグル(status-switch)を再利用し、視覚言語をそろえる。
+function TodoViewSwitch({
+  assigneeParam,
+  searchParam,
+  status,
+  viewParam,
+}: {
+  assigneeParam: string | undefined;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+}) {
+  return (
+    <nav aria-label="Todoの表示形式を切り替え" className="status-switch view-switch">
+      <Link
+        aria-current={viewParam === "card" ? "page" : undefined}
+        className="status-switch-option"
+        href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "card" })}
+      >
+        カード
+      </Link>
+      <Link
+        aria-current={viewParam === "list" ? "page" : undefined}
+        className="status-switch-option"
+        href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "list" })}
+      >
+        リスト
       </Link>
     </nav>
   );
@@ -234,10 +292,12 @@ function TodoSearchForm({
   assigneeParam,
   searchParam,
   status,
+  viewParam,
 }: {
   assigneeParam: string | undefined;
   searchParam: string | undefined;
   status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
 }) {
   const inputId = "todo-search-q";
   return (
@@ -246,6 +306,8 @@ function TodoSearchForm({
       {assigneeParam === undefined ? null : (
         <input name="assignee" type="hidden" value={assigneeParam} />
       )}
+      {/* Issue #224: 検索送信で表示形式(カード/リスト)を失わない。 */}
+      {viewParam === "list" ? <input name="view" type="hidden" value="list" /> : null}
       <label className="sr-only" htmlFor={inputId}>
         Todo名で検索
       </label>
@@ -323,14 +385,17 @@ function TodoListLoadMore({
   assigneeParam,
   nextLimit,
   searchParam,
+  viewParam,
 }: {
   assigneeParam: string | undefined;
   nextLimit: number;
   searchParam: string | undefined;
+  viewParam: TodoListViewMode;
 }) {
   const params = new URLSearchParams({ limit: String(nextLimit), status: "completed" });
   if (assigneeParam !== undefined) params.set("assignee", assigneeParam);
   if (searchParam !== undefined) params.set("q", searchParam);
+  if (viewParam === "list") params.set("view", "list");
   return (
     <Link className="ledger-primary-link todo-list-load-more" href={`/todos?${params.toString()}`}>
       もっと見る
@@ -361,6 +426,52 @@ function TodoListSectionDescription({
   );
 }
 
+// Issue #224: カード表示(現在の操作性を維持)とコンパクトなリスト表示
+// (todo-list-row.tsx、識別情報のみ・行全体がTodo詳細への導線)を切り替える。
+function TodoListItems({
+  actorName,
+  currentUserId,
+  items,
+  members,
+  status,
+  viewParam,
+}: {
+  actorName: string;
+  currentUserId: string;
+  items: TodoCardItem[];
+  members: HouseholdMemberOption[];
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+}) {
+  if (viewParam === "list") {
+    return (
+      <ul className="todo-list-rows">
+        {items.map((item) => (
+          <TodoListRow currentUserId={currentUserId} item={item} key={item.id} members={members} />
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <div className="card-list">
+      {items.map((item) => (
+        <TodoCard
+          actorName={actorName}
+          // 予定日未定Todoを再発見し、その場で予定日を決められるようにする
+          // (#201、#202)。ホームのカードでは提供しない(#204)。実施済みでは
+          // occurrenceId自体を持たせないため、この値に関わらず操作は出ない
+          // (Issue #206)。
+          canChangeSchedule={status === "pending"}
+          currentUserId={currentUserId}
+          item={item}
+          key={item.id}
+          members={members}
+        />
+      ))}
+    </div>
+  );
+}
+
 function TodoListSection({
   actorName,
   assigneeParam,
@@ -371,6 +482,7 @@ function TodoListSection({
   searchParam,
   showLoadMore,
   status,
+  viewParam,
 }: {
   actorName: string;
   assigneeParam: string | undefined;
@@ -381,6 +493,7 @@ function TodoListSection({
   searchParam: string | undefined;
   showLoadMore: boolean;
   status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
 }) {
   const heading = status === "completed" ? "実施済みのTodo" : "未完了のTodo";
   const assigneeLabel = describeAssigneeFilter(assigneeParam, currentUserId, members);
@@ -396,25 +509,22 @@ function TodoListSection({
         </span>
       </div>
 
-      <div className="card-list">
-        {items.map((item) => (
-          <TodoCard
-            actorName={actorName}
-            // 予定日未定Todoを再発見し、その場で予定日を決められるようにする
-            // (#201、#202)。ホームのカードでは提供しない(#204)。実施済みでは
-            // occurrenceId自体を持たせないため、この値に関わらず操作は出ない
-            // (Issue #206)。
-            canChangeSchedule={status === "pending"}
-            currentUserId={currentUserId}
-            item={item}
-            key={item.id}
-            members={members}
-          />
-        ))}
-      </div>
+      <TodoListItems
+        actorName={actorName}
+        currentUserId={currentUserId}
+        items={items}
+        members={members}
+        status={status}
+        viewParam={viewParam}
+      />
 
       {showLoadMore ? (
-        <TodoListLoadMore assigneeParam={assigneeParam} nextLimit={nextLimit} searchParam={searchParam} />
+        <TodoListLoadMore
+          assigneeParam={assigneeParam}
+          nextLimit={nextLimit}
+          searchParam={searchParam}
+          viewParam={viewParam}
+        />
       ) : null}
     </section>
   );
@@ -439,6 +549,10 @@ type TodoListContentProps = {
   searchParam?: string | undefined;
   showLoadMore?: boolean;
   status?: TodoStatusFilter;
+  // Issue #224: URLの生の値(表示・href組み立て用)。既定値は既存の
+  // 呼び出し元(既存の呼び出し・テスト含む)を変えずに済むよう省略可能にし、
+  // 未指定はカード表示(既定、受け入れ基準)として扱う。
+  viewParam?: TodoListViewMode;
 };
 
 function TodoListBody({
@@ -452,7 +566,13 @@ function TodoListBody({
   searchParam,
   showLoadMore,
   status,
-}: TodoListContentProps & { nextLimit: number; showLoadMore: boolean; status: TodoStatusFilter }) {
+  viewParam,
+}: TodoListContentProps & {
+  nextLimit: number;
+  showLoadMore: boolean;
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+}) {
   if (household === null) return <HouseholdRequiredNotice />;
   if (items.length === 0) {
     return <TodoListEmptyState householdName={household.name} searchParam={searchParam} status={status} />;
@@ -468,6 +588,7 @@ function TodoListBody({
       searchParam={searchParam}
       showLoadMore={showLoadMore}
       status={status}
+      viewParam={viewParam}
     />
   );
 }
@@ -476,6 +597,7 @@ export function TodoListContent({
   nextLimit = COMPLETED_PAGE_SIZE,
   showLoadMore = false,
   status = "pending",
+  viewParam = "card",
   ...rest
 }: TodoListContentProps) {
   return (
@@ -487,6 +609,7 @@ export function TodoListContent({
             assigneeParam={rest.assigneeParam}
             searchParam={rest.searchParam}
             status={status}
+            viewParam={viewParam}
           />
           <AssigneeFilterNav
             assigneeParam={rest.assigneeParam}
@@ -494,8 +617,20 @@ export function TodoListContent({
             members={rest.members}
             searchParam={rest.searchParam}
             status={status}
+            viewParam={viewParam}
           />
-          <TodoSearchForm assigneeParam={rest.assigneeParam} searchParam={rest.searchParam} status={status} />
+          <TodoSearchForm
+            assigneeParam={rest.assigneeParam}
+            searchParam={rest.searchParam}
+            status={status}
+            viewParam={viewParam}
+          />
+          <TodoViewSwitch
+            assigneeParam={rest.assigneeParam}
+            searchParam={rest.searchParam}
+            status={status}
+            viewParam={viewParam}
+          />
         </>
       )}
 
@@ -504,6 +639,7 @@ export function TodoListContent({
         nextLimit={nextLimit}
         showLoadMore={showLoadMore}
         status={status}
+        viewParam={viewParam}
       />
       {rest.household === null ? null : <FloatingAddButton destination="todo" />}
     </main>
@@ -598,6 +734,9 @@ export default async function TodoListPage({
   const status = parseStatusFilter(resolvedSearchParams.status);
   const assigneeParam = parseAssigneeParam(resolvedSearchParams.assignee);
   const searchParam = parseSearchParam(resolvedSearchParams.q);
+  // Issue #224: 表示形式(カード/リスト)はデータ取得条件ではなく描画の選択
+  // なので、他の絞り込みのように取得関数へは渡さず、描画直前でだけ使う。
+  const viewParam = parseViewParam(resolvedSearchParams.view);
 
   // ホーム(app/page.tsx)と同じく、家庭所属チェックを先に確定させる。家庭専用の
   // 取得関数は家庭未所属だと例外を投げるため、並列化できない(Issue #144)。
@@ -612,6 +751,7 @@ export default async function TodoListPage({
         items={[]}
         members={[]}
         status={status}
+        viewParam={viewParam}
       />
     );
   }
@@ -628,5 +768,5 @@ export default async function TodoListPage({
     )
     : await loadPendingTodoListContent(db, session, user, household, nowIso, assigneeParam, searchParam);
 
-  return <TodoListContent {...content} />;
+  return <TodoListContent {...content} viewParam={viewParam} />;
 }

@@ -457,3 +457,119 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
     );
   });
 });
+
+// Issue #224
+describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage、Issue #224)", () => {
+  beforeEach(() => {
+    loadAccountStateMock.mockResolvedValue({
+      household: { id: "household-1", name: "テスト家庭" },
+      nickname: "ぽっぷ",
+    });
+    loadActorNameMock.mockResolvedValue("ぽっぷ");
+    loadHouseholdMembersMock.mockResolvedValue(FILTER_MEMBERS);
+  });
+
+  it("view未指定では既定のカード表示にし、現在の操作性(担当・完了)を維持する", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow({ assignee_user_id: "user-2" })]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("link", { name: "カード" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "リスト" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByLabelText("家族会議の担当")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "家族会議を記録" })).toBeInTheDocument();
+  });
+
+  it("view=listではコンパクトなリスト表示にし、識別に必要な情報(名前・予定・担当)を行内に表示する", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow({ assignee_user_id: "user-2" })]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
+
+    expect(screen.getByRole("link", { name: "リスト" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "カード" })).not.toHaveAttribute("aria-current");
+    // カードの変更操作(誤操作を避けるため詳細へ集約、issue本文の設計メモ)は出さない。
+    expect(screen.queryByLabelText("家族会議の担当")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "家族会議を記録" })).not.toBeInTheDocument();
+    // 行全体がTodo詳細への単一の導線になる。
+    const rowLink = screen.getByRole("link", { name: /家族会議/ });
+    expect(rowLink).toHaveAttribute("href", "/todos/occurrence-1");
+    expect(rowLink).toHaveTextContent("予定日: 未定");
+    expect(rowLink).toHaveTextContent("担当: たろう");
+  });
+
+  it("担当未定のTodoはリスト表示で「担当未定」と表示する", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
+
+    expect(screen.getByRole("link", { name: /家族会議/ })).toHaveTextContent("担当: 担当未定");
+  });
+
+  it("実施済みのリスト表示では担当予定者ラベルを重ねず、実施者情報(meta)だけを表示する", async () => {
+    listRecentActiveCompletionsMock.mockResolvedValue([completionRow()]);
+    loadProfileNamesMock.mockResolvedValue(new Map([["user-2", "たろう"]]));
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ status: "completed", view: "list" }),
+    }));
+
+    const rowLink = screen.getByRole("link", { name: /フィルター交換/ });
+    expect(rowLink).toHaveTextContent("たろうが実施");
+    expect(rowLink).not.toHaveTextContent("担当:");
+  });
+
+  it("状態タブ・担当条件・検索を切り替えても表示形式(view=list)を保つ", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ assignee: "user-2", q: "洗剤", view: "list" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "実施済み" })).toHaveAttribute(
+      "href",
+      "/todos?status=completed&assignee=user-2&q=%E6%B4%97%E5%89%A4&view=list",
+    );
+    expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute(
+      "href",
+      "/todos?q=%E6%B4%97%E5%89%A4&view=list",
+    );
+    // 検索フォームの再送信でも表示形式を失わない(hidden input)。
+    const searchForm = screen.getByRole("form", { name: "Todoをフリーワードで検索" });
+    expect(searchForm.querySelector('input[name="view"]')).toHaveValue("list");
+  });
+
+  it("カード表示に戻す・切り替えるリンクは他の絞り込みを保ったまま組み立てる", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([]);
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ assignee: "user-2", view: "list" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "カード" })).toHaveAttribute(
+      "href",
+      "/todos?assignee=user-2",
+    );
+    expect(screen.getByRole("link", { name: "リスト" })).toHaveAttribute(
+      "href",
+      "/todos?assignee=user-2&view=list",
+    );
+  });
+
+  it("リスト表示の実施済みタブで「もっと見る」リンクは表示形式を保つ", async () => {
+    listRecentActiveCompletionsMock.mockResolvedValue(
+      Array.from({ length: 20 }, (_, index) => completionRow({
+        activity_log_id: `activity-${String(index)}`,
+        task_occurrence_id: `occurrence-${String(index)}`,
+      })),
+    );
+
+    render(await TodoListPage({
+      searchParams: Promise.resolve({ status: "completed", view: "list" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "もっと見る" })).toHaveAttribute(
+      "href",
+      "/todos?limit=40&status=completed&view=list",
+    );
+  });
+});
