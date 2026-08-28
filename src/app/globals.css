@@ -437,6 +437,47 @@ h1 {
   background: var(--green);
 }
 
+/* Issue #241: ページ見出し・状態切り替え・検索の入り口を一つのツールバーへ
+   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ
+   space-betweenで分け、3要素を1行に収めて画面上部の縦幅を抑える。 */
+.todo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.todo-toolbar-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.todo-toolbar-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* status-switchを幅いっぱいの2択ではなく、ツールバー内の内容幅に収める。 */
+.todo-toolbar-status {
+  flex: none;
+  width: auto;
+  margin-bottom: 0;
+}
+
+.todo-toolbar-status .status-switch-option {
+  flex: none;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
 .todo-list-load-more {
   display: block;
   margin-top: 14px;
@@ -472,12 +513,63 @@ h1 {
   background: var(--green);
 }
 
+/* Issue #241: ツールバーの虫眼鏡ボタンから開くTodo内検索。<details>の
+   既定表示(list-item、三角マーカー)を外し、refresh-button/icon-linkと
+   同じ丸いアイコンボタンに揃える。開閉自体はブラウザのネイティブな
+   <details>/<summary>に任せる(自前でaria-expandedは付けない、
+   TodoSearchDisclosureのコメント参照)。 */
+.todo-search-disclosure {
+  flex: none;
+}
+
+.todo-search-toggle {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 9px;
+  place-items: center;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.todo-search-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.todo-search-toggle:hover {
+  background: var(--green-pale);
+}
+
+.todo-search-toggle:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.todo-search-disclosure[open] .todo-search-toggle {
+  background: var(--green-pale);
+}
+
+.todo-search-toggle svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 /* Issue #225: Todo一覧のフリーワード検索フォーム。auth-formの入力枠を
-   流用しつつ、検索欄とボタンを横並びにする。 */
+   流用しつつ、検索欄とボタンを横並びにする。Issue #241: ツールバーの
+   検索ディスクロージャー内に展開されるため、上に余白を足す。 */
 .todo-search-form {
   display: flex;
   flex-direction: row;
   gap: 8px;
+  margin-top: 10px;
   margin-bottom: 20px;
 }
 
@@ -1816,6 +1908,17 @@ h1 {
   .home-section {
     padding: 18px 15px;
     border-radius: 18px;
+  }
+
+  /* Issue #241: 狭い画面では見出しと2択+検索アイコンが1行に収まりきらない
+     ことがあるため、折り返し(todo-toolbarのflex-wrap)を前提に見出しを
+     さらに小さくし、折り返し後の行間を詰める。 */
+  .todo-toolbar-title {
+    font-size: 1.15rem;
+  }
+
+  .todo-toolbar {
+    row-gap: 8px;
   }
 
   .auth-grid {
