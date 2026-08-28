@@ -4,6 +4,7 @@ import {
   type CalendarScheduleRule,
   computeMaintenanceWindow,
   describeCalendarSchedule,
+  describeCompletionRecurrence,
   describeMaintenanceSchedule,
   getMaintenanceDisplayState,
   getStrictDisplayState,
@@ -72,6 +73,26 @@ describe("定例日基準Todoの繰り返しパターン表示", () => {
 
   it("繰り返しなし・完了日基準では表示しない", () => {
     expect(describeCalendarSchedule(EMPTY)).toBeNull();
+  });
+});
+
+// Issue #244(設計メモ案1)
+describe("完了日基準Todoの推奨期間表示(describeCompletionRecurrence)", () => {
+  it("開始・上限がどちらも7で割り切れる場合は週間で表示する", () => {
+    expect(describeCompletionRecurrence(28, 56)).toBe("完了から4〜8週間後");
+  });
+
+  it("7で割り切れない場合は日数で表示する", () => {
+    expect(describeCompletionRecurrence(10, 20)).toBe("完了から10〜20日後");
+  });
+
+  it("開始だけ7で割り切れても上限が割り切れない場合は日数で表示する", () => {
+    expect(describeCompletionRecurrence(28, 30)).toBe("完了から28〜30日後");
+  });
+
+  it("開始と上限が同じ場合は値を重複させない", () => {
+    expect(describeCompletionRecurrence(28, 28)).toBe("完了から4週間後");
+    expect(describeCompletionRecurrence(10, 10)).toBe("完了から10日後");
   });
 });
 

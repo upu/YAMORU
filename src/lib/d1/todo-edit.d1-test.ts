@@ -16,6 +16,7 @@ import {
   correctCompletionOccurredAt,
   correctCompletionPerformer,
   createCalendarTask,
+  createMaintenanceTask,
   createOneTimeTask,
   loadTodoDetail,
   postponeTaskOccurrence,
@@ -367,6 +368,26 @@ describe("Todo詳細の取得(loadTodoDetail)", () => {
       occurred_at: "2026-08-18T15:00:00.000Z",
       performed_by_user_id: "user-a",
       status: "completed",
+    });
+  });
+
+  // Issue #244: Todo詳細で推奨期間を具体的な日数から表示するため、
+  // recommended_start_offset/recommended_until_offsetも取得する。
+  it("完了日基準Todoでは保存済みの推奨開始・上限の日数を返す", async () => {
+    const ruleId = await createMaintenanceTask(db, memberA, {
+      firstDueAt: "2026-10-27T15:00:00.000Z",
+      firstScheduledFor: "2026-09-29T15:00:00.000Z",
+      managedItemId: null,
+      recommendedStartOffset: 28,
+      recommendedUntilOffset: 56,
+      title: "フィルター交換",
+    });
+    const occurrenceId = await occurrenceIdForRule(ruleId);
+
+    await expect(loadTodoDetail(db, memberA, occurrenceId)).resolves.toMatchObject({
+      recommended_start_offset: 28,
+      recommended_until_offset: 56,
+      recurrence_basis: "completion",
     });
   });
 

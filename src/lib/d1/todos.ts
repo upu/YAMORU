@@ -551,6 +551,10 @@ export type TodoDetailRow = {
   occurred_at: string | null;
   performed_by_user_id: string | null;
   recurrence_basis: string;
+  // 完了から推奨開始・推奨上限までの日数(Issue #244)。recurrence_basis='once'
+  // /'calendar'では常に0(YDR-017、001_init.sqlのCHECK制約)。
+  recommended_start_offset: number;
+  recommended_until_offset: number;
   scheduled_for: string | null;
   // recurrence_basis='calendar'のときだけ非null。定例パターンの表示に使う
   // (Issue #227 / YDR-032)。
@@ -584,6 +588,7 @@ export async function loadTodoDetail(
      )
      SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
             r.title, r.recurrence_basis, r.deadline_kind,
+            r.recommended_start_offset, r.recommended_until_offset,
             r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
             r.schedule_week_of_month, r.schedule_month, r.schedule_month_end,
             i.id AS managed_item_id, i.name AS managed_item_name,

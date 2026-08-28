@@ -220,6 +220,25 @@ export function describeCalendarSchedule(schedule: CalendarScheduleRule): string
   }
 }
 
+// Issue #244(設計メモ案1): 完了日基準Todoの推奨期間は、task_rulesに保存された
+// 完了からの日数(recommended_start_offset/recommended_until_offset)だけを持ち、
+// 登録時に選ばれた元の単位(日/週)は保存していない。開始・上限のどちらも7で
+// 割り切れる場合だけ週間で表示し、それ以外は日数で表示する。28〜56日は
+// 「完了から4〜8週間後」、10〜20日は「完了から10〜20日後」になる。開始と上限が
+// 同じ値のときは、「完了から4週間後」のように値を重複させない。
+export function describeCompletionRecurrence(
+  recommendedStartOffsetDays: number,
+  recommendedUntilOffsetDays: number,
+): string {
+  const useWeeks =
+    recommendedStartOffsetDays % 7 === 0 && recommendedUntilOffsetDays % 7 === 0;
+  const unit = useWeeks ? "週間" : "日";
+  const start = useWeeks ? recommendedStartOffsetDays / 7 : recommendedStartOffsetDays;
+  const until = useWeeks ? recommendedUntilOffsetDays / 7 : recommendedUntilOffsetDays;
+  const range = start === until ? String(start) : `${String(start)}〜${String(until)}`;
+  return `完了から${range}${unit}後`;
+}
+
 export function describeMaintenanceSchedule(
   state: MaintenanceDisplayState,
   window: MaintenanceWindow,
