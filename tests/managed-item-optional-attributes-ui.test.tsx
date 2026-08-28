@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
@@ -31,7 +31,6 @@ const DETAIL_BASE: ManagedItemDetailData = {
   itemTypeLabel: "家電",
   kindCode: "asset",
   kindLabel: "モノ",
-  lastActivity: null,
   members: [],
   name: "リビングのエアコン",
   note: null,
@@ -189,12 +188,17 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
     expect(record).not.toHaveTextContent("メーカー・商品名など");
   });
 
-  it("記録が一つもない既存の管理対象では記録欄自体を表示しない", () => {
+  // Issue #240: 記録がすべて未設定でも、編集導線(鉛筆アイコン)は失わない。
+  // その一方で空メッセージや空の項目一覧は表示しない。
+  it("記録が一つもない既存の管理対象でも編集導線だけは残し、空メッセージを表示しない", () => {
     render(<ManagedItemDetailContent item={DETAIL_BASE} />);
 
-    expect(
-      screen.queryByRole("region", { name: "この管理対象の記録" }),
-    ).not.toBeInTheDocument();
+    const record = screen.getByRole("region", { name: "この管理対象の記録" });
+    expect(within(record).getByRole("link", { name: "管理対象を編集" }))
+      .toHaveAttribute("href", "/managed-items/item-1/edit");
+    expect(record).not.toHaveTextContent("メモ");
+    expect(record).not.toHaveTextContent("メーカー・商品名など");
+    expect(record).not.toHaveTextContent("購入時期");
     expect(
       screen.getByRole("heading", { name: "リビングのエアコン" }),
     ).toBeInTheDocument();

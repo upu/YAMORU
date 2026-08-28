@@ -20,7 +20,6 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   itemTypeLabel: "ペット用品",
   kindCode: "asset",
   kindLabel: "モノ",
-  lastActivity: null,
   members: [],
   name: "猫の浄水器",
   note: null,
@@ -43,10 +42,13 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
 };
 
 describe("ManagedItem詳細のメンテナンスTodo", () => {
-  it("編集画面へ移動できる(Issue #40)", () => {
+  it("編集画面へ移動できる(Issue #40, #240)", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
-    expect(screen.getByRole("link", { name: "編集" })).toHaveAttribute(
+    // Issue #240: ヘッダーの文字の「編集」リンクは外し、RECORD見出し横の
+    // 鉛筆アイコン(アクセシブルな名前「管理対象を編集」)へ集約する。
+    expect(screen.queryByRole("link", { name: "編集" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "管理対象を編集" })).toHaveAttribute(
       "href",
       "/managed-items/item-1/edit",
     );
@@ -65,7 +67,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
   it("現在のpending Todo名と推奨期間の分類(YDR-017)を表示する", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
-    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(todoList).getByText("フィルター交換")).toBeInTheDocument();
     expect(within(todoList).getByText("そろそろ")).toBeInTheDocument();
     expect(within(todoList).getByText("繰り返し")).toBeInTheDocument();
@@ -95,7 +97,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
       />,
     );
 
-    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(todoList).getByText("繰り返しなし")).toBeInTheDocument();
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
@@ -118,7 +120,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
       />,
     );
 
-    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(todoList).getByText("予定日: 未定")).toBeInTheDocument();
     expect(within(todoList).getByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }))
       .toBeInTheDocument();
@@ -143,7 +145,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
       />,
     );
 
-    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(todoList).getByRole("button", { name: "今回だけ点検の予定日を未定に戻す" }))
       .toBeInTheDocument();
     expect(within(todoList).getByRole("button", { name: "今回だけ点検を延期する" }))
@@ -168,7 +170,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
       />,
     );
 
-    const todoList = screen.getByRole("region", { name: "現在のTodo" });
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
     expect(within(todoList).getByText("曜日・日付で繰り返す")).toBeInTheDocument();
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
@@ -190,7 +192,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     ).toBeInTheDocument();
   });
 
-  it("直近の完了を日本時間で表示し、Todo詳細への導線だけを表示する", () => {
+  it("直近の完了を日本時間で表示し、Todo詳細への導線だけを表示する(Issue #240)", () => {
     render(
       <ManagedItemDetailContent
         item={{
@@ -200,6 +202,7 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
             {
               id: "occurrence-0",
               occurredAt: "2026-09-01T15:00:00.000Z",
+              performerName: "たろう",
               title: "フィルター交換",
             },
           ],
@@ -210,8 +213,10 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     const recentSection = screen.getByRole("region", { name: "直近の完了" });
     expect(within(recentSection).getByRole("link", { name: "フィルター交換" }))
       .toHaveAttribute("href", "/todos/occurrence-0");
+    // Issue #240: 独立したLAST ACTIVITYを廃止し、最新行から「いつ・誰が」を
+    // 確認できるようにする。
     expect(
-      within(recentSection).getByText("2026年9月2日に完了"),
+      within(recentSection).getByText("2026年9月2日に完了・たろうが実施"),
     ).toBeInTheDocument();
     expect(within(recentSection).queryByRole("button", { name: "フィルター交換を修正" }))
       .not.toBeInTheDocument();

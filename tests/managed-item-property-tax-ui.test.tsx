@@ -80,7 +80,6 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         itemTypeLabel: "固定資産税",
         kindCode: "obligation",
         kindLabel: "支払い・手続き",
-        lastActivity: null,
         members: [],
         name: "2026年度 固定資産税",
         note: null,
