@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { requireUser } from "../../../lib/auth/current-user";
 import {
@@ -8,6 +9,7 @@ import {
   type HouseholdMemberOption,
   loadActorName,
   loadHouseholdMembers,
+  loadProfileNames,
 } from "../../../lib/d1/profiles";
 import { getD1Context } from "../../../lib/d1/context";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
@@ -50,12 +52,14 @@ type PendingTodoData = {
   title: string;
   tone: TodoTone;
 };
+// Issue #240: 独立したLAST ACTIVITYを廃止し、「直近の完了」の各行から
+// 「いつ・誰が」を確認できるようにする(YDR-020の実施者表示は維持)。
 type RecentCompletionData = {
   id: string;
   occurredAt: string;
+  performerName: string;
   title: string;
 };
-type LastActivityData = { occurredAt: string; performerName: string };
 const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
   calendar: "曜日・日付で繰り返す",
   completion: "繰り返し",
@@ -70,7 +74,6 @@ export type ManagedItemDetailData = {
   itemTypeLabel: string | null;
   kindCode: string;
   kindLabel: string;
-  lastActivity: LastActivityData | null;
   members: HouseholdMemberOption[];
   name: string;
   note: string | null;
@@ -193,29 +196,27 @@ function buildPendingTodos(taskRules: TaskRuleRow[], nowIso: string): PendingTod
     );
 }
 
-// 取消されていない直近の完了(occurred_at基準)を、全TaskRuleを横断して1件返す
-// (YDR-012)。「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
-// (Issue #18, YDR-020)。
-function findLatestCompletionLog(taskRules: TaskRuleRow[]): ActivityLogRow | null {
-  const logs = selectActiveCompletionLogs(
-    taskRules.flatMap((rule) => rule.task_occurrences),
-  );
-  if (logs.length === 0) return null;
-
-  return logs.reduce((latest, log) =>
-    log.occurred_at > latest.occurred_at ? log : latest,
-  );
-}
+// Issue #240: 「直近の完了」の各行に実施者を表示するため、TaskRuleごとの
+// 最新完了(occurred_at基準、YDR-012)に実施者ID(performed_by_user_id、
+// YDR-020)を残したまま返す。実施者名への解決は呼び出し側(D1アクセスが
+// 必要)に任せる。
+type RecentCompletionDraft = {
+  id: string;
+  occurredAt: string;
+  performedByUserId: string | null;
+  title: string;
+};
 
 function buildRecentCompletions(
   taskRules: TaskRuleRow[],
-): RecentCompletionData[] {
+): RecentCompletionDraft[] {
   return taskRules
     .flatMap((rule) => {
       const completions = rule.task_occurrences.flatMap((occurrence) =>
         selectActiveCompletionLogs([occurrence]).map((log) => ({
           id: occurrence.id,
           occurredAt: log.occurred_at,
+          performedByUserId: log.performed_by_user_id,
           title: rule.title,
         })),
       );
@@ -279,7 +280,11 @@ function PendingTodoActions({
   );
 }
 
-function PendingTodoSection({
+// Issue #240: 「現在のTodo」(確認)と「関連するTodoを追加」(追加)を一つの
+// 領域へ整理する(issue本文の設計メモの案1)。確認対象と追加対象の関係が
+// 同じ領域から分かるようにし、専用の登録ページへ管理対象を引き継ぐ導線は
+// 維持する。
+function RelatedTodoSection({
   actorName,
   currentUserId,
   managedItemId,
@@ -293,9 +298,19 @@ function PendingTodoSection({
   todos: PendingTodoData[];
 }) {
   return (
-    <section aria-labelledby="current-todos-title" className="detail-card">
-      <p className="detail-kicker">CURRENT TODO</p>
-      <h2 id="current-todos-title">現在のTodo</h2>
+    <section aria-labelledby="related-todos-title" className="detail-card">
+      <div className="detail-section-heading">
+        <div>
+          <p className="detail-kicker">TODO</p>
+          <h2 id="related-todos-title">関連するTodo</h2>
+        </div>
+        <Link
+          className="ledger-primary-link"
+          href={`/todos/new?managedItemId=${encodeURIComponent(managedItemId)}`}
+        >
+          Todoを追加
+        </Link>
+      </div>
       {todos.length === 0 ? (
         <p className="ledger-empty">現在の未完了Todoはありません。</p>
       ) : (
@@ -325,6 +340,10 @@ function PendingTodoSection({
   );
 }
 
+// Issue #240: 独立したLAST ACTIVITYを廃止した代わりに、最新行(先頭)から
+// 「いつ・誰が」を確認できるようにする。訂正済みの実施日時・実施者
+// (YDR-026)、完了取消済みを除く現在有効な完了(selectActiveCompletionLogs)
+// は、既にbuildRecentCompletionsが解決済みの値を使う。
 function RecentCompletionSection({
   completions,
 }: {
@@ -344,7 +363,9 @@ function RecentCompletionSection({
               <strong>
                 <Link href={`/todos/${completion.id}`}>{completion.title}</Link>
               </strong>
-              <span>{formatTokyoDate(completion.occurredAt)}に完了</span>
+              <span>
+                {formatTokyoDate(completion.occurredAt)}に完了・{completion.performerName}が実施
+              </span>
             </li>
           ))}
         </ul>
@@ -353,59 +374,98 @@ function RecentCompletionSection({
   );
 }
 
-function LastActivitySummary({ lastActivity }: { lastActivity: LastActivityData | null }) {
+function EditIcon() {
   return (
-    <section aria-labelledby="last-activity-title" className="last-activity">
-      <p className="detail-kicker">LAST ACTIVITY</p>
-      <h2 id="last-activity-title">最後にいつ・誰が</h2>
-      {lastActivity === null ? (
-        <p>まだ完了の記録はありません。</p>
-      ) : (
-        <div className="last-activity-values">
-          <div>
-            <span>いつ</span>
-            <strong>{formatTokyoDate(lastActivity.occurredAt)}</strong>
-          </div>
-          <div>
-            <span>誰が</span>
-            <strong>{lastActivity.performerName}</strong>
-          </div>
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function ExternalLinksValue({ links }: { links: ExternalLinkData[] }) {
+  return (
+    <ul className="external-link-list">
+      {links.map((link) => (
+        <li key={link.id}>
+          <a href={link.url} rel="noopener noreferrer" target="_blank">
+            外部リンクを開く: {link.url}
+            <span aria-hidden="true"> ↗</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Issue #42, #239: 任意の記録は、残した項目だけを名称と値の対として表示する。
+// Issue #240: 外部リンクもこの一覧の一項目として統合し(安全なURLだけを
+// 受け取る)、記録が一つもなくても見出しと編集導線(鉛筆アイコン)は常に
+// 表示する。「管理対象を編集」は名前・分類の変更もできるため、読み上げ名を
+// 「記録を編集」に限定しない。
+function ManagedItemRecordSection({
+  kindCode,
+  managedItemId,
+  note,
+  productInfo,
+  safeLinks,
+  startedOn,
+}: {
+  kindCode: string;
+  managedItemId: string;
+  note: string | null;
+  productInfo: string | null;
+  safeLinks: ExternalLinkData[];
+  startedOn: string | null;
+}) {
+  const records: { label: string; value: ReactNode }[] = [];
+  if (productInfo !== null) {
+    records.push({ label: "メーカー・商品名など", value: productInfo });
+  }
+  if (startedOn !== null) {
+    records.push({ label: startedOnLabel(kindCode), value: formatStartedOn(startedOn) });
+  }
+  if (safeLinks.length > 0) {
+    records.push({ label: "外部リンク", value: <ExternalLinksValue links={safeLinks} /> });
+  }
+  if (note !== null) records.push({ label: "メモ", value: note });
+
+  return (
+    <section aria-labelledby="managed-item-record-title" className="detail-card">
+      <div className="detail-section-heading">
+        <div>
+          <p className="detail-kicker">RECORD</p>
+          <h2 id="managed-item-record-title">この管理対象の記録</h2>
         </div>
-      )}
-    </section>
-  );
-}
-
-function ExternalLinksSection({ links }: { links: ExternalLinkData[] }) {
-  return (
-    <section aria-labelledby="external-links-title" className="detail-card">
-      <p className="detail-kicker">REFERENCES</p>
-      <h2 id="external-links-title">外部リンク</h2>
-      {links.length === 0 ? (
-        <p className="ledger-empty">外部リンクは登録されていません。</p>
-      ) : (
-        <ul className="external-link-list">
-          {links.map((link) => (
-            <li key={link.id}>
-              <a href={link.url} rel="noopener noreferrer" target="_blank">
-                外部リンクを開く: {link.url}
-                <span aria-hidden="true"> ↗</span>
-              </a>
-            </li>
+        <Link
+          aria-label="管理対象を編集"
+          className="icon-link"
+          href={`/managed-items/${encodeURIComponent(managedItemId)}/edit`}
+        >
+          <EditIcon />
+        </Link>
+      </div>
+      {records.length === 0 ? null : (
+        <dl className="managed-item-record-list">
+          {records.map((record) => (
+            <div key={record.label}>
+              <dt>{record.label}</dt>
+              <dd>{record.value}</dd>
+            </div>
           ))}
-        </ul>
+        </dl>
       )}
     </section>
   );
 }
 
+// Issue #240: 画面内容から分かる説明文と、文字の「編集」リンクを外す。
+// 編集導線はRECORD見出し横の鉛筆アイコンへ集約する。
 function ManagedItemHeader({
-  id,
   itemTypeLabel,
   kindLabel,
   name,
 }: {
-  id: string;
   itemTypeLabel: string | null;
   kindLabel: string;
   name: string;
@@ -417,52 +477,7 @@ function ManagedItemHeader({
         <h1>{name}</h1>
         <ClassificationBadges itemTypeLabel={itemTypeLabel} kindLabel={kindLabel} />
       </div>
-      <p>登録した管理対象と、現在のTodoを確認できます。</p>
-      <Link className="ledger-primary-link" href={`/managed-items/${encodeURIComponent(id)}/edit`}>
-        編集
-      </Link>
     </header>
-  );
-}
-
-// Issue #42: 任意の記録は、一つも残していない対象では画面を占有しない。
-// 残した項目だけを、名称と値の対として表示する。
-// Issue #239: 開始時期の見出し語は大分類(kindCode)に応じて変える
-// (「購入時期」「利用・契約を始めた時期」「開始時期」、YDR-033)。
-function ManagedItemRecordSection({
-  kindCode,
-  note,
-  productInfo,
-  startedOn,
-}: {
-  kindCode: string;
-  note: string | null;
-  productInfo: string | null;
-  startedOn: string | null;
-}) {
-  const records: { label: string; value: string }[] = [];
-  if (productInfo !== null) {
-    records.push({ label: "メーカー・商品名など", value: productInfo });
-  }
-  if (startedOn !== null) {
-    records.push({ label: startedOnLabel(kindCode), value: formatStartedOn(startedOn) });
-  }
-  if (note !== null) records.push({ label: "メモ", value: note });
-  if (records.length === 0) return null;
-
-  return (
-    <section aria-labelledby="managed-item-record-title" className="detail-card">
-      <p className="detail-kicker">RECORD</p>
-      <h2 id="managed-item-record-title">この管理対象の記録</h2>
-      <dl className="managed-item-record-list">
-        {records.map((record) => (
-          <div key={record.label}>
-            <dt>{record.label}</dt>
-            <dd>{record.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
   );
 }
 
@@ -482,23 +497,22 @@ export function ManagedItemDetailContent({
       </nav>
 
       <ManagedItemHeader
-        id={item.id}
         itemTypeLabel={item.itemTypeLabel}
         kindLabel={item.kindLabel}
         name={item.name}
       />
 
-      <LastActivitySummary lastActivity={item.lastActivity} />
-
       <div className="ledger-grid managed-item-detail-grid">
         <ManagedItemRecordSection
           kindCode={item.kindCode}
+          managedItemId={item.id}
           note={item.note}
           productInfo={item.productInfo}
+          safeLinks={safeLinks}
           startedOn={item.startedOn}
         />
 
-        <PendingTodoSection
+        <RelatedTodoSection
           actorName={item.actorName}
           currentUserId={item.currentUserId}
           managedItemId={item.id}
@@ -506,25 +520,9 @@ export function ManagedItemDetailContent({
           todos={item.pendingTodos}
         />
 
-        <section aria-labelledby="register-todo-title" className="detail-card">
-          <p className="detail-kicker">ADD TODO</p>
-          <h2 id="register-todo-title">関連するTodoを追加</h2>
-          <p className="detail-note">
-            専用の登録ページで、この管理対象を選んだ状態から追加できます。
-          </p>
-          <Link
-            className="ledger-primary-link"
-            href={`/todos/new?managedItemId=${encodeURIComponent(item.id)}`}
-          >
-            Todoを追加
-          </Link>
-        </section>
-
         <RecentCompletionSection
           completions={item.recentCompletions}
         />
-
-        <ExternalLinksSection links={safeLinks} />
       </div>
     </main>
   );
@@ -547,31 +545,31 @@ export default async function RegisteredManagedItemDetail({
   if (data === null) notFound();
 
   const pendingTodos = buildPendingTodos(data.task_rules, nowIso);
-  const recentCompletions = buildRecentCompletions(data.task_rules);
-  const latestCompletionLog = findLatestCompletionLog(data.task_rules);
-  const [lastActivityPerformerName, members] = await Promise.all([
-    // performed_by_user_idはaction='completed'の行にのみ設定される
-    // (CHECK制約、YDR-020)。findLatestCompletionLogはcompletedの行だけを
-    // 対象にするため、ここでは常に非nullのはずだが、万一nullの場合も
-    // 「完了の記録がない」扱いにはせず、ホーム(app/page.tsx)と同じ
-    // フォールバック名で表示する(表示方針を画面間でそろえる)。
-    latestCompletionLog === null
-      ? Promise.resolve(null)
-      : latestCompletionLog.performed_by_user_id === null
-        ? Promise.resolve(FALLBACK_OTHER_MEMBER_NAME)
-        : loadActorName(
-            db,
-            session,
-            latestCompletionLog.performed_by_user_id,
-            FALLBACK_OTHER_MEMBER_NAME,
-          ),
+  const recentCompletionDrafts = buildRecentCompletions(data.task_rules);
+  // Issue #240: 表示する完了記録に必要な家庭メンバーだけを安全に解決する
+  // (loadProfileNamesは自家庭の範囲で絞り込む)。最新1件専用の取得処理
+  // (旧LAST ACTIVITY)は不要になったため削除した。
+  const performerIds = [
+    ...new Set(recentCompletionDrafts.map((completion) => completion.performedByUserId)),
+  ].filter((userId): userId is string => userId !== null);
+  const [performerNames, members] = await Promise.all([
+    loadProfileNames(db, session, performerIds),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(db, session),
   ]);
-  const lastActivity =
-    latestCompletionLog === null || lastActivityPerformerName === null
-      ? null
-      : { occurredAt: latestCompletionLog.occurred_at, performerName: lastActivityPerformerName };
+  const recentCompletions: RecentCompletionData[] = recentCompletionDrafts.map(
+    (completion) => ({
+      id: completion.id,
+      occurredAt: completion.occurredAt,
+      // performed_by_user_idはaction='completed'の行にのみ設定される
+      // (CHECK制約、YDR-020)。万一nullの場合もフォールバック名で表示する
+      // (表示方針を画面間でそろえる)。
+      performerName: (completion.performedByUserId === null
+        ? null
+        : performerNames.get(completion.performedByUserId)) ?? FALLBACK_OTHER_MEMBER_NAME,
+      title: completion.title,
+    }),
+  );
 
   return (
     <ManagedItemDetailContent
@@ -583,7 +581,6 @@ export default async function RegisteredManagedItemDetail({
         itemTypeLabel: data.itemTypeLabel,
         kindCode: data.kindCode,
         kindLabel: data.kindLabel,
-        lastActivity,
         members,
         name: data.name,
         note: data.note,

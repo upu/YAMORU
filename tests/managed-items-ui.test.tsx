@@ -153,7 +153,6 @@ describe("登録済みManagedItem詳細", () => {
       itemTypeLabel: "ペット用品",
       kindCode: "asset",
       kindLabel: "モノ",
-      lastActivity: null,
       members: [],
       name: "猫の浄水器",
       note: null,
@@ -170,13 +169,16 @@ describe("登録済みManagedItem詳細", () => {
       "大分類: モノ",
       "詳しい種類: ペット用品",
     ]);
+    // Issue #240: 外部リンクは「この管理対象の記録」に統合される。
     const links = screen.getAllByRole("link", { name: /外部リンクを開く/ });
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("target", "_blank");
     expect(links[0]).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("外部リンクがない場合も明確に表示する", () => {
+  // Issue #240: 記録・外部リンクのいずれも未設定なら、空メッセージや空の
+  // 項目一覧を表示しない。編集導線(鉛筆アイコン)だけは残す。
+  it("外部リンクも記録も未設定なら、この管理対象の記録に空メッセージを表示しない", () => {
     render(
       <ManagedItemDetailContent
         item={{
@@ -184,7 +186,6 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           currentUserId: "user-1",
           externalLinks: [],
-          lastActivity: null,
           members: [],
           note: null,
           pendingTodos: [],
@@ -196,7 +197,10 @@ describe("登録済みManagedItem詳細", () => {
       />,
     );
 
-    expect(screen.getByText("外部リンクは登録されていません。")).toBeInTheDocument();
+    const record = screen.getByRole("region", { name: "この管理対象の記録" });
+    expect(within(record).queryByText(/登録されていません/)).not.toBeInTheDocument();
+    expect(within(record).getByRole("link", { name: "管理対象を編集" }))
+      .toBeInTheDocument();
   });
 
   it("詳しい種類が未設定なら詳細に大分類のバッジだけを表示する", () => {
@@ -208,7 +212,6 @@ describe("登録済みManagedItem詳細", () => {
           currentUserId: "user-1",
           externalLinks: [],
           itemTypeLabel: null,
-          lastActivity: null,
           members: [],
           note: null,
           pendingTodos: [],
@@ -232,7 +235,6 @@ describe("登録済みManagedItem詳細", () => {
           actorName: "家族A",
           currentUserId: "user-1",
           externalLinks: [{ id: "unsafe-link", url: "javascript:alert(1)" }],
-          lastActivity: null,
           members: [],
           note: null,
           pendingTodos: [],
@@ -244,56 +246,8 @@ describe("登録済みManagedItem詳細", () => {
       />,
     );
 
-    expect(screen.queryByRole("link", { name: /外部リンクを開く/ })).not.toBeInTheDocument();
-    expect(screen.getByText("外部リンクは登録されていません。")).toBeInTheDocument();
-  });
-
-  it("最後にいつ・誰がを上部に表示する", () => {
-    render(
-      <ManagedItemDetailContent
-        item={{
-          ...REGISTERED_ITEM,
-          actorName: "家族A",
-          currentUserId: "user-1",
-          externalLinks: [],
-          lastActivity: { occurredAt: "2026-08-10T00:00:00.000Z", performerName: "たろう" },
-          members: [],
-          note: null,
-          pendingTodos: [],
-          kindCode: "asset",
-          productInfo: null,
-          recentCompletions: [],
-          startedOn: null,
-        }}
-      />,
-    );
-
-    const summary = screen.getByRole("region", { name: "最後にいつ・誰が" });
-    expect(within(summary).getByText("2026年8月10日")).toBeInTheDocument();
-    expect(within(summary).getByText("たろう")).toBeInTheDocument();
-  });
-
-  it("完了の記録がない場合は最後にいつ・誰がに空状態を表示する", () => {
-    render(
-      <ManagedItemDetailContent
-        item={{
-          ...REGISTERED_ITEM,
-          actorName: "家族A",
-          currentUserId: "user-1",
-          externalLinks: [],
-          lastActivity: null,
-          members: [],
-          note: null,
-          pendingTodos: [],
-          kindCode: "asset",
-          productInfo: null,
-          recentCompletions: [],
-          startedOn: null,
-        }}
-      />,
-    );
-
-    const summary = screen.getByRole("region", { name: "最後にいつ・誰が" });
-    expect(within(summary).getByText("まだ完了の記録はありません。")).toBeInTheDocument();
+    const record = screen.getByRole("region", { name: "この管理対象の記録" });
+    expect(within(record).queryByRole("link", { name: /外部リンクを開く/ })).not.toBeInTheDocument();
+    expect(within(record).queryByText("外部リンク")).not.toBeInTheDocument();
   });
 });
