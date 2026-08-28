@@ -5,9 +5,14 @@ import { likeSearchPattern } from "./text-search";
 // Issue #218: 台帳一覧の検索・絞り込み。大分類(kindCode)・詳しい種類
 // (itemTypeCode)は既存の分類候補(listManagedItemClassificationOptions)の
 // コード値と一致するものだけを絞り込み条件にする(利用者向けラベルと
-// データモデルを混同しない、issue本文の設計メモ)。カスタム入力の詳しい種類
-// (itemTypeCode未設定)は、itemTypeCodeでの絞り込みには一致しない。
+// データモデルを混同しない、issue本文の設計メモ)。
+// Issue #238: 自由入力した詳しい種類(itemTypeCode未設定)も、家庭内で実際に
+// 使われている表記(customItemType、大文字小文字・前後の空白を無視して比較)
+// で絞り込めるようにする。itemTypeCodeとcustomItemTypeは同時に渡されても
+// エラーにはせず、両方の条件をANDで適用する(利用者向けUIは常にどちらか
+// 一方だけを渡す)。
 export type ManagedItemFilter = {
+  customItemType?: string;
   itemTypeCode?: string;
   kindCode?: string;
   search?: string;
@@ -17,6 +22,10 @@ export type ManagedItemClassificationOptions = {
   itemTypes: { code: string; kindCode: string; label: string }[];
   kinds: { code: string; label: string }[];
 };
+// Issue #238: 台帳一覧の絞り込み候補に出す、家庭内で実際に使われている
+// 自由入力の詳しい種類。プリセット(managed_item_type_presets)とは別に、
+// 大文字小文字・前後の空白を無視して家庭内・大分類ごとに一意化した表記を返す。
+export type ManagedItemCustomTypeOption = { kindCode: string; label: string };
 export type ManagedItemClassificationInput = {
   customItemType: string | null;
   itemTypeCode: string | null;
@@ -119,11 +128,16 @@ export async function listManagedItems(
   const householdId = await requireCurrentHousehold(db, session);
   const kindCode = filter?.kindCode ?? null;
   const itemTypeCode = filter?.itemTypeCode ?? null;
+  const customItemType = filter?.customItemType?.trim() ?? null;
   const searchPattern = likeSearchPattern(filter?.search);
   // MANAGED_ITEM_CLASSIFICATION_SELECT自体にはcreated_atを含めない(他の
   // 呼び出し元(getManagedItem等)の公開する行の形へ意図せず漏らさないため)。
   // 並び替えのためだけにmanaged_itemsへ結合し直す(getManagedItemForEdit等と
   // 同じ「サブクエリを結合し直す」パターン)。
+  // Issue #238: 自由入力の詳しい種類は、プリセットに解決されなかった
+  // (item.itemTypeCode IS NULL)行のitemTypeLabel(custom_item_typeそのもの)を
+  // LOWER(TRIM())で比較して絞り込む。プリセット一致(?3)と自由入力一致(?5)は
+  // 独立した条件としてANDで組み合わせる。
   const { results } = await db.prepare(
     `SELECT item.id, item.name, item.kindCode, item.kindLabel,
             item.itemTypeCode, item.itemTypeLabel
@@ -133,8 +147,11 @@ export async function listManagedItems(
       WHERE (?2 IS NULL OR item.kindCode = ?2)
         AND (?3 IS NULL OR item.itemTypeCode = ?3)
         AND (?4 IS NULL OR LOWER(item.name) LIKE ?4 ESCAPE '\\')
+        AND (?5 IS NULL OR (
+              item.itemTypeCode IS NULL AND LOWER(TRIM(item.itemTypeLabel)) = LOWER(TRIM(?5))
+            ))
       ORDER BY m.created_at DESC, m.id DESC`,
-  ).bind(householdId, kindCode, itemTypeCode, searchPattern).all<ManagedItemSummary>();
+  ).bind(householdId, kindCode, itemTypeCode, searchPattern, customItemType).all<ManagedItemSummary>();
   return results;
 }
 
@@ -152,6 +169,29 @@ export async function listManagedItemClassificationOptions(
       .all<{ code: string; kindCode: string; label: string }>(),
   ]);
   return { itemTypes: itemTypes.results, kinds: kinds.results };
+}
+
+// Issue #238: household内で実際に使われている自由入力の詳しい種類を、絞り込み
+// 候補として返す。listManagedItemsが絞り込みに使うのと同じ解決結果
+// (MANAGED_ITEM_CLASSIFICATION_SELECT、旧kindからの読み替えを含む)を使うため、
+// ここに現れる候補は必ずlistManagedItemsのcustomItemType条件で1件以上へ一致する。
+// 大文字小文字・前後の空白だけが違う表記は家庭・大分類ごとに1件へまとめ、
+// 代表表記(MIN()で決まる1件)をlabelとして返す。他家庭の自由入力値は
+// household_idで絞り込むため混ざらない。
+export async function listHouseholdCustomItemTypes(
+  db: D1Database,
+  session: D1Session,
+): Promise<ManagedItemCustomTypeOption[]> {
+  const householdId = await requireCurrentHousehold(db, session);
+  const { results } = await db.prepare(
+    `SELECT item.kindCode, MIN(TRIM(item.itemTypeLabel)) AS label
+       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
+              WHERE m.household_id = ?1) item
+      WHERE item.itemTypeCode IS NULL AND item.itemTypeLabel IS NOT NULL
+      GROUP BY item.kindCode, LOWER(TRIM(item.itemTypeLabel))
+      ORDER BY item.kindCode, label`,
+  ).bind(householdId).all<ManagedItemCustomTypeOption>();
+  return results;
 }
 
 async function requireActiveClassification(
