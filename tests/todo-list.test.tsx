@@ -135,7 +135,7 @@ describe("未完了Todoの並び(buildTodoListItems)", () => {
 });
 
 describe("Todo一覧画面(TodoListContent)", () => {
-  it("簡潔な見出しと説明、件数を表示し、ホームへ戻る導線は置かない", () => {
+  it("簡潔な見出しと件数を表示し、ホームへ戻る導線は置かない", () => {
     const items = buildTodoListItems(
       [onceRow("today", "2026-08-11T15:00:00.000Z"), onceRow("undated", null, "申請")],
       NOW,
@@ -143,12 +143,49 @@ describe("Todo一覧画面(TodoListContent)", () => {
     renderTodoList(items);
 
     expect(screen.getByRole("heading", { level: 1, name: "Todo一覧" })).toBeInTheDocument();
-    expect(screen.getByText("未完了のTodoをまとめて確認できます。")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "← ホームへ戻る" })).not.toBeInTheDocument();
     const section = screen.getByRole("region", { name: "未完了のTodo" });
     expect(within(section).getByLabelText("2件")).toBeInTheDocument();
     expect(within(section).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent))
       .toEqual(["今回だけ点検", "申請"]);
+  });
+
+  // Issue #241: 状態切り替え・検索の入り口を一つのツールバーへまとめ、
+  // 状態によって切り替わる説明文や英字キッカー、一覧側の重複する状態見出しは
+  // 画面上に出さない。
+  it("状態によって切り替わる説明文やキッカー、一覧側の重複する状態見出しを画面上に出さない", () => {
+    renderTodoList(buildTodoListItems([onceRow("today", "2026-08-11T15:00:00.000Z")], NOW));
+
+    expect(screen.queryByText("未完了のTodoをまとめて確認できます。")).not.toBeInTheDocument();
+    expect(screen.queryByText("ALL TODOS")).not.toBeInTheDocument();
+
+    // 一覧領域の意味は支援技術向けに残すが、画面上の見出しとしては出さない
+    // (Issue #237の台帳一覧と同じ考え方)。
+    const listHeading = screen.getByRole("heading", { level: 2, name: "未完了のTodo" });
+    expect(listHeading).toHaveClass("sr-only");
+    expect(screen.getByRole("region", { name: "未完了のTodo" })).toBeInTheDocument();
+  });
+
+  // Issue #241: 状態の2択は常に両方の選択肢が見えるコンパクトな切り替えとして
+  // ツールバーへ置く(案1)。
+  it("現在の状態が分かり、未完了/実施済みを常に選べるツールバーの状態切り替えを表示する", () => {
+    renderTodoList([]);
+
+    expect(screen.getByRole("link", { name: "未完了" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "実施済み" })).not.toHaveAttribute("aria-current");
+  });
+
+  // Issue #241: 虫眼鏡から開くTodo内検索。検索語が適用中でなければ既定で
+  // 閉じておき、押すと展開できる(<details>のネイティブな開閉状態)。
+  it("虫眼鏡ボタンからTodo内検索を開ける入り口を表示し、検索語がなければ閉じておく", () => {
+    renderTodoList([]);
+
+    const searchToggle = document.querySelector(".todo-search-toggle");
+    expect(searchToggle).toHaveAttribute("aria-label", "Todoを検索");
+    const disclosure = searchToggle?.closest("details");
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toBeInTheDocument();
   });
 
   it("Todo名からTodo詳細へ、管理対象名から管理対象の詳細へ移動できる(Issue #203)", () => {

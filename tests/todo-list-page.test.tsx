@@ -373,7 +373,7 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
     loadHouseholdMembersMock.mockResolvedValue(FILTER_MEMBERS);
   });
 
-  it("q未指定では検索条件を渡さず、検索欄は空にする", async () => {
+  it("q未指定では検索条件を渡さず、検索欄は空にし、虫眼鏡の検索は閉じておく(Issue #241)", async () => {
     listPendingOccurrencesMock.mockResolvedValue([]);
 
     render(await TodoListPage({ searchParams: Promise.resolve({}) }));
@@ -381,9 +381,11 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
     expect(listPendingOccurrencesMock)
       .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toHaveValue("");
+    const disclosure = document.querySelector(".todo-search-disclosure");
+    expect(disclosure).not.toHaveAttribute("open");
   });
 
-  it("qでTodo名の検索条件を渡し、適用中の検索語と検索欄の値を表示する", async () => {
+  it("qでTodo名の検索条件を渡し、適用中の検索語と検索欄の値を表示し、虫眼鏡の検索を開いておく(Issue #241)", async () => {
     listPendingOccurrencesMock.mockResolvedValue([pendingRow({
       task_rules: {
         deadline_kind: "strict",
@@ -399,6 +401,10 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
       .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, "洗剤");
     expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toHaveValue("洗剤");
     expect(screen.getByText(/検索語: 「洗剤」/)).toBeInTheDocument();
+    // 再読み込み・URL共有後も検索状態を見失わないよう、検索語が適用中なら
+    // 検索欄を開いた状態で描画する(受け入れ基準)。
+    const disclosure = document.querySelector(".todo-search-disclosure");
+    expect(disclosure).toHaveAttribute("open");
   });
 
   it("前後の空白は取り除き、空白だけ・空文字なら検索条件なしとして扱う", async () => {

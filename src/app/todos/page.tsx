@@ -141,27 +141,11 @@ export function buildTodoListItems(
   ].map((entry) => entry.item);
 }
 
-function TodoListHero({
-  status,
-}: {
-  status: TodoStatusFilter;
-}) {
-  return (
-    <header className="detail-hero">
-      <p className="detail-kicker">ALL TODOS</p>
-      <h1>Todo一覧</h1>
-      <p>
-        {status === "completed"
-          ? "過去に実施したTodoを確認できます。"
-          : "未完了のTodoをまとめて確認できます。"}
-      </p>
-    </header>
-  );
-}
-
 // Issue #222: 「未完了」「実施済み」はstatusクエリーパラメーターで切り替える
 // (このファイル冒頭のTodoStatusFilterのコメント参照)。切り替えても、
 // Issue #223の担当条件は失われない(assigneeParamをhrefへ引き継ぐ)。
+// Issue #241: ツールバー内で使う前提のコンパクトな2択に変更した
+// (todo-toolbar-statusで幅・余白だけ上書きする)。
 function TodoStatusSwitch({
   assigneeParam,
   searchParam,
@@ -174,7 +158,7 @@ function TodoStatusSwitch({
   viewParam: TodoListViewMode;
 }) {
   return (
-    <nav aria-label="Todoの状態を切り替え" className="status-switch">
+    <nav aria-label="Todoの状態を切り替え" className="status-switch todo-toolbar-status">
       <Link
         aria-current={status === "pending" ? "page" : undefined}
         className="status-switch-option"
@@ -281,6 +265,52 @@ function TodoViewSwitch({
         リスト
       </Link>
     </nav>
+  );
+}
+
+// Issue #241: ツールバーの虫眼鏡アイコン。アクセシブルな名前はsummary側の
+// aria-labelで付けるため、アイコン自体はaria-hiddenで読み上げない
+// (edit-icon.tsxと同じ考え方)。
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+    </svg>
+  );
+}
+
+// Issue #241: 虫眼鏡から開くTodo内検索。<details>/<summary>のネイティブな
+// 開閉状態を使う(案1)。JSを足さずに、押すと展開・キーボードでも開閉でき、
+// ブラウザが開閉状態を支援技術へ伝える(HTML-AAMでsummaryの既定ロールは
+// button、aria-expandedはdetailsのopen属性を反映する)。自前でrole・
+// aria-expandedを付けると、クリックによるネイティブな開閉とサーバーが
+// 描画する値がずれうるため付けない。検索語が適用中(searchParam !==
+// undefined)は既定で開き、そうでなければ閉じておく(設計メモの案1:
+// 押すと開き、検索語がある間は開いた状態を維持する)。
+function TodoSearchDisclosure({
+  assigneeParam,
+  searchParam,
+  status,
+  viewParam,
+}: {
+  assigneeParam: string | undefined;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+}) {
+  return (
+    <details className="todo-search-disclosure" open={searchParam !== undefined}>
+      <summary aria-label="Todoを検索" className="todo-search-toggle">
+        <SearchIcon />
+      </summary>
+      <TodoSearchForm
+        assigneeParam={assigneeParam}
+        searchParam={searchParam}
+        status={status}
+        viewParam={viewParam}
+      />
+    </details>
   );
 }
 
@@ -499,11 +529,13 @@ function TodoListSection({
   const assigneeLabel = describeAssigneeFilter(assigneeParam, currentUserId, members);
   return (
     <section aria-labelledby="todo-list-title" className="home-section">
+      {/* Issue #241: 状態はツールバーのTodoStatusSwitchで既に分かるため、
+      一覧側の状態見出し(未完了のTodo/実施済みのTodo)は画面上に重ねて出さ
+      ない。一覧領域の意味は支援技術向けにsr-onlyの見出し(aria-labelledby)
+      として残す(Issue #237の台帳一覧と同じ考え方)。 */}
+      <h2 className="sr-only" id="todo-list-title">{heading}</h2>
       <div className="section-heading">
-        <div>
-          <h2 id="todo-list-title">{heading}</h2>
-          <TodoListSectionDescription assigneeLabel={assigneeLabel} searchParam={searchParam} status={status} />
-        </div>
+        <TodoListSectionDescription assigneeLabel={assigneeLabel} searchParam={searchParam} status={status} />
         <span className="count" aria-label={`${String(items.length)}件`}>
           {items.length}
         </span>
@@ -602,25 +634,35 @@ export function TodoListContent({
 }: TodoListContentProps) {
   return (
     <main className="detail-page todo-list-page">
-      <TodoListHero status={status} />
+      {/* Issue #241: ページ名・状態切り替え・検索の入り口を一つのツールバーへ
+      まとめる(案1)。状態によって変わる説明文や「ALL TODOS」のような
+      キッカーは、画面を見れば用途が分かるため出さない(受け入れ基準)。
+      見出し自体は文書構造として残しつつ、見た目は小さくする。 */}
+      <div className="todo-toolbar">
+        <h1 className="todo-toolbar-title">Todo一覧</h1>
+        {rest.household === null ? null : (
+          <div className="todo-toolbar-actions">
+            <TodoStatusSwitch
+              assigneeParam={rest.assigneeParam}
+              searchParam={rest.searchParam}
+              status={status}
+              viewParam={viewParam}
+            />
+            <TodoSearchDisclosure
+              assigneeParam={rest.assigneeParam}
+              searchParam={rest.searchParam}
+              status={status}
+              viewParam={viewParam}
+            />
+          </div>
+        )}
+      </div>
       {rest.household === null ? null : (
         <>
-          <TodoStatusSwitch
-            assigneeParam={rest.assigneeParam}
-            searchParam={rest.searchParam}
-            status={status}
-            viewParam={viewParam}
-          />
           <AssigneeFilterNav
             assigneeParam={rest.assigneeParam}
             currentUserId={rest.currentUserId}
             members={rest.members}
-            searchParam={rest.searchParam}
-            status={status}
-            viewParam={viewParam}
-          />
-          <TodoSearchForm
-            assigneeParam={rest.assigneeParam}
             searchParam={rest.searchParam}
             status={status}
             viewParam={viewParam}
