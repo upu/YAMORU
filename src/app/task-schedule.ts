@@ -22,6 +22,22 @@ export type TodoTone =
 
 export type MaintenanceWindow = { scheduledFor: Date; dueAt: Date };
 
+// Issue #243: コンパクトなリスト表示(todo-list-row.tsx)専用の予定情報。
+// カード向けのitem.meta文章("8月28日から推奨期間です"等)は表示済みの
+// 日本語文なので解析せず、pending-todo.tsがここで組み立てた構造化データを
+// TodoListRowが短い表記(「8/28〜」等)へ変換する(issue本文の設計メモ案1)。
+// バッジ(今日/予定/期限切れ/そろそろ/要確認/未定)がすでに状態語を示すため、
+// ここでは日付だけを最小限に持つ。
+export type TodoListSchedule =
+  // 厳密な期限(1回限り・定例日基準)の期日。
+  | { iso: string; kind: "due" }
+  // 完了日基準Todoの推奨期間の開始(before-window)。
+  | { iso: string; kind: "from" }
+  // 完了日基準Todoの推奨期間の上限(in-window・past-window)。
+  | { iso: string; kind: "until" }
+  // 予定日未定。バッジの「未定」と重複させないため日付を持たない。
+  | { kind: "undated" };
+
 export type MaintenanceDisplayState =
   | "before-window"
   | "in-window"

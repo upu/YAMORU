@@ -499,16 +499,44 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
     // 行全体がTodo詳細への単一の導線になる。
     const rowLink = screen.getByRole("link", { name: /家族会議/ });
     expect(rowLink).toHaveAttribute("href", "/todos/occurrence-1");
-    expect(rowLink).toHaveTextContent("予定日: 未定");
-    expect(rowLink).toHaveTextContent("担当: たろう");
+    // Issue #243: 予定日未定はバッジ(未定)で示し、行の予定表現では重複させない。
+    expect(rowLink).toHaveTextContent("未定");
+    expect(rowLink).not.toHaveTextContent("予定日:");
+    // 見た目は「担当:」を出さず値だけを表示する(受け入れ基準)。
+    expect(rowLink).toHaveTextContent("たろう");
+    expect(rowLink).not.toHaveTextContent("担当:");
+    // 支援技術には担当予定者の値であることが伝わる(sr-onlyラベル)。
+    expect(rowLink.querySelector(".sr-only")).toHaveTextContent("担当予定者:");
   });
 
-  it("担当未定のTodoはリスト表示で「担当未定」と表示する", async () => {
+  it("担当未定のTodoはリスト表示で「未定」と表示する", async () => {
     listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
 
     render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
 
-    expect(screen.getByRole("link", { name: /家族会議/ })).toHaveTextContent("担当: 担当未定");
+    const rowLink = screen.getByRole("link", { name: /家族会議/ });
+    expect(rowLink).toHaveTextContent("未定");
+    expect(rowLink).not.toHaveTextContent("担当未定");
+  });
+
+  it("予定日があるTodoはリスト表示で短い日付表現(例: 8/28)にし、繰り返し方式は省略する", async () => {
+    listPendingOccurrencesMock.mockResolvedValue([pendingRow({
+      due_at: "2026-09-10T00:00:00.000Z",
+      scheduled_for: "2026-09-10T00:00:00.000Z",
+      task_rules: {
+        deadline_kind: "strict",
+        managed_items: null,
+        recurrence_basis: "calendar",
+        title: "家族会議",
+      },
+    })]);
+
+    render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
+
+    const rowLink = screen.getByRole("link", { name: /家族会議/ });
+    expect(rowLink).toHaveTextContent("9/10");
+    expect(rowLink).not.toHaveTextContent("の予定です");
+    expect(rowLink).not.toHaveTextContent("繰り返し");
   });
 
   it("実施済みのリスト表示では担当予定者ラベルを重ねず、実施者情報(meta)だけを表示する", async () => {
@@ -520,7 +548,10 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
     }));
 
     const rowLink = screen.getByRole("link", { name: /フィルター交換/ });
-    expect(rowLink).toHaveTextContent("たろうが実施");
+    // Issue #243: 実施時期・実施者を短く表示する。カード向けの「が実施」
+    // という文は行表示では組み立てない(実施日時・実施者を直接使う)。
+    expect(rowLink).toHaveTextContent("8/10");
+    expect(rowLink).toHaveTextContent("たろう");
     expect(rowLink).not.toHaveTextContent("担当:");
   });
 

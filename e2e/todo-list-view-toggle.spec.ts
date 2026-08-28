@@ -124,7 +124,9 @@ test("PC幅: カード表示とリスト表示を切り替え、リスト行は�
   await expect(page.getByRole("button", { name: `${TASK_TITLE}を記録` })).toHaveCount(0);
   const row = page.getByRole("link", { name: new RegExp(TASK_TITLE) });
   await expect(row).toBeVisible();
-  await expect(row).toContainText("担当: 自分");
+  // Issue #243: 見た目は「担当:」を出さず、値だけで担当予定者を示す。
+  await expect(row).toContainText("自分");
+  await expect(row).not.toContainText("担当:");
 
   // 行全体がTodo詳細への単一の導線になる。キーボードでも遷移できる。
   await row.focus();
@@ -151,7 +153,9 @@ test.describe("モバイル幅", () => {
 
     const row = page.getByRole("link", { name: new RegExp(TASK_TITLE) });
     await expect(row).toBeVisible();
-    await expect(row).toContainText("担当: 自分");
+    // Issue #243: 見た目は「担当:」を出さず、値だけで担当予定者を示す。
+    await expect(row).toContainText("自分");
+    await expect(row).not.toContainText("担当:");
 
     // モバイル下部ナビゲーション(#146)と重ならず操作できる幅で、
     // ページ全体が横スクロールを必要としないことを確認する。

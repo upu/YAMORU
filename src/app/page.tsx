@@ -107,6 +107,12 @@ export function buildRecentItems(
       return true;
     })
     .map((row) => {
+      // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
+      // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
+      // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
+      const performerName = (row.performed_by_user_id === null
+        ? null
+        : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME;
       return {
         detail: row.managed_item_name ?? "管理対象なし",
         ...(row.managed_item_id === null
@@ -114,14 +120,11 @@ export function buildRecentItems(
           : { detailHref: `/managed-items/${row.managed_item_id}` }),
         id: row.activity_log_id,
         managedItemId: row.managed_item_id,
-        // 「誰が」は操作主体ではなく実施者(performed_by_user_id)を表示する
-        // (Issue #18, YDR-020)。performed_by_user_idはaction='completed'の行に
-        // 常に設定される(CHECK制約)が、型上はnull許容のためフォールバックする。
-        meta: `${formatTokyoDate(row.occurred_at)} ・ ${
-          (row.performed_by_user_id === null
-            ? null
-            : performerNames.get(row.performed_by_user_id)) ?? FALLBACK_OTHER_MEMBER_NAME
-        }が実施`,
+        meta: `${formatTokyoDate(row.occurred_at)} ・ ${performerName}が実施`,
+        // Issue #243: コンパクトなリスト表示専用。上のmeta文章は解析せず、
+        // 同じ実施日時・実施者から直接組み立てる(設計メモ案1)。
+        performedAt: row.occurred_at,
+        performedByName: performerName,
         title: row.task_rule_title,
         // Issue #206: 最近の実施は確認専用とし、訂正・完了取消は
         // 完了済みTodo詳細へ集約する。管理対象なしでも同じ導線を持つ。
