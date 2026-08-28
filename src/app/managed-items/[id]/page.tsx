@@ -15,8 +15,9 @@ import { selectActiveCompletionLogs } from "../../active-completion";
 import { ClassificationBadges } from "../classification-badges";
 import {
   isSafeExternalUrl,
+  startedOnLabel,
 } from "../model";
-import { formatPurchaseDate } from "../purchase-date";
+import { formatStartedOn } from "../started-on";
 import { AssigneePanel } from "./assignee-panel";
 import { CompleteTodoPanel } from "./complete-todo-panel";
 import { PostponePanel } from "./postpone-panel";
@@ -67,6 +68,7 @@ export type ManagedItemDetailData = {
   externalLinks: ExternalLinkData[];
   id: string;
   itemTypeLabel: string | null;
+  kindCode: string;
   kindLabel: string;
   lastActivity: LastActivityData | null;
   members: HouseholdMemberOption[];
@@ -74,8 +76,8 @@ export type ManagedItemDetailData = {
   note: string | null;
   pendingTodos: PendingTodoData[];
   productInfo: string | null;
-  purchasedOn: string | null;
   recentCompletions: RecentCompletionData[];
+  startedOn: string | null;
 };
 
 type ActivityLogRow = {
@@ -425,21 +427,25 @@ function ManagedItemHeader({
 
 // Issue #42: 任意の記録は、一つも残していない対象では画面を占有しない。
 // 残した項目だけを、名称と値の対として表示する。
+// Issue #239: 開始時期の見出し語は大分類(kindCode)に応じて変える
+// (「購入時期」「利用・契約を始めた時期」「開始時期」、YDR-033)。
 function ManagedItemRecordSection({
+  kindCode,
   note,
   productInfo,
-  purchasedOn,
+  startedOn,
 }: {
+  kindCode: string;
   note: string | null;
   productInfo: string | null;
-  purchasedOn: string | null;
+  startedOn: string | null;
 }) {
   const records: { label: string; value: string }[] = [];
   if (productInfo !== null) {
     records.push({ label: "メーカー・商品名など", value: productInfo });
   }
-  if (purchasedOn !== null) {
-    records.push({ label: "購入時期", value: formatPurchaseDate(purchasedOn) });
+  if (startedOn !== null) {
+    records.push({ label: startedOnLabel(kindCode), value: formatStartedOn(startedOn) });
   }
   if (note !== null) records.push({ label: "メモ", value: note });
   if (records.length === 0) return null;
@@ -486,9 +492,10 @@ export function ManagedItemDetailContent({
 
       <div className="ledger-grid managed-item-detail-grid">
         <ManagedItemRecordSection
+          kindCode={item.kindCode}
           note={item.note}
           productInfo={item.productInfo}
-          purchasedOn={item.purchasedOn}
+          startedOn={item.startedOn}
         />
 
         <PendingTodoSection
@@ -574,6 +581,7 @@ export default async function RegisteredManagedItemDetail({
         externalLinks: data.external_links,
         id: data.id,
         itemTypeLabel: data.itemTypeLabel,
+        kindCode: data.kindCode,
         kindLabel: data.kindLabel,
         lastActivity,
         members,
@@ -581,8 +589,8 @@ export default async function RegisteredManagedItemDetail({
         note: data.note,
         pendingTodos,
         productInfo: data.productInfo,
-        purchasedOn: data.purchasedOn,
         recentCompletions,
+        startedOn: data.startedOn,
       }}
     />
   );

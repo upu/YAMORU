@@ -44,7 +44,7 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         name="固定資産税"
         note={null}
         productInfo={null}
-        purchasedOn={null}
+        startedOn={null}
       />,
     );
     expect(screen.getByLabelText("大分類")).toHaveValue("obligation");
@@ -78,6 +78,7 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         externalLinks: [],
         id: "property-tax",
         itemTypeLabel: "固定資産税",
+        kindCode: "obligation",
         kindLabel: "支払い・手続き",
         lastActivity: null,
         members: [],
@@ -85,8 +86,8 @@ describe("固定資産税の台帳表示(Issue #177)", () => {
         note: null,
         pendingTodos: [],
         productInfo: null,
-        purchasedOn: null,
         recentCompletions: [],
+        startedOn: null,
       }} />,
     );
     const detailBadges = screen.getByRole("list", { name: "分類" });

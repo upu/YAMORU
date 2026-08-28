@@ -1,4 +1,5 @@
-import { splitPurchaseDate } from "./purchase-date";
+import { startedOnLabel } from "./model";
+import { splitStartedOn } from "./started-on";
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 const DAYS = Array.from({ length: 31 }, (_, index) => index + 1);
@@ -32,50 +33,56 @@ function UnknownableSelect({
   );
 }
 
-// Issue #42: 購入時期は年・月・日を別々の欄に分け、月日を「わからない」の
+// Issue #42: 開始時期は年・月・日を別々の欄に分け、月日を「わからない」の
 // まま残せるようにする。一つの日付入力にすると、年しか覚えていない対象へ
 // 偽の月日を埋めさせてしまう。
-function PurchaseDateFields({
+// Issue #239: 見出し語は大分類(kindCode)に応じて変える(YDR-033)。モノでは
+// 「購入時期」、サービスでは「利用・契約を始めた時期」、それ以外は
+// 「開始時期」。保存する値の意味自体は大分類によらず同じ。
+function StartedOnFields({
   idPrefix,
-  purchasedOn,
+  kindCode,
+  startedOn,
 }: {
   idPrefix: string;
-  purchasedOn: string | null;
+  kindCode: string;
+  startedOn: string | null;
 }) {
-  const parts = splitPurchaseDate(purchasedOn);
+  const parts = splitStartedOn(startedOn);
+  const label = startedOnLabel(kindCode);
   return (
-    <fieldset className="purchase-date-fieldset">
-      <legend>購入時期（任意）</legend>
-      <p className="purchase-date-help" id={`${idPrefix}-purchased-help`}>
+    <fieldset className="started-on-fieldset">
+      <legend>{label}（任意）</legend>
+      <p className="started-on-help" id={`${idPrefix}-started-help`}>
         分かる範囲だけで入力できます。年だけ、年と月だけでもかまいません。
       </p>
-      <div className="purchase-date-inputs">
+      <div className="started-on-inputs">
         <span>
-          <label htmlFor={`${idPrefix}-purchased-year`}>年</label>
+          <label htmlFor={`${idPrefix}-started-year`}>年</label>
           <input
-            aria-describedby={`${idPrefix}-purchased-help`}
+            aria-describedby={`${idPrefix}-started-help`}
             autoComplete="off"
             defaultValue={parts.year}
-            id={`${idPrefix}-purchased-year`}
+            id={`${idPrefix}-started-year`}
             inputMode="numeric"
             maxLength={4}
-            name="purchasedYear"
+            name="startedYear"
             placeholder="2024"
             type="text"
           />
         </span>
         <UnknownableSelect
           defaultValue={parts.month}
-          id={`${idPrefix}-purchased-month`}
+          id={`${idPrefix}-started-month`}
           label="月"
-          name="purchasedMonth"
+          name="startedMonth"
           values={MONTHS}
         />
         <UnknownableSelect
           defaultValue={parts.day}
-          id={`${idPrefix}-purchased-day`}
+          id={`${idPrefix}-started-day`}
           label="日"
-          name="purchasedDay"
+          name="startedDay"
           values={DAYS}
         />
       </div>
@@ -88,14 +95,16 @@ function PurchaseDateFields({
 // 正確な型番が分からない対象で入力しづらいため、一つの自由入力にする。
 export function ManagedItemOptionalAttributeFields({
   idPrefix,
+  kindCode,
   note = null,
   productInfo = null,
-  purchasedOn = null,
+  startedOn = null,
 }: {
   idPrefix: string;
+  kindCode: string;
   note?: string | null;
   productInfo?: string | null;
-  purchasedOn?: string | null;
+  startedOn?: string | null;
 }) {
   return (
     <>
@@ -117,7 +126,7 @@ export function ManagedItemOptionalAttributeFields({
         分かる範囲で書けます。型番だけを正確に入力する必要はありません。
       </p>
 
-      <PurchaseDateFields idPrefix={idPrefix} purchasedOn={purchasedOn} />
+      <StartedOnFields idPrefix={idPrefix} kindCode={kindCode} startedOn={startedOn} />
 
       <label htmlFor={`${idPrefix}-note`}>メモ（任意）</label>
       <textarea

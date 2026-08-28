@@ -52,7 +52,7 @@ export default async function ManagedItemEditPage({
           name={item.name}
           note={item.note}
           productInfo={item.productInfo}
-          purchasedOn={item.purchasedOn}
+          startedOn={item.startedOn}
         />
       </section>
     </main>

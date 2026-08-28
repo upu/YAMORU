@@ -69,7 +69,7 @@ async function seedUndatedTodo(db: D1Database): Promise<void> {
     name: MANAGED_ITEM_NAME,
     note: null,
     productInfo: null,
-    purchasedOn: null,
+    startedOn: null,
   });
   // 予定日未定・管理対象なし・担当なしのTodoから編集を始める(YDR-030)。
   await createOneTimeTask(db, { userId: "owner" }, {

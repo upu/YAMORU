@@ -18,6 +18,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   externalLinks: [],
   id: "item-1",
   itemTypeLabel: "ペット用品",
+  kindCode: "asset",
   kindLabel: "モノ",
   lastActivity: null,
   members: [],
@@ -37,8 +38,8 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
     },
   ],
   productInfo: null,
-  purchasedOn: null,
   recentCompletions: [],
+  startedOn: null,
 };
 
 describe("ManagedItem詳細のメンテナンスTodo", () => {
@@ -195,7 +196,6 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
         item={{
           ...ITEM_WITH_TODO,
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [
             {
               id: "occurrence-0",

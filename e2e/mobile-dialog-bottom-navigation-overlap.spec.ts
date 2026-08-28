@@ -62,7 +62,7 @@ async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
     name: TASK_TITLE,
     note: null,
     productInfo: null,
-    purchasedOn: null,
+    startedOn: null,
   });
   const today = formatDateInput(new Date());
   await createOneTimeTask(db, session, {

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  formatPurchaseDate,
-  purchaseDatePrecision,
-  splitPurchaseDate,
-  toPurchaseDate,
-} from "../src/app/managed-items/purchase-date";
+  formatStartedOn,
+  splitStartedOn,
+  startedOnPrecision,
+  toStartedOn,
+} from "../src/app/managed-items/started-on";
 
-describe("購入時期の精度(Issue #42)", () => {
+describe("開始時期の精度(Issue #42, #239)", () => {
   it.each([
     [{ day: "", month: "", year: "" }, null],
     [{ day: "", month: "", year: "2024" }, "2024"],
@@ -18,7 +18,7 @@ describe("購入時期の精度(Issue #42)", () => {
     [{ day: " 10 ", month: " 5 ", year: " 2024 " }, "2024-05-10"],
     [{ day: "29", month: "2", year: "2024" }, "2024-02-29"],
   ])("分かる精度だけを保存する(%o)", (parts, expected) => {
-    expect(toPurchaseDate(parts)).toEqual({ status: "ok", value: expected });
+    expect(toStartedOn(parts)).toEqual({ status: "ok", value: expected });
   });
 
   it.each([
@@ -36,7 +36,7 @@ describe("購入時期の精度(Issue #42)", () => {
     { day: "0", month: "5", year: "2024" },
     { day: "32", month: "5", year: "2024" },
   ])("成立しない組み合わせを拒否する(%o)", (parts) => {
-    expect(toPurchaseDate(parts)).toEqual({ status: "error" });
+    expect(toStartedOn(parts)).toEqual({ status: "error" });
   });
 
   it.each([
@@ -44,7 +44,7 @@ describe("購入時期の精度(Issue #42)", () => {
     ["2024-05", "month"],
     ["2024-05-10", "day"],
   ])("保存された値の長さから精度が決まる(%s)", (value, expected) => {
-    expect(purchaseDatePrecision(value)).toBe(expected);
+    expect(startedOnPrecision(value)).toBe(expected);
   });
 
   it.each([
@@ -53,7 +53,7 @@ describe("購入時期の精度(Issue #42)", () => {
     ["2024-05-10", "2024年5月10日"],
     ["2024-12-31", "2024年12月31日"],
   ])("精度に合わせて表示する(%s)", (value, expected) => {
-    expect(formatPurchaseDate(value)).toBe(expected);
+    expect(formatStartedOn(value)).toBe(expected);
   });
 
   it.each([
@@ -62,12 +62,12 @@ describe("購入時期の精度(Issue #42)", () => {
     ["2024-05", { day: "", month: "05", year: "2024" }],
     ["2024-05-10", { day: "10", month: "05", year: "2024" }],
   ])("編集画面の初期値へ戻す(%s)", (value, expected) => {
-    expect(splitPurchaseDate(value)).toEqual(expected);
+    expect(splitStartedOn(value)).toEqual(expected);
   });
 
   it("保存と復元を往復しても精度が変わらない", () => {
     for (const value of ["2024", "2024-05", "2024-05-10"]) {
-      const parsed = toPurchaseDate(splitPurchaseDate(value));
+      const parsed = toStartedOn(splitStartedOn(value));
       expect(parsed).toEqual({ status: "ok", value });
     }
   });

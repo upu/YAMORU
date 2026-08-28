@@ -1,10 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createManagedItem } from "./actions";
-import { ManagedItemClassificationFields } from "./classification-fields";
+import {
+  defaultKindCode,
+  ManagedItemClassificationFields,
+} from "./classification-fields";
 import type { ManagedItemClassificationOptions } from "./model";
 import { ManagedItemOptionalAttributeFields } from "./optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "./state";
@@ -33,6 +36,9 @@ export function ManagedItemForm({
     createManagedItem,
     INITIAL_MANAGED_ITEM_STATE,
   );
+  // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
+  // 合わせて切り替えるため、大分類の状態をこのフォームへ持ち上げる(YDR-033)。
+  const [kindCode, setKindCode] = useState(() => defaultKindCode(classificationOptions));
 
   return (
     <form action={formAction} className="auth-form managed-item-form">
@@ -54,6 +60,8 @@ export function ManagedItemForm({
       <ManagedItemClassificationFields
         classificationOptions={classificationOptions}
         idPrefix="managed-item"
+        kindCode={kindCode}
+        onKindCodeChange={setKindCode}
       />
 
       <label htmlFor="managed-item-external-url">外部リンク（任意）</label>
@@ -70,7 +78,7 @@ export function ManagedItemForm({
         商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。
       </p>
 
-      <ManagedItemOptionalAttributeFields idPrefix="managed-item" />
+      <ManagedItemOptionalAttributeFields idPrefix="managed-item" kindCode={kindCode} />
 
       <SubmitButton />
       {state.status === "error" ? (

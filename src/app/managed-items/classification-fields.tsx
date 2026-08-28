@@ -56,24 +56,33 @@ function ClassificationSelects({
   );
 }
 
+// Issue #239: 大分類は開始時期(started_on)の見出し語も左右するため、選択中の
+// 大分類を親フォームへ持ち上げられるよう、kindCodeを外部から制御する
+// (controlled)値として受け取る。詳しい種類はこの画面の中だけで完結するため
+// 従来どおり内部状態のまま持つ。
+export function defaultKindCode(
+  classificationOptions: ManagedItemClassificationOptions,
+): string {
+  return classificationOptions.kinds.find(({ code }) => code === "asset")?.code
+    ?? classificationOptions.kinds.at(0)?.code
+    ?? "";
+}
+
 export function ManagedItemClassificationFields({
   classificationOptions,
   idPrefix,
   initialCustomItemType = null,
   initialItemTypeCode = null,
-  initialKindCode,
+  kindCode,
+  onKindCodeChange,
 }: {
   classificationOptions: ManagedItemClassificationOptions;
   idPrefix: string;
   initialCustomItemType?: string | null;
   initialItemTypeCode?: string | null;
-  initialKindCode?: string;
+  kindCode: string;
+  onKindCodeChange: (value: string) => void;
 }) {
-  const defaultKindCode = initialKindCode
-    ?? classificationOptions.kinds.find(({ code }) => code === "asset")?.code
-    ?? classificationOptions.kinds.at(0)?.code
-    ?? "";
-  const [kindCode, setKindCode] = useState(defaultKindCode);
   const [itemTypeValue, setItemTypeValue] = useState(
     initialCustomItemType === null
       ? (initialItemTypeCode ?? "")
@@ -88,7 +97,7 @@ export function ManagedItemClassificationFields({
         kindCode={kindCode}
         onItemTypeChange={setItemTypeValue}
         onKindChange={(value) => {
-          setKindCode(value);
+          onKindCodeChange(value);
           setItemTypeValue("");
         }}
       />

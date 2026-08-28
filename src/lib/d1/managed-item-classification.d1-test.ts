@@ -9,6 +9,7 @@ import classificationSql from "../../../d1/migrations/0005_managed_item_classifi
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
+import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -29,6 +30,7 @@ function migrationStatements(): string[] {
     propertyTaxSql,
     kindLabelsSql,
     optionalAttributesSql,
+    startedOnSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -91,7 +93,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       name: "猫の給水機",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await expect(getManagedItemForEdit(db, householdMember, itemId)).resolves.toMatchObject({
       itemTypeCode: null,
@@ -119,7 +121,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       name: "Item A classified",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await db.prepare("UPDATE managed_items SET name = 'Old worker rename' WHERE id = 'item-a'").run();
     await expect(getManagedItemForEdit(db, householdMember, "item-a")).resolves.toMatchObject({
@@ -130,7 +132,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       name: "Old worker rename",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
   });
 
@@ -147,7 +149,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
         name: "Invalid classification",
         note: null,
         productInfo: null,
-        purchasedOn: null,
+        startedOn: null,
       })).rejects.toThrow("管理対象の分類を選択し直してください。");
     }
     await expect(db.prepare(

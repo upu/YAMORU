@@ -132,6 +132,7 @@ describe("登録済みManagedItem詳細", () => {
       ],
       id: "item-1",
       itemTypeLabel: "ペット用品",
+      kindCode: "asset",
       kindLabel: "モノ",
       lastActivity: null,
       members: [],
@@ -139,8 +140,8 @@ describe("登録済みManagedItem詳細", () => {
       note: null,
       pendingTodos: [],
       productInfo: null,
-      purchasedOn: null,
       recentCompletions: [],
+      startedOn: null,
     };
 
     render(<ManagedItemDetailContent item={item} />);
@@ -168,9 +169,10 @@ describe("登録済みManagedItem詳細", () => {
           members: [],
           note: null,
           pendingTodos: [],
+          kindCode: "asset",
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [],
+          startedOn: null,
         }}
       />,
     );
@@ -191,9 +193,10 @@ describe("登録済みManagedItem詳細", () => {
           members: [],
           note: null,
           pendingTodos: [],
+          kindCode: "asset",
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [],
+          startedOn: null,
         }}
       />,
     );
@@ -214,9 +217,10 @@ describe("登録済みManagedItem詳細", () => {
           members: [],
           note: null,
           pendingTodos: [],
+          kindCode: "asset",
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [],
+          startedOn: null,
         }}
       />,
     );
@@ -237,9 +241,10 @@ describe("登録済みManagedItem詳細", () => {
           members: [],
           note: null,
           pendingTodos: [],
+          kindCode: "asset",
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [],
+          startedOn: null,
         }}
       />,
     );
@@ -261,9 +266,10 @@ describe("登録済みManagedItem詳細", () => {
           members: [],
           note: null,
           pendingTodos: [],
+          kindCode: "asset",
           productInfo: null,
-          purchasedOn: null,
           recentCompletions: [],
+          startedOn: null,
         }}
       />,
     );
