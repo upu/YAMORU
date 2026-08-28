@@ -49,7 +49,6 @@ const MEMBERS = [
 function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
   return {
     assigneeName: null,
-    calendarScheduleLabel: null,
     completion: null,
     dueAt: "2026-09-01T15:00:00.000Z",
     id: "occurrence-1",
@@ -58,6 +57,7 @@ function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
     managedItemId: "item-1",
     managedItemName: "猫の浄水器",
     recurrenceBasis: "once",
+    recurrenceLabel: "繰り返しなし",
     scheduledFor: "2026-09-01T15:00:00.000Z",
     title: "フィルターの申請",
     ...overrides,
@@ -93,6 +93,8 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     managed_item_name: null,
     occurred_at: null,
     performed_by_user_id: null,
+    recommended_start_offset: 0,
+    recommended_until_offset: 0,
     recurrence_basis: "once",
     scheduled_for: "2026-09-01T15:00:00.000Z",
     schedule_day_of_month: null,
@@ -117,7 +119,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("未完了Todoの詳細(TodoDetailContent)", () => {
-  it("Todo名、状態、繰り返し方、関連する管理対象、担当、予定日を表示する", () => {
+  it("Todo名、状態、繰り返し、関連する管理対象、担当、予定日を表示する", () => {
     renderDetail(todo({ assigneeName: "ぽっぷ" }));
 
     expect(screen.getByRole("heading", { level: 1, name: "フィルターの申請" }))
@@ -134,6 +136,15 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
       "href",
       "/todos",
     );
+  });
+
+  // Issue #244: Todo名直下の言い直し説明文は表示しない。
+  it("Todo名直下に画面内容を言い直す説明文を表示しない", () => {
+    renderDetail(todo());
+
+    expect(
+      screen.queryByText("このTodoの内容と、いまの予定・担当を確認できます。"),
+    ).not.toBeInTheDocument();
   });
 
   it("担当が未設定なら誰でも可、管理対象がなければ関連なしと表示する", () => {
@@ -160,48 +171,46 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.getByText("2026年9月11日")).toBeInTheDocument();
   });
 
-  it("完了日基準Todoでは推奨期間の上限として期限を表示する", () => {
+  it("完了日基準Todoでは推奨期間の上限として期限を表示し、推奨期間を確認できる", () => {
     renderDetail(todo({
       dueAt: "2026-09-30T15:00:00.000Z",
       isMaintenance: true,
       recurrenceBasis: "completion",
+      recurrenceLabel: "完了から4〜8週間後",
     }));
 
     expect(screen.getByText("推奨期間の上限")).toBeInTheDocument();
-    expect(screen.getByText("完了した日から繰り返す")).toBeInTheDocument();
+    expect(screen.getByText("完了から4〜8週間後")).toBeInTheDocument();
   });
 
-  it("繰り返しなしTodoからは編集画面へ移動でき、実施記録の修正は出さない", () => {
+  it("繰り返しなし・未完了Todoでは、Todoの内容の見出し横から編集画面へ移動でき、実施記録の修正は出さない", () => {
     renderDetail(todo());
 
-    expect(screen.getByRole("link", { name: "編集" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "このTodoを編集" })).toHaveAttribute(
       "href",
       "/todos/occurrence-1/edit",
     );
     expect(screen.queryByRole("button", { name: /修正/u })).not.toBeInTheDocument();
   });
 
-  it("繰り返しのあるTodoには編集導線を出さず、変更できない理由を示す", () => {
-    renderDetail(todo({ recurrenceBasis: "calendar" }));
+  it("繰り返しのあるTodoには編集導線も理由だけのカードも出さない", () => {
+    renderDetail(todo({ recurrenceBasis: "calendar", recurrenceLabel: "毎月末" }));
 
-    expect(screen.queryByRole("link", { name: "編集" })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/繰り返しのあるTodoの内容は、この画面からは変更できません。/u),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "このTodoを編集" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/繰り返しのあるTodoの内容は/u),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "内容の変更" })).not.toBeInTheDocument();
   });
 
-  // Issue #227 / YDR-032
-  it("定例日基準Todoでは繰り返しパターンを表示する", () => {
-    renderDetail(todo({ calendarScheduleLabel: "毎月末", recurrenceBasis: "calendar" }));
+  // Issue #227 / YDR-032、#244で「繰り返し」の一項目へ統合。
+  it("定例日基準Todoでは実際の定例条件を繰り返しの一項目として表示する", () => {
+    renderDetail(todo({ recurrenceBasis: "calendar", recurrenceLabel: "毎月末" }));
 
-    expect(screen.getByText("定例日")).toBeInTheDocument();
+    expect(screen.getByText("繰り返し")).toBeInTheDocument();
     expect(screen.getByText("毎月末")).toBeInTheDocument();
-  });
-
-  it("定例日基準以外では繰り返しパターンの行を出さない", () => {
-    renderDetail(todo());
-
-    expect(screen.queryByText("定例日")).not.toBeInTheDocument();
   });
 });
 
@@ -230,7 +239,9 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
   it("完了済みTodoの内容編集は出さない", () => {
     renderDetail(completedTodo());
 
-    expect(screen.queryByRole("link", { name: "編集" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "このTodoを編集" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/繰り返しのあるTodoの内容は/u)).not.toBeInTheDocument();
   });
 
@@ -241,6 +252,17 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
     expect(
       screen.getByRole("button", { name: "フィルターの申請を修正" }),
     ).toBeInTheDocument();
+  });
+
+  // Issue #244: 未完了・完了済みのどちらでも、同じ表現で繰り返し条件を確認できる。
+  it("完了済みTodoでも未完了と同じ表現で繰り返し条件を表示する", () => {
+    renderDetail(completedTodo({
+      recurrenceBasis: "completion",
+      recurrenceLabel: "完了から4〜8週間後",
+    }));
+
+    expect(screen.getByText("繰り返し")).toBeInTheDocument();
+    expect(screen.getByText("完了から4〜8週間後")).toBeInTheDocument();
   });
 });
 
@@ -294,8 +316,49 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
 
     render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
 
-    expect(screen.getByText("定例日")).toBeInTheDocument();
+    expect(screen.getByText("繰り返し")).toBeInTheDocument();
     expect(screen.getByText("毎月末")).toBeInTheDocument();
+  });
+
+  // Issue #244: 保存済みのrecommended_start_offset/recommended_until_offsetから
+  // 推奨期間を組み立てる(loadTodoDetailへの追加取得)。
+  it("完了日基準Todoでは推奨開始・上限の日数から具体的な推奨期間を表示する", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      deadline_kind: "maintenance",
+      recommended_start_offset: 28,
+      recommended_until_offset: 56,
+      recurrence_basis: "completion",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("完了から4〜8週間後")).toBeInTheDocument();
+  });
+
+  it("完了日基準Todoの推奨期間が7で割り切れない場合は日数で表示する", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      deadline_kind: "maintenance",
+      recommended_start_offset: 10,
+      recommended_until_offset: 20,
+      recurrence_basis: "completion",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("完了から10〜20日後")).toBeInTheDocument();
+  });
+
+  it("完了日基準Todoの推奨開始と上限が同じ場合は値を重複させない", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      deadline_kind: "maintenance",
+      recommended_start_offset: 28,
+      recommended_until_offset: 28,
+      recurrence_basis: "completion",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("完了から4週間後")).toBeInTheDocument();
   });
 
   it("他家庭のTodoは見つからないものとして扱う", async () => {

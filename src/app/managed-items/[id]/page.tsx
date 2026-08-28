@@ -15,6 +15,7 @@ import { getD1Context } from "../../../lib/d1/context";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
 import { selectActiveCompletionLogs } from "../../active-completion";
 import { ClassificationBadges } from "../classification-badges";
+import { EditIcon } from "../../edit-icon";
 import {
   isSafeExternalUrl,
   startedOnLabel,
@@ -371,15 +372,6 @@ function RecentCompletionSection({
         </ul>
       )}
     </section>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
-    </svg>
   );
 }
 

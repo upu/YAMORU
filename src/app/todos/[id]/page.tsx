@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
 import { getD1Context } from "../../../lib/d1/context";
-import { loadTodoDetail } from "../../../lib/d1/todos";
+import { loadTodoDetail, type TodoDetailRow } from "../../../lib/d1/todos";
 import {
   FALLBACK_OTHER_MEMBER_NAME,
   type HouseholdMemberOption,
@@ -11,21 +11,16 @@ import {
   loadHouseholdMembers,
 } from "../../../lib/d1/profiles";
 import { UNASSIGNED_LABEL } from "../../assignee";
+import { EditIcon } from "../../edit-icon";
 import { CorrectionPanel } from "../../managed-items/[id]/correction-panel";
 import {
   describeCalendarSchedule,
+  describeCompletionRecurrence,
   toDeadlineKind,
   toRecurrenceBasis,
   type RecurrenceBasis,
 } from "../../task-schedule";
 import { formatTokyoDate } from "../../time-zone";
-
-// 繰り返し方の表現は、Todo登録フォームの選択肢と同じ言い回しに揃える。
-const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
-  calendar: "曜日・日付で繰り返す",
-  completion: "完了した日から繰り返す",
-  once: "繰り返しなし",
-};
 
 // Issue #205: 完了済みTodoでは、現在有効な実施記録(訂正済みなら訂正後、
 // YDR-026)を表示し、そこから訂正・完了取消を行う。
@@ -37,8 +32,6 @@ export type TodoCompletionData = {
 
 export type TodoDetailData = {
   assigneeName: string | null;
-  // recurrenceBasis='calendar'のときだけ非null(Issue #227 / YDR-032)。
-  calendarScheduleLabel: string | null;
   completion: TodoCompletionData | null;
   dueAt: string | null;
   id: string;
@@ -47,6 +40,9 @@ export type TodoDetailData = {
   managedItemId: string | null;
   managedItemName: string | null;
   recurrenceBasis: RecurrenceBasis;
+  // Issue #244(設計メモ案A): 方式と具体条件を一つにまとめた表示文字列。
+  // 「繰り返しなし」「完了から4〜8週間後」「毎週月曜日」など。
+  recurrenceLabel: string;
   scheduledFor: string | null;
   title: string;
 };
@@ -98,15 +94,9 @@ function TodoDetailList({ todo }: { todo: TodoDetailData }) {
       </div>
       <TodoCompletionRows completion={todo.completion} />
       <div>
-        <dt>繰り返し方</dt>
-        <dd>{RECURRENCE_LABELS[todo.recurrenceBasis]}</dd>
+        <dt>繰り返し</dt>
+        <dd>{todo.recurrenceLabel}</dd>
       </div>
-      {todo.calendarScheduleLabel === null ? null : (
-        <div>
-          <dt>定例日</dt>
-          <dd>{todo.calendarScheduleLabel}</dd>
-        </div>
-      )}
       <div>
         <dt>関連する管理対象</dt>
         <dd>
@@ -163,35 +153,30 @@ function TodoCompletionSection({
   );
 }
 
-function TodoEditSection({ todo }: { todo: TodoDetailData }) {
-  // 完了済みTodoの内容編集は#205の対象外。実施記録の修正だけを提供する。
-  if (todo.isCompleted) return null;
-  // 繰り返し方や繰り返し規則の変更は#203の対象外。繰り返しTodoでは、
-  // 編集導線の代わりに変更できない理由を示す。
-  if (todo.recurrenceBasis !== "once") {
-    return (
-      <section aria-labelledby="todo-edit-title" className="detail-card">
-        <p className="detail-kicker">EDIT</p>
-        <h2 id="todo-edit-title">内容の変更</h2>
-        <p className="detail-note">
-          繰り返しのあるTodoの内容は、この画面からは変更できません。担当や予定日の変更は、ホームやTodo一覧の操作から行えます。
-        </p>
-      </section>
-    );
-  }
+// Issue #244: 「Todoの内容」の見出し横へ編集導線を集約する
+// (ManagedItemRecordSectionと同じ方式、issue本文の設計メモの第一候補)。
+// 編集できるのは繰り返しなし・未完了Todoだけ(#203の範囲)。繰り返しTodoや
+// 完了済みTodoには、利用できない編集導線も理由だけのカードも出さない。
+function TodoContentSection({ todo }: { todo: TodoDetailData }) {
+  const canEdit = !todo.isCompleted && todo.recurrenceBasis === "once";
   return (
-    <section aria-labelledby="todo-edit-title" className="detail-card">
-      <p className="detail-kicker">EDIT</p>
-      <h2 id="todo-edit-title">内容の変更</h2>
-      <p className="detail-note">
-        Todo名、関連する管理対象、担当、予定日を変更できます。予定日は具体日と未定を行き来できます。
-      </p>
-      <Link
-        className="ledger-primary-link"
-        href={`/todos/${encodeURIComponent(todo.id)}/edit`}
-      >
-        編集
-      </Link>
+    <section aria-labelledby="todo-summary-title" className="detail-card">
+      <div className="detail-section-heading">
+        <div>
+          <p className="detail-kicker">SUMMARY</p>
+          <h2 id="todo-summary-title">Todoの内容</h2>
+        </div>
+        {canEdit ? (
+          <Link
+            aria-label="このTodoを編集"
+            className="icon-link"
+            href={`/todos/${encodeURIComponent(todo.id)}/edit`}
+          >
+            <EditIcon />
+          </Link>
+        ) : null}
+      </div>
+      <TodoDetailList todo={todo} />
     </section>
   );
 }
@@ -214,21 +199,10 @@ export function TodoDetailContent({
       <header className="detail-hero">
         <p className="detail-kicker">TODO</p>
         <h1>{todo.title}</h1>
-        <p>
-          {todo.isCompleted
-            ? "このTodoの内容と、記録された実施内容を確認できます。"
-            : "このTodoの内容と、いまの予定・担当を確認できます。"}
-        </p>
       </header>
 
       <div className="ledger-grid">
-        <section aria-labelledby="todo-summary-title" className="detail-card">
-          <p className="detail-kicker">SUMMARY</p>
-          <h2 id="todo-summary-title">Todoの内容</h2>
-          <TodoDetailList todo={todo} />
-        </section>
-
-        <TodoEditSection todo={todo} />
+        <TodoContentSection todo={todo} />
         <TodoCompletionSection
           currentUserId={currentUserId}
           members={members}
@@ -237,6 +211,32 @@ export function TodoDetailContent({
       </div>
     </main>
   );
+}
+
+// Issue #244(設計メモ案A): 「繰り返し」の一項目に、方式と具体条件をまとめた
+// 一つの表示文字列を作る。未完了・完了済みのどちらも同じTaskRuleの行から
+// 同じ関数で組み立てるため、表現が一致する。
+function buildRecurrenceLabel(row: TodoDetailRow): string {
+  const basis = toRecurrenceBasis(row.recurrence_basis);
+  if (basis === "once") return "繰り返しなし";
+  if (basis === "completion") {
+    return describeCompletionRecurrence(
+      row.recommended_start_offset,
+      row.recommended_until_offset,
+    );
+  }
+  const calendarLabel = describeCalendarSchedule({
+    scheduleDayOfMonth: row.schedule_day_of_month,
+    scheduleDayOfWeek: row.schedule_day_of_week,
+    scheduleKind: row.schedule_kind,
+    scheduleMonth: row.schedule_month,
+    scheduleMonthEnd: row.schedule_month_end === 1,
+    scheduleWeekOfMonth: row.schedule_week_of_month,
+  });
+  if (calendarLabel === null) {
+    throw new Error("定例日基準Todoの繰り返しパターンが不正です。");
+  }
+  return calendarLabel;
 }
 
 export default async function TodoDetailPage({
@@ -273,16 +273,6 @@ export default async function TodoDetailPage({
       members={members}
       todo={{
         assigneeName,
-        calendarScheduleLabel: toRecurrenceBasis(row.recurrence_basis) === "calendar"
-          ? describeCalendarSchedule({
-              scheduleDayOfMonth: row.schedule_day_of_month,
-              scheduleDayOfWeek: row.schedule_day_of_week,
-              scheduleKind: row.schedule_kind,
-              scheduleMonth: row.schedule_month,
-              scheduleMonthEnd: row.schedule_month_end === 1,
-              scheduleWeekOfMonth: row.schedule_week_of_month,
-            })
-          : null,
         completion: isCompleted && row.occurred_at !== null
           ? {
               occurredAt: row.occurred_at,
@@ -297,6 +287,7 @@ export default async function TodoDetailPage({
         managedItemId: row.managed_item_id,
         managedItemName: row.managed_item_name,
         recurrenceBasis: toRecurrenceBasis(row.recurrence_basis),
+        recurrenceLabel: buildRecurrenceLabel(row),
         scheduledFor: row.scheduled_for,
         title: row.title,
       }}
