@@ -28,6 +28,7 @@ import {
   createManagedItem,
   getManagedItem,
   getManagedItemForEdit,
+  listHouseholdCustomItemTypes,
   listManagedItems,
   updateManagedItem,
 } from "./managed-items";
@@ -975,6 +976,158 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
 
     const filtered = await listManagedItems(db, householdAMember, { search: "共通のキーワード" });
     expect(filtered.map(({ name }) => name)).toEqual(["共通のキーワード用A"]);
+  });
+});
+
+describe("D1 台帳一覧の自由入力(詳しい種類)候補・絞り込み認可 (Issue #238)", () => {
+  it("自由入力(customItemType)で絞り込み、プリセットの詳しい種類とは独立して一致する", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "冷蔵庫",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: "特注の棚",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "オーダー家具",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { customItemType: "特注の棚" });
+    expect(filtered.map(({ name }) => name)).toEqual(["オーダー家具"]);
+  });
+
+  it("自由入力の表記の大文字小文字・前後の空白を無視して一致させる", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: "IoTセンサー",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "センサーA",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: "iotセンサー",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "センサーB",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { customItemType: "  IOTセンサー  " });
+    expect(filtered.map(({ name }) => name).sort()).toEqual(["センサーA", "センサーB"]);
+  });
+
+  it("別家庭の自由入力値は絞り込み結果に混ざらない", async () => {
+    await createManagedItem(db, householdBMember, {
+      customItemType: "共通ワード",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "B専用棚",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: "共通ワード",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "A専用棚",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    const filtered = await listManagedItems(db, householdAMember, { customItemType: "共通ワード" });
+    expect(filtered.map(({ name }) => name)).toEqual(["A専用棚"]);
+  });
+
+  it("家庭内で使われている自由入力の詳しい種類を大分類ごとに重複なく候補として返す", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: "IoTセンサー",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "センサーA",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+    // 大文字小文字だけが違う表記は1件へまとめる。SQLiteのMIN()はASCIIコード順で
+    // 比較するため、"IoTセンサー"("I"=0x49)が"iotセンサー"("i"=0x69)より小さく、
+    // 代表表記として選ばれる。
+    await createManagedItem(db, householdAMember, {
+      customItemType: "iotセンサー",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "asset",
+      name: "センサーB",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    await expect(listHouseholdCustomItemTypes(db, householdAMember)).resolves.toEqual([
+      { kindCode: "asset", label: "IoTセンサー" },
+    ]);
+  });
+
+  it("プリセットの詳しい種類だけの家庭では自由入力候補を返さない", async () => {
+    await createManagedItem(db, householdAMember, {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "冷蔵庫",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    await expect(listHouseholdCustomItemTypes(db, householdAMember)).resolves.toEqual([]);
+  });
+
+  it("他家庭の自由入力値は候補に混ざらない", async () => {
+    await createManagedItem(db, householdBMember, {
+      customItemType: "B専用種別",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "other",
+      name: "B専用の対象",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+    await createManagedItem(db, householdAMember, {
+      customItemType: "A専用種別",
+      externalUrl: null,
+      itemTypeCode: null,
+      kindCode: "other",
+      name: "A専用の対象",
+      note: null,
+      productInfo: null,
+      startedOn: null,
+    });
+
+    await expect(listHouseholdCustomItemTypes(db, householdAMember)).resolves.toEqual([
+      { kindCode: "other", label: "A専用種別" },
+    ]);
   });
 });
 

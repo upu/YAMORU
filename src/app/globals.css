@@ -1465,6 +1465,23 @@ h1 {
   font-weight: 700;
 }
 
+/* Issue #238: 詳しい種類の絞り込みを、プリセットと自由入力の候補を含む
+   検索可能な選択欄(ManagedItemTypePicker)に置き換えた。search用フォームの
+   1行として並べるほかの入力とは違い、絞り込み結果のラジオボタン一覧を持つ
+   ため、行の幅いっぱいに広げる。 */
+.ledger-item-type-picker {
+  display: grid;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ledger-item-type-picker input[type="search"] {
+  margin-bottom: 6px;
+}
+
 .ledger-filter-summary {
   display: flex;
   flex-wrap: wrap;

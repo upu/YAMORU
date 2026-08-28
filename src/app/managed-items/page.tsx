@@ -4,12 +4,15 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { loadAccountState } from "../../lib/d1/households";
 import {
+  listHouseholdCustomItemTypes,
   listManagedItemClassificationOptions,
   listManagedItems,
   type ManagedItemClassificationOptions,
+  type ManagedItemCustomTypeOption,
 } from "../../lib/d1/managed-items";
 import { FloatingAddButton } from "../floating-add-button";
 import { ClassificationBadges } from "./classification-badges";
+import { ManagedItemTypePicker, type ManagedItemTypeGroup } from "./item-type-picker";
 
 export type ManagedItemSummary = {
   id: string;
@@ -19,6 +22,13 @@ export type ManagedItemSummary = {
 };
 
 type HouseholdSummary = { id: string; name: string };
+
+// Issue #238: 詳しい種類の絞り込みURLは、プリセットのコード値(itemType=
+// appliance)と自由入力の表記(itemType=custom:虫かご)を単一のクエリー
+// パラメーターの中で「種別付き値」として判別する(issue本文の設計メモ、
+// 別パラメーター案との比較で、Issue #218からのブックマーク・共有URLの
+// プリセット絞り込みをそのまま動かせる案を採った)。
+const CUSTOM_ITEM_TYPE_PREFIX = "custom:";
 
 // Issue #218: 台帳一覧の検索・絞り込み。q(名前)・kind(大分類)・itemType
 // (詳しい種類)のクエリーパラメーターをサーバー側の取得条件へ反映する案1を
@@ -37,6 +47,30 @@ function parseCodeParam(value: string | string[] | undefined): string | undefine
   return typeof value === "string" && value !== "" ? value : undefined;
 }
 
+function parseRawParam(value: string | string[] | undefined): string {
+  return typeof value === "string" ? value : "";
+}
+
+// Issue #238: itemTypeの生の値をプリセットコードと自由入力値へ分ける。
+// "custom:"で始まらなければ従来どおりプリセットコードとして扱う(Issue #218の
+// URL形式と互換)。"custom:"の後ろが空(前後の空白だけ)なら、絞り込みなしと
+// 同じ扱いにする。
+function parseItemTypeParam(raw: string): {
+  customItemType?: string;
+  itemTypeCode?: string;
+} {
+  if (raw === "") return {};
+  if (raw.startsWith(CUSTOM_ITEM_TYPE_PREFIX)) {
+    const customItemType = raw.slice(CUSTOM_ITEM_TYPE_PREFIX.length).trim();
+    return customItemType === "" ? {} : { customItemType };
+  }
+  return { itemTypeCode: raw };
+}
+
+function normalizeForCompare(value: string): string {
+  return value.trim().toLocaleLowerCase("ja-JP");
+}
+
 function buildManagedItemsHref(
   itemType: string | undefined,
   kind: string | undefined,
@@ -50,15 +84,63 @@ function buildManagedItemsHref(
   return query === "" ? "/managed-items" : `/managed-items?${query}`;
 }
 
-// 大分類・詳しい種類のコード値を、家族に見せる名前へ解決する。URLの生の値が
-// 存在しないコードを指す場合(不正な値・仕様変更で廃止された値)は、条件を
-// 説明せず結果(0件になる)だけに任せる。
+// 大分類のコード値を、家族に見せる名前へ解決する。URLの生の値が存在しない
+// コードを指す場合(不正な値・仕様変更で廃止された値)は、条件を説明せず
+// 結果(0件になる)だけに任せる。
 function resolveClassificationLabel(
   code: string | undefined,
   options: { code: string; label: string }[],
 ): string | null {
   if (code === undefined) return null;
   return options.find((option) => option.code === code)?.label ?? null;
+}
+
+// Issue #238: 詳しい種類の適用中ラベルは、プリセットならグローバルな候補
+// (classificationOptions.itemTypes)、自由入力なら家庭内で実際に使われている
+// 候補(customItemTypeOptions)から解決する。どちらの候補にも見つからない
+// 値は(不正な値・他家庭だけの自由入力値)、resolveClassificationLabelと同じく
+// 説明を出さない。
+function resolveItemTypeLabel(
+  itemTypeCode: string | undefined,
+  customItemType: string | undefined,
+  classificationOptions: ManagedItemClassificationOptions,
+  customItemTypeOptions: ManagedItemCustomTypeOption[],
+): string | null {
+  if (itemTypeCode !== undefined) {
+    return resolveClassificationLabel(itemTypeCode, classificationOptions.itemTypes);
+  }
+  if (customItemType !== undefined) {
+    const normalized = normalizeForCompare(customItemType);
+    return customItemTypeOptions
+      .find((option) => normalizeForCompare(option.label) === normalized)?.label ?? null;
+  }
+  return null;
+}
+
+// Issue #238: 詳しい種類の候補(ManagedItemTypePicker)を、大分類ごとにプリセット
+// →自由入力の順で組み立てる。候補が1件もない大分類は表示しない。
+function buildItemTypeGroups(
+  classificationOptions: ManagedItemClassificationOptions,
+  customItemTypeOptions: ManagedItemCustomTypeOption[],
+): ManagedItemTypeGroup[] {
+  return classificationOptions.kinds
+    .map((kindOption) => ({
+      kindCode: kindOption.code,
+      kindLabel: kindOption.label,
+      options: [
+        ...classificationOptions.itemTypes
+          .filter((itemType) => itemType.kindCode === kindOption.code)
+          .map((itemType) => ({ isCustom: false, label: itemType.label, value: itemType.code })),
+        ...customItemTypeOptions
+          .filter((custom) => custom.kindCode === kindOption.code)
+          .map((custom) => ({
+            isCustom: true,
+            label: custom.label,
+            value: `${CUSTOM_ITEM_TYPE_PREFIX}${custom.label}`,
+          })),
+      ],
+    }))
+    .filter((group) => group.options.length > 0);
 }
 
 // Issue #218: 適用中の検索語・絞り込みを家族に見せる言葉でまとめる
@@ -76,19 +158,20 @@ function describeManagedItemsFilters(
 }
 
 function ManagedItemsSearchForm({
-  classificationOptions,
-  itemType,
+  itemTypeGroups,
+  itemTypeRaw,
   kind,
+  kinds,
   q,
 }: {
-  classificationOptions: ManagedItemClassificationOptions;
-  itemType: string | undefined;
+  itemTypeGroups: ManagedItemTypeGroup[];
+  itemTypeRaw: string;
   kind: string | undefined;
+  kinds: { code: string; label: string }[];
   q: string | undefined;
 }) {
   const searchId = "managed-items-search-q";
   const kindId = "managed-items-search-kind";
-  const itemTypeId = "managed-items-search-item-type";
   return (
     <form
       action="/managed-items"
@@ -108,26 +191,16 @@ function ManagedItemsSearchForm({
       <label className="sr-only" htmlFor={kindId}>大分類で絞り込み</label>
       <select defaultValue={kind ?? ""} id={kindId} name="kind">
         <option value="">大分類: すべて</option>
-        {classificationOptions.kinds.map((option) => (
+        {kinds.map((option) => (
           <option key={option.code} value={option.code}>{option.label}</option>
         ))}
       </select>
 
-      <label className="sr-only" htmlFor={itemTypeId}>詳しい種類で絞り込み</label>
-      <select defaultValue={itemType ?? ""} id={itemTypeId} name="itemType">
-        <option value="">詳しい種類: すべて</option>
-        {classificationOptions.kinds.map((kindOption) => (
-          <optgroup key={kindOption.code} label={kindOption.label}>
-            {classificationOptions.itemTypes
-              .filter((itemTypeOption) => itemTypeOption.kindCode === kindOption.code)
-              .map((itemTypeOption) => (
-                <option key={itemTypeOption.code} value={itemTypeOption.code}>
-                  {itemTypeOption.label}
-                </option>
-              ))}
-          </optgroup>
-        ))}
-      </select>
+      <ManagedItemTypePicker
+        groups={itemTypeGroups}
+        idPrefix="managed-items-search-item-type"
+        initialValue={itemTypeRaw}
+      />
 
       <button type="submit">絞り込む</button>
     </form>
@@ -190,20 +263,29 @@ function ManagedItemsList({ items }: { items: ManagedItemSummary[] }) {
 
 function RegisteredItemsSection({
   classificationOptions,
+  customItemType,
+  customItemTypeOptions,
   items,
-  itemType,
+  itemTypeCode,
+  itemTypeRaw,
   kind,
   q,
 }: {
   classificationOptions: ManagedItemClassificationOptions;
+  customItemType: string | undefined;
+  customItemTypeOptions: ManagedItemCustomTypeOption[];
   items: ManagedItemSummary[];
-  itemType: string | undefined;
+  itemTypeCode: string | undefined;
+  itemTypeRaw: string;
   kind: string | undefined;
   q: string | undefined;
 }) {
-  const itemTypeLabel = resolveClassificationLabel(itemType, classificationOptions.itemTypes);
+  const itemTypeLabel = resolveItemTypeLabel(
+    itemTypeCode, customItemType, classificationOptions, customItemTypeOptions,
+  );
   const kindLabel = resolveClassificationLabel(kind, classificationOptions.kinds);
   const filterDescription = describeManagedItemsFilters(itemTypeLabel, kindLabel, q);
+  const itemTypeGroups = buildItemTypeGroups(classificationOptions, customItemTypeOptions);
   return (
     <section aria-labelledby="registered-items-title" className="detail-card">
       {/* Issue #237: ページ名「家の台帳」と意味が重なる「ITEMS」「登録済みの
@@ -215,9 +297,10 @@ function RegisteredItemsSection({
       </div>
 
       <ManagedItemsSearchForm
-        classificationOptions={classificationOptions}
-        itemType={itemType}
+        itemTypeGroups={itemTypeGroups}
+        itemTypeRaw={itemTypeRaw}
         kind={kind}
+        kinds={classificationOptions.kinds}
         q={q}
       />
       <ManagedItemsFilterSummary filterDescription={filterDescription} />
@@ -245,15 +328,21 @@ function HouseholdRequiredNotice() {
 
 export function ManagedItemsContent({
   classificationOptions,
+  customItemType,
+  customItemTypeOptions,
   household,
-  itemType,
+  itemTypeCode,
+  itemTypeRaw,
   items,
   kind,
   q,
 }: {
   classificationOptions?: ManagedItemClassificationOptions;
+  customItemType?: string | undefined;
+  customItemTypeOptions?: ManagedItemCustomTypeOption[];
   household: HouseholdSummary | null;
-  itemType?: string | undefined;
+  itemTypeCode?: string | undefined;
+  itemTypeRaw?: string;
   items: ManagedItemSummary[];
   kind?: string | undefined;
   q?: string | undefined;
@@ -272,8 +361,11 @@ export function ManagedItemsContent({
         <div className="ledger-grid">
           <RegisteredItemsSection
             classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
+            customItemType={customItemType}
+            customItemTypeOptions={customItemTypeOptions ?? []}
             items={items}
-            itemType={itemType}
+            itemTypeCode={itemTypeCode}
+            itemTypeRaw={itemTypeRaw ?? ""}
             kind={kind}
             q={q}
           />
@@ -296,7 +388,13 @@ export default async function ManagedItemsPage({
   const resolvedSearchParams = await searchParams;
   const q = parseSearchQuery(resolvedSearchParams.q);
   const kind = parseCodeParam(resolvedSearchParams.kind);
-  const itemType = parseCodeParam(resolvedSearchParams.itemType);
+  const { customItemType, itemTypeCode } = parseItemTypeParam(parseRawParam(resolvedSearchParams.itemType));
+  // Issue #238: ピッカーへ渡す初期選択値は、URLの生の値そのものではなく
+  // parseItemTypeParamが解決した値から組み立て直す。前後の空白などで
+  // どの候補にも一致しない生の値を渡すと、「すべて」にも該当候補にも
+  // チェックが付かない見た目になるため、絞り込みなし(itemTypeCode・
+  // customItemTypeとも未設定)の場合は必ず空文字(「すべて」)へ揃える。
+  const itemTypeRaw = itemTypeCode ?? (customItemType === undefined ? "" : `${CUSTOM_ITEM_TYPE_PREFIX}${customItemType}`);
 
   const accountState = await loadAccountState(db, session);
   const household: HouseholdSummary | null = accountState.household;
@@ -304,16 +402,20 @@ export default async function ManagedItemsPage({
     return <ManagedItemsContent household={null} items={[]} />;
   }
 
-  const [items, classificationOptions] = await Promise.all([
-    listManagedItems(db, session, { itemTypeCode: itemType, kindCode: kind, search: q }),
+  const [items, classificationOptions, customItemTypeOptions] = await Promise.all([
+    listManagedItems(db, session, { customItemType, itemTypeCode, kindCode: kind, search: q }),
     listManagedItemClassificationOptions(db),
+    listHouseholdCustomItemTypes(db, session),
   ]);
 
   return (
     <ManagedItemsContent
       classificationOptions={classificationOptions}
+      customItemType={customItemType}
+      customItemTypeOptions={customItemTypeOptions}
       household={household}
-      itemType={itemType}
+      itemTypeCode={itemTypeCode}
+      itemTypeRaw={itemTypeRaw}
       items={items}
       kind={kind}
       q={q}
