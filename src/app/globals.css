@@ -1428,12 +1428,14 @@ h1 {
   justify-content: flex-end;
 }
 
-/* Issue #218: 台帳一覧の検索・絞り込み。見出しと件数バッジ(count)を
-   横並びにし、下に検索・絞り込みフォームを続ける。 */
+/* Issue #218: 台帳一覧の検索・絞り込み。件数バッジ(count)の下に検索・
+   絞り込みフォームを続ける。Issue #237: 見出しテキストは画面上から外した
+   (sr-onlyのh2 registered-items-titleへ移動)ため、件数バッジだけを
+   右寄せする。 */
 .ledger-list-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   margin-bottom: 6px;
 }

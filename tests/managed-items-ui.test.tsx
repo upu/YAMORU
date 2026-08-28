@@ -71,6 +71,25 @@ describe("家の台帳一覧", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("Issue #237: 説明を外部リンク偏重にせず、ITEMSと登録済みの管理対象の重複見出しを画面上から外す", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[REGISTERED_ITEM]}
+      />,
+    );
+
+    expect(screen.getByText("家で管理するものをまとめます。")).toBeInTheDocument();
+    expect(screen.queryByText(/確認に使う外部リンク/u)).not.toBeInTheDocument();
+    expect(screen.queryByText("ITEMS")).not.toBeInTheDocument();
+
+    // 一覧領域の意味は支援技術向けに残すが、画面上の見出しとしては出さない。
+    const listHeading = screen.getByRole("heading", { name: "登録済みの管理対象" });
+    expect(listHeading).toHaveClass("sr-only");
+    expect(screen.getByRole("region", { name: "登録済みの管理対象" }))
+      .toBeInTheDocument();
+  });
+
   it("登録済み一覧から登録ページへ進める", () => {
     render(
       <ManagedItemsContent

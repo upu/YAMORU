@@ -206,11 +206,11 @@ function RegisteredItemsSection({
   const filterDescription = describeManagedItemsFilters(itemTypeLabel, kindLabel, q);
   return (
     <section aria-labelledby="registered-items-title" className="detail-card">
+      {/* Issue #237: ページ名「家の台帳」と意味が重なる「ITEMS」「登録済みの
+      管理対象」を画面上の見出しとしては出さない(案1)。一覧領域の意味は
+      支援技術向けに残したaria-labelledbyの見出しで伝える。 */}
+      <h2 className="sr-only" id="registered-items-title">登録済みの管理対象</h2>
       <div className="ledger-list-heading">
-        <div>
-          <p className="detail-kicker">ITEMS</p>
-          <h2 id="registered-items-title">登録済みの管理対象</h2>
-        </div>
         <span aria-label={`${String(items.length)}件`} className="count">{items.length}</span>
       </div>
 
@@ -263,7 +263,7 @@ export function ManagedItemsContent({
       <header className="detail-hero">
         <p className="detail-kicker">HOUSE LEDGER</p>
         <h1>家の台帳</h1>
-        <p>家で管理するものと、確認に使う外部リンクをまとめます。</p>
+        <p>家で管理するものをまとめます。</p>
       </header>
 
       {household === null ? (
