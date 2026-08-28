@@ -9,6 +9,7 @@ import classificationSql from "../../../d1/migrations/0005_managed_item_classifi
 import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
 import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
+import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
 import { D1NotFoundError } from "./errors";
 import {
   createManagedItem,
@@ -35,6 +36,7 @@ function migrationStatements(): string[] {
     propertyTaxSql,
     kindLabelsSql,
     optionalAttributesSql,
+    startedOnSql,
   ].join("\n")
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("--"))
@@ -72,29 +74,29 @@ const BASE_INPUT = {
   name: "リビングのエアコン",
   note: null,
   productInfo: null,
-  purchasedOn: null,
+  startedOn: null,
 };
 
-describe("ManagedItemの任意の記録(Issue #42)", () => {
-  it("メモ・商品情報・購入時期を入力どおり保存し、詳細と編集で読み戻す", async () => {
+describe("ManagedItemの任意の記録(Issue #42, #239)", () => {
+  it("メモ・商品情報・開始時期を入力どおり保存し、詳細と編集で読み戻す", async () => {
     const itemId = await createManagedItem(db, householdAMember, {
       ...BASE_INPUT,
       note: NOTE,
       productInfo: PRODUCT_INFO,
-      purchasedOn: "2024-05",
+      startedOn: "2024-05",
     });
 
     await expect(getManagedItemForEdit(db, householdAMember, itemId))
       .resolves.toMatchObject({
         note: NOTE,
         productInfo: PRODUCT_INFO,
-        purchasedOn: "2024-05",
+        startedOn: "2024-05",
       });
     await expect(loadManagedItemDetail(db, householdAMember, itemId))
       .resolves.toMatchObject({
         note: NOTE,
         productInfo: PRODUCT_INFO,
-        purchasedOn: "2024-05",
+        startedOn: "2024-05",
       });
 
     // 大文字小文字・記号・語中の空白を保存側で変えない。
@@ -107,27 +109,27 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
   it("すべて未設定でも登録でき、後から追加・未設定化できる", async () => {
     const itemId = await createManagedItem(db, householdAMember, BASE_INPUT);
     await expect(getManagedItemForEdit(db, householdAMember, itemId))
-      .resolves.toMatchObject({ note: null, productInfo: null, purchasedOn: null });
+      .resolves.toMatchObject({ note: null, productInfo: null, startedOn: null });
 
     await updateManagedItem(db, householdAMember, itemId, {
       ...BASE_INPUT,
       note: NOTE,
       productInfo: PRODUCT_INFO,
-      purchasedOn: "2024",
+      startedOn: "2024",
     });
     await expect(getManagedItemForEdit(db, householdAMember, itemId))
       .resolves.toMatchObject({
         note: NOTE,
         productInfo: PRODUCT_INFO,
-        purchasedOn: "2024",
+        startedOn: "2024",
       });
 
     await updateManagedItem(db, householdAMember, itemId, BASE_INPUT);
     await expect(getManagedItemForEdit(db, householdAMember, itemId))
-      .resolves.toMatchObject({ note: null, productInfo: null, purchasedOn: null });
+      .resolves.toMatchObject({ note: null, productInfo: null, startedOn: null });
   });
 
-  it("0008適用前に作られた行は、記録が未設定のまま表示・編集できる", async () => {
+  it("0008・0011適用前に作られた行は、記録が未設定のまま表示・編集できる", async () => {
     // migration適用前の行に相当する、追加列を書き込まないINSERT。
     await db.prepare(
       "INSERT INTO managed_items (id, household_id, name, kind) VALUES ('legacy-item', 'household-a', '既存の管理対象', 'appliance')",
@@ -138,7 +140,7 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
         name: "既存の管理対象",
         note: null,
         productInfo: null,
-        purchasedOn: null,
+        startedOn: null,
       });
 
     await updateManagedItem(db, householdAMember, "legacy-item", {
@@ -155,7 +157,7 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
       ...BASE_INPUT,
       note: NOTE,
       productInfo: PRODUCT_INFO,
-      purchasedOn: "2024-05-10",
+      startedOn: "2024-05-10",
     });
 
     await expect(getManagedItemForEdit(db, householdBMember, itemId)).resolves.toBeNull();
@@ -186,15 +188,15 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
       .resolves.toMatchObject({ productInfo: PRODUCT_INFO });
   });
 
-  it("列の制約が長すぎる値と壊れた購入時期を拒否する", async () => {
+  it("列の制約が長すぎる値と壊れた開始時期を拒否する", async () => {
     const itemId = await createManagedItem(db, householdAMember, BASE_INPUT);
 
     for (const [column, value] of [
       ["note", "あ".repeat(1001)],
       ["product_info", "あ".repeat(201)],
-      ["purchased_on", "2024-5"],
-      ["purchased_on", "2024/05/10"],
-      ["purchased_on", "24-05"],
+      ["started_on", "2024-5"],
+      ["started_on", "2024/05/10"],
+      ["started_on", "24-05"],
     ]) {
       await expect(db.prepare(
         `UPDATE managed_items SET ${String(column)} = ?1 WHERE id = ?2`,

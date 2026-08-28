@@ -53,10 +53,13 @@ export type TaskRuleRow = {
   title: string;
 };
 // Issue #42: 家庭内での呼び名(name)とは別に残す任意の記録。いずれも未設定を許す。
+// startedOnは「対象との関係が始まった時期」を表す中立的な値で、大分類に
+// よらず同じ意味を持つ(Issue #239, YDR-033)。画面ラベルだけが大分類に応じて
+// 変わる。
 export type ManagedItemOptionalAttributes = {
   note: string | null;
   productInfo: string | null;
-  purchasedOn: string | null;
+  startedOn: string | null;
 };
 export type ManagedItemDetailRow = ManagedItemSummary
   & ManagedItemOptionalAttributes
@@ -67,7 +70,7 @@ export type ManagedItemDetailRow = ManagedItemSummary
   };
 
 const OPTIONAL_ATTRIBUTE_SELECT =
-  "m.note, m.product_info AS productInfo, m.purchased_on AS purchasedOn";
+  "m.note, m.product_info AS productInfo, m.started_on AS startedOn";
 
 type ClassificationDefinition = { legacyKind: string };
 
@@ -188,7 +191,7 @@ export async function createManagedItem(
   const classification = await requireActiveClassification(db, input);
   const itemId = crypto.randomUUID();
   const statements = [db.prepare(`INSERT INTO managed_items (
-      id, household_id, name, kind, note, product_info, purchased_on
+      id, household_id, name, kind, note, product_info, started_on
     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`)
     .bind(
       itemId,
@@ -197,7 +200,7 @@ export async function createManagedItem(
       classification.legacyKind,
       input.note,
       input.productInfo,
-      input.purchasedOn,
+      input.startedOn,
     ),
   db.prepare(`INSERT INTO managed_item_classifications (
       managed_item_id, household_id, kind_code, item_type_code, custom_item_type
@@ -264,8 +267,9 @@ export async function getManagedItemForEdit(
 
 // Issue #40: 名前・種類・外部リンクをD1側の家庭境界とトランザクションで
 // 一括更新する(YDR-022、クライアントからhousehold_idを受け取らない)。
-// Issue #42のメモ・商品情報・購入時期は名前と同じ行にあるため、同じ
-// UPDATE一文で更新される(未設定化はNULLの書き込みで表す)。
+// Issue #42のメモ・商品情報・開始時期(Issue #239でstarted_onへ移行、YDR-033)は
+// 名前と同じ行にあるため、同じUPDATE一文で更新される(未設定化はNULLの
+// 書き込みで表す)。
 // 外部リンクは既存行を消してから(未設定ならそのまま、設定ありなら)1件だけ
 // 挿入し直すことで、追加・変更・未設定化のいずれも同じ経路で扱う。
 // createManagedItemと同じくdb.batch()で一括実行し、対象が自家庭に無ければ
@@ -281,7 +285,7 @@ export async function updateManagedItem(
   const statements = [
     db.prepare(
       `UPDATE managed_items
-          SET name = ?1, kind = ?2, note = ?5, product_info = ?6, purchased_on = ?7
+          SET name = ?1, kind = ?2, note = ?5, product_info = ?6, started_on = ?7
         WHERE id = ?3 AND household_id = ?4`,
     ).bind(
       input.name,
@@ -290,7 +294,7 @@ export async function updateManagedItem(
       householdId,
       input.note,
       input.productInfo,
-      input.purchasedOn,
+      input.startedOn,
     ),
     db.prepare(
       `INSERT INTO managed_item_classifications (

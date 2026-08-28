@@ -1320,43 +1320,44 @@ h1 {
   font-size: 0.76rem;
 }
 
-/* Issue #42: 購入時期は年・月・日を横に並べ、狭い画面では折り返す。 */
-.purchase-date-fieldset {
+/* Issue #42: 開始時期は年・月・日を横に並べ、狭い画面では折り返す。
+   Issue #239でstarted_onへ移行し、クラス名も中立的な名前に揃えた。 */
+.started-on-fieldset {
   margin: 4px 0 0;
   padding: 0;
   border: 0;
 }
 
-.purchase-date-fieldset legend {
+.started-on-fieldset legend {
   padding: 0;
   font-size: 0.78rem;
   font-weight: 800;
 }
 
-.managed-item-form .purchase-date-help {
+.managed-item-form .started-on-help {
   margin-bottom: 6px;
 }
 
-.purchase-date-inputs {
+.started-on-inputs {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.purchase-date-inputs > span {
+.started-on-inputs > span {
   display: grid;
   gap: 4px;
 }
 
-.auth-form .purchase-date-inputs label {
+.auth-form .started-on-inputs label {
   margin-top: 0;
 }
 
-.auth-form .purchase-date-inputs input {
+.auth-form .started-on-inputs input {
   width: 6rem;
 }
 
-.auth-form .purchase-date-inputs select {
+.auth-form .started-on-inputs select {
   width: 6.5rem;
 }
 

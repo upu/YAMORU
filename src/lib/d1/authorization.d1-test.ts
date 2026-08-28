@@ -11,6 +11,7 @@ import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.
 import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
 import undatedTodosSql from "../../../d1/migrations/0009_undated_one_time_todos.sql?raw";
 import monthEndSql from "../../../d1/migrations/0010_monthly_day_month_end.sql?raw";
+import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
 import {
   listAuthorizedManagedItems,
   updateAuthorizedManagedItemName,
@@ -114,6 +115,7 @@ beforeAll(async () => {
   await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
   await db.batch(triggerAwareStatements(undatedTodosSql).map((statement) => db.prepare(statement)));
   await db.batch(triggerAwareStatements(monthEndSql).map((statement) => db.prepare(statement)));
+  await db.batch(triggerAwareStatements(startedOnSql).map((statement) => db.prepare(statement)));
 });
 
 beforeEach(async () => {
@@ -215,7 +217,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "A contract",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     const aItems = await listManagedItems(db, householdAMember);
     const bItems = await listManagedItems(db, householdBMember);
@@ -232,7 +234,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Must roll back",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     })).rejects.toThrow();
     await expect(db.prepare(
       "SELECT count(*) AS count FROM managed_items WHERE name = 'Must roll back'",
@@ -248,7 +250,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A updated",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
@@ -262,7 +264,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A updated",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await expect(db.prepare(
       "SELECT count(*) AS count FROM external_links WHERE managed_item_id = 'item-a'",
@@ -278,7 +280,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item B",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
   });
 
@@ -291,7 +293,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await updateManagedItem(db, householdAMember, "item-a", {
       customItemType: null,
@@ -301,7 +303,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     await expect(db.prepare(
@@ -318,7 +320,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Hacked",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     })).rejects.toThrow("管理対象が見つかりません。");
     await expect(getManagedItemForEdit(db, householdAMember, "item-b")).resolves.toBeNull();
     await expect(db.prepare(
@@ -335,7 +337,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     await expect(updateManagedItem(db, householdAMember, "item-a", {
@@ -346,7 +348,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Should not persist",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     })).rejects.toThrow();
 
     await expect(getManagedItemForEdit(db, householdAMember, "item-a")).resolves.toEqual({
@@ -360,7 +362,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       name: "Item A",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
   });
 
@@ -815,7 +817,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "浄水フィルター",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const filtered = await listManagedItems(db, householdAMember, { search: "浄水" });
@@ -831,7 +833,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "AEDトレーナー",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const lowerFiltered = await listManagedItems(db, householdAMember, { search: "aed" });
@@ -858,7 +860,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "10%OFFクーポン家電",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await createManagedItem(db, householdAMember, {
       customItemType: null,
@@ -868,7 +870,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "10円玉OFFクーポン家電",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const filtered = await listManagedItems(db, householdAMember, { search: "10%OFF" });
@@ -884,7 +886,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "冷蔵庫",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const filtered = await listManagedItems(db, householdAMember, { kindCode: "asset" });
@@ -902,7 +904,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "冷蔵庫",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await createManagedItem(db, householdAMember, {
       customItemType: "特注の棚",
@@ -912,7 +914,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "オーダー家具",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const filtered = await listManagedItems(db, householdAMember, { itemTypeCode: "appliance" });
@@ -928,7 +930,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "リビングの冷蔵庫",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await createManagedItem(db, householdAMember, {
       customItemType: null,
@@ -938,7 +940,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "キッチンの冷蔵庫",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const combined = await listManagedItems(db, householdAMember, {
@@ -958,7 +960,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "共通のキーワード用B",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
     await createManagedItem(db, householdAMember, {
       customItemType: null,
@@ -968,7 +970,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
       name: "共通のキーワード用A",
       note: null,
       productInfo: null,
-      purchasedOn: null,
+      startedOn: null,
     });
 
     const filtered = await listManagedItems(db, householdAMember, { search: "共通のキーワード" });

@@ -44,6 +44,7 @@
 | YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
 | YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Accepted | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
 | YDR-032 | 毎月の定例日指定に「月末」を固定日1〜31とは別の意味として追加する | Accepted | [ydr-032-monthly-day-month-end.md](ydr-032-monthly-day-month-end.md) |
+| YDR-033 | ManagedItemの開始時期をstarted_onへ段階移行し、大分類ごとの言葉で表示する | Accepted | [ydr-033-managed-item-started-on.md](ydr-033-managed-item-started-on.md) |
 
 ## 新しい意思決定の追加
 

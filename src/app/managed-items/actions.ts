@@ -8,8 +8,8 @@ import {
   createManagedItem as createManagedItemInD1,
   updateManagedItem as updateManagedItemInD1,
 } from "../../lib/d1/managed-items";
-import { isSafeExternalUrl } from "./model";
-import { toPurchaseDate } from "./purchase-date";
+import { isSafeExternalUrl, startedOnLabel } from "./model";
+import { toStartedOn } from "./started-on";
 import type { ManagedItemActionState } from "./state";
 
 const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
@@ -34,7 +34,7 @@ type ParsedManagedItemForm =
       name: string;
       note: string | null;
       productInfo: string | null;
-      purchasedOn: string | null;
+      startedOn: string | null;
       status: "ok";
     }
   | ManagedItemActionState;
@@ -42,7 +42,7 @@ type ParsedManagedItemForm =
 type ParsedOptionalAttributes = {
   note: string | null;
   productInfo: string | null;
-  purchasedOn: string | null;
+  startedOn: string | null;
   status: "ok";
 } | ManagedItemActionState;
 
@@ -150,7 +150,14 @@ function formValue(formData: FormData, field: string): string {
   return typeof raw === "string" ? raw : "";
 }
 
-function parseOptionalAttributes(formData: FormData): ParsedOptionalAttributes {
+// Issue #239: 入力エラーの文言も、選択中の大分類に合う見出し語(「購入時期」
+// など)で伝える(YDR-033)。kindCodeは分類の妥当性を検証済みとは限らない
+// (大分類の存在確認はrequireActiveClassificationがD1側で行う)ため、未知の
+// 値でもstartedOnLabelが「開始時期」へ丸める。
+function parseOptionalAttributes(
+  formData: FormData,
+  kindCode: string,
+): ParsedOptionalAttributes {
   const note = parseOptionalText(formData, "note", "メモ", NOTE_MAX_LENGTH);
   if (note.status !== "ok") return note;
   const productInfo = parseOptionalText(
@@ -161,14 +168,14 @@ function parseOptionalAttributes(formData: FormData): ParsedOptionalAttributes {
   );
   if (productInfo.status !== "ok") return productInfo;
 
-  const purchaseDate = toPurchaseDate({
-    day: formValue(formData, "purchasedDay"),
-    month: formValue(formData, "purchasedMonth"),
-    year: formValue(formData, "purchasedYear"),
+  const startedOn = toStartedOn({
+    day: formValue(formData, "startedDay"),
+    month: formValue(formData, "startedMonth"),
+    year: formValue(formData, "startedYear"),
   });
-  if (purchaseDate.status !== "ok") {
+  if (startedOn.status !== "ok") {
     return {
-      message: "購入時期は、年、年と月、年月日のいずれかで入力してください。",
+      message: `${startedOnLabel(kindCode)}は、年、年と月、年月日のいずれかで入力してください。`,
       status: "error",
     };
   }
@@ -176,7 +183,7 @@ function parseOptionalAttributes(formData: FormData): ParsedOptionalAttributes {
   return {
     note: note.value,
     productInfo: productInfo.value,
-    purchasedOn: purchaseDate.value,
+    startedOn: startedOn.value,
     status: "ok",
   };
 }
@@ -190,7 +197,7 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   if (classification.status !== "ok") return classification;
   const externalUrl = parseExternalUrl(formData);
   if (externalUrl.status !== "ok") return externalUrl;
-  const optional = parseOptionalAttributes(formData);
+  const optional = parseOptionalAttributes(formData, classification.kindCode);
   if (optional.status !== "ok") return optional;
 
   return {
@@ -201,7 +208,7 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
     name,
     note: optional.note,
     productInfo: optional.productInfo,
-    purchasedOn: optional.purchasedOn,
+    startedOn: optional.startedOn,
     status: "ok",
   };
 }
@@ -224,7 +231,7 @@ export async function createManagedItem(
       name: parsed.name,
       note: parsed.note,
       productInfo: parsed.productInfo,
-      purchasedOn: parsed.purchasedOn,
+      startedOn: parsed.startedOn,
     });
   } catch {
     return {
@@ -264,7 +271,7 @@ export async function updateManagedItem(
       name: parsed.name,
       note: parsed.note,
       productInfo: parsed.productInfo,
-      purchasedOn: parsed.purchasedOn,
+      startedOn: parsed.startedOn,
     });
   } catch {
     return {

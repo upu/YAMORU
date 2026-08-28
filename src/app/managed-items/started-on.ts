@@ -1,19 +1,24 @@
-// Issue #42: 購入時期は「分かる精度だけ」を残す。年しか覚えていない対象へ
+// Issue #42: 開始時期は「分かる精度だけ」を残す。年しか覚えていない対象へ
 // 偽の月日を推測入力させないため、年 / 年月 / 年月日の三段階を扱う。
 //
 // 保存形式はISO-8601の日付を分かる精度で切り詰めた一つの文字列とし
 // (`2024` / `2024-05` / `2024-05-10`)、精度を別の列へ持たない。精度は
 // 長さから一意に決まるため「精度はyearなのに日が入っている」といった
 // 不整合が起こらず、辞書順の比較が暦順と一致する。
-export type PurchaseDatePrecision = "day" | "month" | "year";
+//
+// Issue #239: 保存項目そのものの名前は`purchasedOn`(購入時期)から中立的な
+// `startedOn`(対象との関係が始まった時期)へ移行した(YDR-033)。この
+// モジュールが扱うのは値の精度・書式であり、大分類ごとの画面ラベルは
+// model.tsのstartedOnLabelが受け持つ。
+export type StartedOnPrecision = "day" | "month" | "year";
 
-export type PurchaseDateParts = {
+export type StartedOnParts = {
   day: string;
   month: string;
   year: string;
 };
 
-export const EMPTY_PURCHASE_DATE_PARTS: PurchaseDateParts = {
+export const EMPTY_STARTED_ON_PARTS: StartedOnParts = {
   day: "",
   month: "",
   year: "",
@@ -21,15 +26,15 @@ export const EMPTY_PURCHASE_DATE_PARTS: PurchaseDateParts = {
 
 const YEAR_PATTERN = /^\d{4}$/u;
 
-export function purchaseDatePrecision(value: string): PurchaseDatePrecision {
+export function startedOnPrecision(value: string): StartedOnPrecision {
   const parts = value.split("-");
   if (parts.length === 1) return "year";
   return parts.length === 2 ? "month" : "day";
 }
 
-export function formatPurchaseDate(value: string): string {
+export function formatStartedOn(value: string): string {
   const [year, month, day] = value.split("-");
-  switch (purchaseDatePrecision(value)) {
+  switch (startedOnPrecision(value)) {
     case "year": return `${year}年ごろ`;
     case "month": return `${year}年${String(Number(month))}月`;
     default: return `${year}年${String(Number(month))}月${String(Number(day))}日`;
@@ -37,8 +42,8 @@ export function formatPurchaseDate(value: string): string {
 }
 
 // 編集画面の初期値へ戻す。保存されていない精度の欄は空にする。
-export function splitPurchaseDate(value: string | null): PurchaseDateParts {
-  if (value === null) return EMPTY_PURCHASE_DATE_PARTS;
+export function splitStartedOn(value: string | null): StartedOnParts {
+  if (value === null) return EMPTY_STARTED_ON_PARTS;
   const [year = "", month = "", day = ""] = value.split("-");
   return { day, month, year };
 }
@@ -50,7 +55,7 @@ function isRealCalendarDate(year: number, month: number, day: number): boolean {
     && date.getUTCDate() === day;
 }
 
-export type PurchaseDateResult =
+export type StartedOnResult =
   | { status: "error" }
   | { status: "ok"; value: string | null };
 
@@ -58,7 +63,7 @@ function toMonthOrDay(
   year: string,
   month: string,
   day: string,
-): PurchaseDateResult {
+): StartedOnResult {
   const monthNumber = Number(month);
   if (!Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
     return { status: "error" };
@@ -78,7 +83,7 @@ function toMonthOrDay(
 
 // 年 / 年月 / 年月日のいずれか、またはすべて空だけを受け付ける。
 // 年のない月、月のない日は「分かる精度」として成立しないため拒否する。
-export function toPurchaseDate(parts: PurchaseDateParts): PurchaseDateResult {
+export function toStartedOn(parts: StartedOnParts): StartedOnResult {
   const year = parts.year.trim();
   const month = parts.month.trim();
   const day = parts.day.trim();

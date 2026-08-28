@@ -45,9 +45,9 @@ type ManagedItemFormInput = {
   name?: string;
   note?: string;
   productInfo?: string;
-  purchasedDay?: string;
-  purchasedMonth?: string;
-  purchasedYear?: string;
+  startedDay?: string;
+  startedMonth?: string;
+  startedYear?: string;
 };
 
 function managedItemForm({
@@ -58,9 +58,9 @@ function managedItemForm({
   name = "猫の浄水器",
   note = "",
   productInfo = "",
-  purchasedDay = "",
-  purchasedMonth = "",
-  purchasedYear = "",
+  startedDay = "",
+  startedMonth = "",
+  startedYear = "",
 }: ManagedItemFormInput = {}) {
   const formData = new FormData();
   formData.set("name", name);
@@ -70,9 +70,9 @@ function managedItemForm({
   formData.set("externalUrl", externalUrl);
   formData.set("note", note);
   formData.set("productInfo", productInfo);
-  formData.set("purchasedYear", purchasedYear);
-  formData.set("purchasedMonth", purchasedMonth);
-  formData.set("purchasedDay", purchasedDay);
+  formData.set("startedYear", startedYear);
+  formData.set("startedMonth", startedMonth);
+  formData.set("startedDay", startedDay);
   return formData;
 }
 
@@ -80,7 +80,7 @@ function managedItemForm({
 const UNSET_OPTIONAL_ATTRIBUTES = {
   note: null,
   productInfo: null,
-  purchasedOn: null,
+  startedOn: null,
 } as const;
 
 describe("ManagedItem登録操作", () => {
@@ -210,78 +210,6 @@ describe("ManagedItem登録操作", () => {
     });
   });
 
-  it("商品情報とメモを入力どおり保存し、購入時期を分かる精度で渡す(Issue #42)", async () => {
-    await createManagedItem(
-      INITIAL_STATE,
-      managedItemForm({
-        note: "  リビングの窓側に設置。\n説明書は棚の中。  ",
-        productInfo: "  三菱 霧ヶ峰 MSZ-ZW2224S  ",
-        purchasedMonth: "05",
-        purchasedYear: "2024",
-      }),
-    );
-
-    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
-      customItemType: null,
-      externalUrl: null,
-      itemTypeCode: "appliance",
-      kindCode: "asset",
-      name: "猫の浄水器",
-      // 前後の空白だけを落とし、大文字小文字・記号・語中の空白・改行は変えない。
-      note: "リビングの窓側に設置。\n説明書は棚の中。",
-      productInfo: "三菱 霧ヶ峰 MSZ-ZW2224S",
-      purchasedOn: "2024-05",
-    });
-  });
-
-  it.each([
-    ["年だけ", { purchasedYear: "2024" }, "2024"],
-    ["年と月", { purchasedMonth: "05", purchasedYear: "2024" }, "2024-05"],
-    [
-      "年月日",
-      { purchasedDay: "10", purchasedMonth: "05", purchasedYear: "2024" },
-      "2024-05-10",
-    ],
-  ])("購入時期を%sの精度で保存する", async (_precision, parts, expected) => {
-    await createManagedItem(INITIAL_STATE, managedItemForm(parts));
-
-    expect(createManagedItemInD1Mock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      expect.objectContaining({ purchasedOn: expected }),
-    );
-  });
-
-  it.each([
-    ["月だけ", { purchasedMonth: "05" }],
-    ["年のない日", { purchasedDay: "10", purchasedMonth: "05" }],
-    ["月のない日", { purchasedDay: "10", purchasedYear: "2024" }],
-    ["4桁でない年", { purchasedYear: "24" }],
-    ["存在しない日", { purchasedDay: "31", purchasedMonth: "02", purchasedYear: "2024" }],
-  ])("成立しない購入時期(%s)はD1へ送らない", async (_case, parts) => {
-    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
-
-    expect(getD1ContextMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "購入時期は、年、年と月、年月日のいずれかで入力してください。",
-      status: "error",
-    });
-  });
-
-  it.each([
-    ["メモ", { note: "あ".repeat(1001) }, "メモは1000文字以内で入力してください。"],
-    [
-      "商品情報",
-      { productInfo: "あ".repeat(201) },
-      "メーカー・商品名などは200文字以内で入力してください。",
-    ],
-  ])("長すぎる%sはD1へ送らない", async (_field, parts, message) => {
-    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
-
-    expect(getD1ContextMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ message, status: "error" });
-  });
-
   it("保存失敗の内部詳細を表示せず再試行できる案内を返す", async () => {
     createManagedItemInD1Mock.mockRejectedValue(
       new Error("sensitive database detail"),
@@ -298,6 +226,104 @@ describe("ManagedItem登録操作", () => {
     });
     expect(result.message).not.toContain("sensitive database detail");
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ManagedItem登録操作の任意の記録(Issue #42, #239)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createManagedItemInD1Mock.mockResolvedValue("managed-item-id");
+  });
+
+  it("商品情報とメモを入力どおり保存し、開始時期を分かる精度で渡す(Issue #42)", async () => {
+    await createManagedItem(
+      INITIAL_STATE,
+      managedItemForm({
+        note: "  リビングの窓側に設置。\n説明書は棚の中。  ",
+        productInfo: "  三菱 霧ヶ峰 MSZ-ZW2224S  ",
+        startedMonth: "05",
+        startedYear: "2024",
+      }),
+    );
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith("db", "session", {
+      customItemType: null,
+      externalUrl: null,
+      itemTypeCode: "appliance",
+      kindCode: "asset",
+      name: "猫の浄水器",
+      // 前後の空白だけを落とし、大文字小文字・記号・語中の空白・改行は変えない。
+      note: "リビングの窓側に設置。\n説明書は棚の中。",
+      productInfo: "三菱 霧ヶ峰 MSZ-ZW2224S",
+      startedOn: "2024-05",
+    });
+  });
+
+  it.each([
+    ["年だけ", { startedYear: "2024" }, "2024"],
+    ["年と月", { startedMonth: "05", startedYear: "2024" }, "2024-05"],
+    [
+      "年月日",
+      { startedDay: "10", startedMonth: "05", startedYear: "2024" },
+      "2024-05-10",
+    ],
+  ])("開始時期を%sの精度で保存する", async (_precision, parts, expected) => {
+    await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ startedOn: expected }),
+    );
+  });
+
+  it.each([
+    ["月だけ", { startedMonth: "05" }],
+    ["年のない日", { startedDay: "10", startedMonth: "05" }],
+    ["月のない日", { startedDay: "10", startedYear: "2024" }],
+    ["4桁でない年", { startedYear: "24" }],
+    ["存在しない日", { startedDay: "31", startedMonth: "02", startedYear: "2024" }],
+  ])("成立しない開始時期(%s)はD1へ送らない(大分類「モノ」の見出し語)", async (_case, parts) => {
+    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "購入時期は、年、年と月、年月日のいずれかで入力してください。",
+      status: "error",
+    });
+  });
+
+  // Issue #239: 入力エラーの文言も選択中の大分類に合う見出し語で伝える(YDR-033)。
+  it.each([
+    ["service", "利用・契約を始めた時期"],
+    ["obligation", "開始時期"],
+    ["other", "開始時期"],
+    ["unknown-kind", "開始時期"],
+  ])("大分類(%s)に応じた見出し語でエラーを伝える", async (kindCode, label) => {
+    const result = await createManagedItem(
+      INITIAL_STATE,
+      managedItemForm({ kindCode, startedMonth: "05" }),
+    );
+
+    expect(result).toEqual({
+      message: `${label}は、年、年と月、年月日のいずれかで入力してください。`,
+      status: "error",
+    });
+  });
+
+  it.each([
+    ["メモ", { note: "あ".repeat(1001) }, "メモは1000文字以内で入力してください。"],
+    [
+      "商品情報",
+      { productInfo: "あ".repeat(201) },
+      "メーカー・商品名などは200文字以内で入力してください。",
+    ],
+  ])("長すぎる%sはD1へ送らない", async (_field, parts, message) => {
+    const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ message, status: "error" });
   });
 });
 
@@ -396,7 +422,7 @@ describe("ManagedItem編集操作(Issue #40)", () => {
   it("空欄にした任意の記録を未設定としてD1へ渡す(Issue #42)", async () => {
     await updateManagedItem(
       INITIAL_STATE,
-      managedItemEditForm({ note: "   ", productInfo: "", purchasedYear: "" }),
+      managedItemEditForm({ note: "   ", productInfo: "", startedYear: "" }),
     );
 
     expect(updateManagedItemInD1Mock).toHaveBeenCalledWith(
@@ -406,7 +432,7 @@ describe("ManagedItem編集操作(Issue #40)", () => {
       expect.objectContaining({
         note: null,
         productInfo: null,
-        purchasedOn: null,
+        startedOn: null,
       }),
     );
   });
