@@ -595,12 +595,18 @@ h1 {
 }
 
 /* コンパクトなリスト表示。行全体がTodo詳細への単一の導線(誤操作を避ける
-   ため、カードと同じ操作は置かない、issue #224の設計メモ)。 */
+   ため、カードと同じ操作は置かない、issue #224の設計メモ)。Issue #243:
+   ul要素そのものにブラウザ標準の箇条書き(list-style)と標準余白(margin・
+   padding)が残っていたため、明示的にリセットする(受け入れ基準)。文書
+   構造としてのリストは維持し、見た目だけからマーカー・インデントを除く。 */
 .todo-list-rows {
   display: grid;
+  margin: 0;
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--paper);
+  list-style: none;
   overflow: hidden;
 }
 
@@ -610,7 +616,7 @@ h1 {
 
 .todo-list-row-link {
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 10px;
   min-width: 0;
   padding: 11px 14px;
@@ -627,30 +633,39 @@ h1 {
   outline-offset: -3px;
 }
 
+/* Issue #243: Todo名・短い予定・状態ラベルを1行へ並べる(issue本文の
+   設計メモ「レイアウト」)。通常のモバイル幅・文字サイズでは折り返さず
+   収まり、幅が足りない・文字拡大時は状態ラベル側から自然に折り返す
+   (横スクロールや情報欠落を強制しない、受け入れ基準)。 */
 .todo-list-row-body {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.todo-list-row-title-line {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
 }
 
 .todo-list-row-title {
+  flex: 1 1 160px;
+  min-width: 0;
   overflow-wrap: anywhere;
   font-size: 0.86rem;
   font-weight: 700;
 }
 
+/* 日付や短い状態値は途中で不自然に改行させず(issue本文の設計メモ)、
+   家族名が長い場合だけ安全側で省略する。 */
 .todo-list-row-meta {
-  overflow-wrap: anywhere;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--muted);
   font-size: 0.74rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .section-heading {

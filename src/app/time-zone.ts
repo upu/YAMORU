@@ -132,6 +132,16 @@ export function formatTokyoMonthDay(value: string): string {
   }).format(new Date(value));
 }
 
+// Issue #243: コンパクトなリスト表示専用。「8月28日」ではなく「8/28」の
+// ように、意味を保ったまま短く表す(issue本文の期待する挙動)。
+export function formatTokyoShortMonthDay(value: string): string {
+  return new Intl.DateTimeFormat("ja-JP", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: PHASE_ONE_TIME_ZONE,
+  }).format(new Date(value));
+}
+
 // task-schedule.tsのdescribeMaintenanceScheduleと同じ文言方針(YDR-017)を、
 // Tokyo基準のISO文字列から組み立てる。「交換」など特定の操作を前提にした
 // 表現は使わず、Todoのタイトル側で対象操作を伝える前提の中立的な文言にする

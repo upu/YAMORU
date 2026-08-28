@@ -83,6 +83,9 @@ function buildUndatedEntry(
     item: {
       ...pendingTodoItemBase(row),
       badge: "未定",
+      // Issue #243: リスト表示のバッジがすでに「未定」を示すため、
+      // listScheduleは日付を持たず重複させない。
+      listSchedule: { kind: "undated" },
       meta: "予定日: 未定 ・ 繰り返しなし",
       oneTimeScheduledFor: null,
       tone: "upcoming",
@@ -107,6 +110,11 @@ function buildMaintenanceEntry(
     category: state === "before-window" ? "before-window" : "reminder",
     item: {
       ...pendingTodoItemBase(row),
+      // Issue #243: 推奨期間前は開始日(from)、期間内・上限超過は上限日
+      // (until)を短く示す。状態語はバッジ(予定/そろそろ/要確認)が伝える。
+      listSchedule: state === "before-window"
+        ? { iso: scheduledFor, kind: "from" }
+        : { iso: dueAt, kind: "until" },
       meta: describeMaintenanceWindowFromIso(state, window),
       tone: MAINTENANCE_DISPLAY_COPY[state].tone,
     },
@@ -140,6 +148,9 @@ function buildStrictEntry(
     category: toStrictCategory(state, dueAt, nowIso),
     item: {
       ...pendingTodoItemBase(row),
+      // Issue #243: 期日だけを短く示す。期限切れ・今日・予定の別はバッジが
+      // 伝えるため、リスト表示では繰り返し方式(#227)を省略する。
+      listSchedule: { iso: dueAt, kind: "due" },
       meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
         recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
       }`,

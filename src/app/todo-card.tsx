@@ -4,7 +4,7 @@ import type { HouseholdMemberOption } from "../lib/d1/profiles";
 import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
 import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
 import { SchedulePanel } from "./managed-items/[id]/schedule-panel";
-import type { TodoTone } from "./task-schedule";
+import type { TodoListSchedule, TodoTone } from "./task-schedule";
 
 // ホーム(app/page.tsx)とTodo一覧(app/todos/page.tsx)は、同じTodoを
 // 同じ見た目・同じ操作で扱う(Issue #201)。カードの表示と操作はここに一つだけ
@@ -16,6 +16,9 @@ export type TodoCardItem = {
   detail: string;
   detailHref?: string;
   id: string;
+  // Issue #243: コンパクトなリスト表示(todo-list-row.tsx)専用。pending
+  // Todoにだけ設定し、item.metaの文章は解析しない(設計メモ案1)。
+  listSchedule?: TodoListSchedule;
   // Todoに関連する管理対象。家庭共通Todoではnull、完了・未完了のどちらにも設定する。
   managedItemId?: string | null;
   meta: string;
@@ -23,6 +26,10 @@ export type TodoCardItem = {
   occurrenceId?: string;
   // 一回限りTodoにだけ設定する。nullは予定日未定、文字列は具体日あり。
   oneTimeScheduledFor?: string | null;
+  // Issue #243: 実施済みTodoにだけ設定する、コンパクトなリスト表示専用の
+  // 実施時期・実施者(item.metaの文章は解析しない)。
+  performedAt?: string;
+  performedByName?: string;
   title: string;
   // pending Todoにだけ設定する、Todo詳細(/todos/:id)への導線(Issue #203)。
   todoHref?: string;
