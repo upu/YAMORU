@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import { ManagedItemDetailContent } from "../src/app/managed-items/[id]/page";
 import { ManagedItemEditForm } from "../src/app/managed-items/[id]/edit/managed-item-edit-form";
