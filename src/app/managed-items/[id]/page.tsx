@@ -319,7 +319,9 @@ function RelatedTodoSection({
           {todos.map((todo) => (
             <li key={todo.id}>
               <div className="task-title-row">
-                <strong>{todo.title}</strong>
+                <strong>
+                  <Link href={`/todos/${encodeURIComponent(todo.id)}`}>{todo.title}</Link>
+                </strong>
                 <span className={`tone-label tone-${todo.tone}`}>{todo.badge}</span>
               </div>
               <span className="input-help">
