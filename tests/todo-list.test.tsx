@@ -115,7 +115,9 @@ describe("未完了Todoの並び(buildTodoListItems)", () => {
     );
 
     expect(items.map((item) => item.id)).toEqual(["today", "later", "undated"]);
-    expect(items[2].meta).toBe("予定日: 未定 ・ 繰り返しなし");
+    // Issue #267: バッジの「未定」ですでに意味が伝わるため、metaの文章は
+    // 重ねて出さない(TodoCardは空文字のmetaを描画しない)。
+    expect(items[2].meta).toBe("");
   });
 
   it("管理対象に紐づかないTodoもリンクなしで含める", () => {
@@ -231,7 +233,7 @@ describe("Todo一覧画面(TodoListContent)", () => {
     expect(screen.queryByRole("region", { name: "未完了のTodo" })).not.toBeInTheDocument();
   });
 
-  it("一覧から担当変更・完了・予定日設定を利用できる", () => {
+  it("一覧から担当変更・完了を利用できる", () => {
     const row = onceRow("undated-unlinked", null, "通知書が届いたら申請");
     row.task_rules.managed_items = null;
     completeMaintenanceTaskMock.mockResolvedValue({
@@ -242,9 +244,6 @@ describe("Todo一覧画面(TodoListContent)", () => {
 
     const section = screen.getByRole("region", { name: "未完了のTodo" });
     expect(within(section).getByLabelText("通知書が届いたら申請の担当")).toBeInTheDocument();
-    expect(
-      within(section).getByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }),
-    ).toBeInTheDocument();
 
     fireEvent.click(within(section).getByRole("button", { name: "通知書が届いたら申請を記録" }));
     fireEvent.click(within(section).getByRole("button", { name: "今、自分がやった" }));
@@ -256,5 +255,23 @@ describe("Todo一覧画面(TodoListContent)", () => {
     ];
     expect(managedItemId).toBeNull();
     expect(occurrenceId).toBe("undated-unlinked");
+  });
+
+  // Issue #267: 予定日未定カードから「予定日を設定」を外し、Todo名から
+  // Todo詳細を開いた編集画面で予定日を設定する流れへそろえる。
+  it("予定日未定カードに「予定日を設定」を出さず、Todo名からTodo詳細へ移動できる", () => {
+    const row = onceRow("undated-unlinked", null, "通知書が届いたら申請");
+    row.task_rules.managed_items = null;
+    renderTodoList(buildTodoListItems([row], NOW));
+
+    const section = screen.getByRole("region", { name: "未完了のTodo" });
+    expect(
+      within(section).queryByRole("button", { name: "通知書が届いたら申請の予定日を設定する" }),
+    ).not.toBeInTheDocument();
+    expect(within(section).queryByText("繰り返しなし")).not.toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "通知書が届いたら申請" })).toHaveAttribute(
+      "href",
+      "/todos/undated-unlinked",
+    );
   });
 });

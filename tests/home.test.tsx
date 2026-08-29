@@ -242,7 +242,6 @@ describe("ホームのTodo操作", () => {
           meta: "今日が予定日です ・ 繰り返しなし",
           occurrenceId: "dated",
           // 具体日がある一回限りTodo。以前はここに「予定日を未定に戻す」が出ていた。
-          oneTimeScheduledFor: "2026-08-11T15:00:00.000Z",
           title: "家族会議",
           todoHref: "/todos/dated",
           tone: "today",

@@ -463,14 +463,12 @@ function TodoListItems({
   currentUserId,
   items,
   members,
-  status,
   viewParam,
 }: {
   actorName: string;
   currentUserId: string;
   items: TodoCardItem[];
   members: HouseholdMemberOption[];
-  status: TodoStatusFilter;
   viewParam: TodoListViewMode;
 }) {
   if (viewParam === "list") {
@@ -485,13 +483,13 @@ function TodoListItems({
   return (
     <div className="card-list">
       {items.map((item) => (
+        // Issue #267: 予定日未定Todoの再発見はTodo一覧の役目のまま維持するが
+        // (#201、#202)、予定日の設定・未定化自体はカードに置かず、Todo名から
+        // Todo詳細を開いた編集画面(#203)へ集約する(ホームのカードと同じ
+        // 方針、#204)。実施済みではoccurrenceId自体を持たせないため、
+        // statusに関わらずここでの操作は出ない(Issue #206)。
         <TodoCard
           actorName={actorName}
-          // 予定日未定Todoを再発見し、その場で予定日を決められるようにする
-          // (#201、#202)。ホームのカードでは提供しない(#204)。実施済みでは
-          // occurrenceId自体を持たせないため、この値に関わらず操作は出ない
-          // (Issue #206)。
-          canChangeSchedule={status === "pending"}
           currentUserId={currentUserId}
           item={item}
           key={item.id}
@@ -546,7 +544,6 @@ function TodoListSection({
         currentUserId={currentUserId}
         items={items}
         members={members}
-        status={status}
         viewParam={viewParam}
       />
 
