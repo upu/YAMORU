@@ -132,10 +132,17 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.getByText("繰り返しなし")).toBeInTheDocument();
     expect(screen.getByText("ぽっぷ")).toBeInTheDocument();
     expect(screen.getByText("2026年9月2日")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "← Todo一覧へ戻る" })).toHaveAttribute(
-      "href",
-      "/todos",
-    );
+  });
+
+  // Issue #264: Todo詳細は複数の画面から開くため、Todo一覧への固定戻りリンクは
+  // 表示しない。モバイル下部ナビゲーションなど既存の共通導線を使う。
+  it("Todo一覧へ戻る固定リンクを表示しない", () => {
+    renderDetail(todo());
+
+    expect(
+      screen.queryByRole("link", { name: "← Todo一覧へ戻る" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "ページ移動" })).not.toBeInTheDocument();
   });
 
   // Issue #244: Todo名直下の言い直し説明文は表示しない。
@@ -223,6 +230,15 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
     expect(screen.getByText("たろう")).toBeInTheDocument();
     // 完了済みTodoでは担当ではなく実施者を示す。
     expect(screen.queryByText("担当")).not.toBeInTheDocument();
+  });
+
+  // Issue #264: 完了済みTodo詳細でも固定戻りリンクは表示しない。
+  it("Todo一覧へ戻る固定リンクを表示しない", () => {
+    renderDetail(completedTodo());
+
+    expect(
+      screen.queryByRole("link", { name: "← Todo一覧へ戻る" }),
+    ).not.toBeInTheDocument();
   });
 
   it("実施記録の修正から訂正と完了取消を選べる", () => {
