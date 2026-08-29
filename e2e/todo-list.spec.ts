@@ -144,9 +144,17 @@ test("ホームから開いたTodo一覧で、自分の家庭の未完了Todoだ
   await expect(page.getByText(OTHER_HOUSEHOLD_TODO)).toHaveCount(0);
 
   // 一覧から未完了Todoの基本操作を利用できる。
-  await expect(
-    section.getByRole("button", { name: `${UNDATED_TODO}の予定日を設定する` }),
-  ).toBeVisible();
   await expect(section.getByLabel(`${TODAY_TODO}の担当`)).toBeVisible();
   await expect(section.getByRole("button", { name: `${TODAY_TODO}を記録` })).toBeVisible();
+
+  // Issue #267: 予定日未定カードに「予定日を設定」は出さず、繰り返しなしの
+  // 表示も重ねない。予定日を設定する場合はTodo名からTodo詳細を開く。
+  await expect(
+    section.getByRole("button", { name: `${UNDATED_TODO}の予定日を設定する` }),
+  ).toHaveCount(0);
+  const undatedCard = section.locator("article", { hasText: UNDATED_TODO });
+  await expect(undatedCard.getByText("繰り返しなし")).toHaveCount(0);
+  await undatedCard.getByRole("link", { name: UNDATED_TODO }).click();
+  await expect(page).toHaveURL(/\/todos\/[^/]+$/u);
+  await expect(page.getByRole("heading", { level: 1, name: UNDATED_TODO })).toBeVisible();
 });

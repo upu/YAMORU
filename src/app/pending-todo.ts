@@ -86,8 +86,10 @@ function buildUndatedEntry(
       // Issue #243: リスト表示のバッジがすでに「未定」を示すため、
       // listScheduleは日付を持たず重複させない。
       listSchedule: { kind: "undated" },
-      meta: "予定日: 未定 ・ 繰り返しなし",
-      oneTimeScheduledFor: null,
+      // Issue #267: カード表示のバッジ(「未定」)ですでに予定日未定であることが
+      // 伝わるため、「予定日: 未定 ・ 繰り返しなし」の文章は重ねて出さない
+      // (TodoCardは空文字のmetaを描画しない)。
+      meta: "",
       tone: "upcoming",
     },
     sortKey: null,
@@ -154,7 +156,6 @@ function buildStrictEntry(
       meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
         recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
       }`,
-      ...(recurrenceBasis === "once" ? { oneTimeScheduledFor: scheduledFor } : {}),
       tone: STRICT_DISPLAY_COPY[state].tone,
     },
     sortKey: dueAt,
