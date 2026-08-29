@@ -181,6 +181,9 @@ function TodoContentSection({ todo }: { todo: TodoDetailData }) {
   );
 }
 
+// Issue #264: Todo詳細はTodo一覧以外からも開くため、Todo一覧へ固定で戻る
+// back-navは置かない。代わりの戻り先も追加しない。モバイル下部ナビゲーション
+// などの既存の共通導線と、ブラウザ/PWAの履歴操作に任せる。
 export function TodoDetailContent({
   currentUserId,
   members,
@@ -192,10 +195,6 @@ export function TodoDetailContent({
 }) {
   return (
     <main className="detail-page todo-detail-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/todos">← Todo一覧へ戻る</Link>
-      </nav>
-
       <header className="detail-hero">
         <p className="detail-kicker">TODO</p>
         <h1>{todo.title}</h1>
