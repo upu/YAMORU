@@ -107,16 +107,27 @@ test("PC幅: カード表示とリスト表示を切り替え、リスト行は�
   await loginAndOpenTodoList(page);
 
   // 既定はカード表示で、現在の操作性(担当・完了)を維持する(受け入れ基準)。
-  await expect(page.getByRole("link", { name: "カード" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "カード表示" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByLabel(`${TASK_TITLE}の担当`)).toBeVisible();
 
+  // Issue #266: 担当候補は閉じた選択UIに収める。summaryはキーボードで
+  // 開け、選択後は閉じた状態でも現在の条件が分かる。
+  const assigneeToggle = page.getByText("担当: 全員", { exact: true });
+  await assigneeToggle.focus();
+  await expect(assigneeToggle).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("link", { name: "自分" })).toBeVisible();
+  await page.getByRole("link", { name: "自分" }).click();
+  await expect(page).toHaveURL(/[?&]assignee=owner\b/u);
+  await expect(page.getByText("担当: 自分", { exact: true })).toBeVisible();
+
   // リストへ切り替える。表示形式はURLに残り、再読み込みしても復元できる。
-  const listSwitch = page.getByRole("link", { name: "リスト" });
+  const listSwitch = page.getByRole("link", { name: "リスト表示" });
   await listSwitch.focus();
   await expect(listSwitch).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/[?&]view=list\b/u);
-  await expect(page.getByRole("link", { name: "リスト" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "リスト表示" })).toHaveAttribute("aria-current", "page");
 
   // リスト表示では担当・完了の変更操作を出さず(誤操作を避けるための設計、
   // issue本文の設計メモ)、識別情報(名前・予定・担当予定者)だけを行内に表示する。
@@ -148,7 +159,7 @@ test.describe("モバイル幅", () => {
   }) => {
     await loginAndOpenTodoList(page);
 
-    await page.getByRole("link", { name: "リスト" }).click();
+    await page.getByRole("link", { name: "リスト表示" }).click();
     await expect(page).toHaveURL(/[?&]view=list\b/u);
 
     const row = page.getByRole("link", { name: new RegExp(TASK_TITLE) });

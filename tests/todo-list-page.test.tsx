@@ -268,6 +268,8 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "自分" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByText("担当: 全員", { selector: "summary" }).closest("details"))
+      .not.toHaveAttribute("open");
   });
 
   it("assignee=自分のuserIdで、自分を担当予定者とする条件を渡す", async () => {
@@ -282,6 +284,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
     );
     expect(screen.getByRole("link", { name: "自分" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "全員" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByText("担当: 自分", { selector: "summary" })).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: 自分/)).toBeInTheDocument();
   });
 
@@ -296,6 +299,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       undefined,
     );
     expect(screen.getByRole("link", { name: "たろう" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("担当: たろう", { selector: "summary" })).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: たろう/)).toBeInTheDocument();
   });
 
@@ -310,6 +314,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       undefined,
     );
     expect(screen.getByRole("link", { name: "担当未定" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("担当: 担当未定", { selector: "summary" })).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: 担当未定/)).toBeInTheDocument();
   });
 
@@ -480,8 +485,8 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
 
     render(await TodoListPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByRole("link", { name: "カード" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "リスト" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "カード表示" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "リスト表示" })).not.toHaveAttribute("aria-current");
     expect(screen.getByLabelText("家族会議の担当")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "家族会議を記録" })).toBeInTheDocument();
   });
@@ -491,8 +496,8 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
 
     render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
 
-    expect(screen.getByRole("link", { name: "リスト" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "カード" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "リスト表示" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "カード表示" })).not.toHaveAttribute("aria-current");
     // カードの変更操作(誤操作を避けるため詳細へ集約、issue本文の設計メモ)は出さない。
     expect(screen.queryByLabelText("家族会議の担当")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "家族会議を記録" })).not.toBeInTheDocument();
@@ -582,11 +587,11 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
       searchParams: Promise.resolve({ assignee: "user-2", view: "list" }),
     }));
 
-    expect(screen.getByRole("link", { name: "カード" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "カード表示" })).toHaveAttribute(
       "href",
       "/todos?assignee=user-2",
     );
-    expect(screen.getByRole("link", { name: "リスト" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "リスト表示" })).toHaveAttribute(
       "href",
       "/todos?assignee=user-2&view=list",
     );
