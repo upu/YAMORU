@@ -1667,7 +1667,22 @@ h1 {
 }
 
 .ledger-item-type-picker input[type="search"] {
-  margin-bottom: 6px;
+  margin-bottom: 0;
+}
+
+.ledger-item-type-picker .managed-item-results {
+  margin-top: 6px;
+}
+
+.ledger-item-type-picker .radio-option:has(input:focus-visible) {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.ledger-search-fallback {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
 }
 
 .ledger-filter-summary {

@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -10,6 +11,7 @@ const {
   listManagedItemsMock,
   loadAccountStateMock,
   requireUserMock,
+  routerPushMock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
   listHouseholdCustomItemTypesMock: vi.fn(),
@@ -17,8 +19,10 @@ const {
   listManagedItemsMock: vi.fn(),
   loadAccountStateMock: vi.fn(),
   requireUserMock: vi.fn(),
+  routerPushMock: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: routerPushMock }) }));
 vi.mock("../src/lib/auth/current-user", () => ({ requireUser: requireUserMock }));
 vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/households", () => ({ loadAccountState: loadAccountStateMock }));
@@ -86,7 +90,7 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     expect(listHouseholdCustomItemTypesMock).not.toHaveBeenCalled();
   });
 
-  it("条件未指定では絞り込みを渡さず、検索欄は空・「すべて」を選択・条件クリアリンクは出さない", async () => {
+  it("条件未指定では絞り込みを渡さず、検索欄と詳しい種類の候補を閉じ、条件クリアリンクは出さない", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
     expect(listManagedItemsMock).toHaveBeenCalledWith(
@@ -95,7 +99,8 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
       { customItemType: undefined, itemTypeCode: undefined, kindCode: undefined, search: undefined },
     );
     expect(screen.getByRole("searchbox", { name: "管理対象名で検索" })).toHaveValue("");
-    expect(screen.getByRole("radio", { name: "すべて" })).toBeChecked();
+    expect(screen.getByText(/詳しい種類の候補は閉じています/)).toHaveClass("sr-only");
+    expect(screen.queryByRole("radio", { name: "すべて" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "条件をクリア" })).not.toBeInTheDocument();
   });
 
@@ -147,7 +152,9 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     );
     expect(screen.getByText(/大分類: モノ/)).toBeInTheDocument();
     expect(screen.getByText(/詳しい種類: 家電/)).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "家電" })).toBeChecked();
+    expect(screen.getByRole("link", { name: "詳しい種類「家電」を解除" }))
+      .toHaveAttribute("href", "/managed-items?kind=asset");
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
   });
 
   it("検索語・大分類・詳しい種類を組み合わせて同時に適用し、まとめて解除できる", async () => {
@@ -193,12 +200,15 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     expect(screen.queryByText("まだ管理対象はありません。右下の⊕から台帳に追加できます。")).not.toBeInTheDocument();
   });
 
-  it("大分類の選択肢ごとに詳しい種類をグループでまとめ、他家庭に関係なく分類の全候補を示す", async () => {
+  it("入力に一致した詳しい種類を大分類ごとのグループで示す", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
     const picker = screen.getByRole("group", { name: "詳しい種類で絞り込み" });
+    const searchbox = within(picker).getByRole("searchbox", { name: "詳しい種類の一部を入力" });
+    fireEvent.change(searchbox, { target: { value: "家電" } });
     const monoGroup = within(picker).getByRole("group", { name: "モノ" });
     expect(within(monoGroup).getByRole("radio", { name: "家電" })).toBeInTheDocument();
+    fireEvent.change(searchbox, { target: { value: "契約" } });
     const serviceGroup = within(picker).getByRole("group", { name: "サービス" });
     expect(within(serviceGroup).getByRole("radio", { name: "契約" })).toBeInTheDocument();
   });
@@ -222,15 +232,18 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
 // Issue #238: 自由入力した詳しい種類も、プリセットと同じ候補一覧から検索・
 // 選択して絞り込める。
 describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(ManagedItemsPage、Issue #238)", () => {
-  it("家庭内で使われている自由入力の候補をプリセットと同じ候補一覧に表示する", async () => {
+  it("家庭内で使われている自由入力の候補を、入力に一致したとき表示する", async () => {
     listHouseholdCustomItemTypesMock.mockResolvedValue([{ kindCode: "asset", label: "虫かご" }]);
 
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
     expect(listHouseholdCustomItemTypesMock).toHaveBeenCalledWith({}, { userId: "user-1" });
+    fireEvent.change(screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" }), {
+      target: { value: "かご" },
+    });
     const monoGroup = screen.getByRole("group", { name: "モノ" });
-    expect(within(monoGroup).getByRole("radio", { name: "家電" })).toBeInTheDocument();
     expect(within(monoGroup).getByRole("radio", { name: "虫かご（自由入力）" })).toBeInTheDocument();
+    expect(within(monoGroup).queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
   });
 
   it("itemType=custom:の条件を渡し、家族に見せる名前で表示・選択する", async () => {
@@ -249,7 +262,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
       { customItemType: "虫かご", itemTypeCode: undefined, kindCode: undefined, search: undefined },
     );
     expect(screen.getByText(/詳しい種類: 虫かご/)).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "虫かご（自由入力）" })).toBeChecked();
+    expect(screen.getByRole("link", { name: "詳しい種類「虫かご」を解除" }))
+      .toHaveAttribute("href", "/managed-items");
+    expect(screen.queryByRole("radio", { name: "虫かご（自由入力）" })).not.toBeInTheDocument();
   });
 
   it("プリセットと同じ表記の自由入力候補も、区別して両方選べる(同名候補)", async () => {
@@ -257,6 +272,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
 
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
+    fireEvent.change(screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" }), {
+      target: { value: "家電" },
+    });
     const monoGroup = screen.getByRole("group", { name: "モノ" });
     const presetOption = within(monoGroup).getByRole("radio", { name: "家電" });
     const customOption = within(monoGroup).getByRole("radio", { name: "家電（自由入力）" });
@@ -280,7 +298,7 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
     expect(screen.getByRole("radio", { name: "すべて" })).toBeInTheDocument();
   });
 
-  it("空白だけの入力は絞り込みなし(全候補表示)として扱う", async () => {
+  it("空白だけの入力は未入力と同じく候補を閉じる", async () => {
     listHouseholdCustomItemTypesMock.mockResolvedValue([{ kindCode: "asset", label: "虫かご" }]);
 
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
@@ -289,8 +307,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
       target: { value: "   " },
     });
 
-    expect(screen.getByRole("radio", { name: "家電" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "虫かご（自由入力）" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "虫かご（自由入力）" })).not.toBeInTheDocument();
+    expect(screen.getByText(/詳しい種類の候補は閉じています/)).toHaveClass("sr-only");
   });
 
   it("一致する候補がないときは候補なしを案内する", async () => {
@@ -304,7 +323,7 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
     expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
   });
 
-  it("選択中の候補は、検索語に一致しなくても候補として残り、選択したままになる", async () => {
+  it("選択中の候補が検索語に一致しなくても、候補外の適用中表示に残る", async () => {
     listManagedItemsMock.mockResolvedValue([itemRow()]);
 
     render(await ManagedItemsPage({
@@ -315,9 +334,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
       target: { value: "契約" },
     });
 
-    const selected = screen.getByRole("radio", { name: "家電" });
-    expect(selected).toBeInTheDocument();
-    expect(selected).toBeChecked();
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "詳しい種類「家電」を解除" }))
+      .toBeInTheDocument();
   });
 
   it("不正な自由入力の値(家庭内で使われていない)は絞り込み条件として渡すが、家族向けの説明は出さない", async () => {
@@ -344,6 +363,93 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
       { userId: "user-1" },
       { customItemType: undefined, itemTypeCode: undefined, kindCode: undefined, search: undefined },
     );
-    expect(screen.getByRole("radio", { name: "すべて" })).toBeChecked();
+    expect(screen.queryByRole("radio", { name: "すべて" })).not.toBeInTheDocument();
+    expect(screen.getByText(/詳しい種類の候補は閉じています/)).toHaveClass("sr-only");
+  });
+});
+
+describe("台帳一覧の分類絞り込みの即時反映(ManagedItemsPage、Issue #268)", () => {
+  it("詳しい種類が未入力なら候補を閉じ、入力したときだけ一致候補と件数を表示する", async () => {
+    listHouseholdCustomItemTypesMock.mockResolvedValue([{ kindCode: "asset", label: "虫かご" }]);
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    const input = screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" });
+    expect(screen.getByText(/詳しい種類の候補は閉じています/)).toHaveClass("sr-only");
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "虫かご（自由入力）" })).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "かご" } });
+
+    expect(screen.getByRole("radio", { name: "虫かご（自由入力）" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+    expect(screen.getByText("1件見つかりました。")).toBeInTheDocument();
+  });
+
+  it("大分類を選ぶと、適用済みの名前検索と詳しい種類を保って即時遷移する", async () => {
+    render(await ManagedItemsPage({
+      searchParams: Promise.resolve({ itemType: "appliance", kind: "asset", q: "冷蔵庫" }),
+    }));
+
+    fireEvent.change(screen.getByLabelText("大分類で絞り込み"), {
+      target: { value: "service" },
+    });
+
+    expect(routerPushMock).toHaveBeenCalledWith(
+      "/managed-items?kind=service&itemType=appliance&q=%E5%86%B7%E8%94%B5%E5%BA%AB",
+    );
+  });
+
+  it("詳しい種類と「すべて」を選ぶと、ほかの条件を保って即時適用・解除する", async () => {
+    render(await ManagedItemsPage({
+      searchParams: Promise.resolve({ kind: "asset", q: "冷蔵庫" }),
+    }));
+    const input = screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" });
+    fireEvent.change(input, { target: { value: "家電" } });
+
+    fireEvent.click(screen.getByRole("radio", { name: "家電" }));
+    expect(routerPushMock).toHaveBeenLastCalledWith(
+      "/managed-items?kind=asset&itemType=appliance&q=%E5%86%B7%E8%94%B5%E5%BA%AB",
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "すべて" }));
+    expect(routerPushMock).toHaveBeenLastCalledWith(
+      "/managed-items?kind=asset&q=%E5%86%B7%E8%94%B5%E5%BA%AB",
+    );
+  });
+
+  it("適用中の詳しい種類を候補外で確認し、その条件だけ解除できる", async () => {
+    render(await ManagedItemsPage({
+      searchParams: Promise.resolve({ itemType: "appliance", kind: "asset", q: "冷蔵庫" }),
+    }));
+
+    expect(screen.getByRole("link", { name: "詳しい種類「家電」を解除" })).toHaveAttribute(
+      "href",
+      "/managed-items?kind=asset&q=%E5%86%B7%E8%94%B5%E5%BA%AB",
+    );
+    expect(screen.queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+  });
+
+  it("管理対象名は明示的に検索し、JavaScript無効時に分類を送信できるフォームを残す", async () => {
+    const { container } = render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+    const form = screen.getByRole("form", { name: "台帳を検索・絞り込み" });
+
+    expect(screen.getByRole("button", { name: "名前を検索" })).toBeInTheDocument();
+    expect(form).toHaveAttribute("action", "/managed-items");
+    expect(form).toHaveAttribute("method", "get");
+    expect(container.innerHTML).toContain("<noscript>");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "管理対象名で検索" }), {
+      target: { value: "  冷蔵庫  " },
+    });
+    fireEvent.submit(form);
+    expect(routerPushMock).toHaveBeenLastCalledWith(
+      "/managed-items?q=%E5%86%B7%E8%94%B5%E5%BA%AB",
+    );
+
+    const serverHtml = renderToStaticMarkup(
+      await ManagedItemsPage({ searchParams: Promise.resolve({}) }),
+    );
+    expect(serverHtml).toContain("分類の変更を反映");
+    expect(serverHtml).toContain("name=\"itemType\"");
   });
 });

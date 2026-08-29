@@ -12,7 +12,9 @@ import {
 } from "../../lib/d1/managed-items";
 import { FloatingAddButton } from "../floating-add-button";
 import { ClassificationBadges } from "./classification-badges";
-import { ManagedItemTypePicker, type ManagedItemTypeGroup } from "./item-type-picker";
+import type { ManagedItemTypeGroup } from "./item-type-picker";
+import { ManagedItemsSearchForm } from "./managed-items-search-form";
+import { buildManagedItemsHref } from "./search-href";
 
 export type ManagedItemSummary = {
   id: string;
@@ -69,19 +71,6 @@ function parseItemTypeParam(raw: string): {
 
 function normalizeForCompare(value: string): string {
   return value.trim().toLocaleLowerCase("ja-JP");
-}
-
-function buildManagedItemsHref(
-  itemType: string | undefined,
-  kind: string | undefined,
-  q: string | undefined,
-): string {
-  const params = new URLSearchParams();
-  if (kind !== undefined) params.set("kind", kind);
-  if (itemType !== undefined) params.set("itemType", itemType);
-  if (q !== undefined) params.set("q", q);
-  const query = params.toString();
-  return query === "" ? "/managed-items" : `/managed-items?${query}`;
 }
 
 // 大分類のコード値を、家族に見せる名前へ解決する。URLの生の値が存在しない
@@ -157,65 +146,28 @@ function describeManagedItemsFilters(
   return parts.length === 0 ? null : parts.join(" ・ ");
 }
 
-function ManagedItemsSearchForm({
-  itemTypeGroups,
-  itemTypeRaw,
-  kind,
-  kinds,
-  q,
-}: {
-  itemTypeGroups: ManagedItemTypeGroup[];
-  itemTypeRaw: string;
-  kind: string | undefined;
-  kinds: { code: string; label: string }[];
-  q: string | undefined;
-}) {
-  const searchId = "managed-items-search-q";
-  const kindId = "managed-items-search-kind";
-  return (
-    <form
-      action="/managed-items"
-      aria-label="台帳を検索・絞り込み"
-      className="auth-form ledger-search-form"
-      method="get"
-    >
-      <label className="sr-only" htmlFor={searchId}>管理対象名で検索</label>
-      <input
-        defaultValue={q ?? ""}
-        id={searchId}
-        name="q"
-        placeholder="名前の一部を入力"
-        type="search"
-      />
-
-      <label className="sr-only" htmlFor={kindId}>大分類で絞り込み</label>
-      <select defaultValue={kind ?? ""} id={kindId} name="kind">
-        <option value="">大分類: すべて</option>
-        {kinds.map((option) => (
-          <option key={option.code} value={option.code}>{option.label}</option>
-        ))}
-      </select>
-
-      <ManagedItemTypePicker
-        groups={itemTypeGroups}
-        idPrefix="managed-items-search-item-type"
-        initialValue={itemTypeRaw}
-      />
-
-      <button type="submit">絞り込む</button>
-    </form>
-  );
-}
-
 function ManagedItemsFilterSummary({
   filterDescription,
+  itemTypeClearHref,
+  itemTypeLabel,
 }: {
   filterDescription: string | null;
+  itemTypeClearHref: string | null;
+  itemTypeLabel: string | null;
 }) {
   if (filterDescription === null) return null;
   return (
     <p className="ledger-filter-summary">
       {filterDescription}
+      {itemTypeLabel === null || itemTypeClearHref === null ? null : (
+        <Link
+          aria-label={`詳しい種類「${itemTypeLabel}」を解除`}
+          className="ledger-filter-clear"
+          href={itemTypeClearHref}
+        >
+          詳しい種類を解除
+        </Link>
+      )}
       {/* Issue #218: 複数条件を一度にまとめて解除できる(受け入れ基準)。 */}
       <Link className="ledger-filter-clear" href={buildManagedItemsHref(undefined, undefined, undefined)}>
         条件をクリア
@@ -286,6 +238,9 @@ function RegisteredItemsSection({
   const kindLabel = resolveClassificationLabel(kind, classificationOptions.kinds);
   const filterDescription = describeManagedItemsFilters(itemTypeLabel, kindLabel, q);
   const itemTypeGroups = buildItemTypeGroups(classificationOptions, customItemTypeOptions);
+  const itemTypeClearHref = itemTypeLabel === null
+    ? null
+    : buildManagedItemsHref(undefined, kind, q);
   return (
     <section aria-labelledby="registered-items-title" className="detail-card">
       {/* Issue #237: ページ名「家の台帳」と意味が重なる「ITEMS」「登録済みの
@@ -303,7 +258,11 @@ function RegisteredItemsSection({
         kinds={classificationOptions.kinds}
         q={q}
       />
-      <ManagedItemsFilterSummary filterDescription={filterDescription} />
+      <ManagedItemsFilterSummary
+        filterDescription={filterDescription}
+        itemTypeClearHref={itemTypeClearHref}
+        itemTypeLabel={itemTypeLabel}
+      />
 
       {items.length === 0 ? (
         <ManagedItemsEmptyState filterDescription={filterDescription} />
