@@ -177,10 +177,11 @@ function TodoStatusSwitch({
   );
 }
 
-// Issue #223: 担当予定者で絞り込む。「全員」で解除できる。状態タブ
-// (TodoStatusSwitch)や検索語(TodoSearchForm)、表示形式(TodoViewSwitch)を
-// 切り替えても、この条件は失われない。
-function AssigneeFilterNav({
+// Issue #223: 担当予定者で絞り込む。「全員」で解除できる。Issue #266:
+// メンバー全員を横並びにせず、現在の条件が閉じた状態でも分かるネイティブな
+// disclosureにまとめる。候補はページ遷移のリンクなのでmenuロールは付けず、
+// navとしてURL共有・戻る操作・キーボード操作を保つ。
+function AssigneeFilterDisclosure({
   assigneeParam,
   currentUserId,
   members,
@@ -196,47 +197,76 @@ function AssigneeFilterNav({
   viewParam: TodoListViewMode;
 }) {
   const otherMembers = members.filter((member) => member.userId !== currentUserId);
+  const selectedLabel = assigneeParam === undefined
+    ? "全員"
+    : describeAssigneeFilter(assigneeParam, currentUserId, members) ?? "条件不明";
+
   return (
-    <nav aria-label="担当予定者で絞り込み" className="assignee-filter">
-      <Link
-        aria-current={assigneeParam === undefined ? "page" : undefined}
-        className="assignee-filter-option"
-        href={buildTodoListHref({ assigneeParam: undefined, searchParam, status, viewParam })}
-      >
-        全員
-      </Link>
-      <Link
-        aria-current={assigneeParam === currentUserId ? "page" : undefined}
-        className="assignee-filter-option"
-        href={buildTodoListHref({ assigneeParam: currentUserId, searchParam, status, viewParam })}
-      >
-        自分
-      </Link>
-      {otherMembers.map((member) => (
+    <details className="todo-assignee-disclosure">
+      <summary className="todo-assignee-toggle">担当: {selectedLabel}</summary>
+      <nav aria-label="担当予定者で絞り込み" className="todo-assignee-options">
         <Link
-          aria-current={assigneeParam === member.userId ? "page" : undefined}
-          className="assignee-filter-option"
-          href={buildTodoListHref({ assigneeParam: member.userId, searchParam, status, viewParam })}
-          key={member.userId}
+          aria-current={assigneeParam === undefined ? "page" : undefined}
+          className="todo-assignee-option"
+          href={buildTodoListHref({ assigneeParam: undefined, searchParam, status, viewParam })}
         >
-          {member.nickname}
+          全員
         </Link>
-      ))}
-      <Link
-        aria-current={assigneeParam === UNASSIGNED_FILTER_VALUE ? "page" : undefined}
-        className="assignee-filter-option"
-        href={buildTodoListHref({
-          assigneeParam: UNASSIGNED_FILTER_VALUE, searchParam, status, viewParam,
-        })}
-      >
-        担当未定
-      </Link>
-    </nav>
+        <Link
+          aria-current={assigneeParam === currentUserId ? "page" : undefined}
+          className="todo-assignee-option"
+          href={buildTodoListHref({ assigneeParam: currentUserId, searchParam, status, viewParam })}
+        >
+          自分
+        </Link>
+        {otherMembers.map((member) => (
+          <Link
+            aria-current={assigneeParam === member.userId ? "page" : undefined}
+            className="todo-assignee-option"
+            href={buildTodoListHref({ assigneeParam: member.userId, searchParam, status, viewParam })}
+            key={member.userId}
+          >
+            {member.nickname}
+          </Link>
+        ))}
+        <Link
+          aria-current={assigneeParam === UNASSIGNED_FILTER_VALUE ? "page" : undefined}
+          className="todo-assignee-option"
+          href={buildTodoListHref({
+            assigneeParam: UNASSIGNED_FILTER_VALUE, searchParam, status, viewParam,
+          })}
+        >
+          担当未定
+        </Link>
+      </nav>
+    </details>
   );
 }
 
-// Issue #224: カード表示とコンパクトなリスト表示を切り替える。状態タブと同じ
-// pill型のトグル(status-switch)を再利用し、視覚言語をそろえる。
+function CardViewIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <rect height="7" rx="1" width="7" x="3" y="3" />
+      <rect height="7" rx="1" width="7" x="14" y="3" />
+      <rect height="7" rx="1" width="7" x="3" y="14" />
+      <rect height="7" rx="1" width="7" x="14" y="14" />
+    </svg>
+  );
+}
+
+function ListViewIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <line x1="4" x2="20" y1="6" y2="6" />
+      <line x1="4" x2="20" y1="12" y2="12" />
+      <line x1="4" x2="20" y1="18" y2="18" />
+    </svg>
+  );
+}
+
+// Issue #224: カード表示とコンパクトなリスト表示を切り替える。Issue #266:
+// よく使われるグリッド/リストのSVGアイコンにし、aria-labelで表示形式を
+// 読み上げられるようにする。aria-currentで現在の選択も維持する。
 function TodoViewSwitch({
   assigneeParam,
   searchParam,
@@ -249,20 +279,24 @@ function TodoViewSwitch({
   viewParam: TodoListViewMode;
 }) {
   return (
-    <nav aria-label="Todoの表示形式を切り替え" className="status-switch view-switch">
+    <nav aria-label="Todoの表示形式を切り替え" className="todo-view-switch">
       <Link
+        aria-label="カード表示"
         aria-current={viewParam === "card" ? "page" : undefined}
-        className="status-switch-option"
+        className="todo-view-option"
         href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "card" })}
+        title="カード表示"
       >
-        カード
+        <CardViewIcon />
       </Link>
       <Link
+        aria-label="リスト表示"
         aria-current={viewParam === "list" ? "page" : undefined}
-        className="status-switch-option"
+        className="todo-view-option"
         href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "list" })}
+        title="リスト表示"
       >
-        リスト
+        <ListViewIcon />
       </Link>
     </nav>
   );
@@ -645,6 +679,20 @@ export function TodoListContent({
               status={status}
               viewParam={viewParam}
             />
+            <AssigneeFilterDisclosure
+              assigneeParam={rest.assigneeParam}
+              currentUserId={rest.currentUserId}
+              members={rest.members}
+              searchParam={rest.searchParam}
+              status={status}
+              viewParam={viewParam}
+            />
+            <TodoViewSwitch
+              assigneeParam={rest.assigneeParam}
+              searchParam={rest.searchParam}
+              status={status}
+              viewParam={viewParam}
+            />
             <TodoSearchDisclosure
               assigneeParam={rest.assigneeParam}
               searchParam={rest.searchParam}
@@ -654,24 +702,6 @@ export function TodoListContent({
           </div>
         )}
       </div>
-      {rest.household === null ? null : (
-        <>
-          <AssigneeFilterNav
-            assigneeParam={rest.assigneeParam}
-            currentUserId={rest.currentUserId}
-            members={rest.members}
-            searchParam={rest.searchParam}
-            status={status}
-            viewParam={viewParam}
-          />
-          <TodoViewSwitch
-            assigneeParam={rest.assigneeParam}
-            searchParam={rest.searchParam}
-            status={status}
-            viewParam={viewParam}
-          />
-        </>
-      )}
 
       <TodoListBody
         {...rest}

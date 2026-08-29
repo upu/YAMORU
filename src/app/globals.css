@@ -461,8 +461,11 @@ h1 {
 .todo-toolbar-actions {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 100%;
 }
 
 /* status-switchを幅いっぱいの2択ではなく、ツールバー内の内容幅に収める。 */
@@ -484,33 +487,117 @@ h1 {
   text-align: center;
 }
 
-/* Issue #223: Todo一覧の担当予定者による絞り込み。メンバー数が多くても
-   折り返さず横スクロールできるようにする(status-switchは2択固定のため
-   flexで並べているが、こちらは可変長のため別スタイルにする)。 */
-.assignee-filter {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding-bottom: 4px;
-  overflow-x: auto;
+/* Issue #266: 担当予定者を横一列のチップで常時表示せず、現在の条件だけを
+   ツールバーに表示する。候補はsummaryから開くポップオーバー風のnavに収める。 */
+.todo-assignee-disclosure {
+  position: relative;
+  flex: none;
 }
 
-.assignee-filter-option {
-  flex: none;
-  padding: 6px 14px;
+.todo-assignee-toggle {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.8rem;
+  color: var(--green);
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 0.76rem;
   font-weight: 700;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.todo-assignee-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.todo-assignee-toggle::after {
+  content: "⌄";
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.todo-assignee-toggle:hover,
+.todo-assignee-disclosure[open] .todo-assignee-toggle {
+  background: var(--green-pale);
+}
+
+.todo-assignee-toggle:focus-visible,
+.todo-view-option:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.todo-assignee-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 160px;
+  max-width: min(260px, calc(100vw - 32px));
+  max-height: 280px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 10px 28px rgb(35 60 48 / 18%);
+  overflow-y: auto;
+}
+
+.todo-assignee-option {
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
   text-decoration: none;
 }
 
-.assignee-filter-option[aria-current="page"] {
-  border-color: var(--green);
+.todo-assignee-option:hover,
+.todo-assignee-option[aria-current="page"] {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+/* Issue #266: 表示形式は、一般的なグリッド/リストSVGを使うコンパクトな
+   2択としてツールバーへ置く。読み上げ名はリンク側のaria-labelで補う。 */
+.todo-view-switch {
+  display: flex;
+  flex: none;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--green-pale);
+}
+
+.todo-view-option {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.todo-view-option[aria-current="page"] {
   color: var(--paper);
   background: var(--green);
+}
+
+.todo-view-option svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 /* Issue #241: ツールバーの虫眼鏡ボタンから開くTodo内検索。<details>の
@@ -586,12 +673,6 @@ h1 {
   color: var(--paper);
   background: var(--green);
   font-weight: 700;
-}
-
-/* Issue #224: カード表示とコンパクトなリスト表示の切り替え。トグル自体は
-   status-switchのpillスタイルを再利用する(margin-bottomだけ上書き)。 */
-.view-switch {
-  margin-bottom: 20px;
 }
 
 /* コンパクトなリスト表示。行全体がTodo詳細への単一の導線(誤操作を避ける

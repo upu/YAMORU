@@ -177,6 +177,28 @@ describe("Todo一覧画面(TodoListContent)", () => {
     expect(screen.getByRole("link", { name: "実施済み" })).not.toHaveAttribute("aria-current");
   });
 
+  // Issue #266: 担当条件と表示形式は、一覧の縦幅を増やす独立した行ではなく
+  // 見出し横のツールバーへまとめる。担当候補は閉じた選択UIに収め、表示形式は
+  // 一般的なグリッド/リストアイコンで表す。
+  it("担当絞り込みとアイコンの表示切り替えをツールバー内へコンパクトにまとめる", () => {
+    renderTodoList([]);
+
+    const toolbarActions = document.querySelector(".todo-toolbar-actions");
+    const assigneeToggle = screen.getByText("担当: 全員", { selector: "summary" });
+    const assigneeDisclosure = assigneeToggle.closest("details");
+    const cardSwitch = screen.getByRole("link", { name: "カード表示" });
+    const listSwitch = screen.getByRole("link", { name: "リスト表示" });
+
+    expect(toolbarActions).toContainElement(assigneeDisclosure);
+    expect(toolbarActions).toContainElement(cardSwitch);
+    expect(toolbarActions).toContainElement(listSwitch);
+    expect(assigneeDisclosure).not.toHaveAttribute("open");
+    expect(cardSwitch.querySelector("svg")).toBeInTheDocument();
+    expect(listSwitch.querySelector("svg")).toBeInTheDocument();
+    expect(document.querySelector(".assignee-filter")).not.toBeInTheDocument();
+    expect(document.querySelector(".view-switch")).not.toBeInTheDocument();
+  });
+
   // Issue #241: 虫眼鏡から開くTodo内検索。検索語が適用中でなければ既定で
   // 閉じておき、押すと展開できる(<details>のネイティブな開閉状態)。
   it("虫眼鏡ボタンからTodo内検索を開ける入り口を表示し、検索語がなければ閉じておく", () => {
