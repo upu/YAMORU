@@ -64,11 +64,12 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     );
   });
 
-  it("現在のpending Todo名と推奨期間の分類(YDR-017)を表示する", () => {
+  it("現在のpending Todo名からTodo詳細へ移動でき、既存の操作を維持する(Issue #263)", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
     const todoList = screen.getByRole("region", { name: "関連するTodo" });
-    expect(within(todoList).getByText("フィルター交換")).toBeInTheDocument();
+    expect(within(todoList).getByRole("link", { name: "フィルター交換" }))
+      .toHaveAttribute("href", "/todos/occurrence-1");
     expect(within(todoList).getByText("そろそろ")).toBeInTheDocument();
     expect(within(todoList).getByText("繰り返し")).toBeInTheDocument();
     expect(
