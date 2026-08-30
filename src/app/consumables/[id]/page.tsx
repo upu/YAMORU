@@ -6,6 +6,7 @@ import { getConsumable, type ConsumableDetail } from "../../../lib/d1/consumable
 import { getD1Context } from "../../../lib/d1/context";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
+import { StockStatusControl } from "../stock-status-control";
 
 export type ConsumableDetailData = ConsumableDetail;
 
@@ -112,6 +113,7 @@ export function ConsumableDetailContent({
       </header>
 
       <div className="ledger-grid">
+        <StockStatusControl consumableId={consumable.id} stockStatus={consumable.stockStatus} />
         <ConsumableRecord consumable={consumable} />
         <ConsumableRelations consumable={consumable} />
       </div>

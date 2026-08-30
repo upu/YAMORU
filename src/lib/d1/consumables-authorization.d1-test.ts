@@ -50,6 +50,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       name: "トイレットペーパー",
       note: "収納棚の上段",
       productCode: "TP-12",
+      stockStatus: "available",
       taskRules: [],
     });
     await expect(listConsumables(db, householdBMember)).resolves.toEqual([]);
@@ -105,6 +106,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       name: "交換フィルター",
       note: "型番を確認する",
       productCode: "FILTER-A",
+      stockStatus: "available",
       taskRules: [],
     });
   });

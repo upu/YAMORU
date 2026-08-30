@@ -1,9 +1,12 @@
 import { requireCurrentHouseholdId, type D1Session } from "./authorization";
 import { D1NotFoundError } from "./errors";
 
+export type ConsumableStockStatus = "available" | "low" | "out";
+
 export type ConsumableSummary = {
   id: string;
   name: string;
+  stockStatus: ConsumableStockStatus;
 };
 
 export type ConsumableRelationOption = {
@@ -38,6 +41,7 @@ export type ConsumableDetail = {
   name: string;
   note: string | null;
   productCode: string | null;
+  stockStatus: ConsumableStockStatus;
   taskRules: ConsumableTaskRuleOption[];
 };
 
@@ -47,6 +51,7 @@ type ConsumableRow = {
   name: string;
   note: string | null;
   product_code: string | null;
+  stock_status: ConsumableStockStatus;
 };
 
 function uniqueIds(ids: string[]): string[] {
@@ -97,7 +102,8 @@ export async function listConsumables(
 ): Promise<ConsumableSummary[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const { results } = await db.prepare(
-    "SELECT id, name FROM consumables WHERE household_id = ?1 ORDER BY name COLLATE NOCASE, id",
+    `SELECT id, name, stock_status AS stockStatus
+       FROM consumables WHERE household_id = ?1 ORDER BY name COLLATE NOCASE, id`,
   ).bind(householdId).all<ConsumableSummary>();
   return results;
 }
@@ -108,7 +114,7 @@ async function loadConsumableRow(
   id: string,
 ): Promise<ConsumableRow | null> {
   return db.prepare(
-    `SELECT id, name, note, product_code, external_url
+    `SELECT id, name, note, product_code, external_url, stock_status
        FROM consumables WHERE id = ?1 AND household_id = ?2`,
   ).bind(id, householdId).first<ConsumableRow>();
 }
@@ -148,6 +154,7 @@ export async function getConsumable(
     name: row.name,
     note: row.note,
     productCode: row.product_code,
+    stockStatus: row.stock_status,
     taskRules: taskRules.results,
   };
 }
@@ -179,6 +186,37 @@ export async function updateConsumable(
   ]);
 }
 
+export async function updateConsumableStockStatus(
+  db: D1Database,
+  session: D1Session,
+  id: string,
+  stockStatus: ConsumableStockStatus,
+): Promise<void> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  const result = await db.prepare(
+    `UPDATE consumables
+        SET stock_status = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE id = ?2 AND household_id = ?3`,
+  ).bind(stockStatus, id, householdId).run();
+  if (result.meta.changes !== 1) {
+    throw new D1NotFoundError("消耗品が見つかりません。");
+  }
+}
+
+export async function listShoppingCandidates(
+  db: D1Database,
+  session: D1Session,
+): Promise<ConsumableSummary[]> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  const { results } = await db.prepare(
+    `SELECT id, name, stock_status AS stockStatus
+       FROM consumables
+      WHERE household_id = ?1 AND stock_status IN ('low', 'out')
+      ORDER BY name COLLATE NOCASE, id`,
+  ).bind(householdId).all<ConsumableSummary>();
+  return results;
+}
+
 export async function listConsumablesForManagedItem(
   db: D1Database,
   session: D1Session,
@@ -186,7 +224,7 @@ export async function listConsumablesForManagedItem(
 ): Promise<ConsumableSummary[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const { results } = await db.prepare(
-    `SELECT c.id, c.name
+    `SELECT c.id, c.name, c.stock_status AS stockStatus
        FROM managed_item_consumables r
        JOIN consumables c
          ON c.id = r.consumable_id AND c.household_id = r.household_id
@@ -203,7 +241,7 @@ export async function listConsumablesForTaskRule(
 ): Promise<ConsumableSummary[]> {
   const householdId = await requireCurrentHouseholdId(db, session);
   const { results } = await db.prepare(
-    `SELECT c.id, c.name
+    `SELECT c.id, c.name, c.stock_status AS stockStatus
        FROM task_rule_consumables r
        JOIN consumables c
          ON c.id = r.consumable_id AND c.household_id = r.household_id

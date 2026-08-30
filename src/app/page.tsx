@@ -25,6 +25,11 @@ import {
 } from "./pending-todo";
 import { TodoCard, type TodoCardItem } from "./todo-card";
 import { formatTokyoDate } from "./time-zone";
+import {
+  listShoppingCandidates,
+  type ConsumableSummary,
+} from "../lib/d1/consumables";
+import { ShoppingCandidatesSection } from "./shopping-candidates";
 
 export type { PendingOccurrenceRow, RecentCompletionRow } from "../lib/d1/home";
 
@@ -318,18 +323,55 @@ function HomeSectionList({
   );
 }
 
+function HouseholdHomeFlow({
+  actorName,
+  currentUserId,
+  householdName,
+  members,
+  sections,
+  shoppingCandidates,
+}: {
+  actorName: string;
+  currentUserId: string;
+  householdName: string;
+  members: HouseholdMemberOption[];
+  sections: HomeSection[];
+  shoppingCandidates: ConsumableSummary[];
+}) {
+  if (sections.length === 0 && shoppingCandidates.length === 0) {
+    return <div className="home-flow"><HomeEmptyState householdName={householdName} /></div>;
+  }
+  return (
+    <div className="home-flow">
+      {shoppingCandidates.length === 0 ? null : (
+        <ShoppingCandidatesSection candidates={shoppingCandidates} />
+      )}
+      {sections.length === 0 ? null : (
+        <HomeSectionList
+          actorName={actorName}
+          currentUserId={currentUserId}
+          members={members}
+          sections={sections}
+        />
+      )}
+    </div>
+  );
+}
+
 export function HomeContent({
   actorName,
   currentUserId,
   household,
   members,
   sections,
+  shoppingCandidates = [],
 }: {
   actorName: string;
   currentUserId: string;
   household: HomeHouseholdSummary | null;
   members: HouseholdMemberOption[];
   sections: HomeSection[];
+  shoppingCandidates?: ConsumableSummary[];
 }) {
   const openItemCount = sections.reduce(
     (total, section) =>
@@ -351,18 +393,14 @@ export function HomeContent({
       {household === null ? (
         <HouseholdRequiredNotice />
       ) : (
-        <div className="home-flow">
-          {visibleSections.length === 0 ? (
-            <HomeEmptyState householdName={household.name} />
-          ) : (
-            <HomeSectionList
-              actorName={actorName}
-              currentUserId={currentUserId}
-              members={members}
-              sections={visibleSections}
-            />
-          )}
-        </div>
+        <HouseholdHomeFlow
+          actorName={actorName}
+          currentUserId={currentUserId}
+          householdName={household.name}
+          members={members}
+          sections={visibleSections}
+          shoppingCandidates={shoppingCandidates}
+        />
       )}
 
       {household === null ? null : <FloatingAddButton destination="todo" />}
@@ -394,11 +432,12 @@ export default async function Home() {
     );
   }
 
-  const [actorName, sections, members] = await Promise.all([
+  const [actorName, sections, members, shoppingCandidates] = await Promise.all([
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     loadHomeSections(db, session, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(db, session),
+    listShoppingCandidates(db, session),
   ]);
 
   return (
@@ -408,6 +447,7 @@ export default async function Home() {
       household={household}
       members={members}
       sections={sections}
+      shoppingCandidates={shoppingCandidates}
     />
   );
 }

@@ -148,7 +148,11 @@ describe("登録済みManagedItem詳細", () => {
         item={{
           ...REGISTERED_ITEM,
           actorName: "家族A",
-          consumables: [{ id: "consumable-1", name: "交換フィルター" }],
+          consumables: [{
+            id: "consumable-1",
+            name: "交換フィルター",
+            stockStatus: "available",
+          }],
           currentUserId: "user-1",
           externalLinks: [],
           kindCode: "asset",

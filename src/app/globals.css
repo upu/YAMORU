@@ -1624,6 +1624,64 @@ h1 {
   justify-content: flex-end;
 }
 
+.stock-status-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.stock-status-option {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--paper);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.stock-status-option[aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--paper);
+  background: var(--green);
+}
+
+.stock-status-option:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.stock-status-current {
+  margin: 10px 0 0;
+  font-weight: 800;
+}
+
+.stock-status-badge {
+  flex: none;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--green-pale);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.stock-status-low {
+  color: #7a4b00;
+  background: #fff1c9;
+}
+
+.stock-status-out {
+  color: #8a2a22;
+  background: #ffe1dc;
+}
+
+.shopping-candidates .ledger-list {
+  margin-top: 16px;
+}
+
 /* Issue #218: 台帳一覧の検索・絞り込み。件数バッジ(count)の下に検索・
    絞り込みフォームを続ける。Issue #237: 見出しテキストは画面上から外した
    (sr-onlyのh2 registered-items-titleへ移動)ため、件数バッジだけを

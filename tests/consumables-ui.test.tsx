@@ -22,6 +22,7 @@ afterEach(cleanup);
 const CONSUMABLE: ConsumableListItem = {
   id: "consumable-1",
   name: "トイレットペーパー",
+  stockStatus: "low",
 };
 
 const OPTIONS = {
@@ -51,6 +52,7 @@ describe("消耗品一覧", () => {
       "href",
       "/consumables/consumable-1",
     );
+    expect(screen.getByText("少ない")).toBeInTheDocument();
   });
 });
 
@@ -80,6 +82,7 @@ describe("消耗品詳細", () => {
       name: "トイレットペーパー",
       note: "収納棚の上段",
       productCode: "TP-12",
+      stockStatus: "available",
       taskRules: [],
     };
 
