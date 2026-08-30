@@ -17,7 +17,7 @@ afterEach(cleanup);
 const CLASSIFICATION_OPTIONS = {
   itemTypes: [{ code: "appliance", kindCode: "asset", label: "家電" }],
   kinds: [
-    { code: "asset", label: "モノ" },
+    { code: "asset", label: "備品" },
     { code: "service", label: "サービス" },
     { code: "obligation", label: "支払い・手続き" },
   ],
@@ -30,7 +30,7 @@ const DETAIL_BASE: ManagedItemDetailData = {
   id: "item-1",
   itemTypeLabel: "家電",
   kindCode: "asset",
-  kindLabel: "モノ",
+  kindLabel: "備品",
   members: [],
   name: "リビングのエアコン",
   note: null,
@@ -61,7 +61,7 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
   it("開始時期は年・月・日を分け、月日をわからないまま残せる", () => {
     render(<ManagedItemForm classificationOptions={CLASSIFICATION_OPTIONS} />);
 
-    // 既定の大分類は「モノ」のため、見出し語は「購入時期」になる。
+    // 既定の大分類は「備品」のため、見出し語は「購入時期」になる。
     expect(screen.getByRole("group", { name: "購入時期（任意）" })).toBeInTheDocument();
     expect(screen.getByLabelText("年")).toHaveValue("");
     // 既定は「わからない」で、推測入力を強制しない。

@@ -5,14 +5,15 @@ title: 大分類の表示ラベルを登録時に選びやすい短い表現へ�
 description: kindの表示ラベルをモノ / サービス / 支払い・手続き / その他にする。YDR-028の初期ラベルの部分だけを置き換え、code、分類の意味、並び順、item_typeとの親子関係は変更しない
 tags: [yamoru, decisions, ydr, managed-item, classification]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-24
 supersedes: YDR-028
+superseded_by: YDR-035
 ---
 
 # YDR-029: 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-035](ydr-035-retire-other-managed-item-kind.md)
 - 決定日: 2026-08-24
 - 置き換える決定: [YDR-028](ydr-028-managed-item-kind-item-type-tags.md)(`asset` / `service` / `obligation` / `other`の初期の表示ラベルのみ。`kind`・`item_type`・タグの役割分離、プリセットの管理方法、互換列と段階移行の判断は変更しない)
 

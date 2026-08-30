@@ -80,7 +80,7 @@ describe("D1 ManagedItem writes and household isolation", () => {
       itemTypeCode: "appliance",
       itemTypeLabel: "家電",
       kindCode: "asset",
-      kindLabel: "モノ",
+      kindLabel: "備品",
       name: "Item A updated",
       note: null,
       productInfo: null,
@@ -108,8 +108,8 @@ describe("D1 ManagedItem writes and household isolation", () => {
     await updateManagedItem(db, householdAMember, "item-a", {
       customItemType: null,
       externalUrl: "https://example.com/first",
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Item A",
       note: null,
       productInfo: null,
@@ -118,8 +118,8 @@ describe("D1 ManagedItem writes and household isolation", () => {
     await updateManagedItem(db, householdAMember, "item-a", {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Item A",
       note: null,
       productInfo: null,
@@ -135,8 +135,8 @@ describe("D1 ManagedItem writes and household isolation", () => {
     await expect(updateManagedItem(db, householdAMember, "item-b", {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Hacked",
       note: null,
       productInfo: null,
@@ -152,8 +152,8 @@ describe("D1 ManagedItem writes and household isolation", () => {
     await updateManagedItem(db, householdAMember, "item-a", {
       customItemType: null,
       externalUrl: "https://example.com/original",
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "Item A",
       note: null,
       productInfo: null,
@@ -175,10 +175,10 @@ describe("D1 ManagedItem writes and household isolation", () => {
       customItemType: null,
       externalUrl: "https://example.com/original",
       id: "item-a",
-      itemTypeCode: "other",
-      itemTypeLabel: "その他",
-      kindCode: "other",
-      kindLabel: "その他",
+      itemTypeCode: "appliance",
+      itemTypeLabel: "家電",
+      kindCode: "asset",
+      kindLabel: "備品",
       name: "Item A",
       note: null,
       productInfo: null,
@@ -193,8 +193,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "浄水フィルター",
       note: null,
       productInfo: null,
@@ -209,8 +209,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "AEDトレーナー",
       note: null,
       productInfo: null,
@@ -236,8 +236,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "10%OFFクーポン家電",
       note: null,
       productInfo: null,
@@ -246,8 +246,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "10円玉OFFクーポン家電",
       note: null,
       productInfo: null,
@@ -272,7 +272,7 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
 
     const filtered = await listManagedItems(db, householdAMember, { kindCode: "asset" });
     expect(filtered.map(({ name }) => name)).toEqual(["冷蔵庫"]);
-    // item-a(その他/その他)は大分類がasset以外なので一致しない。
+    // fixtureのitem-a(過去のother分類)はasset以外なので一致しない。
     expect(filtered.map(({ name }) => name)).not.toContain("Item A");
   });
 
@@ -336,8 +336,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdBMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "共通のキーワード用B",
       note: null,
       productInfo: null,
@@ -346,8 +346,8 @@ describe("D1 台帳一覧の検索・絞り込み認可 (Issue #218)", () => {
     await createManagedItem(db, householdAMember, {
       customItemType: null,
       externalUrl: null,
-      itemTypeCode: "other",
-      kindCode: "other",
+      itemTypeCode: "appliance",
+      kindCode: "asset",
       name: "共通のキーワード用A",
       note: null,
       productInfo: null,
@@ -488,7 +488,7 @@ describe("D1 台帳一覧の自由入力(詳しい種類)候補・絞り込み�
       customItemType: "B専用種別",
       externalUrl: null,
       itemTypeCode: null,
-      kindCode: "other",
+      kindCode: "asset",
       name: "B専用の対象",
       note: null,
       productInfo: null,
@@ -498,7 +498,7 @@ describe("D1 台帳一覧の自由入力(詳しい種類)候補・絞り込み�
       customItemType: "A専用種別",
       externalUrl: null,
       itemTypeCode: null,
-      kindCode: "other",
+      kindCode: "asset",
       name: "A専用の対象",
       note: null,
       productInfo: null,
@@ -506,7 +506,7 @@ describe("D1 台帳一覧の自由入力(詳しい種類)候補・絞り込み�
     });
 
     await expect(listHouseholdCustomItemTypes(db, householdAMember)).resolves.toEqual([
-      { kindCode: "other", label: "A専用種別" },
+      { kindCode: "asset", label: "A専用種別" },
     ]);
   });
 });

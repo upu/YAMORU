@@ -15,8 +15,9 @@ const CLASSIFICATION_OPTIONS = {
     { code: "contract", kindCode: "service", label: "契約" },
   ],
   kinds: [
-    { code: "asset", label: "モノ" },
+    { code: "asset", label: "備品" },
     { code: "service", label: "サービス" },
+    { code: "obligation", label: "支払い・手続き" },
   ],
 };
 
@@ -59,6 +60,8 @@ describe("管理対象登録", () => {
     expect(within(form).getByLabelText("大分類")).toHaveValue("asset");
     expect(within(form).getByLabelText("詳しい種類（任意）")).toHaveValue("");
     expect(within(form).getByRole("option", { name: "ペット用品" })).toBeInTheDocument();
+    expect(within(form).queryByRole("option", { name: /^その他$/ }))
+      .not.toBeInTheDocument();
     expect(within(form).getByRole("option", { name: "その他（自由入力）" })).toBeInTheDocument();
     expect(within(form).getByLabelText("外部リンク（任意）")).toHaveAttribute(
       "type",
