@@ -113,14 +113,23 @@ describe("管理対象・Todoの関連消耗品", () => {
     const section = screen.getByRole("region", { name: "関連する消耗品" });
     expect(within(section).getByRole("link", { name: "トイレットペーパー" }))
       .toHaveAttribute("href", "/consumables/consumable-1");
+    expect(within(section).getByText("少ない"))
+      .toHaveClass("stock-status-badge", "stock-status-low");
     expect(within(section).getByRole("link", { name: "消耗品を追加" }))
       .toHaveAttribute("href", "/consumables/new?managedItemId=item-1");
   });
 
-  it("Todo詳細では関連消耗品を参照できるが追加操作は表示しない", () => {
-    render(<RelatedConsumablesSection consumables={[CONSUMABLE]} />);
+  it("Todo詳細では各在庫状態を確認できるが追加操作は表示しない", () => {
+    render(<RelatedConsumablesSection consumables={[
+      { id: "filter", name: "交換フィルター", stockStatus: "available" },
+      { id: "soap", name: "洗剤", stockStatus: "out" },
+    ]} />);
 
-    expect(screen.getByRole("link", { name: "トイレットペーパー" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "交換フィルター" })).toBeInTheDocument();
+    expect(screen.getByText("ある"))
+      .toHaveClass("stock-status-badge", "stock-status-available");
+    expect(screen.getByText("ない"))
+      .toHaveClass("stock-status-badge", "stock-status-out");
     expect(screen.queryByRole("link", { name: "消耗品を追加" })).not.toBeInTheDocument();
   });
 });
