@@ -26,7 +26,7 @@ export type ManagedItemClassificationOptions = {
 // 自由入力の詳しい種類。プリセット(managed_item_type_presets)とは別に、
 // 大文字小文字・前後の空白を無視して家庭内・大分類ごとに一意化した表記を返す。
 export type ManagedItemCustomTypeOption = { kindCode: string; label: string };
-export type ManagedItemClassificationInput = {
+type ManagedItemClassificationInput = {
   customItemType: string | null;
   itemTypeCode: string | null;
   kindCode: string;
@@ -65,7 +65,7 @@ export type TaskRuleRow = {
 // startedOnは「対象との関係が始まった時期」を表す中立的な値で、大分類に
 // よらず同じ意味を持つ(Issue #239, YDR-033)。画面ラベルだけが大分類に応じて
 // 変わる。
-export type ManagedItemOptionalAttributes = {
+type ManagedItemOptionalAttributes = {
   note: string | null;
   productInfo: string | null;
   startedOn: string | null;
@@ -257,14 +257,6 @@ export async function getManagedItem(db: D1Database, session: D1Session, id: str
   return db.prepare(`${MANAGED_ITEM_CLASSIFICATION_SELECT}
       WHERE m.id = ?1 AND m.household_id = ?2`)
     .bind(id, householdId).first<ManagedItemSummary>();
-}
-
-export async function getManagedItemHouseholdId(db: D1Database, session: D1Session, id: string): Promise<string> {
-  const householdId = await requireCurrentHousehold(db, session);
-  const item = await db.prepare("SELECT id FROM managed_items WHERE id = ?1 AND household_id = ?2")
-    .bind(id, householdId).first();
-  if (item === null) throw new D1NotFoundError("管理対象が見つかりません。");
-  return householdId;
 }
 
 export type ManagedItemEditData = ManagedItemSummary

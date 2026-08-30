@@ -97,7 +97,7 @@ export function tokyoDateFromIso(value: string): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export function tokyoDateToIso(value: string): string {
+function tokyoDateToIso(value: string): string {
   parseDate(value);
   return new Date(`${value}T00:00:00${TOKYO_OFFSET}`).toISOString();
 }

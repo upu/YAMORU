@@ -55,13 +55,13 @@ function createSessionToken(): string {
     byte.toString(16).padStart(2, "0")).join("");
 }
 
-export class PreviewE2eFixtureConnectionError extends Error {
+class PreviewE2eFixtureConnectionError extends Error {
   constructor() {
     super("Preview E2E fixture reset connection failed");
   }
 }
 
-export class PreviewE2eFixtureDatabaseError extends Error {
+class PreviewE2eFixtureDatabaseError extends Error {
   constructor() {
     super("Preview E2E fixture reset database operation failed");
   }

@@ -19,7 +19,7 @@ type UserRow = {
   session_version: number;
 };
 
-export function normalizeEmail(email: string): string {
+function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
