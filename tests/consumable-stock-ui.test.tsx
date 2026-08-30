@@ -25,6 +25,8 @@ describe("消耗品の在庫状態", () => {
     expect(within(region).getByRole("button", { name: "ない" }))
       .toHaveAttribute("aria-pressed", "false");
     expect(within(region).queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(within(region).queryByText("買って補充したら「ある」に戻します。"))
+      .not.toBeInTheDocument();
   });
 });
 
