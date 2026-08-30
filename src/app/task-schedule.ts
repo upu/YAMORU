@@ -4,13 +4,10 @@
 // scheduled_forを推奨期間の開始、due_atを推奨期間の上限として使う。
 // strictではscheduled_forとdue_atを同日として扱い、期限切れ表示を維持する。
 
-export const MAINTENANCE_RECOMMENDED_START_DAYS = 28; // 4週間
-export const MAINTENANCE_RECOMMENDED_UPPER_DAYS = 56; // 8週間
-
 // Issue #52: 推奨開始日から推奨上限日までの経過割合がこの値以上になったら
 // 「そろそろ」と案内する。利用者ごとの設定化はせず、まず固定のプロダクト
 // 規則とする(design memo)。
-export const MAINTENANCE_REMINDER_THRESHOLD_RATIO = 0.8;
+const MAINTENANCE_REMINDER_THRESHOLD_RATIO = 0.8;
 
 export type TodoTone =
   | "urgent"
@@ -19,8 +16,6 @@ export type TodoTone =
   | "done"
   | "reminder"
   | "caution";
-
-export type MaintenanceWindow = { scheduledFor: Date; dueAt: Date };
 
 // Issue #243: コンパクトなリスト表示(todo-list-row.tsx)専用の予定情報。
 // カード向けのitem.meta文章("8月28日から推奨期間です"等)は表示済みの
@@ -79,34 +74,6 @@ export function toRecurrenceBasis(value: string): RecurrenceBasis {
   return value;
 }
 
-function startOfDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
-export function parseDateOnly(value: string): Date {
-  const [year, month, day] = value.split("-").map(Number);
-
-  // 日付境界のずれを避けるため、正午を基準にします。
-  return new Date(year, month - 1, day, 12);
-}
-
-export function addDays(date: Date, days: number): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-export function formatMonthDay(date: Date): string {
-  return `${String(date.getMonth() + 1)}月${String(date.getDate())}日`;
-}
-
-export function computeMaintenanceWindow(occurredAt: Date): MaintenanceWindow {
-  return {
-    scheduledFor: addDays(occurredAt, MAINTENANCE_RECOMMENDED_START_DAYS),
-    dueAt: addDays(occurredAt, MAINTENANCE_RECOMMENDED_UPPER_DAYS),
-  };
-}
-
 // Issue #52: 推奨開始日から推奨上限日までの暦日数(totalDays)のうち、
 // 「そろそろ」表示を開始する経過日数のしきい値を求める。ちょうど80%に
 // 達する日を含めるため切り上げる。開始日と上限日が同日(totalDays<=0)の
@@ -116,34 +83,6 @@ export function computeMaintenanceWindow(occurredAt: Date): MaintenanceWindow {
 export function maintenanceReminderThresholdDays(totalDays: number): number {
   if (totalDays <= 0) return 0;
   return Math.ceil(totalDays * MAINTENANCE_REMINDER_THRESHOLD_RATIO);
-}
-
-export function getMaintenanceDisplayState(
-  window: MaintenanceWindow,
-  now: Date,
-): MaintenanceDisplayState {
-  const today = startOfDay(now);
-  const scheduled = startOfDay(window.scheduledFor);
-  const due = startOfDay(window.dueAt);
-  const totalDays = Math.round((due - scheduled) / 86_400_000);
-  const reminderStart =
-    scheduled + maintenanceReminderThresholdDays(totalDays) * 86_400_000;
-
-  if (today < reminderStart) return "before-window";
-  if (today <= due) return "in-window";
-  return "past-window";
-}
-
-export function getStrictDisplayState(
-  dueAt: Date,
-  now: Date,
-): StrictDisplayState {
-  const today = startOfDay(now);
-  const due = startOfDay(dueAt);
-
-  if (today > due) return "overdue";
-  if (today === due) return "due-today";
-  return "upcoming";
 }
 
 export const MAINTENANCE_DISPLAY_COPY: Record<
@@ -253,18 +192,4 @@ export function describeCompletionRecurrence(
   const until = useWeeks ? recommendedUntilOffsetDays / 7 : recommendedUntilOffsetDays;
   const range = start === until ? String(start) : `${String(start)}〜${String(until)}`;
   return `完了から${range}${unit}後`;
-}
-
-export function describeMaintenanceSchedule(
-  state: MaintenanceDisplayState,
-  window: MaintenanceWindow,
-): string {
-  switch (state) {
-    case "before-window":
-      return `${formatMonthDay(window.scheduledFor)}から交換の目安です`;
-    case "in-window":
-      return `${formatMonthDay(window.dueAt)}までが交換の目安です`;
-    case "past-window":
-      return `${formatMonthDay(window.dueAt)}に交換推奨期間の上限を過ぎました`;
-  }
 }
