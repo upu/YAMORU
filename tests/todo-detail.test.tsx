@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   getD1ContextMock,
+  listConsumablesForTaskRuleMock,
   loadActorNameMock,
   loadHouseholdMembersMock,
   loadTodoDetailMock,
@@ -12,6 +13,7 @@ const {
   requireUserMock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
+  listConsumablesForTaskRuleMock: vi.fn(),
   loadActorNameMock: vi.fn(),
   loadHouseholdMembersMock: vi.fn(),
   loadTodoDetailMock: vi.fn(),
@@ -24,6 +26,9 @@ const {
 vi.mock("../src/lib/auth/current-user", () => ({ requireUser: requireUserMock }));
 vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ loadTodoDetail: loadTodoDetailMock }));
+vi.mock("../src/lib/d1/consumables", () => ({
+  listConsumablesForTaskRule: listConsumablesForTaskRuleMock,
+}));
 vi.mock("../src/lib/d1/profiles", () => ({
   FALLBACK_OTHER_MEMBER_NAME: "メンバー",
   loadActorName: loadActorNameMock,
@@ -50,6 +55,7 @@ function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
   return {
     assigneeName: null,
     completion: null,
+    consumables: [],
     dueAt: "2026-09-01T15:00:00.000Z",
     id: "occurrence-1",
     isCompleted: false,
@@ -104,6 +110,7 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     schedule_month_end: 0,
     schedule_week_of_month: null,
     status: "pending",
+    task_rule_id: "rule-1",
     title: "通知書が届いたら申請",
     ...overrides,
   };
@@ -114,11 +121,24 @@ beforeEach(() => {
   requireUserMock.mockResolvedValue({ id: "user-1" });
   getD1ContextMock.mockResolvedValue({ db: {}, session: { userId: "user-1" } });
   loadHouseholdMembersMock.mockResolvedValue(MEMBERS);
+  listConsumablesForTaskRuleMock.mockResolvedValue([]);
 });
 
 afterEach(cleanup);
 
 describe("未完了Todoの詳細(TodoDetailContent)", () => {
+  it("関連する消耗品を参照でき、追加操作は表示しない", () => {
+    renderDetail(todo({
+      consumables: [{ id: "consumable-1", name: "交換フィルター" }],
+    }));
+
+    const section = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(section).getByRole("link", { name: "交換フィルター" }))
+      .toHaveAttribute("href", "/consumables/consumable-1");
+    expect(within(section).queryByRole("link", { name: "消耗品を追加" }))
+      .not.toBeInTheDocument();
+  });
+
   it("Todo名、状態、繰り返し、関連する管理対象、担当、予定日を表示する", () => {
     renderDetail(todo({ assigneeName: "ぽっぷ" }));
 

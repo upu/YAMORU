@@ -312,6 +312,11 @@ export function ManagedItemsContent({
         <p className="detail-kicker">HOUSE LEDGER</p>
         <h1>家の台帳</h1>
         <p>家で管理するものをまとめます。</p>
+        {household === null ? null : (
+          <Link className="ledger-primary-link" href="/consumables">
+            消耗品を見る
+          </Link>
+        )}
       </header>
 
       {household === null ? (

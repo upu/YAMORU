@@ -35,6 +35,7 @@ export type TodoDetailRow = {
   schedule_month_end: number;
   schedule_week_of_month: number | null;
   status: string;
+  task_rule_id: string;
   title: string;
 };
 
@@ -56,7 +57,7 @@ export async function loadTodoDetail(
         ORDER BY l.recorded_at DESC, l.id DESC
         LIMIT 1
      )
-     SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
+     SELECT o.id, o.task_rule_id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
             r.title, r.recurrence_basis, r.deadline_kind,
             r.recommended_start_offset, r.recommended_until_offset,
             r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,

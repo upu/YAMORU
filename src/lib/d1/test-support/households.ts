@@ -17,6 +17,9 @@ export const nonMember = { email: "o@example.com", userId: "user-outsider" };
 // どちらにも属さないuser-outsiderを1人作る。テストごとに呼び出す。
 export async function resetHouseholdFixtures(db: D1Database): Promise<void> {
   await db.batch([
+    db.prepare("DELETE FROM task_rule_consumables"),
+    db.prepare("DELETE FROM managed_item_consumables"),
+    db.prepare("DELETE FROM consumables"),
     db.prepare("DELETE FROM completion_corrections"),
     db.prepare("DELETE FROM invitation_claims"),
     db.prepare("DELETE FROM household_invitations"),

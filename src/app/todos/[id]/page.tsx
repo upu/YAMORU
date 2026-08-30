@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
 import { getD1Context } from "../../../lib/d1/context";
+import {
+  listConsumablesForTaskRule,
+  type ConsumableSummary,
+} from "../../../lib/d1/consumables";
 import { loadTodoDetail, type TodoDetailRow } from "../../../lib/d1/todos";
 import {
   FALLBACK_OTHER_MEMBER_NAME,
@@ -21,6 +25,7 @@ import {
   type RecurrenceBasis,
 } from "../../task-schedule";
 import { formatTokyoDate } from "../../time-zone";
+import { RelatedConsumablesSection } from "../../consumables/related-consumables";
 
 // Issue #205: 完了済みTodoでは、現在有効な実施記録(訂正済みなら訂正後、
 // YDR-026)を表示し、そこから訂正・完了取消を行う。
@@ -33,6 +38,7 @@ export type TodoCompletionData = {
 export type TodoDetailData = {
   assigneeName: string | null;
   completion: TodoCompletionData | null;
+  consumables: ConsumableSummary[];
   dueAt: string | null;
   id: string;
   isCompleted: boolean;
@@ -202,6 +208,7 @@ export function TodoDetailContent({
 
       <div className="ledger-grid">
         <TodoContentSection todo={todo} />
+        <RelatedConsumablesSection consumables={todo.consumables} />
         <TodoCompletionSection
           currentUserId={currentUserId}
           members={members}
@@ -253,7 +260,7 @@ export default async function TodoDetailPage({
   if (row === null) notFound();
 
   const isCompleted = row.status === "completed";
-  const [assigneeName, performerName, members] = await Promise.all([
+  const [assigneeName, performerName, members, consumables] = await Promise.all([
     row.assignee_user_id === null
       ? Promise.resolve(null)
       : loadActorName(db, session, row.assignee_user_id, FALLBACK_OTHER_MEMBER_NAME),
@@ -264,6 +271,7 @@ export default async function TodoDetailPage({
       : loadActorName(db, session, row.performed_by_user_id, FALLBACK_OTHER_MEMBER_NAME),
     // 実施者の訂正候補は同じ家庭のメンバーに限る(YDR-020)。
     loadHouseholdMembers(db, session),
+    listConsumablesForTaskRule(db, session, row.task_rule_id),
   ]);
 
   return (
@@ -279,6 +287,7 @@ export default async function TodoDetailPage({
               performerName,
             }
           : null,
+        consumables,
         dueAt: row.due_at,
         id: row.id,
         isCompleted,

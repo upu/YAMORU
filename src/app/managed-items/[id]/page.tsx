@@ -11,6 +11,10 @@ import {
   loadProfileNames,
 } from "../../../lib/d1/profiles";
 import { getD1Context } from "../../../lib/d1/context";
+import {
+  listConsumablesForManagedItem,
+  type ConsumableSummary,
+} from "../../../lib/d1/consumables";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
 import {
   isSafeExternalUrl,
@@ -28,10 +32,12 @@ import {
   RecentCompletionSection,
   RelatedTodoSection,
 } from "./detail-sections";
+import { RelatedConsumablesSection } from "../../consumables/related-consumables";
 
 export type ManagedItemDetailData = {
   actorName: string;
   currentUserId: string;
+  consumables?: ConsumableSummary[];
   externalLinks: ExternalLinkData[];
   id: string;
   itemTypeLabel: string | null;
@@ -77,6 +83,11 @@ export function ManagedItemDetailContent({
           startedOn={item.startedOn}
         />
 
+        <RelatedConsumablesSection
+          addHref={`/consumables/new?managedItemId=${encodeURIComponent(item.id)}`}
+          consumables={item.consumables ?? []}
+        />
+
         <RelatedTodoSection
           actorName={item.actorName}
           currentUserId={item.currentUserId}
@@ -102,9 +113,10 @@ export default async function RegisteredManagedItemDetail({
   const { id } = await params;
   const { db, session } = await getD1Context(user);
   const nowIso = new Date().toISOString();
-  const [data, actorName] = await Promise.all([
+  const [data, actorName, consumables] = await Promise.all([
     loadManagedItemDetail(db, session, id),
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
+    listConsumablesForManagedItem(db, session, id),
   ]);
 
   if (data === null) notFound();
@@ -140,6 +152,7 @@ export default async function RegisteredManagedItemDetail({
     <ManagedItemDetailContent
       item={{
         actorName,
+        consumables,
         currentUserId: user.id,
         externalLinks: data.external_links,
         id: data.id,

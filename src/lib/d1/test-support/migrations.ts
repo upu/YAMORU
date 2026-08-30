@@ -18,6 +18,7 @@ import managedItemOptionalAttributesSql from "../../../../d1/migrations/0008_man
 import undatedOneTimeTodosSql from "../../../../d1/migrations/0009_undated_one_time_todos.sql?raw";
 import monthlyDayMonthEndSql from "../../../../d1/migrations/0010_monthly_day_month_end.sql?raw";
 import managedItemStartedOnSql from "../../../../d1/migrations/0011_managed_item_started_on.sql?raw";
+import consumablesSql from "../../../../d1/migrations/0012_consumables.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -32,6 +33,7 @@ const MIGRATIONS = [
   { name: "0009_undated_one_time_todos", sql: undatedOneTimeTodosSql },
   { name: "0010_monthly_day_month_end", sql: monthlyDayMonthEndSql },
   { name: "0011_managed_item_started_on", sql: managedItemStartedOnSql },
+  { name: "0012_consumables", sql: consumablesSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];
