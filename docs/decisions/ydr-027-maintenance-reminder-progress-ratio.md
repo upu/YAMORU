@@ -5,14 +5,15 @@ title: メンテナンス推奨期間の「そろそろ」表示を進捗率80%�
 description: 推奨期間内(そろそろ)の開始条件を、推奨開始日と同時ではなく、推奨開始日から推奨上限日までの経過が80%に達した暦日からにする。YDR-017の該当箇所を部分的に置き換える
 tags: [yamoru, decisions, ydr, todo, maintenance]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-23
 supersedes: YDR-017
+superseded_by: YDR-034
 ---
 
 # YDR-027: メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-034](ydr-034-maintenance-home-progress-states.md)(80%の「そろそろ」しきい値は維持しつつ、推奨開始日から80%未満を独立した「推奨期間」状態としてホームへ表示する4状態化により、3状態の分類とホーム表示先を置き換える)
 - 決定日: 2026-08-23
 - 置き換える決定: [YDR-017](ydr-017-strict-deadline-vs-maintenance-recommended-window.md)(「推奨期間内(`scheduled_for <= now <= due_at`)」という開始条件のみ。`deadline_kind`による`strict`/`maintenance`の区別、`strict`の期限切れ表示、`scheduled_for`/`due_at`の意味は変更しない)
 

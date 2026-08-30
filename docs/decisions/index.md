@@ -38,13 +38,14 @@
 | YDR-024 | 招待の生tokenをquery stringではなくURL fragmentで搬送する | Accepted | [ydr-024-invitation-token-in-url-fragment.md](ydr-024-invitation-token-in-url-fragment.md) |
 | YDR-025 | PBKDF2の反復回数をCloudflare Workersの実行上限(10万回)に合わせる | Accepted | [ydr-025-pbkdf2-iterations-within-workers-limit.md](ydr-025-pbkdf2-iterations-within-workers-limit.md) |
 | YDR-026 | 実施記録の訂正を追記型の訂正イベントとして記録し、有効値を読み取り時に解決する | Accepted | [ydr-026-completion-correction-events.md](ydr-026-completion-correction-events.md) |
-| YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Accepted | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
+| YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Superseded by YDR-034(80%しきい値を維持した4状態化) | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
 | YDR-028 | ManagedItemの大分類、詳しい種類、タグの役割を分離する | Superseded by YDR-029(初期の表示ラベルの部分のみ) | [ydr-028-managed-item-kind-item-type-tags.md](ydr-028-managed-item-kind-item-type-tags.md) |
 | YDR-029 | 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える | Accepted | [ydr-029-managed-item-kind-labels.md](ydr-029-managed-item-kind-labels.md) |
 | YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
 | YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Accepted | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
 | YDR-032 | 毎月の定例日指定に「月末」を固定日1〜31とは別の意味として追加する | Accepted | [ydr-032-monthly-day-month-end.md](ydr-032-monthly-day-month-end.md) |
 | YDR-033 | ManagedItemの開始時期をstarted_onへ段階移行し、大分類ごとの言葉で表示する | Accepted | [ydr-033-managed-item-started-on.md](ydr-033-managed-item-started-on.md) |
+| YDR-034 | メンテナンスTodoを推奨期間の進み具合に応じた4状態でホームへ表示する | Accepted | [ydr-034-maintenance-home-progress-states.md](ydr-034-maintenance-home-progress-states.md) |
 
 ## 新しい意思決定の追加
 

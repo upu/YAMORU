@@ -89,11 +89,29 @@ describe("完了日基準Todoの推奨期間表示(describeCompletionRecurrence)
 });
 
 describe("メンテナンスTodoの表示文言(MAINTENANCE_DISPLAY_COPY)", () => {
-  it("推奨期間前・期間内・上限超過は文言とトーンがそれぞれ異なる", () => {
-    const entries = Object.values(MAINTENANCE_DISPLAY_COPY);
-
-    expect(new Set(entries.map((entry) => entry.badge)).size).toBe(3);
-    expect(new Set(entries.map((entry) => entry.tone)).size).toBe(3);
+  it("4状態を開始前・推奨期間・そろそろ・推奨期間超過として区別する(Issue #281)", () => {
+    expect(MAINTENANCE_DISPLAY_COPY).toEqual({
+      "before-window": {
+        badge: "予定",
+        message: "次回の交換予定です",
+        tone: "upcoming",
+      },
+      "in-window": {
+        badge: "推奨期間",
+        message: "交換の推奨期間です",
+        tone: "upcoming",
+      },
+      "past-window": {
+        badge: "推奨期間超過",
+        message: "交換推奨期間を過ぎています",
+        tone: "caution",
+      },
+      "reminder-window": {
+        badge: "そろそろ",
+        message: "そろそろ交換時期です",
+        tone: "reminder",
+      },
+    });
   });
 });
 

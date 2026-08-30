@@ -28,9 +28,9 @@ export type PendingTodoCategory =
   | "upcoming"
   // 7日より先の予定。ホームには出さない。
   | "later"
-  // 完了日基準Todoの推奨期間内・上限超過(YDR-017)
+  // 完了日基準Todoの推奨期間内・上限超過(YDR-034)
   | "reminder"
-  // 完了日基準Todoの推奨期間前。急かさないためホームには出さない(YDR-017)。
+  // 完了日基準Todoの推奨期間前。対応開始前のためホームには出さない(YDR-034)。
   | "before-window"
   // 一回限りTodoの予定日未定(YDR-030)
   | "undated";
@@ -108,17 +108,19 @@ function buildMaintenanceEntry(
 
   const window = { dueAt, scheduledFor };
   const state = getMaintenanceDisplayStateFromIso(window, nowIso);
+  const copy = MAINTENANCE_DISPLAY_COPY[state];
   return {
     category: state === "before-window" ? "before-window" : "reminder",
     item: {
       ...pendingTodoItemBase(row),
-      // Issue #243: 推奨期間前は開始日(from)、期間内・上限超過は上限日
-      // (until)を短く示す。状態語はバッジ(予定/そろそろ/要確認)が伝える。
+      badge: copy.badge,
+      // Issue #243 / #281: 推奨期間前は開始日(from)、開始後・上限超過は上限日
+      // (until)を短く示す。4状態の違いはバッジとトーンが伝える。
       listSchedule: state === "before-window"
         ? { iso: scheduledFor, kind: "from" }
         : { iso: dueAt, kind: "until" },
       meta: describeMaintenanceWindowFromIso(state, window),
-      tone: MAINTENANCE_DISPLAY_COPY[state].tone,
+      tone: copy.tone,
     },
     sortKey: dueAt,
   };

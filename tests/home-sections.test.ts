@@ -40,7 +40,25 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
     expect(items).toHaveLength(0);
   });
 
-  it("推奨期間内はreminderトーンで推奨期間の上限を案内し、完了操作用のmanagedItemIdを持つ", () => {
+  it("8/28〜8/31の担当者未設定Todoを8/30から推奨期間として表示する(Issue #281)", () => {
+    const items = buildReminderItems([
+      pendingRow({
+        due_at: "2026-08-30T15:00:00.000Z",
+        scheduled_for: "2026-08-27T15:00:00.000Z",
+      }),
+    ], "2026-08-29T15:00:00.000Z");
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      assigneeUserId: null,
+      badge: "推奨期間",
+      managedItemId: "item-1",
+      meta: "8月31日までが推奨期間です",
+      tone: "upcoming",
+    });
+  });
+
+  it("80%以上はそろそろトーンで推奨期間の上限を案内し、完了操作用のmanagedItemIdを持つ", () => {
     // scheduled_for(Tokyo 8/7)〜due_at(Tokyo 9/5)の80%しきい値はTokyo 8/31
     // (Issue #52)。9/1はしきい値を過ぎ、上限日より前。
     const items = buildReminderItems([pendingRow()], "2026-09-01T00:00:00.000Z");
@@ -48,6 +66,7 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
     expect(items[0]).toMatchObject({
       detail: "猫の浄水器",
       detailHref: "/managed-items/item-1",
+      badge: "そろそろ",
       managedItemId: "item-1",
       title: "フィルター交換",
       tone: "reminder",
@@ -58,22 +77,39 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
   it("推奨期間の上限超過はcautionトーンで責めずに案内する", () => {
     const items = buildReminderItems([pendingRow()], "2026-09-10T00:00:00.000Z");
     expect(items).toHaveLength(1);
+    expect(items[0].badge).toBe("推奨期間超過");
     expect(items[0].tone).toBe("caution");
     expect(items[0].meta).toBe("9月5日に推奨期間の上限を過ぎました");
   });
 
-  it("due_atの昇順で並べる", () => {
-    // どちらも80%しきい値(Issue #52)を過ぎているnowを使う。earlierは
-    // 上限日も過ぎてpast-windowになるが、before-windowでなければ表示は
-    // 維持される。
+  it("上限超過・80%以上・80%未満の順にし、同じ状態では上限日の昇順にする", () => {
     const items = buildReminderItems(
       [
-        pendingRow({ due_at: "2026-09-10T15:00:00.000Z", id: "later" }),
-        pendingRow({ due_at: "2026-08-20T15:00:00.000Z", id: "earlier" }),
+        pendingRow({
+          due_at: "2026-09-08T15:00:00.000Z",
+          id: "early-later",
+          scheduled_for: "2026-08-31T15:00:00.000Z",
+        }),
+        pendingRow({
+          due_at: "2026-09-09T15:00:00.000Z",
+          id: "reminder",
+          scheduled_for: "2026-07-31T15:00:00.000Z",
+        }),
+        pendingRow({ due_at: "2026-08-19T15:00:00.000Z", id: "past" }),
+        pendingRow({
+          due_at: "2026-09-07T15:00:00.000Z",
+          id: "early-sooner",
+          scheduled_for: "2026-08-31T15:00:00.000Z",
+        }),
       ],
-      "2026-09-05T00:00:00.000Z",
+      "2026-09-04T15:00:00.000Z",
     );
-    expect(items.map((item) => item.id)).toEqual(["earlier", "later"]);
+    expect(items.map((item) => item.id)).toEqual([
+      "past",
+      "reminder",
+      "early-sooner",
+      "early-later",
+    ]);
   });
 
   it("未知のdeadline_kindは黙って無視せず例外にする", () => {

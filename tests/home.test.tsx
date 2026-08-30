@@ -45,7 +45,7 @@ function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection[
   return [
     { description: "期限を過ぎています", id: "overdue", items: overrides.overdue ?? [], title: "期限切れ" },
     { description: "今日確認したいこと", id: "today", items: overrides.today ?? [], title: "今日" },
-    { description: "対応の目安の時期です", id: "reminder", items: overrides.reminder ?? [], title: "そろそろ" },
+    { description: "対応の目安の期間です", id: "reminder", items: overrides.reminder ?? [], title: "メンテナンス" },
     { description: "これから7日間の予定", id: "upcoming", items: overrides.upcoming ?? [], title: "近日" },
     { description: "家族が完了したこと", id: "recent", items: overrides.recent ?? [], title: "最近の実施" },
   ];
@@ -182,14 +182,14 @@ describe("ホーム画面(HomeContent)", () => {
     });
     renderHome(sections);
 
-    expect(screen.getByRole("region", { name: "そろそろ" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "メンテナンス" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "期限切れ" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "今日" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "近日" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "最近の実施" })).not.toBeInTheDocument();
   });
 
-  it("そろそろ区分のTodoからTodo詳細・管理対象の詳細へ移動でき、対応状況の件数に反映される", () => {
+  it("メンテナンス区分のTodoからTodo詳細・管理対象の詳細へ移動でき、対応状況の件数に反映される", () => {
     const sections = emptySections({
       reminder: [
         {
@@ -207,7 +207,7 @@ describe("ホーム画面(HomeContent)", () => {
     });
     renderHome(sections);
 
-    const reminderSection = screen.getByRole("region", { name: "そろそろ" });
+    const reminderSection = screen.getByRole("region", { name: "メンテナンス" });
     // Issue #203: Todo名はTodo詳細、管理対象名は管理対象の詳細へ移動する。
     expect(
       within(reminderSection).getByRole("link", { name: "猫の浄水器のフィルター交換" }),
@@ -254,7 +254,7 @@ describe("ホームのTodo操作", () => {
     );
   });
 
-  it("そろそろ区分のTodoに「やったよ」ボタンを表示し、押すとそのOccurrenceを完了操作する", () => {
+  it("メンテナンス区分のTodoに「やったよ」ボタンを表示し、押すとそのOccurrenceを完了操作する", () => {
     const sections = emptySections({
       reminder: [
         {
@@ -275,7 +275,7 @@ describe("ホームのTodo操作", () => {
     });
     renderHome(sections);
 
-    const reminderSection = screen.getByRole("region", { name: "そろそろ" });
+    const reminderSection = screen.getByRole("region", { name: "メンテナンス" });
     const completeButton = within(reminderSection).getByRole("button", {
       name: "猫の浄水器のフィルター交換を記録",
     });

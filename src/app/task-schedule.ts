@@ -4,9 +4,9 @@
 // scheduled_forを推奨期間の開始、due_atを推奨期間の上限として使う。
 // strictではscheduled_forとdue_atを同日として扱い、期限切れ表示を維持する。
 
-// Issue #52: 推奨開始日から推奨上限日までの経過割合がこの値以上になったら
-// 「そろそろ」と案内する。利用者ごとの設定化はせず、まず固定のプロダクト
-// 規則とする(design memo)。
+// Issue #52 / #281: 推奨期間の経過割合がこの値以上になったら、開始直後の
+// 「推奨期間」より一段強い「そろそろ」と案内する。利用者ごとの設定化はせず、
+// 固定のプロダクト規則とする。
 const MAINTENANCE_REMINDER_THRESHOLD_RATIO = 0.8;
 
 export type TodoTone =
@@ -21,14 +21,15 @@ export type TodoTone =
 // カード向けのitem.meta文章("8月28日から推奨期間です"等)は表示済みの
 // 日本語文なので解析せず、pending-todo.tsがここで組み立てた構造化データを
 // TodoListRowが短い表記(「8/28〜」等)へ変換する(issue本文の設計メモ案1)。
-// バッジ(今日/予定/期限切れ/そろそろ/要確認/未定)がすでに状態語を示すため、
+// バッジ(今日/予定/期限切れ/推奨期間/そろそろ/推奨期間超過/未定)がすでに
+// 状態語を示すため、
 // ここでは日付だけを最小限に持つ。
 export type TodoListSchedule =
   // 厳密な期限(1回限り・定例日基準)の期日。
   | { iso: string; kind: "due" }
   // 完了日基準Todoの推奨期間の開始(before-window)。
   | { iso: string; kind: "from" }
-  // 完了日基準Todoの推奨期間の上限(in-window・past-window)。
+  // 完了日基準Todoの推奨期間の上限(in-window・reminder-window・past-window)。
   | { iso: string; kind: "until" }
   // 予定日未定。バッジの「未定」と重複させないため日付を持たない。
   | { kind: "undated" };
@@ -36,6 +37,7 @@ export type TodoListSchedule =
 export type MaintenanceDisplayState =
   | "before-window"
   | "in-window"
+  | "reminder-window"
   | "past-window";
 
 export type StrictDisplayState = "upcoming" | "due-today" | "overdue";
@@ -95,12 +97,17 @@ export const MAINTENANCE_DISPLAY_COPY: Record<
     message: "次回の交換予定です",
   },
   "in-window": {
+    badge: "推奨期間",
+    tone: "upcoming",
+    message: "交換の推奨期間です",
+  },
+  "reminder-window": {
     badge: "そろそろ",
     tone: "reminder",
     message: "そろそろ交換時期です",
   },
   "past-window": {
-    badge: "要確認",
+    badge: "推奨期間超過",
     tone: "caution",
     message: "交換推奨期間を過ぎています",
   },
