@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { STRICT_DISPLAY_COPY } from "../src/app/task-schedule";
 import {
   formatDateInput,
   getMaintenanceDisplayStateFromIso,
+  getStrictDisplayStateFromIso,
 } from "../src/app/time-zone";
 
 // scheduled_for/due_atはUTCタイムスタンプとしてDBから返る。ここでは
@@ -51,6 +53,38 @@ describe("Tokyo基準の推奨期間判定(getMaintenanceDisplayStateFromIso)", 
     expect(
       getMaintenanceDisplayStateFromIso(window, "2026-09-05T15:00:00.000Z"),
     ).toBe("past-window");
+  });
+});
+
+// #275: Date版のgetStrictDisplayStateを削除したため、厳密な期限(税金・支払い
+// など)の3状態は、本番が実際に使うTokyo基準のISO版で確認する。
+describe("Tokyo基準の厳密な期限判定(getStrictDisplayStateFromIso)", () => {
+  const dueAt = "2026-08-08T15:00:00.000Z"; // Tokyo: 2026-08-09T00:00
+
+  it("期限を過ぎたら期限切れ表示を維持する", () => {
+    const state = getStrictDisplayStateFromIso(dueAt, "2026-08-11T15:00:00.000Z"); // Tokyo: 8/12
+
+    expect(state).toBe("overdue");
+    expect(STRICT_DISPLAY_COPY[state]).toEqual({
+      badge: "期限切れ",
+      tone: "urgent",
+    });
+  });
+
+  it("期限当日・期限前は期限切れにしない", () => {
+    expect(getStrictDisplayStateFromIso(dueAt, "2026-08-08T15:00:00.000Z")).toBe(
+      "due-today",
+    ); // Tokyo: 8/9T00:00
+    expect(getStrictDisplayStateFromIso(dueAt, "2026-07-31T15:00:00.000Z")).toBe(
+      "upcoming",
+    ); // Tokyo: 8/1
+  });
+
+  it("UTCの暦日ではなくTokyoの暦日で判定する", () => {
+    // UTCの暦日は8/9で期限当日に見えるが、Tokyoではすでに8/10のため期限切れ。
+    expect(getStrictDisplayStateFromIso(dueAt, "2026-08-09T15:00:00.000Z")).toBe(
+      "overdue",
+    );
   });
 });
 

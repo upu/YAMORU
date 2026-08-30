@@ -1,37 +1,15 @@
-import { expect, test } from "@playwright/test";
-import { getPlatformProxy, type PlatformProxy } from "wrangler";
+import { type Page } from "@playwright/test";
+import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 
-import { hashPassword } from "../src/lib/auth/password";
 import { createOneTimeTask, setTaskOccurrenceAssignee } from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
-import { E2E_WRANGLER_ENVIRONMENT } from "../scripts/e2e-environment";
 
 // Issue #224: Todo一覧のカード表示とコンパクトなリスト表示の切り替えを、
 // PC幅(既定のDesktop Chromeプロジェクト)とモバイル幅の両方で確認する
 // (受け入れ基準「モバイルとPCの主要幅を自動テストまたはスクリーンショット
 // で確認している」)。
 
-const OWNER = { email: "owner@example.test", password: "owner-password-value" };
 const TASK_TITLE = "浄水フィルター交換";
-
-let platform: PlatformProxy<CloudflareEnv>;
-
-async function clearDatabase(db: D1Database): Promise<void> {
-  await db.batch([
-    db.prepare("DELETE FROM invitation_claims"),
-    db.prepare("DELETE FROM household_invitations"),
-    db.prepare("DELETE FROM completion_corrections"),
-    db.prepare("DELETE FROM activity_logs"),
-    db.prepare("DELETE FROM task_occurrences"),
-    db.prepare("DELETE FROM task_rules"),
-    db.prepare("DELETE FROM external_links"),
-    db.prepare("DELETE FROM managed_items"),
-    db.prepare("DELETE FROM household_members"),
-    db.prepare("DELETE FROM profiles"),
-    db.prepare("DELETE FROM households"),
-    db.prepare("DELETE FROM users"),
-  ]);
-}
 
 function tokyoDateAfter(days: number): string {
   const today = new Intl.DateTimeFormat("en-CA", {
@@ -46,21 +24,7 @@ function tokyoDateAfter(days: number): string {
 }
 
 async function seedOwnerWithAssignedPendingTodo(db: D1Database): Promise<void> {
-  const ownerHash = await hashPassword(OWNER.password);
-  await db.batch([
-    db.prepare(
-      "INSERT INTO users (id, email, password_hash) VALUES ('owner', ?1, ?2)",
-    ).bind(OWNER.email, ownerHash),
-    db.prepare(
-      "INSERT INTO profiles (user_id, nickname) VALUES ('owner', '家族Aさん')",
-    ),
-    db.prepare(
-      "INSERT INTO households (id, name) VALUES ('household-a', '架空の家庭A')",
-    ),
-    db.prepare(
-      "INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'owner')",
-    ),
-  ]);
+  await seedOwnerHousehold(db);
   const session = { userId: "owner" };
   const ruleId = await createOneTimeTask(db, session, {
     managedItemId: null,
@@ -74,31 +38,13 @@ async function seedOwnerWithAssignedPendingTodo(db: D1Database): Promise<void> {
   await setTaskOccurrenceAssignee(db, session, occurrence.id, "owner");
 }
 
-async function loginAndOpenTodoList(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/login");
-  const loginRegion = page.getByRole("region", { name: "ログイン" });
-  await loginRegion.getByLabel("メールアドレス").fill(OWNER.email);
-  await loginRegion.getByLabel("パスワード").fill(OWNER.password);
-  await loginRegion.getByRole("button", { name: "ログイン" }).click();
-  await expect(page).toHaveURL(/\/$/u);
+async function loginAndOpenTodoList(page: Page): Promise<void> {
+  await login(page);
   await page.goto("/todos");
 }
 
-test.beforeAll(async () => {
-  platform = await getPlatformProxy<CloudflareEnv>({
-    environment: E2E_WRANGLER_ENVIRONMENT,
-    persist: true,
-    remoteBindings: false,
-  });
-});
-
-test.beforeEach(async () => {
-  await clearDatabase(platform.env.DB);
-  await seedOwnerWithAssignedPendingTodo(platform.env.DB);
-});
-
-test.afterAll(async () => {
-  await platform.dispose();
+test.beforeEach(async ({ db }) => {
+  await seedOwnerWithAssignedPendingTodo(db);
 });
 
 test("PC幅: カード表示とリスト表示を切り替え、リスト行はキーボードでもTodo詳細へ移動できる", async ({

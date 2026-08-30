@@ -3,6 +3,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+// workflowのYAMLをそのまま写した照合は、挙動を変えていない構成変更でも失敗して
+// 変更を妨げる(#278)。ここでは「検証済みのcommitだけを配備する」「環境を取り違え
+// ない」「Secretを露出しない」という、壊れると実害が出る不変条件だけを確認する。
+
 function readWorkflow(fileName: string): string {
   return readFileSync(
     join(process.cwd(), ".github/workflows", fileName),
@@ -19,25 +23,50 @@ function expectOrderedCommands(workflow: string, commands: string[]): void {
   }
 }
 
+// #274でLint・Typecheck・Test・Buildを並列jobへ分割した。jobを組み替えても
+// 検査が黙って抜け落ちないことと、jobどうしが直列化していないことを確認する。
+describe("Quality checks workflow(#274)", () => {
+  it("Lint・Typecheck・Test・BuildとD1テストをすべて実行する", () => {
+    const workflow = readWorkflow("ci.yml");
+
+    for (const command of [
+      "npm run lint",
+      "npm run typecheck",
+      "npm test",
+      "npm run build",
+      "npm run d1:migrate",
+      "npm run test:d1",
+    ]) {
+      expect(workflow, `${command}がworkflowにありません`).toContain(command);
+    }
+  });
+
+  it("jobどうしを直列化せず、並列に実行する", () => {
+    expect(readWorkflow("ci.yml")).not.toContain("needs:");
+  });
+
+  it("production Releaseから同じ検査を再利用できる", () => {
+    expect(readWorkflow("ci.yml")).toContain("workflow_call:");
+  });
+});
+
 describe("Cloudflare preview deploy workflow", () => {
-  it("mainのQuality checksが成功した同一commitだけをpreviewへ反映する", () => {
+  it("mainのQuality checksが成功した、その同一commitだけをpreviewへ反映する", () => {
     const workflow = readWorkflow("deploy-preview.yml");
 
-    expect(workflow).toContain("workflow_run:");
     expect(workflow).toContain('workflows: ["Quality checks"]');
     expect(workflow).toContain("branches: [main]");
-    expect(workflow).toContain("types: [completed]");
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success'");
     expect(workflow).toContain("github.event.workflow_run.event == 'push'");
+    // 検査した時点のcommitをそのままcheckoutする。ここがブランチ名などに
+    // 変わると、未検査のcommitが配備されうる。
     expect(workflow).toContain("ref: ${{ github.event.workflow_run.head_sha }}");
-    expect(workflow).toContain("fetch-depth: 0");
-    expect(workflow).toContain("name: preview");
-    expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
-    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: preview");
-    expect(workflow).toContain(
-      "YAMORU_BUILD_ID: ${{ github.event.workflow_run.head_sha }}",
-    );
+  });
 
+  it("preview環境を指定し、公開境界の確認まで順に実行する", () => {
+    const workflow = readWorkflow("deploy-preview.yml");
+
+    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: preview");
     expectOrderedCommands(workflow, [
       "npm run cf:config:check",
       "npm run d1:migrate:preview",
@@ -49,23 +78,15 @@ describe("Cloudflare preview deploy workflow", () => {
 });
 
 describe("Preview family sharing E2E workflow(#151, #167)", () => {
-  it("Release Draftの対象main commitを明示実行で検証する", () => {
+  it("Draft Releaseの対象commitが、dispatchしたmainのHEADと一致することを求める", () => {
     const workflow = readWorkflow("preview-family-sharing-e2e.yml");
 
-    expect(workflow).toContain("workflow_dispatch:");
-    expect(workflow).toContain("release_tag:");
-    expect(workflow).toContain("target_sha:");
+    // GitHub ActionsはDraft Releaseのcreatedイベントを発火しないため、
+    // types: [created]に戻すとこのworkflowは動かなくなる(#167)。
     expect(workflow).not.toContain("types: [created]");
-    expect(workflow).toContain("Verify the Draft Release target");
     expect(workflow).toContain("refs/heads/main");
     expect(workflow).toContain('RELEASE_TARGET_SHA" != "$GITHUB_SHA');
     expect(workflow).toContain("ref: ${{ steps.release.outputs.target_sha }}");
-    expect(workflow).toContain("name: preview");
-    expect(workflow).toContain("vars.YAMORU_PREVIEW_URL");
-    expect(workflow).toContain("YAMORU_PREVIEW_URL: ${{ vars.YAMORU_PREVIEW_URL }}");
-    // deploy-preview.ymlと同じconcurrency groupを共有し、preview環境への
-    // deployとE2Eが同時に走らないようにする。
-    expect(workflow).toContain("group: yamoru-preview");
 
     expectOrderedCommands(workflow, [
       "Verify the Draft Release target",
@@ -74,7 +95,12 @@ describe("Preview family sharing E2E workflow(#151, #167)", () => {
     ]);
   });
 
-  it("deploy-preview.ymlはpush毎の自動配備のままで、E2Eを含まない", () => {
+  it("preview環境へのdeployと同時に走らないよう、同じconcurrency groupを共有する", () => {
+    expect(readWorkflow("preview-family-sharing-e2e.yml")).toContain("group: yamoru-preview");
+    expect(readWorkflow("deploy-preview.yml")).toContain("group: yamoru-preview");
+  });
+
+  it("push毎に走るpreview deployへE2Eを持ち込まない", () => {
     const workflow = readWorkflow("deploy-preview.yml");
 
     expect(workflow).not.toContain("test:e2e:preview");
@@ -83,26 +109,29 @@ describe("Preview family sharing E2E workflow(#151, #167)", () => {
 });
 
 describe("Cloudflare production deploy workflow", () => {
-  it("stable Releaseのtag commitを再検証してから本番へ反映する", () => {
+  it("公開済みのstable Releaseだけを対象にする", () => {
     const workflow = readWorkflow("deploy-production.yml");
 
-    expect(workflow).toContain("release:");
     expect(workflow).toContain("types: [published]");
     expect(workflow).not.toContain("workflow_run:");
     expect(workflow).not.toContain("push:");
     expect(workflow).toContain("github.event.release.draft == false");
     expect(workflow).toContain("github.event.release.prerelease == false");
+  });
+
+  it("Release tagのcommitを再検査し、tagとHEADの一致を確認してから配備する", () => {
+    const workflow = readWorkflow("deploy-production.yml");
+
     expect(workflow).toContain("uses: ./.github/workflows/ci.yml");
     expect(workflow).toContain("needs: quality");
     expect(workflow).toContain("ref: ${{ github.event.release.tag_name }}");
     expect(workflow).toContain("RELEASE_TAG: ${{ github.event.release.tag_name }}");
-    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: production");
-    expect(workflow).toContain(
-      "YAMORU_APP_VERSION: ${{ github.event.release.tag_name }}",
-    );
-    expect(workflow).toContain("node scripts/release-target.ts");
-    expect(workflow).toContain("name: production");
+  });
 
+  it("production環境を指定し、公開境界の確認まで順に実行する", () => {
+    const workflow = readWorkflow("deploy-production.yml");
+
+    expect(workflow).toContain("YAMORU_APP_ENVIRONMENT: production");
     expectOrderedCommands(workflow, [
       "node scripts/release-target.ts",
       "npm run cf:config:check",
@@ -112,17 +141,17 @@ describe("Cloudflare production deploy workflow", () => {
       "npm run cf:smoke",
     ]);
   });
+});
 
-  it("Quality checksをRelease commitへ再利用できる", () => {
-    expect(readWorkflow("ci.yml")).toContain("workflow_call:");
-  });
-
-  it("Cloudflare認証情報と公開URLをEnvironmentから受け取る", () => {
-    for (const [fileName, urlVariable] of [
-      ["deploy-preview.yml", "vars.YAMORU_PREVIEW_URL"],
-      ["deploy-production.yml", "vars.YAMORU_PRODUCTION_URL"],
+describe("配備workflowのSecretと公開URL", () => {
+  it("Cloudflare認証情報と公開URLをEnvironmentから受け取り、AUTH_SECRETを渡さない", () => {
+    for (const [fileName, environment, urlVariable] of [
+      ["deploy-preview.yml", "name: preview", "vars.YAMORU_PREVIEW_URL"],
+      ["deploy-production.yml", "name: production", "vars.YAMORU_PRODUCTION_URL"],
     ]) {
       const workflow = readWorkflow(fileName);
+
+      expect(workflow).toContain(environment);
       expect(workflow).toContain("secrets.CLOUDFLARE_API_TOKEN");
       expect(workflow).toContain("secrets.CLOUDFLARE_ACCOUNT_ID");
       expect(workflow).toContain(urlVariable);

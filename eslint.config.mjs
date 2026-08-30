@@ -10,6 +10,9 @@ const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 const commonTypeScriptRules = {
   complexity: ["error", 15],
+  // 関数単位の複雑さだけを見ていたため、1ファイルに複数の関心が同居したまま
+  // 肥大化しても検知できなかった(#280)。分割後の実態に合わせた上限を置く。
+  "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
   // 分岐の「数」はcomplexityで、分岐の「入れ子の深さ」による読みにくさは
   // cognitive-complexityで別軸に検知する。
   "sonarjs/cognitive-complexity": ["error", 10],
@@ -37,8 +40,10 @@ export default defineConfig([
     rules: commonTypeScriptRules,
   },
   {
-    files: ["tests/**/*.{ts,tsx}"],
+    files: ["tests/**/*.{ts,tsx}", "e2e/**/*.ts"],
     rules: {
+      // 1ファイルに複数のケースが並ぶため、テストだけ緩和する。
+      "max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
       // suite全体を表すコールバックは実コードより長くなりやすいため、テストだけ緩和する。
       "max-lines-per-function": [
         "error",
@@ -55,6 +60,7 @@ export default defineConfig([
     files: ["src/lib/d1/**/*.d1-test.ts"],
     extends: [tseslint.configs.disableTypeChecked],
     rules: {
+      "max-lines": ["error", { max: 500, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": [
         "error",
         { max: 200, skipBlankLines: true, skipComments: true },

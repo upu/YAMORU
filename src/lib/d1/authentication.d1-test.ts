@@ -1,9 +1,6 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
-import authClaimsSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
 import { hashPassword, verifyPassword } from "../auth/password";
 import {
   authenticateCredentials,
@@ -12,6 +9,7 @@ import {
   getUserForSession,
   resetPassword,
 } from "./authentication";
+import { applyAllMigrations } from "./test-support/migrations";
 import { D1ConflictError, D1UnauthorizedError } from "./errors";
 import {
   acceptInvitationForExistingUser,
@@ -22,17 +20,6 @@ import {
 } from "./invitations";
 
 const db = env.DB;
-
-function migrationStatements(...migrations: string[]): string[] {
-  return migrations
-    .join("\n")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
 
 async function seedOwner(): Promise<void> {
   await db.batch([
@@ -47,10 +34,7 @@ async function seedOwner(): Promise<void> {
 }
 
 beforeAll(async () => {
-  await db.batch(
-    migrationStatements(schemaSql, authClaimsSql, migrationAuditSql)
-      .map((statement) => db.prepare(statement)),
-  );
+  await applyAllMigrations(db);
 });
 
 beforeEach(async () => {

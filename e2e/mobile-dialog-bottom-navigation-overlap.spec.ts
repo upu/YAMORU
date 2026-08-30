@@ -1,14 +1,9 @@
-import { expect, test } from "@playwright/test";
-import { getPlatformProxy, type PlatformProxy } from "wrangler";
+import { E2E_OWNER, expect, seedOwnerHousehold, test } from "./support/fixtures";
 
-import { hashPassword } from "../src/lib/auth/password";
 import { createManagedItem } from "../src/lib/d1/managed-items";
 import { createOneTimeTask } from "../src/lib/d1/todos";
-import { E2E_WRANGLER_ENVIRONMENT } from "../scripts/e2e-environment";
 import { formatDateInput } from "../src/app/time-zone";
 
-const OWNER = { email: "owner@example.test", password: "owner-password-value" };
-let platform: PlatformProxy<CloudflareEnv>;
 let managedItemId: string;
 const TASK_TITLE = "浄水フィルター交換";
 
@@ -20,39 +15,8 @@ const TASK_TITLE = "浄水フィルター交換";
 // テストは実機での「重なって押せない」不具合をそのまま再現できる。
 test.use({ viewport: { width: 390, height: 844 } });
 
-async function clearDatabase(db: D1Database): Promise<void> {
-  await db.batch([
-    db.prepare("DELETE FROM invitation_claims"),
-    db.prepare("DELETE FROM household_invitations"),
-    db.prepare("DELETE FROM completion_corrections"),
-    db.prepare("DELETE FROM activity_logs"),
-    db.prepare("DELETE FROM task_occurrences"),
-    db.prepare("DELETE FROM task_rules"),
-    db.prepare("DELETE FROM external_links"),
-    db.prepare("DELETE FROM managed_items"),
-    db.prepare("DELETE FROM household_members"),
-    db.prepare("DELETE FROM profiles"),
-    db.prepare("DELETE FROM households"),
-    db.prepare("DELETE FROM users"),
-  ]);
-}
-
 async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
-  const ownerHash = await hashPassword(OWNER.password);
-  await db.batch([
-    db.prepare(
-      "INSERT INTO users (id, email, password_hash) VALUES ('owner', ?1, ?2)",
-    ).bind(OWNER.email, ownerHash),
-    db.prepare(
-      "INSERT INTO profiles (user_id, nickname) VALUES ('owner', '家族Aさん')",
-    ),
-    db.prepare(
-      "INSERT INTO households (id, name) VALUES ('household-a', '架空の家庭A')",
-    ),
-    db.prepare(
-      "INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'owner')",
-    ),
-  ]);
+  await seedOwnerHousehold(db);
   const session = { userId: "owner" };
   managedItemId = await createManagedItem(db, session, {
     customItemType: null,
@@ -72,21 +36,8 @@ async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
   });
 }
 
-test.beforeAll(async () => {
-  platform = await getPlatformProxy<CloudflareEnv>({
-    environment: E2E_WRANGLER_ENVIRONMENT,
-    persist: true,
-    remoteBindings: false,
-  });
-});
-
-test.beforeEach(async () => {
-  await clearDatabase(platform.env.DB);
-  await seedOwnerWithPendingTodo(platform.env.DB);
-});
-
-test.afterAll(async () => {
-  await platform.dispose();
+test.beforeEach(async ({ db }) => {
+  await seedOwnerWithPendingTodo(db);
 });
 
 test("モバイル幅で完了記録・延期ダイアログの選択肢が下部ナビゲーションと重ならず操作できる", async ({
@@ -94,8 +45,8 @@ test("モバイル幅で完了記録・延期ダイアログの選択肢が下�
 }) => {
   await page.goto("/login");
   const loginRegion = page.getByRole("region", { name: "ログイン" });
-  await loginRegion.getByLabel("メールアドレス").fill(OWNER.email);
-  await loginRegion.getByLabel("パスワード").fill(OWNER.password);
+  await loginRegion.getByLabel("メールアドレス").fill(E2E_OWNER.email);
+  await loginRegion.getByLabel("パスワード").fill(E2E_OWNER.password);
   await loginRegion.getByRole("button", { name: "ログイン" }).click();
   await expect(page).toHaveURL(/\/$/u);
 

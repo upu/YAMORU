@@ -1,39 +1,19 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { getPlatformProxy, type PlatformProxy } from "wrangler";
+import { type Browser, type Page } from "@playwright/test";
+import { E2E_OWNER, expect, test } from "./support/fixtures";
 
 import { hashPassword } from "../src/lib/auth/password";
-import { E2E_WRANGLER_ENVIRONMENT } from "../scripts/e2e-environment";
 
-const OWNER = { email: "owner@example.test", password: "owner-password-value" };
 const OUTSIDER = { email: "outsider@example.test", password: "outsider-password-value" };
-let platform: PlatformProxy<CloudflareEnv>;
-
-async function clearDatabase(db: D1Database): Promise<void> {
-  await db.batch([
-    db.prepare("DELETE FROM invitation_claims"),
-    db.prepare("DELETE FROM household_invitations"),
-    db.prepare("DELETE FROM completion_corrections"),
-    db.prepare("DELETE FROM activity_logs"),
-    db.prepare("DELETE FROM task_occurrences"),
-    db.prepare("DELETE FROM task_rules"),
-    db.prepare("DELETE FROM external_links"),
-    db.prepare("DELETE FROM managed_items"),
-    db.prepare("DELETE FROM household_members"),
-    db.prepare("DELETE FROM profiles"),
-    db.prepare("DELETE FROM households"),
-    db.prepare("DELETE FROM users"),
-  ]);
-}
 
 async function seedAccounts(db: D1Database): Promise<void> {
   const [ownerHash, outsiderHash] = await Promise.all([
-    hashPassword(OWNER.password),
+    hashPassword(E2E_OWNER.password),
     hashPassword(OUTSIDER.password),
   ]);
   await db.batch([
     db.prepare(
       "INSERT INTO users (id, email, password_hash) VALUES ('owner', ?1, ?2), ('outsider', ?3, ?4)",
-    ).bind(OWNER.email, ownerHash, OUTSIDER.email, outsiderHash),
+    ).bind(E2E_OWNER.email, ownerHash, OUTSIDER.email, outsiderHash),
     db.prepare(
       "INSERT INTO profiles (user_id, nickname) VALUES ('owner', '家族Aさん'), ('outsider', '別家庭さん')",
     ),
@@ -110,7 +90,11 @@ async function changeInviteePassword(
   await login(page, email, changedPassword);
 }
 
-async function verifyOutsiderRejected(browser: Browser, ownerPage: Page): Promise<void> {
+async function verifyOutsiderRejected(
+  db: D1Database,
+  browser: Browser,
+  ownerPage: Page,
+): Promise<void> {
   const outsiderLink = await issueInvitation(ownerPage, OUTSIDER.email);
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -119,44 +103,32 @@ async function verifyOutsiderRejected(browser: Browser, ownerPage: Page): Promis
   await submitLoginForm(page, OUTSIDER.email, OUTSIDER.password);
   await expect(page).toHaveURL(/\/invitations\/accept\/confirm$/u);
   await page.getByRole("button", { name: "招待を受諾する" }).click();
-  await expect(platform.env.DB.prepare(
+  await expect(db.prepare(
     "SELECT household_id FROM household_members WHERE user_id = 'outsider'",
   ).first()).resolves.toMatchObject({ household_id: "household-b" });
-  await expect(platform.env.DB.prepare(
+  await expect(db.prepare(
     "SELECT status FROM household_invitations WHERE invited_email = ?1 ORDER BY created_at DESC LIMIT 1",
   ).bind(OUTSIDER.email).first()).resolves.toMatchObject({ status: "pending" });
   await context.close();
 }
 
-test.beforeAll(async () => {
-  platform = await getPlatformProxy<CloudflareEnv>({
-    environment: E2E_WRANGLER_ENVIRONMENT,
-    persist: true,
-    remoteBindings: false,
-  });
-});
-
-test.beforeEach(async () => {
-  await clearDatabase(platform.env.DB);
-  await seedAccounts(platform.env.DB);
-});
-
-test.afterAll(async () => {
-  await platform.dispose();
+test.beforeEach(async ({ db }) => {
+  await seedAccounts(db);
 });
 
 test("Auth.jsで招待限定登録・再ログイン・password変更を行い、別家庭を拒否する", async ({
   browser,
+  db,
 }) => {
   const ownerContext = await browser.newContext();
   const ownerPage = await ownerContext.newPage();
-  await login(ownerPage, OWNER.email, OWNER.password);
+  await login(ownerPage, E2E_OWNER.email, E2E_OWNER.password);
 
   const invitationLink = await issueInvitation(ownerPage, "invitee@example.test");
   expect(invitationLink).toMatch(/\/invitations\/accept#token=/u);
   const invitee = await registerInvitee(browser, invitationLink);
 
-  await expect(platform.env.DB.prepare(
+  await expect(db.prepare(
     `SELECT m.household_id, p.nickname
        FROM users u
        JOIN household_members m ON m.user_id = u.id
@@ -168,7 +140,7 @@ test("Auth.jsで招待限定登録・再ログイン・password変更を行い�
   });
 
   await changeInviteePassword(invitee.page, invitee.email, invitee.password);
-  await verifyOutsiderRejected(browser, ownerPage);
+  await verifyOutsiderRejected(db, browser, ownerPage);
 
   const anonymousContext = await browser.newContext();
   const anonymousPage = await anonymousContext.newPage();

@@ -18,9 +18,15 @@ concurrency:
 permissions:
   contents: read
 
+# Lint・Typecheck・Test・Buildを一つのjobで直列に実行していたため、
+# セットアップを除く79秒がそのままworkflowの実時間になっていた(#274)。
+# npm test単独(41秒)とそれ以外の合計(38秒)がほぼ拮抗しているため、
+# この2つを並列jobへ分けるだけで実時間が最短に近づく。checkoutと
+# npm ciの26秒を各jobが払うので、これ以上細かく分けても実時間は
+# 変わらず、課金対象のランナー時間だけが増える。
 jobs:
-  quality:
-    name: Lint, typecheck, test, and build
+  static:
+    name: Lint, typecheck, and build
     runs-on: ubuntu-latest
 
     steps:
@@ -34,7 +40,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Lint
         run: npm run lint
@@ -42,11 +48,28 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
-
       - name: Build
         run: npm run build
+
+  test:
+    name: Unit and component tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Test
+        run: npm test
 
   d1:
     name: D1 migration and authorization tests
@@ -63,7 +86,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Apply D1 migrations to a clean local database
         run: npm run d1:migrate

@@ -1066,21 +1066,6 @@ h1 {
   font-size: 0.7rem;
 }
 
-.recording-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 11px;
-  background: var(--green-pale);
-  font-size: 0.76rem;
-}
-
-.recording-summary span {
-  color: var(--muted);
-}
-
 .item-meta {
   margin-top: 5px;
   color: var(--ink);
@@ -1132,8 +1117,7 @@ h1 {
   margin-bottom: 28px;
 }
 
-.back-nav a,
-.link-card a {
+.back-nav a {
   color: var(--green);
   font-weight: 800;
   text-underline-offset: 4px;
@@ -1167,20 +1151,10 @@ h1 {
 }
 
 .detail-hero > p:last-child,
-.detail-note,
-.history-list p {
+.detail-note {
   margin-bottom: 0;
   color: var(--muted);
   font-size: 0.8rem;
-}
-
-.sample-label {
-  flex: none;
-  border-radius: 999px;
-  color: var(--green);
-  background: var(--green-pale);
-  font-size: 0.7rem;
-  font-weight: 800;
 }
 
 /* 大分類と詳しい種類は別々のバッジとして並べる(Issue #195)。塗りと枠線で
@@ -1442,11 +1416,6 @@ h1 {
   display: flex;
   align-items: center;
   gap: 14px;
-}
-
-.signout-form {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .password-change-close {
@@ -1737,20 +1706,6 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 11px;
   background: var(--paper);
-}
-
-.repeat-summary {
-  display: grid;
-  gap: 3px;
-  padding: 12px 14px;
-  border-radius: 11px;
-  background: var(--green-pale);
-}
-
-.repeat-summary span {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 800;
 }
 
 .todo-fieldset {
