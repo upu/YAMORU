@@ -1,15 +1,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
-import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
-import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
-import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
-import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
-import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
-import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
-import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
+import { applyAllMigrations } from "./test-support/migrations";
 import { D1NotFoundError } from "./errors";
 import {
   createManagedItem,
@@ -26,28 +18,8 @@ const householdBMember = { email: "b@example.com", userId: "user-b" };
 const PRODUCT_INFO = "サンプル電機 サンプルモデル SAMPLE-0000";
 const NOTE = "リビングの窓側に設置。\n説明書は棚の中。";
 
-function migrationStatements(): string[] {
-  return [
-    schemaSql,
-    authSchemaSql,
-    migrationAuditSql,
-    completionCorrectionsSql,
-    classificationSql,
-    propertyTaxSql,
-    kindLabelsSql,
-    optionalAttributesSql,
-    startedOnSql,
-  ].join("\n")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
-
 beforeAll(async () => {
-  await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
+  await applyAllMigrations(db);
 });
 
 beforeEach(async () => {

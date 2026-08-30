@@ -1,46 +1,15 @@
 import { env } from "cloudflare:workers";
 import { expect, it } from "vitest";
 
-import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
-import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
-import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
-import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
-import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
-import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
-import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
-import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
+import { applyMigrations, applyMigrationsThrough } from "./test-support/migrations";
 
 const db = env.DB;
-
-function statements(sql: string): string[] {
-  return sql
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
-
-async function apply(...sql: string[]): Promise<void> {
-  await db.batch(statements(sql.join("\n")).map((statement) => db.prepare(statement)));
-}
 
 // Issue #239: 0011は既存のpurchased_onを書き換えず、started_onへコピーする
 // (YDR-033)。分かる精度(年・年月・年月日)それぞれで値が失われないことと、
 // 未設定行がNULLのまま残ることを確認する。
 it("既存のpurchased_onを書き換えず、同じ値をstarted_onへコピーする(Issue #239)", async () => {
-  await apply(
-    schemaSql,
-    authSchemaSql,
-    migrationAuditSql,
-    completionCorrectionsSql,
-    classificationSql,
-    propertyTaxSql,
-    kindLabelsSql,
-    optionalAttributesSql,
-  );
+  await applyMigrationsThrough(db, "0008_managed_item_optional_attributes");
   await db.batch([
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com')"),
     db.prepare("INSERT INTO households (id, name) VALUES ('household-a', 'Household A')"),
@@ -59,7 +28,7 @@ it("既存のpurchased_onを書き換えず、同じ値をstarted_onへコピー
     ),
   ]);
 
-  await apply(startedOnSql);
+  await applyMigrations(db, ["0011_managed_item_started_on"]);
 
   const rows = await db.prepare(
     "SELECT id, purchased_on, started_on FROM managed_items ORDER BY id",

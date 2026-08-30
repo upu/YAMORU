@@ -1,39 +1,12 @@
 import { env } from "cloudflare:workers";
 import { expect, it } from "vitest";
 
-import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
-import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
-import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
-import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
-import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
-import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
+import { applyMigrations, applyMigrationsThrough } from "./test-support/migrations";
 
 const db = env.DB;
 
-function statements(sql: string): string[] {
-  return sql
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
-
-async function apply(...sql: string[]): Promise<void> {
-  await db.batch(statements(sql.join("\n")).map((statement) => db.prepare(statement)));
-}
-
 it("大分類の表示ラベルだけを更新し、既存の分類と関連データを保持する(Issue #193)", async () => {
-  await apply(
-    schemaSql,
-    authSchemaSql,
-    migrationAuditSql,
-    completionCorrectionsSql,
-    classificationSql,
-    propertyTaxSql,
-  );
+  await applyMigrationsThrough(db, "0006_property_tax_item_type");
   await db.batch([
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com')"),
     db.prepare("INSERT INTO households (id, name) VALUES ('household-a', 'Household A')"),
@@ -55,7 +28,7 @@ it("大分類の表示ラベルだけを更新し、既存の分類と関連デ�
     "SELECT code, kind_code, label, sort_order, is_active, legacy_kind FROM managed_item_type_presets ORDER BY kind_code, sort_order",
   ).all();
 
-  await apply(kindLabelsSql);
+  await applyMigrations(db, ["0007_managed_item_kind_labels"]);
 
   await expect(db.prepare(
     "SELECT code, label FROM managed_item_kinds WHERE is_active = 1 ORDER BY sort_order",

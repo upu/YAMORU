@@ -1,16 +1,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import schemaSql from "../../../d1/migrations/0001_init.sql?raw";
-import authSchemaSql from "../../../d1/migrations/0002_auth_invitation_claims.sql?raw";
-import migrationAuditSql from "../../../d1/migrations/0003_preserve_supabase_audit_fields.sql?raw";
-import completionCorrectionsSql from "../../../d1/migrations/0004_completion_corrections.sql?raw";
-import classificationSql from "../../../d1/migrations/0005_managed_item_classification.sql?raw";
-import propertyTaxSql from "../../../d1/migrations/0006_property_tax_item_type.sql?raw";
-import kindLabelsSql from "../../../d1/migrations/0007_managed_item_kind_labels.sql?raw";
-import optionalAttributesSql from "../../../d1/migrations/0008_managed_item_optional_attributes.sql?raw";
-import monthEndSql from "../../../d1/migrations/0010_monthly_day_month_end.sql?raw";
-import startedOnSql from "../../../d1/migrations/0011_managed_item_started_on.sql?raw";
+import { applyAllMigrations } from "./test-support/migrations";
 import {
   createManagedItem,
   getManagedItemForEdit,
@@ -22,44 +13,8 @@ import { createCalendarTask, createOneTimeTask } from "./todos";
 const db = env.DB;
 const householdMember = { email: "a@example.com", userId: "user-a" };
 
-function migrationStatements(): string[] {
-  return [
-    schemaSql,
-    authSchemaSql,
-    migrationAuditSql,
-    completionCorrectionsSql,
-    classificationSql,
-    propertyTaxSql,
-    kindLabelsSql,
-    optionalAttributesSql,
-  ].join("\n")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-}
-
-function triggerAwareStatements(sql: string): string[] {
-  const cleaned = sql
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("--"))
-    .join("\n");
-  const triggers = [...cleaned.matchAll(/CREATE TRIGGER[\s\S]*?END;/g)]
-    .map(([statement]) => statement.trim());
-  const regular = cleaned
-    .replaceAll(/CREATE TRIGGER[\s\S]*?END;/g, "")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter(Boolean);
-  return [...regular, ...triggers];
-}
-
 beforeAll(async () => {
-  await db.batch(migrationStatements().map((statement) => db.prepare(statement)));
-  await db.batch(triggerAwareStatements(monthEndSql).map((statement) => db.prepare(statement)));
-  await db.batch(triggerAwareStatements(startedOnSql).map((statement) => db.prepare(statement)));
+  await applyAllMigrations(db);
 });
 
 beforeEach(async () => {
