@@ -62,6 +62,13 @@ export function formatTokyoDateInput(iso: string): string {
   return toTokyoDateString(iso);
 }
 
+// Issue #287: 開始時期の年欄プレースホルダーに使う「現在年」の例を、
+// Server ComponentのUTC実行に左右されずAsia/Tokyoの暦日基準で求める。
+// 年またぎ前後(例: UTCでは前年末でもJSTでは元日)でも期待する年になる。
+export function tokyoYearFromIso(iso: string): number {
+  return Number(toTokyoDateString(iso).slice(0, 4));
+}
+
 function toTokyoDateString(iso: string): string {
   // en-CAはYYYY-MM-DD形式を返すため、そのまま文字列比較で日付の前後を判定できる。
   return new Intl.DateTimeFormat("en-CA", {

@@ -29,8 +29,10 @@ function SubmitButton() {
 
 export function ManagedItemForm({
   classificationOptions,
+  nowIso,
 }: {
   classificationOptions: ManagedItemClassificationOptions;
+  nowIso?: string;
 }) {
   const [state, formAction] = useActionState(
     createManagedItem,
@@ -78,7 +80,11 @@ export function ManagedItemForm({
         商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。
       </p>
 
-      <ManagedItemOptionalAttributeFields idPrefix="managed-item" kindCode={kindCode} />
+      <ManagedItemOptionalAttributeFields
+        idPrefix="managed-item"
+        kindCode={kindCode}
+        nowIso={nowIso}
+      />
 
       <SubmitButton />
       {state.status === "error" ? (

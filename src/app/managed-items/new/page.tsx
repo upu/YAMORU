@@ -12,9 +12,11 @@ type HouseholdSummary = { id: string; name: string };
 export function ManagedItemRegistrationContent({
   classificationOptions,
   household,
+  nowIso,
 }: {
   classificationOptions: ManagedItemClassificationOptions;
   household: HouseholdSummary | null;
+  nowIso?: string;
 }) {
   return (
     <main className="detail-page ledger-page">
@@ -40,7 +42,7 @@ export function ManagedItemRegistrationContent({
         <section aria-labelledby="register-item-title" className="detail-card">
           <h2 id="register-item-title">登録内容</h2>
           <p className="detail-note">{household.name}の台帳へ追加します。</p>
-          <ManagedItemForm classificationOptions={classificationOptions} />
+          <ManagedItemForm classificationOptions={classificationOptions} nowIso={nowIso} />
         </section>
       )}
     </main>
@@ -61,6 +63,7 @@ export default async function ManagedItemRegistrationPage() {
     <ManagedItemRegistrationContent
       classificationOptions={classificationOptions}
       household={household}
+      nowIso={new Date().toISOString()}
     />
   );
 }

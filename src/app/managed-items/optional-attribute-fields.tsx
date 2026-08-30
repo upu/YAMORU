@@ -1,3 +1,4 @@
+import { tokyoYearFromIso } from "../time-zone";
 import { startedOnLabel } from "./model";
 import { splitStartedOn } from "./started-on";
 
@@ -42,14 +43,19 @@ function UnknownableSelect({
 function StartedOnFields({
   idPrefix,
   kindCode,
+  nowIso,
   startedOn,
 }: {
   idPrefix: string;
   kindCode: string;
+  nowIso: string;
   startedOn: string | null;
 }) {
   const parts = splitStartedOn(startedOn);
   const label = startedOnLabel(kindCode);
+  // Issue #287: 固定の古い年(2024)ではなく、その時点の現在年を例として
+  // 示す。値そのものは自動入力しない(空のまま)。
+  const currentYear = tokyoYearFromIso(nowIso);
   return (
     <fieldset className="started-on-fieldset">
       <legend>{label}（任意）</legend>
@@ -67,7 +73,7 @@ function StartedOnFields({
             inputMode="numeric"
             maxLength={4}
             name="startedYear"
-            placeholder="2024"
+            placeholder={`例: ${String(currentYear)}`}
             type="text"
           />
         </span>
@@ -97,12 +103,16 @@ export function ManagedItemOptionalAttributeFields({
   idPrefix,
   kindCode,
   note = null,
+  // Issue #287: 呼び出し元(Server Component)がAsia/Tokyo基準の現在時刻を
+  // 渡す。渡されない場合(単体テストなど)はブラウザ実行時刻へ落ちる。
+  nowIso = new Date().toISOString(),
   productInfo = null,
   startedOn = null,
 }: {
   idPrefix: string;
   kindCode: string;
   note?: string | null;
+  nowIso?: string;
   productInfo?: string | null;
   startedOn?: string | null;
 }) {
@@ -126,7 +136,12 @@ export function ManagedItemOptionalAttributeFields({
         分かる範囲で書けます。型番だけを正確に入力する必要はありません。
       </p>
 
-      <StartedOnFields idPrefix={idPrefix} kindCode={kindCode} startedOn={startedOn} />
+      <StartedOnFields
+        idPrefix={idPrefix}
+        kindCode={kindCode}
+        nowIso={nowIso}
+        startedOn={startedOn}
+      />
 
       <label htmlFor={`${idPrefix}-note`}>メモ（任意）</label>
       <textarea

@@ -51,6 +51,7 @@ export default async function ManagedItemEditPage({
           kindCode={item.kindCode}
           name={item.name}
           note={item.note}
+          nowIso={new Date().toISOString()}
           productInfo={item.productInfo}
           startedOn={item.startedOn}
         />
