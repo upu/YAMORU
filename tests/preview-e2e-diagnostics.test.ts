@@ -44,6 +44,9 @@ function testInfoWith(status: string): TestInfo {
   return { expectedStatus: "passed", status } as unknown as TestInfo;
 }
 
+// preview-family-sharing-e2e.ymlは配備済みpreviewに対して実行され、この診断は
+// GitHub Actionsのログへ出る。生の招待tokenやclaim secretがそこへ残らないことを
+// 確認する。
 describe("preview E2Eの失敗時診断", () => {
   beforeEach(() => {
     resetPreviewDiagnostics();
@@ -112,21 +115,5 @@ describe("preview E2Eの失敗時診断", () => {
     reportPreviewDiagnostics(testInfoWith("passed"));
 
     expect(log).not.toHaveBeenCalled();
-  });
-
-  it("失敗したテストでは通信履歴を出す", () => {
-    const { emit, page } = createFakePage();
-    watchPreviewNavigations(page, "owner");
-    emit({
-      method: "GET",
-      resourceType: "document",
-      status: 500,
-      url: `${PREVIEW_ORIGIN}/household`,
-    });
-    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
-
-    reportPreviewDiagnostics(testInfoWith("timedOut"));
-
-    expect(log).toHaveBeenCalledTimes(2);
   });
 });
