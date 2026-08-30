@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { ConsumableSummary } from "../../lib/d1/consumables";
+import { StockStatusBadge } from "./stock-status";
 
 export function RelatedConsumablesSection({
   addHref,
@@ -29,6 +30,7 @@ export function RelatedConsumablesSection({
               <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
                 {consumable.name}
               </Link>
+              <StockStatusBadge stockStatus={consumable.stockStatus} />
             </li>
           ))}
         </ul>

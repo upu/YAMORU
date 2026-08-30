@@ -1,10 +1,7 @@
 import Link from "next/link";
 
-import type { ConsumableSummary, ConsumableStockStatus } from "../lib/d1/consumables";
-
-function statusLabel(status: ConsumableStockStatus): string {
-  return status === "out" ? "ない" : "少ない";
-}
+import type { ConsumableSummary } from "../lib/d1/consumables";
+import { StockStatusBadge } from "./consumables/stock-status";
 
 export function ShoppingCandidatesSection({
   candidates,
@@ -28,9 +25,7 @@ export function ShoppingCandidatesSection({
             <Link href={`/consumables/${encodeURIComponent(candidate.id)}`}>
               {candidate.name}
             </Link>
-            <span className={`stock-status-badge stock-status-${candidate.stockStatus}`}>
-              {statusLabel(candidate.stockStatus)}
-            </span>
+            <StockStatusBadge stockStatus={candidate.stockStatus} />
           </li>
         ))}
       </ul>

@@ -8,6 +8,7 @@ import {
   type ConsumableStockActionState,
   updateConsumableStockStatus,
 } from "./stock-actions";
+import { stockStatusLabel } from "./stock-status";
 
 const INITIAL_STATE: ConsumableStockActionState = { message: "", status: "idle" };
 
@@ -16,10 +17,6 @@ const STATUS_OPTIONS: { label: string; value: ConsumableStockStatus }[] = [
   { label: "少ない", value: "low" },
   { label: "ない", value: "out" },
 ];
-
-export function stockStatusLabel(status: ConsumableStockStatus): string {
-  return STATUS_OPTIONS.find(({ value }) => value === status)?.label ?? "ある";
-}
 
 function StatusButtons({ stockStatus }: { stockStatus: ConsumableStockStatus }) {
   const { pending } = useFormStatus();

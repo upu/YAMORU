@@ -4,18 +4,12 @@ import { requireUser } from "../../lib/auth/current-user";
 import {
   listConsumables,
   type ConsumableSummary,
-  type ConsumableStockStatus,
 } from "../../lib/d1/consumables";
 import { getD1Context } from "../../lib/d1/context";
 import { loadAccountState } from "../../lib/d1/households";
+import { StockStatusBadge } from "./stock-status";
 
 export type ConsumableListItem = ConsumableSummary;
-
-function statusLabel(status: ConsumableStockStatus): string {
-  if (status === "available") return "ある";
-  if (status === "low") return "少ない";
-  return "ない";
-}
 
 export function ConsumablesContent({
   consumables,
@@ -51,9 +45,7 @@ export function ConsumablesContent({
                 <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
                   {consumable.name}
                 </Link>
-                <span className={`stock-status-badge stock-status-${consumable.stockStatus}`}>
-                  {statusLabel(consumable.stockStatus)}
-                </span>
+                <StockStatusBadge stockStatus={consumable.stockStatus} />
               </li>
             ))}
           </ul>
