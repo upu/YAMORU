@@ -19,6 +19,29 @@ function expectOrderedCommands(workflow: string, commands: string[]): void {
   }
 }
 
+// #274でLint・Typecheck・Test・Buildを並列jobへ分割した。jobを組み替えても
+// 検査が黙って抜け落ちないことと、jobどうしが直列化していないことを確認する。
+describe("Quality checks workflow(#274)", () => {
+  it("Lint・Typecheck・Test・BuildとD1テストをすべて実行する", () => {
+    const workflow = readWorkflow("ci.yml");
+
+    for (const command of [
+      "npm run lint",
+      "npm run typecheck",
+      "npm test",
+      "npm run build",
+      "npm run d1:migrate",
+      "npm run test:d1",
+    ]) {
+      expect(workflow, `${command}がworkflowにありません`).toContain(command);
+    }
+  });
+
+  it("jobどうしを直列化せず、並列に実行する", () => {
+    expect(readWorkflow("ci.yml")).not.toContain("needs:");
+  });
+});
+
 describe("Cloudflare preview deploy workflow", () => {
   it("mainのQuality checksが成功した同一commitだけをpreviewへ反映する", () => {
     const workflow = readWorkflow("deploy-preview.yml");
