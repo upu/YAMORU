@@ -197,7 +197,7 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     expect(
       screen.getByText("検索語: 「存在しない」に一致する管理対象はありません。検索語や絞り込みを変えてお試しください。"),
     ).toBeInTheDocument();
-    expect(screen.queryByText("まだ管理対象はありません。右下の⊕から台帳に追加できます。")).not.toBeInTheDocument();
+    expect(screen.queryByText(/まだ管理対象はありません。/)).not.toBeInTheDocument();
   });
 
   it("入力に一致した詳しい種類を大分類ごとのグループで示す", async () => {
@@ -431,7 +431,7 @@ describe("台帳一覧の分類絞り込みの即時反映(ManagedItemsPage、Is
 
   it("管理対象名は明示的に検索し、JavaScript無効時に分類を送信できるフォームを残す", async () => {
     const { container } = render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
-    const form = screen.getByRole("form", { name: "台帳を検索・絞り込み" });
+    const form = screen.getByRole("form", { name: "検索・絞り込み" });
 
     expect(screen.getByRole("button", { name: "名前を検索" })).toBeInTheDocument();
     expect(form).toHaveAttribute("action", "/managed-items");
@@ -451,5 +451,67 @@ describe("台帳一覧の分類絞り込みの即時反映(ManagedItemsPage、Is
     );
     expect(serverHtml).toContain("分類の変更を反映");
     expect(serverHtml).toContain("name=\"itemType\"");
+  });
+});
+
+// Issue #285: 初見の利用者が管理対象名の検索欄を新規登録の名前欄と誤認したため、
+// 検索・絞り込み領域と新規登録の入口を画面上で区別できるようにする。
+describe("台帳一覧の検索と新規登録の区別(ManagedItemsPage、Issue #285)", () => {
+  it("検索・絞り込み領域の見出しを画面上に表示し、フォームの名前としても使う", async () => {
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    const title = screen.getByRole("heading", { name: "検索・絞り込み" });
+    expect(title).not.toHaveClass("sr-only");
+    expect(screen.getByRole("form", { name: "検索・絞り込み" })).toHaveAttribute(
+      "aria-labelledby", title.id,
+    );
+  });
+
+  it("管理対象名の入力欄を、登録する名前と読めないplaceholderにする", async () => {
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("searchbox", { name: "管理対象名で検索" }))
+      .toHaveAttribute("placeholder", "名前で検索");
+  });
+
+  it("検索欄へ入力しなくても見つかる新規登録の入口を、検索・絞り込みより前に置く", async () => {
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    const addLink = screen.getByRole("link", { name: "新しく登録" });
+    expect(addLink).toHaveAttribute("href", "/managed-items/new");
+    // DOMの順序で、登録の入口が検索・絞り込みより前にあることを確かめる。
+    const form = screen.getByRole("form", { name: "検索・絞り込み" });
+    expect(addLink.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+  });
+
+  it("右下の「＋」からの登録導線も維持する", async () => {
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
+      "href", "/managed-items/new",
+    );
+  });
+
+  it("管理対象がまだ無いときの案内も、新規登録の入口の言葉で説明する", async () => {
+    render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByText("まだ管理対象はありません。「新しく登録」から台帳に追加できます。"))
+      .toBeInTheDocument();
+  });
+
+  it("検索・絞り込みの見出しを足しても、名前・大分類・詳しい種類の絞り込みは変わらない", async () => {
+    render(await ManagedItemsPage({
+      searchParams: Promise.resolve({ itemType: "appliance", kind: "asset", q: "冷蔵庫" }),
+    }));
+
+    expect(listManagedItemsMock).toHaveBeenCalledWith(
+      {},
+      { userId: "user-1" },
+      { customItemType: undefined, itemTypeCode: "appliance", kindCode: "asset", search: "冷蔵庫" },
+    );
+    expect(screen.getByRole("searchbox", { name: "管理対象名で検索" })).toHaveValue("冷蔵庫");
+    expect(screen.getByLabelText("大分類で絞り込み")).toHaveValue("asset");
+    expect(screen.getByRole("group", { name: "詳しい種類で絞り込み" })).toBeInTheDocument();
   });
 });

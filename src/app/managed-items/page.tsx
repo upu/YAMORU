@@ -192,7 +192,7 @@ function ManagedItemsEmptyState({
   }
   return (
     <p className="ledger-empty">
-      まだ管理対象はありません。右下の「＋」ボタンから台帳に追加できます。
+      まだ管理対象はありません。「新しく登録」から台帳に追加できます。
     </p>
   );
 }
@@ -210,6 +210,21 @@ function ManagedItemsList({ items }: { items: ManagedItemSummary[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+// Issue #285: 検索欄へ入力しなくても新規登録の入口が見つかるように、検索・
+// 絞り込みより前の行へ登録リンクを置く(右下のフローティングボタンはそのまま
+// 維持する)。件数バッジと同じ行に収めるため、モバイルでも一覧確認を押し下げる
+// 高さを増やさない。
+function LedgerListHeading({ count }: { count: number }) {
+  return (
+    <div className="ledger-list-heading">
+      <Link className="ledger-add-link" href="/managed-items/new">
+        <span aria-hidden="true">＋</span>新しく登録
+      </Link>
+      <span aria-label={`${String(count)}件`} className="count">{count}</span>
+    </div>
   );
 }
 
@@ -247,9 +262,7 @@ function RegisteredItemsSection({
       管理対象」を画面上の見出しとしては出さない(案1)。一覧領域の意味は
       支援技術向けに残したaria-labelledbyの見出しで伝える。 */}
       <h2 className="sr-only" id="registered-items-title">登録済みの管理対象</h2>
-      <div className="ledger-list-heading">
-        <span aria-label={`${String(items.length)}件`} className="count">{items.length}</span>
-      </div>
+      <LedgerListHeading count={items.length} />
 
       <ManagedItemsSearchForm
         itemTypeGroups={itemTypeGroups}
