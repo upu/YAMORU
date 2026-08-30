@@ -1686,13 +1686,30 @@ h1 {
 /* Issue #218: 台帳一覧の検索・絞り込み。件数バッジ(count)の下に検索・
    絞り込みフォームを続ける。Issue #237: 見出しテキストは画面上から外した
    (sr-onlyのh2 registered-items-titleへ移動)ため、件数バッジだけを
-   右寄せする。 */
+   右寄せしていた。Issue #285: 同じ行の左端へ新規登録の入口を置いたので、
+   両端揃えへ戻す。 */
 .ledger-list-heading {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 6px;
+}
+
+/* Issue #285: 検索欄と混同されない新規登録の入口。検索・絞り込みの入力欄
+   (枠線だけの入力)と違う、押せる面として見えるボタン型にする。 */
+.ledger-add-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--paper);
+  background: var(--green);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .ledger-search-form {
@@ -1700,6 +1717,19 @@ h1 {
   flex-wrap: wrap;
   gap: 8px;
   margin: 14px 0 0;
+}
+
+/* Issue #285: 検索・絞り込み領域の見出し。1行だけを足し、モバイルでも一覧
+   確認を押し下げないよう小さく置く。.detail-card h3のセリフ体より詳細度を
+   上げて、ほかの絞り込みラベルと同じ字面にそろえる。 */
+.ledger-search-form .ledger-search-title {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .ledger-search-form input[type="search"] {

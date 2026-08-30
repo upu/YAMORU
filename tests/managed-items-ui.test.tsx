@@ -47,6 +47,8 @@ describe("家の台帳一覧", () => {
     );
     expect(screen.queryByRole("link", { name: "台帳に追加" }))
       .not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "新しく登録" }))
+      .not.toBeInTheDocument();
   });
 
   it("家庭所属済みなら一覧を主要内容として空状態から登録ページへ進める", () => {
@@ -62,6 +64,11 @@ describe("家の台帳一覧", () => {
       .toBeInTheDocument();
     expect(within(list).queryByRole("link", { name: "管理対象を登録" }))
       .not.toBeInTheDocument();
+    // Issue #285: 一覧の中の「新しく登録」と、右下の共通追加ボタンの両方から進める。
+    expect(within(list).getByRole("link", { name: "新しく登録" })).toHaveAttribute(
+      "href",
+      "/managed-items/new",
+    );
     expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
       "href",
       "/managed-items/new",

@@ -57,11 +57,18 @@ test("PC幅: 分類は選択時に即時反映し、詳しい種類は入力後�
   await expect(page).not.toHaveURL(/[?&]itemType=/u);
 
   const nameSearch = page.getByRole("searchbox", { name: "管理対象名で検索" });
+  // Issue #285: 名前の入力欄は検索・絞り込み領域の中にあり、登録用ではない。
+  await expect(nameSearch).toHaveAttribute("placeholder", "名前で検索");
+  await expect(page.getByRole("form", { name: "検索・絞り込み" })).toContainText("検索・絞り込み");
   await nameSearch.fill("冷蔵");
   await expect(page).not.toHaveURL(/[?&]q=/u);
   await page.getByRole("button", { name: "名前を検索" }).click();
   await expect(page).toHaveURL(/[?&]q=%E5%86%B7%E8%94%B5\b/u);
   await expect(page.getByRole("link", { name: "台所の冷蔵庫" })).toBeVisible();
+
+  // Issue #285: 検索欄へ入力せずに新規登録へ進める入口を一覧画面に置く。
+  await page.getByRole("link", { name: "新しく登録" }).click();
+  await expect(page).toHaveURL(/\/managed-items\/new$/u);
 });
 
 test.describe("モバイル幅", () => {
@@ -72,6 +79,11 @@ test.describe("モバイル幅", () => {
 
     await expect(page.getByRole("radio", { name: "すべて" })).toHaveCount(0);
     await expect(page.getByRole("radio", { name: "家電" })).toHaveCount(0);
+    // Issue #285: 検索・絞り込みの見出しと新規登録の入口が、モバイル幅でも
+    // 一覧の上に収まって見える。
+    await expect(page.getByRole("heading", { name: "検索・絞り込み" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "新しく登録" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "台所の冷蔵庫" })).toBeVisible();
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );

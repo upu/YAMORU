@@ -72,6 +72,40 @@ function NoScriptItemTypeFilter({
   );
 }
 
+const SEARCH_TITLE_ID = "managed-items-search-title";
+const SEARCH_QUERY_ID = "managed-items-search-q";
+
+// Issue #285: 検索・絞り込み領域の役割を画面上の言葉で示す見出し。フォームの
+// アクセシブルな名前も兼ねる(aria-labelledby)ので、支援技術でも同じ言葉で
+// 領域を識別できる。
+function SearchFormTitle() {
+  return <h3 className="ledger-search-title" id={SEARCH_TITLE_ID}>検索・絞り込み</h3>;
+}
+
+// Issue #285: 管理対象名の入力欄。placeholderも「登録する名前」と読めない
+// 表現にし、上の見出しと合わせて検索用であることを伝える。
+function NameSearchField({ q }: { q: string | undefined }) {
+  return (
+    <>
+      <label className="sr-only" htmlFor={SEARCH_QUERY_ID}>管理対象名で検索</label>
+      <input
+        defaultValue={q ?? ""}
+        id={SEARCH_QUERY_ID}
+        name="q"
+        placeholder="名前で検索"
+        type="search"
+      />
+    </>
+  );
+}
+
+// Issue #285: 検索・絞り込み領域に短い見出しを表示する(issue本文の設計メモの
+// 第一候補)。初見の利用者が管理対象名の入力欄を「登録する名前」の欄と誤認した
+// ため、領域の役割を画面上の言葉で先に示す。見出しはフォームのアクセシブルな
+// 名前も兼ねる(aria-labelledby)ので、支援技術でも同じ言葉で領域を識別できる。
+// 別案のモバイル限定の開閉(details)は、Issue #218からの検索自体の発見性を
+// 下げうるため採らない。1行の見出しを足すだけなら、モバイルでも一覧確認を
+// 邪魔するほど常時大きくならない。
 export function ManagedItemsSearchForm({
   itemTypeGroups,
   itemTypeRaw,
@@ -86,7 +120,6 @@ export function ManagedItemsSearchForm({
   q: string | undefined;
 }) {
   const router = useRouter();
-  const searchId = "managed-items-search-q";
 
   function navigate(nextItemType: string, nextKind: string, nextQ: string | undefined) {
     router.push(buildManagedItemsHref(
@@ -105,19 +138,14 @@ export function ManagedItemsSearchForm({
   return (
     <form
       action="/managed-items"
-      aria-label="台帳を検索・絞り込み"
+      aria-labelledby={SEARCH_TITLE_ID}
       className="auth-form ledger-search-form"
       method="get"
       onSubmit={handleSubmit}
     >
-      <label className="sr-only" htmlFor={searchId}>管理対象名で検索</label>
-      <input
-        defaultValue={q ?? ""}
-        id={searchId}
-        name="q"
-        placeholder="名前の一部を入力"
-        type="search"
-      />
+      <SearchFormTitle />
+
+      <NameSearchField q={q} />
 
       <KindSelect
         initialValue={kind ?? ""}
