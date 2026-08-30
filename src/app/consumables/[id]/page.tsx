@@ -9,7 +9,7 @@ import { isSafeExternalUrl } from "../../managed-items/model";
 
 export type ConsumableDetailData = ConsumableDetail;
 
-export function ConsumableDetailContent({
+function ConsumableRecord({
   consumable,
 }: {
   consumable: ConsumableDetailData;
@@ -19,17 +19,7 @@ export function ConsumableDetailContent({
     ? consumable.externalUrl
     : null;
   return (
-    <main className="detail-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/consumables">← 消耗品一覧へ戻る</Link>
-      </nav>
-      <header className="detail-hero">
-        <p className="detail-kicker">CONSUMABLE</p>
-        <h1>{consumable.name}</h1>
-      </header>
-
-      <div className="ledger-grid">
-        <section aria-labelledby="consumable-record-title" className="detail-card">
+    <section aria-labelledby="consumable-record-title" className="detail-card">
           <div className="detail-section-heading">
             <div>
               <p className="detail-kicker">RECORD</p>
@@ -61,9 +51,14 @@ export function ConsumableDetailContent({
               <div><dt>メモ</dt><dd>{consumable.note}</dd></div>
             )}
           </dl>
-        </section>
+    </section>
+  );
+}
 
-        <section aria-labelledby="consumable-managed-items-title" className="detail-card">
+function ConsumableRelations({ consumable }: { consumable: ConsumableDetailData }) {
+  return (
+    <>
+      <section aria-labelledby="consumable-managed-items-title" className="detail-card">
           <p className="detail-kicker">MANAGED ITEMS</p>
           <h2 id="consumable-managed-items-title">関連する管理対象</h2>
           {consumable.managedItems.length === 0 ? (
@@ -77,9 +72,9 @@ export function ConsumableDetailContent({
               ))}
             </ul>
           )}
-        </section>
+      </section>
 
-        <section aria-labelledby="consumable-task-rules-title" className="detail-card">
+      <section aria-labelledby="consumable-task-rules-title" className="detail-card">
           <p className="detail-kicker">TODOS</p>
           <h2 id="consumable-task-rules-title">関連するTodo</h2>
           {consumable.taskRules.length === 0 ? (
@@ -96,7 +91,29 @@ export function ConsumableDetailContent({
               ))}
             </ul>
           )}
-        </section>
+      </section>
+    </>
+  );
+}
+
+export function ConsumableDetailContent({
+  consumable,
+}: {
+  consumable: ConsumableDetailData;
+}) {
+  return (
+    <main className="detail-page">
+      <nav aria-label="ページ移動" className="back-nav">
+        <Link href="/consumables">← 消耗品一覧へ戻る</Link>
+      </nav>
+      <header className="detail-hero">
+        <p className="detail-kicker">CONSUMABLE</p>
+        <h1>{consumable.name}</h1>
+      </header>
+
+      <div className="ledger-grid">
+        <ConsumableRecord consumable={consumable} />
+        <ConsumableRelations consumable={consumable} />
       </div>
     </main>
   );

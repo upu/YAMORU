@@ -35,6 +35,77 @@ function TaskRuleLabel({
   return managedItemName === null ? title : `${title}（${managedItemName}）`;
 }
 
+function ConsumableFields({ consumable }: { consumable?: ConsumableDetail }) {
+  return (
+    <>
+      <label htmlFor="consumable-name">名前</label>
+      <input autoComplete="off" defaultValue={consumable?.name ?? ""}
+        id="consumable-name" maxLength={100} name="name"
+        placeholder="例: トイレットペーパー" required type="text" />
+
+      <label htmlFor="consumable-product-code">型番・品番（任意）</label>
+      <input autoComplete="off" defaultValue={consumable?.productCode ?? ""}
+        id="consumable-product-code" maxLength={200} name="productCode"
+        placeholder="例: FILTER-A" type="text" />
+
+      <label htmlFor="consumable-external-url">外部リンク（任意）</label>
+      <input autoComplete="url" defaultValue={consumable?.externalUrl ?? ""}
+        id="consumable-external-url" maxLength={2048} name="externalUrl"
+        placeholder="https://example.com/product" type="url" />
+
+      <label htmlFor="consumable-note">メモ（任意）</label>
+      <textarea defaultValue={consumable?.note ?? ""} id="consumable-note"
+        maxLength={1000} name="note" placeholder="例: 予備は収納棚の上段" rows={4} />
+    </>
+  );
+}
+
+function ManagedItemRelations({
+  options,
+  selectedIds,
+}: {
+  options: ConsumableRelationOptions["managedItems"];
+  selectedIds: Set<string>;
+}) {
+  return (
+    <fieldset className="consumable-relations">
+      <legend>関連する管理対象（任意）</legend>
+      {options.length === 0 ? (
+        <p className="input-help">関連付けられる管理対象はありません。</p>
+      ) : options.map((item) => (
+        <label className="filter-option" key={item.id}>
+          <input defaultChecked={selectedIds.has(item.id)} name="managedItemIds"
+            type="checkbox" value={item.id} />
+          <span>{item.name}</span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+function TaskRuleRelations({
+  options,
+  selectedIds,
+}: {
+  options: ConsumableRelationOptions["taskRules"];
+  selectedIds: Set<string>;
+}) {
+  return (
+    <fieldset className="consumable-relations">
+      <legend>関連するTodo（任意）</legend>
+      {options.length === 0 ? (
+        <p className="input-help">関連付けられるメンテナンスTodoはありません。</p>
+      ) : options.map((rule) => (
+        <label className="filter-option" key={rule.id}>
+          <input defaultChecked={selectedIds.has(rule.id)} name="taskRuleIds"
+            type="checkbox" value={rule.id} />
+          <span><TaskRuleLabel managedItemName={rule.managedItemName} title={rule.title} /></span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 export function ConsumableForm({
   consumable,
   initialManagedItemId,
@@ -60,92 +131,9 @@ export function ConsumableForm({
         <input name="id" type="hidden" value={consumable.id} />
       )}
 
-      <label htmlFor="consumable-name">名前</label>
-      <input
-        autoComplete="off"
-        defaultValue={consumable?.name ?? ""}
-        id="consumable-name"
-        maxLength={100}
-        name="name"
-        placeholder="例: トイレットペーパー"
-        required
-        type="text"
-      />
-
-      <label htmlFor="consumable-product-code">型番・品番（任意）</label>
-      <input
-        autoComplete="off"
-        defaultValue={consumable?.productCode ?? ""}
-        id="consumable-product-code"
-        maxLength={200}
-        name="productCode"
-        placeholder="例: FILTER-A"
-        type="text"
-      />
-
-      <label htmlFor="consumable-external-url">外部リンク（任意）</label>
-      <input
-        autoComplete="url"
-        defaultValue={consumable?.externalUrl ?? ""}
-        id="consumable-external-url"
-        maxLength={2048}
-        name="externalUrl"
-        placeholder="https://example.com/product"
-        type="url"
-      />
-
-      <label htmlFor="consumable-note">メモ（任意）</label>
-      <textarea
-        defaultValue={consumable?.note ?? ""}
-        id="consumable-note"
-        maxLength={1000}
-        name="note"
-        placeholder="例: 予備は収納棚の上段"
-        rows={4}
-      />
-
-      <fieldset className="consumable-relations">
-        <legend>関連する管理対象（任意）</legend>
-        {options.managedItems.length === 0 ? (
-          <p className="input-help">関連付けられる管理対象はありません。</p>
-        ) : (
-          options.managedItems.map((item) => (
-            <label className="filter-option" key={item.id}>
-              <input
-                defaultChecked={selectedManagedItems.has(item.id)}
-                name="managedItemIds"
-                type="checkbox"
-                value={item.id}
-              />
-              <span>{item.name}</span>
-            </label>
-          ))
-        )}
-      </fieldset>
-
-      <fieldset className="consumable-relations">
-        <legend>関連するTodo（任意）</legend>
-        {options.taskRules.length === 0 ? (
-          <p className="input-help">関連付けられるメンテナンスTodoはありません。</p>
-        ) : (
-          options.taskRules.map((rule) => (
-            <label className="filter-option" key={rule.id}>
-              <input
-                defaultChecked={selectedTaskRules.has(rule.id)}
-                name="taskRuleIds"
-                type="checkbox"
-                value={rule.id}
-              />
-              <span>
-                <TaskRuleLabel
-                  managedItemName={rule.managedItemName}
-                  title={rule.title}
-                />
-              </span>
-            </label>
-          ))
-        )}
-      </fieldset>
+      <ConsumableFields consumable={consumable} />
+      <ManagedItemRelations options={options.managedItems} selectedIds={selectedManagedItems} />
+      <TaskRuleRelations options={options.taskRules} selectedIds={selectedTaskRules} />
 
       <p className="input-help">
         どれにも関連付けず、家庭共通の消耗品として登録できます。
