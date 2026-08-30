@@ -22,8 +22,8 @@ beforeEach(async () => {
     db.prepare("DELETE FROM household_members"),
     db.prepare("DELETE FROM households"),
     db.prepare("DELETE FROM users"),
-    db.prepare("UPDATE managed_item_kinds SET is_active = 1"),
-    db.prepare("UPDATE managed_item_type_presets SET is_active = 1"),
+    db.prepare("UPDATE managed_item_kinds SET is_active = CASE WHEN code = 'other' THEN 0 ELSE 1 END"),
+    db.prepare("UPDATE managed_item_type_presets SET is_active = CASE WHEN kind_code = 'other' THEN 0 ELSE 1 END"),
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com')"),
     db.prepare("INSERT INTO households (id, name) VALUES ('household-a', 'Household A')"),
     db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'user-a')"),
@@ -35,10 +35,9 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
   it("大分類を家庭向けのラベルで並び順どおりに取得する(Issue #193)", async () => {
     await expect(listManagedItemClassificationOptions(db)).resolves.toMatchObject({
       kinds: [
-        { code: "asset", label: "モノ" },
+        { code: "asset", label: "備品" },
         { code: "service", label: "サービス" },
         { code: "obligation", label: "支払い・手続き" },
-        { code: "other", label: "その他" },
       ],
     });
   });
@@ -52,7 +51,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
         expect.objectContaining({ code: "lesson" }),
       ]),
       kinds: expect.arrayContaining([
-        { code: "asset", label: "モノ" },
+        { code: "asset", label: "備品" },
         { code: "obligation", label: "支払い・手続き" },
       ]),
     });
@@ -71,8 +70,11 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: null,
       itemTypeLabel: "猫用給水機",
       kindCode: "asset",
-      kindLabel: "モノ",
+      kindLabel: "備品",
     });
+    await expect(db.prepare(
+      "SELECT kind FROM managed_items WHERE id = ?1",
+    ).bind(itemId).first()).resolves.toMatchObject({ kind: "other" });
   });
 
   it("旧版からkindが変更された場合は旧値を優先し、同じkindの編集では新分類を保つ", async () => {
@@ -114,6 +116,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       { customItemType: null, itemTypeCode: "contract", kindCode: "service" },
       { customItemType: null, itemTypeCode: "contract", kindCode: "asset" },
       { customItemType: null, itemTypeCode: "missing", kindCode: "asset" },
+      { customItemType: null, itemTypeCode: null, kindCode: "other" },
     ]) {
       await expect(createManagedItem(db, householdMember, {
         ...input,

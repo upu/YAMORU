@@ -284,7 +284,7 @@ describe("ManagedItem登録操作の任意の記録(Issue #42, #239)", () => {
     ["月のない日", { startedDay: "10", startedYear: "2024" }],
     ["4桁でない年", { startedYear: "24" }],
     ["存在しない日", { startedDay: "31", startedMonth: "02", startedYear: "2024" }],
-  ])("成立しない開始時期(%s)はD1へ送らない(大分類「モノ」の見出し語)", async (_case, parts) => {
+  ])("成立しない開始時期(%s)はD1へ送らない(大分類「備品」の見出し語)", async (_case, parts) => {
     const result = await createManagedItem(INITIAL_STATE, managedItemForm(parts));
 
     expect(getD1ContextMock).not.toHaveBeenCalled();

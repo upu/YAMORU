@@ -19,7 +19,7 @@ const ITEM_WITH_TODO: ManagedItemDetailData = {
   id: "item-1",
   itemTypeLabel: "ペット用品",
   kindCode: "asset",
-  kindLabel: "モノ",
+  kindLabel: "備品",
   members: [],
   name: "猫の浄水器",
   note: null,

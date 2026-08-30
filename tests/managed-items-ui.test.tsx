@@ -29,7 +29,7 @@ function classificationBadgeTexts(scope: HTMLElement): (string | null)[] {
 const REGISTERED_ITEM: ManagedItemSummary = {
   id: "item-1",
   itemTypeLabel: "ペット用品",
-  kindLabel: "モノ",
+  kindLabel: "備品",
   name: "猫の浄水器",
 };
 
@@ -118,10 +118,10 @@ describe("家の台帳一覧", () => {
 
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
     expect(classificationBadgeTexts(list)).toEqual([
-      "大分類: モノ",
+      "大分類: 備品",
       "詳しい種類: ペット用品",
     ]);
-    expect(within(list).queryByText("モノ・ペット用品")).not.toBeInTheDocument();
+    expect(within(list).queryByText("備品・ペット用品")).not.toBeInTheDocument();
     expect(within(list).getByRole("link", { name: "猫の浄水器" })).toHaveAttribute(
       "href",
       "/managed-items/item-1",
@@ -137,7 +137,7 @@ describe("家の台帳一覧", () => {
     );
 
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
-    expect(classificationBadgeTexts(list)).toEqual(["大分類: モノ"]);
+    expect(classificationBadgeTexts(list)).toEqual(["大分類: 備品"]);
   });
 });
 
@@ -184,7 +184,7 @@ describe("登録済みManagedItem詳細", () => {
       id: "item-1",
       itemTypeLabel: "ペット用品",
       kindCode: "asset",
-      kindLabel: "モノ",
+      kindLabel: "備品",
       members: [],
       name: "猫の浄水器",
       note: null,
@@ -198,7 +198,7 @@ describe("登録済みManagedItem詳細", () => {
 
     expect(screen.getByRole("heading", { name: "猫の浄水器" })).toBeInTheDocument();
     expect(classificationBadgeTexts(document.body)).toEqual([
-      "大分類: モノ",
+      "大分類: 備品",
       "詳しい種類: ペット用品",
     ]);
     // Issue #240: 外部リンクは「この管理対象の記録」に統合される。
@@ -255,7 +255,7 @@ describe("登録済みManagedItem詳細", () => {
       />,
     );
 
-    expect(classificationBadgeTexts(document.body)).toEqual(["大分類: モノ"]);
+    expect(classificationBadgeTexts(document.body)).toEqual(["大分類: 備品"]);
     expect(screen.queryByText(/詳しい種類/)).not.toBeInTheDocument();
   });
 

@@ -20,6 +20,7 @@ import monthlyDayMonthEndSql from "../../../../d1/migrations/0010_monthly_day_mo
 import managedItemStartedOnSql from "../../../../d1/migrations/0011_managed_item_started_on.sql?raw";
 import consumablesSql from "../../../../d1/migrations/0012_consumables.sql?raw";
 import consumableStockStatusSql from "../../../../d1/migrations/0013_consumable_stock_status.sql?raw";
+import retireOtherManagedItemKindSql from "../../../../d1/migrations/0014_retire_other_managed_item_kind.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -36,6 +37,7 @@ const MIGRATIONS = [
   { name: "0011_managed_item_started_on", sql: managedItemStartedOnSql },
   { name: "0012_consumables", sql: consumablesSql },
   { name: "0013_consumable_stock_status", sql: consumableStockStatusSql },
+  { name: "0014_retire_other_managed_item_kind", sql: retireOtherManagedItemKindSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

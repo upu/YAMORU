@@ -41,7 +41,7 @@ const CLASSIFICATION_OPTIONS = {
     { code: "contract", kindCode: "service", label: "契約" },
   ],
   kinds: [
-    { code: "asset", label: "モノ" },
+    { code: "asset", label: "備品" },
     { code: "service", label: "サービス" },
   ],
 };
@@ -55,7 +55,7 @@ function itemRow(overrides: Partial<{
   return {
     id: "item-1",
     itemTypeLabel: "家電",
-    kindLabel: "モノ",
+    kindLabel: "備品",
     name: "リビングの冷蔵庫",
     ...overrides,
   };
@@ -150,7 +150,7 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
       { userId: "user-1" },
       { customItemType: undefined, itemTypeCode: "appliance", kindCode: "asset", search: undefined },
     );
-    expect(screen.getByText(/大分類: モノ/)).toBeInTheDocument();
+    expect(screen.getByText(/大分類: 備品/)).toBeInTheDocument();
     expect(screen.getByText(/詳しい種類: 家電/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "詳しい種類「家電」を解除" }))
       .toHaveAttribute("href", "/managed-items?kind=asset");
@@ -169,7 +169,7 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
       { userId: "user-1" },
       { customItemType: undefined, itemTypeCode: "appliance", kindCode: "asset", search: "冷蔵庫" },
     );
-    expect(screen.getByText("大分類: モノ ・ 詳しい種類: 家電 ・ 検索語: 「冷蔵庫」")).toBeInTheDocument();
+    expect(screen.getByText("大分類: 備品 ・ 詳しい種類: 家電 ・ 検索語: 「冷蔵庫」")).toBeInTheDocument();
     // 複数条件を一度にまとめて解除できる(受け入れ基準)。
     expect(screen.getByRole("link", { name: "条件をクリア" })).toHaveAttribute(
       "href", "/managed-items",
@@ -206,8 +206,8 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     const picker = screen.getByRole("group", { name: "詳しい種類で絞り込み" });
     const searchbox = within(picker).getByRole("searchbox", { name: "詳しい種類の一部を入力" });
     fireEvent.change(searchbox, { target: { value: "家電" } });
-    const monoGroup = within(picker).getByRole("group", { name: "モノ" });
-    expect(within(monoGroup).getByRole("radio", { name: "家電" })).toBeInTheDocument();
+    const equipmentGroup = within(picker).getByRole("group", { name: "備品" });
+    expect(within(equipmentGroup).getByRole("radio", { name: "家電" })).toBeInTheDocument();
     fireEvent.change(searchbox, { target: { value: "契約" } });
     const serviceGroup = within(picker).getByRole("group", { name: "サービス" });
     expect(within(serviceGroup).getByRole("radio", { name: "契約" })).toBeInTheDocument();
@@ -241,9 +241,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
     fireEvent.change(screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" }), {
       target: { value: "かご" },
     });
-    const monoGroup = screen.getByRole("group", { name: "モノ" });
-    expect(within(monoGroup).getByRole("radio", { name: "虫かご（自由入力）" })).toBeInTheDocument();
-    expect(within(monoGroup).queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
+    const equipmentGroup = screen.getByRole("group", { name: "備品" });
+    expect(within(equipmentGroup).getByRole("radio", { name: "虫かご（自由入力）" })).toBeInTheDocument();
+    expect(within(equipmentGroup).queryByRole("radio", { name: "家電" })).not.toBeInTheDocument();
   });
 
   it("itemType=custom:の条件を渡し、家族に見せる名前で表示・選択する", async () => {
@@ -275,9 +275,9 @@ describe("台帳一覧の自由入力(詳しい種類)候補・絞り込み(Mana
     fireEvent.change(screen.getByRole("searchbox", { name: "詳しい種類の一部を入力" }), {
       target: { value: "家電" },
     });
-    const monoGroup = screen.getByRole("group", { name: "モノ" });
-    const presetOption = within(monoGroup).getByRole("radio", { name: "家電" });
-    const customOption = within(monoGroup).getByRole("radio", { name: "家電（自由入力）" });
+    const equipmentGroup = screen.getByRole("group", { name: "備品" });
+    const presetOption = within(equipmentGroup).getByRole("radio", { name: "家電" });
+    const customOption = within(equipmentGroup).getByRole("radio", { name: "家電（自由入力）" });
     expect(presetOption).toHaveAttribute("value", "appliance");
     expect(customOption).toHaveAttribute("value", "custom:家電");
     expect(presetOption).not.toBe(customOption);
