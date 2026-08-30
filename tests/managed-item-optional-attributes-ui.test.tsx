@@ -69,6 +69,56 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
     expect(screen.getByLabelText("日")).toHaveValue("");
   });
 
+  // Issue #287: 年欄のplaceholderは固定の「2024」ではなく、その時点の
+  // 現在年を例として示す。値そのものは自動入力せず空のまま。
+  it("年欄のplaceholderに現在年の例を表示する", () => {
+    render(
+      <ManagedItemForm
+        classificationOptions={CLASSIFICATION_OPTIONS}
+        nowIso="2026-08-30T12:00:00Z"
+      />,
+    );
+
+    expect(screen.getByLabelText("年")).toHaveValue("");
+    expect(screen.getByLabelText("年")).toHaveAttribute("placeholder", "例: 2026");
+  });
+
+  // Issue #287: Server ComponentがUTCで実行されても、Asia/Tokyoの暦日で
+  // 年をまたいだ現在年を示す(UTC 12/31 15:00 = JST 1/1 0:00)。
+  it("UTCでは年内でもAsia/Tokyo基準で年が変わっていれば新しい年を例に表示する", () => {
+    render(
+      <ManagedItemForm
+        classificationOptions={CLASSIFICATION_OPTIONS}
+        nowIso="2025-12-31T15:30:00Z"
+      />,
+    );
+
+    expect(screen.getByLabelText("年")).toHaveAttribute("placeholder", "例: 2026");
+  });
+
+  // Issue #287: 編集画面では保存済みの値を優先して表示し、placeholderの
+  // 現在年で上書きしない。
+  it("編集画面ではplaceholderが現在年でも保存済みの値をそのまま表示する", () => {
+    render(
+      <ManagedItemEditForm
+        classificationOptions={CLASSIFICATION_OPTIONS}
+        customItemType={null}
+        externalUrl={null}
+        id="item-1"
+        itemTypeCode="appliance"
+        kindCode="asset"
+        name="リビングのエアコン"
+        note={null}
+        nowIso="2026-08-30T12:00:00Z"
+        productInfo={null}
+        startedOn="2019"
+      />,
+    );
+
+    expect(screen.getByLabelText("年")).toHaveValue("2019");
+    expect(screen.getByLabelText("年")).toHaveAttribute("placeholder", "例: 2026");
+  });
+
   // Issue #239: 保存する値の意味(対象との関係が始まった時期)は大分類に
   // よらず同じだが、見出し語は対象に合う自然な言葉へ切り替える(YDR-033)。
   it.each([

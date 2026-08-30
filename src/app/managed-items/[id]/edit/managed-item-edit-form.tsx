@@ -87,10 +87,12 @@ function ManagedItemEditFields({
   kindCode,
   name,
   note,
+  nowIso,
   productInfo,
   startedOn,
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
+  nowIso?: string;
 }) {
   // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
   // 合わせて切り替えるため、大分類の状態をこのフォームへ持ち上げる(YDR-033)。
@@ -115,6 +117,7 @@ function ManagedItemEditFields({
         idPrefix="managed-item-edit"
         kindCode={currentKindCode}
         note={note}
+        nowIso={nowIso}
         productInfo={productInfo}
         startedOn={startedOn}
       />
@@ -128,10 +131,12 @@ function ManagedItemEditFields({
 export function ManagedItemEditForm({
   classificationOptions,
   id,
+  nowIso,
   ...values
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
   id: string;
+  nowIso?: string;
 }) {
   const [state, formAction] = useActionState(
     updateManagedItem,
@@ -143,6 +148,7 @@ export function ManagedItemEditForm({
       <input name="id" type="hidden" value={id} />
       <ManagedItemEditFields
         classificationOptions={classificationOptions}
+        nowIso={nowIso}
         {...values}
       />
       <div className="nickname-edit-actions">

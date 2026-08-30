@@ -5,6 +5,7 @@ import {
   formatDateInput,
   getMaintenanceDisplayStateFromIso,
   getStrictDisplayStateFromIso,
+  tokyoYearFromIso,
 } from "../src/app/time-zone";
 
 // scheduled_for/due_atはUTCタイムスタンプとしてDBから返る。ここでは
@@ -91,5 +92,23 @@ describe("Tokyo基準の厳密な期限判定(getStrictDisplayStateFromIso)", ()
 describe("実施日入力欄の既定値(formatDateInput)", () => {
   it("YYYY-MM-DD形式でローカル日付を返す", () => {
     expect(formatDateInput(new Date(2026, 7, 9))).toBe("2026-08-09");
+  });
+});
+
+// Issue #287: 開始時期の年欄placeholderが使う「現在年」を、Server Component
+// の実行タイムゾーン(UTC)に左右されずAsia/Tokyoの暦日基準で求める。
+describe("Tokyo基準の現在年(tokyoYearFromIso)", () => {
+  it("Tokyoの暦日での年をそのまま返す", () => {
+    expect(tokyoYearFromIso("2026-08-30T12:00:00.000Z")).toBe(2026);
+  });
+
+  it("UTCでは前年でもTokyoではすでに年が変わっていれば新しい年を返す", () => {
+    // UTC 2025-12-31T15:30は Tokyo 2026-01-01T00:30。
+    expect(tokyoYearFromIso("2025-12-31T15:30:00.000Z")).toBe(2026);
+  });
+
+  it("UTCがまだ大晦日でTokyoも大晦日のままなら前年を返す", () => {
+    // UTC 2025-12-31T10:00は Tokyo 2025-12-31T19:00で、まだ年をまたがない。
+    expect(tokyoYearFromIso("2025-12-31T10:00:00.000Z")).toBe(2025);
   });
 });
