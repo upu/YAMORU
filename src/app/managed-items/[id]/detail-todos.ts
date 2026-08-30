@@ -70,9 +70,9 @@ export type TaskRuleRow = {
   title: string;
 };
 
-// ホーム(app/page.tsx)のbuildReminderItemsと同じYDR-017の3状態分類を使い、
+// ホーム(app/page.tsx)と同じYDR-034の4状態分類を使い、
 // home/detail間で期限分類・日時表示の結果をそろえる(Issue #36)。ホームは
-// 急かさないため推奨期間前(before-window)を非表示にするが、詳細は台帳の
+// 対応開始前のbefore-windowを非表示にするが、詳細は台帳の
 // 全体像を見る画面のため、推奨期間前も含めすべての未完了Todoを表示する。
 export function buildDatedPendingTodo(
   rule: TaskRuleRow,

@@ -65,7 +65,7 @@ const HOME_SECTION_BY_CATEGORY = new Map<PendingTodoCategory, OpenSectionId>([
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
-  { description: "対応の目安の時期です", id: "reminder", title: "そろそろ" },
+  { description: "対応の目安の期間です", id: "reminder", title: "メンテナンス" },
   { description: "これから7日間の予定", id: "upcoming", title: "近日" },
   { description: "家族が完了したこと", id: "recent", title: "最近の実施" },
 ];
@@ -89,6 +89,18 @@ export function buildPendingSectionItems(
     const sectionId = HOME_SECTION_BY_CATEGORY.get(entry.category);
     if (sectionId !== undefined) result[sectionId].push(entry.item);
   });
+
+  // Issue #281: 同じメンテナンス区分では、上限超過→そろそろ→推奨期間の
+  // 順で確認できるようにする。同じトーン同士は、元の上限日昇順を維持する。
+  const maintenancePriority: Partial<Record<TodoCardItem["tone"], number>> = {
+    caution: 0,
+    reminder: 1,
+    upcoming: 2,
+  };
+  result.reminder.sort((left, right) =>
+    (maintenancePriority[left.tone] ?? Number.MAX_SAFE_INTEGER) -
+    (maintenancePriority[right.tone] ?? Number.MAX_SAFE_INTEGER)
+  );
 
   return result;
 }
@@ -268,7 +280,7 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
       <h2 id="home-empty-title">いま対応することはありません</h2>
       <p>
         {householdName}
-        には、期限切れ・今日・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の「＋」ボタンから追加できます。
+        には、期限切れ・今日・メンテナンス・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の「＋」ボタンから追加できます。
       </p>
       <Link className="ledger-primary-link home-todo-list-link" href="/todos">
         Todo一覧を見る

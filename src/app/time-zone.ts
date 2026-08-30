@@ -105,23 +105,24 @@ export function describeStrictScheduleFromIso(
   }
 }
 
-// task-schedule.tsのgetMaintenanceDisplayStateと同じ3状態判定・80%しきい値
-// (YDR-017、Issue #52)を、実行環境のタイムゾーンに依存せずAsia/Tokyoの暦日で
-// 行う。Server ComponentはUTCで実行されることがあり、ローカルDateの
-// startOfDayでは日付境界がずれてホーム/詳細間で判定が食い違いうるため、
-// ISO文字列同士をTokyoの暦日文字列・暦日数へそろえてから比較する。
+// YDR-034 / Issue #281の4状態と80%しきい値を、実行環境のタイムゾーンに
+// 依存せずAsia/Tokyoの暦日で判定する。Server ComponentはUTCで実行されることが
+// あるため、ISO文字列同士をTokyoの暦日文字列・暦日数へそろえてから比較する。
 export function getMaintenanceDisplayStateFromIso(
   window: { dueAt: string; scheduledFor: string },
   nowIso: string,
 ): MaintenanceDisplayState {
   const today = toTokyoDateString(nowIso);
+  const scheduled = toTokyoDateString(window.scheduledFor);
   const due = toTokyoDateString(window.dueAt);
   const totalDays = getTokyoDayDistance(window.scheduledFor, window.dueAt);
   const elapsedDays = getTokyoDayDistance(window.scheduledFor, nowIso);
 
-  if (elapsedDays < maintenanceReminderThresholdDays(totalDays)) return "before-window";
-  if (today <= due) return "in-window";
-  return "past-window";
+  if (today < scheduled) return "before-window";
+  if (today > due) return "past-window";
+  return elapsedDays < maintenanceReminderThresholdDays(totalDays)
+    ? "in-window"
+    : "reminder-window";
 }
 
 export function formatTokyoMonthDay(value: string): string {
@@ -154,6 +155,7 @@ export function describeMaintenanceWindowFromIso(
     case "before-window":
       return `${formatTokyoMonthDay(window.scheduledFor)}から推奨期間です`;
     case "in-window":
+    case "reminder-window":
       return `${formatTokyoMonthDay(window.dueAt)}までが推奨期間です`;
     case "past-window":
       return `${formatTokyoMonthDay(window.dueAt)}に推奨期間の上限を過ぎました`;
