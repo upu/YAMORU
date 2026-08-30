@@ -142,6 +142,33 @@ describe("家の台帳一覧", () => {
 });
 
 describe("登録済みManagedItem詳細", () => {
+  it("関連する消耗品を表示し、この管理対象を引き継いで追加できる", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          consumables: [{ id: "consumable-1", name: "交換フィルター" }],
+          currentUserId: "user-1",
+          externalLinks: [],
+          kindCode: "asset",
+          members: [],
+          note: null,
+          pendingTodos: [],
+          productInfo: null,
+          recentCompletions: [],
+          startedOn: null,
+        }}
+      />,
+    );
+
+    const section = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(section).getByRole("link", { name: "交換フィルター" }))
+      .toHaveAttribute("href", "/consumables/consumable-1");
+    expect(within(section).getByRole("link", { name: "消耗品を追加" }))
+      .toHaveAttribute("href", "/consumables/new?managedItemId=item-1");
+  });
+
   it("名前、種類、複数の安全な外部リンクを表示する", () => {
     const item: ManagedItemDetailData = {
       actorName: "家族A",
