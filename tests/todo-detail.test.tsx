@@ -129,7 +129,11 @@ afterEach(cleanup);
 describe("未完了Todoの詳細(TodoDetailContent)", () => {
   it("関連する消耗品を参照でき、追加操作は表示しない", () => {
     renderDetail(todo({
-      consumables: [{ id: "consumable-1", name: "交換フィルター" }],
+      consumables: [{
+        id: "consumable-1",
+        name: "交換フィルター",
+        stockStatus: "available",
+      }],
     }));
 
     const section = screen.getByRole("region", { name: "関連する消耗品" });

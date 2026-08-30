@@ -10,6 +10,7 @@ const {
   loadHouseholdMembersMock,
   listPendingOccurrencesMock,
   listRecentActiveCompletionsMock,
+  listShoppingCandidatesMock,
   requireUserMock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
@@ -18,6 +19,7 @@ const {
   loadHouseholdMembersMock: vi.fn(),
   listPendingOccurrencesMock: vi.fn(),
   listRecentActiveCompletionsMock: vi.fn(),
+  listShoppingCandidatesMock: vi.fn(),
   requireUserMock: vi.fn(),
 }));
 
@@ -27,6 +29,9 @@ vi.mock("../src/lib/d1/households", () => ({ loadAccountState: loadAccountStateM
 vi.mock("../src/lib/d1/home", () => ({
   listPendingOccurrences: listPendingOccurrencesMock,
   listRecentActiveCompletions: listRecentActiveCompletionsMock,
+}));
+vi.mock("../src/lib/d1/consumables", () => ({
+  listShoppingCandidates: listShoppingCandidatesMock,
 }));
 vi.mock("../src/lib/d1/profiles", () => ({
   FALLBACK_OTHER_MEMBER_NAME: "メンバー",
@@ -62,6 +67,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     expect(loadHouseholdMembersMock).not.toHaveBeenCalled();
     expect(listPendingOccurrencesMock).not.toHaveBeenCalled();
     expect(listRecentActiveCompletionsMock).not.toHaveBeenCalled();
+    expect(listShoppingCandidatesMock).not.toHaveBeenCalled();
   });
 
   it("家庭所属済みの利用者ではホーム内容を表示する", async () => {
@@ -75,6 +81,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     ]);
     listPendingOccurrencesMock.mockResolvedValue([]);
     listRecentActiveCompletionsMock.mockResolvedValue([]);
+    listShoppingCandidatesMock.mockResolvedValue([]);
 
     const element = await Home();
     render(element);
@@ -86,5 +93,28 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     expect(
       screen.getByRole("heading", { name: "いま対応することはありません" }),
     ).toBeInTheDocument();
+  });
+
+  it("家庭の買い物候補をホームへ表示する", async () => {
+    loadAccountStateMock.mockResolvedValue({
+      household: { id: "household-1", name: "テスト家庭" },
+      nickname: "ぽっぷ",
+    });
+    loadActorNameMock.mockResolvedValue("ぽっぷ");
+    loadHouseholdMembersMock.mockResolvedValue([]);
+    listPendingOccurrencesMock.mockResolvedValue([]);
+    listRecentActiveCompletionsMock.mockResolvedValue([]);
+    listShoppingCandidatesMock.mockResolvedValue([
+      { id: "paper", name: "トイレットペーパー", stockStatus: "low" },
+    ]);
+
+    render(await Home());
+
+    expect(screen.getByRole("heading", { name: "買っておきたいもの" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "トイレットペーパー" }))
+      .toHaveAttribute("href", "/consumables/paper");
+    expect(screen.queryByRole("heading", { name: "いま対応することはありません" }))
+      .not.toBeInTheDocument();
   });
 });
