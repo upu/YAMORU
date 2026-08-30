@@ -59,7 +59,6 @@ export function StockStatusControl({
         <input name="id" type="hidden" value={consumableId} />
         <StatusButtons stockStatus={stockStatus} />
       </form>
-      <p className="input-help">買って補充したら「ある」に戻します。</p>
       {state.status === "idle" ? null : (
         <p className="auth-feedback" role={state.status === "error" ? "alert" : "status"}>
           {state.message}
