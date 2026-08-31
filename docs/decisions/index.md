@@ -46,7 +46,8 @@
 | YDR-032 | 毎月の定例日指定に「月末」を固定日1〜31とは別の意味として追加する | Accepted | [ydr-032-monthly-day-month-end.md](ydr-032-monthly-day-month-end.md) |
 | YDR-033 | ManagedItemの開始時期をstarted_onへ段階移行し、大分類ごとの言葉で表示する | Accepted | [ydr-033-managed-item-started-on.md](ydr-033-managed-item-started-on.md) |
 | YDR-034 | メンテナンスTodoを推奨期間の進み具合に応じた4状態でホームへ表示する | Accepted | [ydr-034-maintenance-home-progress-states.md](ydr-034-maintenance-home-progress-states.md) |
-| YDR-035 | ManagedItemの大分類を備品、サービス、支払い・手続きの3択にする | Accepted | [ydr-035-retire-other-managed-item-kind.md](ydr-035-retire-other-managed-item-kind.md) |
+| YDR-035 | ManagedItemの大分類を備品、サービス、支払い・手続きの3択にする | Superseded by YDR-036 | [ydr-035-retire-other-managed-item-kind.md](ydr-035-retire-other-managed-item-kind.md) |
+| YDR-036 | ManagedItemの大分類を備品、サービス・契約の2択にする | Accepted | [ydr-036-merge-service-obligation-kinds.md](ydr-036-merge-service-obligation-kinds.md) |
 
 ## 新しい意思決定の追加
 

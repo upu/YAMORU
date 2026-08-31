@@ -14,11 +14,11 @@ const CLASSIFICATION_OPTIONS = {
   itemTypes: [
     { code: "appliance", kindCode: "asset", label: "家電" },
     { code: "contract", kindCode: "service", label: "契約" },
+    { code: "property_tax", kindCode: "service", label: "固定資産税" },
   ],
   kinds: [
     { code: "asset", label: "備品" },
-    { code: "service", label: "サービス" },
-    { code: "obligation", label: "支払い・手続き" },
+    { code: "service", label: "サービス・契約" },
   ],
 };
 
@@ -36,6 +36,7 @@ describe("ManagedItemの分類入力(Issue #41)", () => {
 
     expect(itemType).toHaveValue("");
     expect(screen.getByRole("option", { name: "契約" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "固定資産税" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "家電" })).not.toBeInTheDocument();
   });
 
