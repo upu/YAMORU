@@ -20,11 +20,6 @@ export type ConsumableTaskRuleOption = {
   title: string;
 };
 
-export type ConsumableRelationOptions = {
-  managedItems: ConsumableRelationOption[];
-  taskRules: ConsumableTaskRuleOption[];
-};
-
 export type ConsumableWriteInput = {
   externalUrl: string | null;
   managedItemIds: string[];
@@ -249,25 +244,4 @@ export async function listConsumablesForTaskRule(
       ORDER BY c.name COLLATE NOCASE, c.id`,
   ).bind(taskRuleId, householdId).all<ConsumableSummary>();
   return results;
-}
-
-export async function listConsumableRelationOptions(
-  db: D1Database,
-  session: D1Session,
-): Promise<ConsumableRelationOptions> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  const [managedItems, taskRules] = await Promise.all([
-    db.prepare(
-      "SELECT id, name FROM managed_items WHERE household_id = ?1 ORDER BY name COLLATE NOCASE, id",
-    ).bind(householdId).all<ConsumableRelationOption>(),
-    db.prepare(
-      `SELECT t.id, t.title, m.name AS managedItemName
-         FROM task_rules t
-         LEFT JOIN managed_items m
-           ON m.id = t.managed_item_id AND m.household_id = t.household_id
-        WHERE t.household_id = ?1 AND t.deadline_kind = 'maintenance'
-        ORDER BY t.title COLLATE NOCASE, t.id`,
-    ).bind(householdId).all<ConsumableTaskRuleOption>(),
-  ]);
-  return { managedItems: managedItems.results, taskRules: taskRules.results };
 }
