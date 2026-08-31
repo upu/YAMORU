@@ -6,6 +6,7 @@ import { getConsumable, type ConsumableDetail } from "../../../lib/d1/consumable
 import { getD1Context } from "../../../lib/d1/context";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
+import { formatTokyoDateInput, formatTokyoMonthDay } from "../../time-zone";
 import { StockStatusControl } from "../stock-status-control";
 
 export type ConsumableDetailData = ConsumableDetail;
@@ -84,10 +85,13 @@ function ConsumableRelations({ consumable }: { consumable: ConsumableDetailData 
             <ul className="ledger-list">
               {consumable.taskRules.map((rule) => (
                 <li key={rule.id}>
-                  <span>{rule.title}</span>
-                  {rule.managedItemName === null ? null : (
-                    <span className="input-help">{rule.managedItemName}</span>
-                  )}
+                  <span className="consumable-related-todo">
+                    <span>{rule.title}</span>
+                    {rule.managedItemName === null ? null : (
+                      <span className="input-help">{rule.managedItemName}</span>
+                    )}
+                    <span className="input-help">{nextScheduleLabel(rule.nextOccurrence)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -95,6 +99,22 @@ function ConsumableRelations({ consumable }: { consumable: ConsumableDetailData 
       </section>
     </>
   );
+}
+
+function nextScheduleLabel(
+  occurrence: ConsumableDetailData["taskRules"][number]["nextOccurrence"],
+): string {
+  if (occurrence === null) return "次回予定なし";
+  const { dueAt, scheduledFor } = occurrence;
+  if (scheduledFor === null && dueAt === null) return "次回: 未定";
+  if (scheduledFor === null || dueAt === null) {
+    throw new Error("Todoの予定日と期限の組み合わせが不正です。");
+  }
+  const scheduledLabel = formatTokyoMonthDay(scheduledFor);
+  if (formatTokyoDateInput(scheduledFor) === formatTokyoDateInput(dueAt)) {
+    return `次回: ${scheduledLabel}`;
+  }
+  return `次回: ${scheduledLabel}〜${formatTokyoMonthDay(dueAt)}`;
 }
 
 export function ConsumableDetailContent({
