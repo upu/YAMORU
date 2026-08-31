@@ -11,6 +11,10 @@ import {
   type ManagedItemCustomTypeOption,
 } from "../../lib/d1/managed-items";
 import { FloatingAddButton } from "../floating-add-button";
+import {
+  LedgerCategoryNavigation,
+  type LedgerCategory,
+} from "../ledger-category-navigation";
 import { ClassificationBadges } from "./classification-badges";
 import type { ManagedItemTypeGroup } from "./item-type-picker";
 import { ManagedItemsSearchForm } from "./managed-items-search-form";
@@ -108,8 +112,10 @@ function resolveItemTypeLabel(
 function buildItemTypeGroups(
   classificationOptions: ManagedItemClassificationOptions,
   customItemTypeOptions: ManagedItemCustomTypeOption[],
+  kind: string,
 ): ManagedItemTypeGroup[] {
   return classificationOptions.kinds
+    .filter((kindOption) => kindOption.code === kind)
     .map((kindOption) => ({
       kindCode: kindOption.code,
       kindLabel: kindOption.label,
@@ -133,21 +139,21 @@ function buildItemTypeGroups(
 // (受け入れ基準「適用中の条件と件数が分かり」)。
 function describeManagedItemsFilters(
   itemTypeLabel: string | null,
-  kindLabel: string | null,
   q: string | undefined,
 ): string | null {
   const parts: string[] = [];
-  if (kindLabel !== null) parts.push(`大分類: ${kindLabel}`);
   if (itemTypeLabel !== null) parts.push(`詳しい種類: ${itemTypeLabel}`);
   if (q !== undefined) parts.push(`検索語: 「${q}」`);
   return parts.length === 0 ? null : parts.join(" ・ ");
 }
 
 function ManagedItemsFilterSummary({
+  allClearHref,
   filterDescription,
   itemTypeClearHref,
   itemTypeLabel,
 }: {
+  allClearHref: string;
   filterDescription: string | null;
   itemTypeClearHref: string | null;
   itemTypeLabel: string | null;
@@ -166,7 +172,7 @@ function ManagedItemsFilterSummary({
         </Link>
       )}
       {/* Issue #218: 複数条件を一度にまとめて解除できる(受け入れ基準)。 */}
-      <Link className="ledger-filter-clear" href={buildManagedItemsHref(undefined, undefined, undefined)}>
+      <Link className="ledger-filter-clear" href={allClearHref}>
         条件をクリア
       </Link>
     </p>
@@ -241,15 +247,14 @@ function RegisteredItemsSection({
   items: ManagedItemSummary[];
   itemTypeCode: string | undefined;
   itemTypeRaw: string;
-  kind: string | undefined;
+  kind: string;
   q: string | undefined;
 }) {
   const itemTypeLabel = resolveItemTypeLabel(
     itemTypeCode, customItemType, classificationOptions, customItemTypeOptions,
   );
-  const kindLabel = resolveClassificationLabel(kind, classificationOptions.kinds);
-  const filterDescription = describeManagedItemsFilters(itemTypeLabel, kindLabel, q);
-  const itemTypeGroups = buildItemTypeGroups(classificationOptions, customItemTypeOptions);
+  const filterDescription = describeManagedItemsFilters(itemTypeLabel, q);
+  const itemTypeGroups = buildItemTypeGroups(classificationOptions, customItemTypeOptions, kind);
   const itemTypeClearHref = itemTypeLabel === null
     ? null
     : buildManagedItemsHref(undefined, kind, q);
@@ -265,10 +270,10 @@ function RegisteredItemsSection({
         itemTypeGroups={itemTypeGroups}
         itemTypeRaw={itemTypeRaw}
         kind={kind}
-        kinds={classificationOptions.kinds}
         q={q}
       />
       <ManagedItemsFilterSummary
+        allClearHref={buildManagedItemsHref(undefined, kind, undefined)}
         filterDescription={filterDescription}
         itemTypeClearHref={itemTypeClearHref}
         itemTypeLabel={itemTypeLabel}
@@ -303,7 +308,7 @@ export function ManagedItemsContent({
   itemTypeCode,
   itemTypeRaw,
   items,
-  kind,
+  kind = "asset",
   q,
 }: {
   classificationOptions?: ManagedItemClassificationOptions;
@@ -316,34 +321,34 @@ export function ManagedItemsContent({
   kind?: string | undefined;
   q?: string | undefined;
 }) {
+  const currentCategory: LedgerCategory | undefined =
+    kind === "asset" || kind === "service" ? kind : undefined;
   return (
     <main className="detail-page ledger-page">
       <header className="detail-hero">
         <p className="detail-kicker">HOUSE LEDGER</p>
         <h1>家の台帳</h1>
-        <p>家で管理するものをまとめます。</p>
-        {household === null ? null : (
-          <Link className="ledger-primary-link" href="/consumables">
-            消耗品を見る
-          </Link>
-        )}
+        <p>家の備品、サービス・契約、消耗品をまとめます。</p>
       </header>
 
       {household === null ? (
         <HouseholdRequiredNotice />
       ) : (
-        <div className="ledger-grid">
-          <RegisteredItemsSection
-            classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
-            customItemType={customItemType}
-            customItemTypeOptions={customItemTypeOptions ?? []}
-            items={items}
-            itemTypeCode={itemTypeCode}
-            itemTypeRaw={itemTypeRaw ?? ""}
-            kind={kind}
-            q={q}
-          />
-        </div>
+        <>
+          <LedgerCategoryNavigation current={currentCategory} />
+          <div className="ledger-grid">
+            <RegisteredItemsSection
+              classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
+              customItemType={customItemType}
+              customItemTypeOptions={customItemTypeOptions ?? []}
+              items={items}
+              itemTypeCode={itemTypeCode}
+              itemTypeRaw={itemTypeRaw ?? ""}
+              kind={kind}
+              q={q}
+            />
+          </div>
+        </>
       )}
       {household === null ? null : (
         <FloatingAddButton destination="managed-item" />
@@ -361,7 +366,9 @@ export default async function ManagedItemsPage({
   const { db, session } = await getD1Context(user);
   const resolvedSearchParams = await searchParams;
   const q = parseSearchQuery(resolvedSearchParams.q);
-  const kind = parseCodeParam(resolvedSearchParams.kind);
+  // Issue #291: 台帳を開いたときは「すべて」ではなく、最初の入口である備品を
+  // 表示する。不正なcodeは0件として扱う従来の安全側の挙動を維持する。
+  const kind = parseCodeParam(resolvedSearchParams.kind) ?? "asset";
   const { customItemType, itemTypeCode } = parseItemTypeParam(parseRawParam(resolvedSearchParams.itemType));
   // Issue #238: ピッカーへ渡す初期選択値は、URLの生の値そのものではなく
   // parseItemTypeParamが解決した値から組み立て直す。前後の空白などで

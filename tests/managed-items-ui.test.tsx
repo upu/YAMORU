@@ -34,6 +34,29 @@ const REGISTERED_ITEM: ManagedItemSummary = {
 };
 
 describe("家の台帳一覧", () => {
+  it("Issue #291: 備品・サービス／契約・消耗品を台帳の対等な入口として表示する", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[]}
+        kind="service"
+      />,
+    );
+
+    const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
+    expect(within(navigation).getByRole("link", { name: "備品" }))
+      .toHaveAttribute("href", "/managed-items?kind=asset");
+    expect(within(navigation).getByRole("link", { name: "サービス・契約" }))
+      .toHaveAttribute("href", "/managed-items?kind=service");
+    expect(within(navigation).getByRole("link", { name: "サービス・契約" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(within(navigation).getByRole("link", { name: "消耗品" }))
+      .toHaveAttribute("href", "/consumables");
+    expect(screen.queryByRole("link", { name: "消耗品を見る" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByLabelText("大分類で絞り込み")).not.toBeInTheDocument();
+  });
+
   it("家庭未所属の利用者には台帳を隠して家庭作成を案内する", () => {
     render(<ManagedItemsContent household={null} items={[]} />);
 
@@ -87,7 +110,8 @@ describe("家の台帳一覧", () => {
       />,
     );
 
-    expect(screen.getByText("家で管理するものをまとめます。")).toBeInTheDocument();
+    expect(screen.getByText("家の備品、サービス・契約、消耗品をまとめます。"))
+      .toBeInTheDocument();
     expect(screen.queryByText(/確認に使う外部リンク/u)).not.toBeInTheDocument();
     expect(screen.queryByText("ITEMS")).not.toBeInTheDocument();
 

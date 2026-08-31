@@ -7,6 +7,7 @@ import {
 } from "../../lib/d1/consumables";
 import { getD1Context } from "../../lib/d1/context";
 import { loadAccountState } from "../../lib/d1/households";
+import { LedgerCategoryNavigation } from "../ledger-category-navigation";
 import { StockStatusBadge } from "./stock-status";
 
 export type ConsumableListItem = ConsumableSummary;
@@ -18,9 +19,6 @@ export function ConsumablesContent({
 }) {
   return (
     <main className="detail-page ledger-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/managed-items">← 家の台帳へ戻る</Link>
-      </nav>
       <header className="detail-hero">
         <p className="detail-kicker">CONSUMABLES</p>
         <div className="detail-section-heading">
@@ -33,6 +31,7 @@ export function ConsumablesContent({
           </Link>
         </div>
       </header>
+      <LedgerCategoryNavigation current="consumables" />
 
       <section aria-labelledby="consumables-list-title" className="detail-card">
         <h2 className="sr-only" id="consumables-list-title">登録済みの消耗品</h2>
