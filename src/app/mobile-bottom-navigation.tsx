@@ -40,7 +40,10 @@ export function MobileBottomNavigation() {
   const isHome = pathname === "/";
   const isTodo = pathname === "/todos" || pathname.startsWith("/todos/");
   const isLedger =
-    pathname === "/managed-items" || pathname.startsWith("/managed-items/");
+    pathname === "/managed-items" ||
+    pathname.startsWith("/managed-items/") ||
+    pathname === "/consumables" ||
+    pathname.startsWith("/consumables/");
 
   return (
     <>
@@ -56,7 +59,7 @@ export function MobileBottomNavigation() {
         </Link>
         <Link
           aria-current={isLedger ? "page" : undefined}
-          href="/managed-items"
+          href="/managed-items?kind=asset"
         >
           <LedgerIcon />
           <span>台帳</span>

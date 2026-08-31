@@ -32,14 +32,19 @@ const CONSUMABLE: ConsumableListItem = {
 };
 
 describe("消耗品一覧", () => {
-  it("家の台帳から戻れる独立一覧で、関連なしの消耗品も登録・確認できる", () => {
+  it("Issue #291: 台帳の3入口で消耗品を現在地として示し、関連なしでも登録・確認できる", () => {
     render(<ConsumablesContent consumables={[CONSUMABLE]} />);
 
     expect(screen.getByRole("heading", { level: 1, name: "消耗品" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /家の台帳へ戻る/u })).toHaveAttribute(
-      "href",
-      "/managed-items",
-    );
+    const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
+    expect(within(navigation).getByRole("link", { name: "備品" }))
+      .toHaveAttribute("href", "/managed-items?kind=asset");
+    expect(within(navigation).getByRole("link", { name: "サービス・契約" }))
+      .toHaveAttribute("href", "/managed-items?kind=service");
+    expect(within(navigation).getByRole("link", { name: "消耗品" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(screen.queryByRole("link", { name: /家の台帳へ戻る/u }))
+      .not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "消耗品を登録" })).toHaveAttribute(
       "href",
       "/consumables/new",

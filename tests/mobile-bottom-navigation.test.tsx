@@ -40,7 +40,7 @@ describe("モバイル下部ナビゲーション(Issue #146、#213)", () => {
     );
     expect(within(navigation).getByRole("link", { name: "台帳" })).toHaveAttribute(
       "href",
-      "/managed-items",
+      "/managed-items?kind=asset",
     );
     expect(navigation.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(3);
   });
@@ -60,7 +60,14 @@ describe("モバイル下部ナビゲーション(Issue #146、#213)", () => {
     );
   });
 
-  it.each(["/managed-items", "/managed-items/new", "/managed-items/item-1"])(
+  it.each([
+    "/managed-items",
+    "/managed-items/new",
+    "/managed-items/item-1",
+    "/consumables",
+    "/consumables/new",
+    "/consumables/consumable-1",
+  ])(
     "%sでは台帳を現在地として示す",
     (pathname) => {
       usePathnameMock.mockReturnValue(pathname);

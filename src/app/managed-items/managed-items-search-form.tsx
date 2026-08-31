@@ -12,33 +12,6 @@ function normalizeSearch(value: FormDataEntryValue | null): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
-function KindSelect({
-  initialValue,
-  kinds,
-  onSelect,
-}: {
-  initialValue: string;
-  kinds: { code: string; label: string }[];
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <>
-      <label className="sr-only" htmlFor="managed-items-search-kind">大分類で絞り込み</label>
-      <select
-        defaultValue={initialValue}
-        id="managed-items-search-kind"
-        name="kind"
-        onChange={(event) => { onSelect(event.currentTarget.value); }}
-      >
-        <option value="">大分類: すべて</option>
-        {kinds.map((option) => (
-          <option key={option.code} value={option.code}>{option.label}</option>
-        ))}
-      </select>
-    </>
-  );
-}
-
 function NoScriptItemTypeFilter({
   groups,
   initialValue,
@@ -110,21 +83,19 @@ export function ManagedItemsSearchForm({
   itemTypeGroups,
   itemTypeRaw,
   kind,
-  kinds,
   q,
 }: {
   itemTypeGroups: ManagedItemTypeGroup[];
   itemTypeRaw: string;
-  kind: string | undefined;
-  kinds: { code: string; label: string }[];
+  kind: string;
   q: string | undefined;
 }) {
   const router = useRouter();
 
-  function navigate(nextItemType: string, nextKind: string, nextQ: string | undefined) {
+  function navigate(nextItemType: string, nextQ: string | undefined) {
     router.push(buildManagedItemsHref(
       nextItemType === "" ? undefined : nextItemType,
-      nextKind === "" ? undefined : nextKind,
+      kind,
       nextQ,
     ));
   }
@@ -132,7 +103,7 @@ export function ManagedItemsSearchForm({
   function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    navigate(itemTypeRaw, kind ?? "", normalizeSearch(data.get("q")));
+    navigate(itemTypeRaw, normalizeSearch(data.get("q")));
   }
 
   return (
@@ -146,17 +117,13 @@ export function ManagedItemsSearchForm({
       <SearchFormTitle />
 
       <NameSearchField q={q} />
-
-      <KindSelect
-        initialValue={kind ?? ""}
-        kinds={kinds}
-        onSelect={(value) => { navigate(itemTypeRaw, value, q); }}
-      />
+      {/* JavaScript無効時の検索でも、台帳上部で選んだ入口を保つ。 */}
+      <input name="kind" type="hidden" value={kind} />
       <ManagedItemTypePicker
         groups={itemTypeGroups}
         idPrefix="managed-items-search-item-type"
         initialValue={itemTypeRaw}
-        onSelect={(value) => { navigate(value, kind ?? "", q); }}
+        onSelect={(value) => { navigate(value, q); }}
       />
 
       <button type="submit">名前を検索</button>

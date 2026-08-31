@@ -1465,6 +1465,43 @@ h1 {
   color: var(--muted);
 }
 
+/* Issue #291: 2つのManagedItem大分類と独立した消耗品を、台帳内では同じ
+   強さの入口として並べる。3列を固定してモバイルでも一覧性を保つ。 */
+.ledger-category-navigation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 18px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 64%);
+}
+
+.ledger-category-navigation a {
+  display: grid;
+  min-height: 44px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+  place-items: center;
+  text-align: center;
+  text-decoration: none;
+}
+
+.ledger-category-navigation a[aria-current="page"] {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.ledger-category-navigation a:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 1px;
+}
+
 .managed-item-form {
   margin-top: 18px;
 }
