@@ -16,6 +16,10 @@ import {
 import { ConsumableRelationField } from "./relation-picker";
 import { INITIAL_CONSUMABLE_STATE } from "./state";
 
+type ConsumableFormData = Omit<ConsumableDetail, "taskRules"> & {
+  taskRules: ConsumableTaskRuleOption[];
+};
+
 function SubmitButton({ mode }: { mode: "create" | "edit" }) {
   const { pending } = useFormStatus();
   const idleLabel = mode === "create" ? "消耗品を登録" : "変更を保存";
@@ -41,7 +45,7 @@ function describeManagedItem({ name }: ConsumableRelationOption): string {
   return name;
 }
 
-function ConsumableFields({ consumable }: { consumable?: ConsumableDetail }) {
+function ConsumableFields({ consumable }: { consumable?: ConsumableFormData }) {
   return (
     <>
       <label htmlFor="consumable-name">名前</label>
@@ -114,7 +118,7 @@ export function ConsumableForm({
   initialManagedItem,
   mode,
 }: {
-  consumable?: ConsumableDetail;
+  consumable?: ConsumableFormData;
   initialManagedItem?: ConsumableRelationOption;
   mode: "create" | "edit";
 }) {

@@ -106,6 +106,59 @@ describe("消耗品詳細", () => {
       "/consumables/consumable-1/edit",
     );
   });
+
+  it("Issue #295: 関連Todoの一日・期間・未定・次回なしをTokyo暦日で表示する", () => {
+    const consumable: ConsumableDetailData = {
+      externalUrl: null,
+      id: "consumable-1",
+      managedItems: [],
+      name: "交換フィルター",
+      note: null,
+      productCode: null,
+      stockStatus: "available",
+      taskRules: [
+        {
+          id: "dated",
+          managedItemName: "空気清浄機",
+          nextOccurrence: {
+            dueAt: "2026-09-09T15:00:00.000Z",
+            scheduledFor: "2026-09-09T15:00:00.000Z",
+          },
+          title: "フィルター交換",
+        },
+        {
+          id: "window",
+          managedItemName: "猫の給水機",
+          nextOccurrence: {
+            dueAt: "2026-09-19T15:00:00.000Z",
+            scheduledFor: "2026-09-09T15:00:00.000Z",
+          },
+          title: "カートリッジ交換",
+        },
+        {
+          id: "undated",
+          managedItemName: null,
+          nextOccurrence: { dueAt: null, scheduledFor: null },
+          title: "交換日を決める",
+        },
+        {
+          id: "completed",
+          managedItemName: null,
+          nextOccurrence: null,
+          title: "一度だけ交換する",
+        },
+      ],
+    };
+
+    render(<ConsumableDetailContent consumable={consumable} />);
+
+    const todoSection = screen.getByRole("region", { name: "関連するTodo" });
+    expect(within(todoSection).getByText("次回: 9月10日")).toBeInTheDocument();
+    expect(within(todoSection).getByText("次回: 9月10日〜9月20日")).toBeInTheDocument();
+    expect(within(todoSection).getByText("次回: 未定")).toBeInTheDocument();
+    expect(within(todoSection).getByText("次回予定なし")).toBeInTheDocument();
+    expect(within(todoSection).getAllByRole("listitem")).toHaveLength(4);
+  });
 });
 
 describe("管理対象・Todoの関連消耗品", () => {

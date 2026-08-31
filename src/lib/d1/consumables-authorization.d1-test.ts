@@ -78,7 +78,92 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
     await expect(listConsumablesForTaskRule(db, householdAMember, ruleId))
       .resolves.toEqual([expect.objectContaining({ id, name: "共用洗剤" })]);
   });
+});
 
+describe("Consumableに関連するTodoの次回予定 (Issue #295)", () => {
+  it("Issue #295: 関連Todoごとに同じ家庭の現在の未完了Occurrenceを返す", async () => {
+    const datedRuleId = await createMaintenanceTask(db, householdAMember, {
+      firstDueAt: "2026-09-09T15:00:00.000Z",
+      firstScheduledFor: "2026-09-09T15:00:00.000Z",
+      managedItemId: "item-a",
+      recommendedStartOffset: 0,
+      recommendedUntilOffset: 0,
+      title: "単日の交換",
+    });
+    const windowRuleId = await createMaintenanceTask(db, householdAMember, {
+      firstDueAt: "2026-09-19T15:00:00.000Z",
+      firstScheduledFor: "2026-09-09T15:00:00.000Z",
+      managedItemId: "item-a",
+      recommendedStartOffset: 10,
+      recommendedUntilOffset: 20,
+      title: "推奨期間の交換",
+    });
+    const completedRuleId = await createMaintenanceTask(db, householdAMember, {
+      firstDueAt: "2026-08-31T15:00:00.000Z",
+      firstScheduledFor: "2026-08-31T15:00:00.000Z",
+      managedItemId: "item-a",
+      recommendedStartOffset: 0,
+      recommendedUntilOffset: 0,
+      title: "完了済み",
+    });
+    await db.prepare(
+      "UPDATE task_occurrences SET status = 'completed' WHERE task_rule_id = ?1",
+    ).bind(completedRuleId).run();
+    // 延期はscheduled_forを保持したままdue_atだけを変更する。
+    await db.prepare(
+      "UPDATE task_occurrences SET due_at = ?1 WHERE task_rule_id = ?2",
+    ).bind("2026-09-24T15:00:00.000Z", windowRuleId).run();
+
+    const consumableId = await createConsumable(db, householdAMember, {
+      externalUrl: null,
+      managedItemIds: [],
+      name: "交換部品セット",
+      note: null,
+      productCode: null,
+      taskRuleIds: [datedRuleId, windowRuleId, completedRuleId],
+    });
+    const otherHouseholdRuleId = await createMaintenanceTask(db, householdBMember, {
+      firstDueAt: "2026-09-30T15:00:00.000Z",
+      firstScheduledFor: "2026-09-29T15:00:00.000Z",
+      managedItemId: "item-b",
+      recommendedStartOffset: 1,
+      recommendedUntilOffset: 2,
+      title: "別家庭の交換",
+    });
+    await createConsumable(db, householdBMember, {
+      externalUrl: null,
+      managedItemIds: [],
+      name: "別家庭の交換部品",
+      note: null,
+      productCode: null,
+      taskRuleIds: [otherHouseholdRuleId],
+    });
+
+    const result = await getConsumable(db, householdAMember, consumableId);
+    const taskRules = Object.fromEntries(
+      (result?.taskRules ?? []).map((rule) => [rule.title, rule]),
+    );
+
+    expect(taskRules).toMatchObject({
+      "単日の交換": {
+        nextOccurrence: {
+          dueAt: "2026-09-09T15:00:00.000Z",
+          scheduledFor: "2026-09-09T15:00:00.000Z",
+        },
+      },
+      "完了済み": { nextOccurrence: null },
+      "推奨期間の交換": {
+        nextOccurrence: {
+          dueAt: "2026-09-24T15:00:00.000Z",
+          scheduledFor: "2026-09-09T15:00:00.000Z",
+        },
+      },
+    });
+    expect(result?.taskRules).toHaveLength(3);
+  });
+});
+
+describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
   it("関連をすべて解除してもConsumable自体と参照情報は残る", async () => {
     const { ruleId } = await createHouseholdAMaintenanceTask(db);
     const id = await createConsumable(db, householdAMember, {

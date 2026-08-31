@@ -1749,6 +1749,16 @@ h1 {
   justify-content: flex-end;
 }
 
+.consumable-related-todo {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.consumable-related-todo .input-help {
+  margin-top: 0;
+}
+
 .stock-status-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

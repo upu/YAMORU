@@ -20,6 +20,15 @@ export type ConsumableTaskRuleOption = {
   title: string;
 };
 
+export type ConsumableTaskRuleNextOccurrence = {
+  dueAt: string | null;
+  scheduledFor: string | null;
+};
+
+export type ConsumableRelatedTaskRule = ConsumableTaskRuleOption & {
+  nextOccurrence: ConsumableTaskRuleNextOccurrence | null;
+};
+
 export type ConsumableWriteInput = {
   externalUrl: string | null;
   managedItemIds: string[];
@@ -37,7 +46,13 @@ export type ConsumableDetail = {
   note: string | null;
   productCode: string | null;
   stockStatus: ConsumableStockStatus;
-  taskRules: ConsumableTaskRuleOption[];
+  taskRules: ConsumableRelatedTaskRule[];
+};
+
+type ConsumableRelatedTaskRuleRow = ConsumableTaskRuleOption & {
+  dueAt: string | null;
+  occurrenceId: string | null;
+  scheduledFor: string | null;
 };
 
 type ConsumableRow = {
@@ -132,15 +147,22 @@ export async function getConsumable(
         ORDER BY m.name COLLATE NOCASE, m.id`,
     ).bind(id, householdId).all<ConsumableRelationOption>(),
     db.prepare(
-      `SELECT t.id, t.title, m.name AS managedItemName
+      `SELECT t.id, t.title, m.name AS managedItemName,
+              o.id AS occurrenceId,
+              o.scheduled_for AS scheduledFor,
+              o.due_at AS dueAt
          FROM task_rule_consumables r
          JOIN task_rules t
            ON t.id = r.task_rule_id AND t.household_id = r.household_id
          LEFT JOIN managed_items m
            ON m.id = t.managed_item_id AND m.household_id = t.household_id
+         LEFT JOIN task_occurrences o
+           ON o.task_rule_id = t.id
+          AND o.household_id = t.household_id
+          AND o.status = 'pending'
         WHERE r.consumable_id = ?1 AND r.household_id = ?2
         ORDER BY t.title COLLATE NOCASE, t.id`,
-    ).bind(id, householdId).all<ConsumableTaskRuleOption>(),
+    ).bind(id, householdId).all<ConsumableRelatedTaskRuleRow>(),
   ]);
   return {
     externalUrl: row.external_url,
@@ -150,7 +172,17 @@ export async function getConsumable(
     note: row.note,
     productCode: row.product_code,
     stockStatus: row.stock_status,
-    taskRules: taskRules.results,
+    taskRules: taskRules.results.map((taskRule) => ({
+      id: taskRule.id,
+      managedItemName: taskRule.managedItemName,
+      nextOccurrence: taskRule.occurrenceId === null
+        ? null
+        : {
+            dueAt: taskRule.dueAt,
+            scheduledFor: taskRule.scheduledFor,
+          },
+      title: taskRule.title,
+    })),
   };
 }
 
