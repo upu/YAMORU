@@ -5,6 +5,7 @@ import { requireUser } from "../../../../lib/auth/current-user";
 import { getD1Context } from "../../../../lib/d1/context";
 import {
   getManagedItemForEdit,
+  listHouseholdCustomItemTypes,
   listManagedItemClassificationOptions,
 } from "../../../../lib/d1/managed-items";
 import { ManagedItemEditForm } from "./managed-item-edit-form";
@@ -19,9 +20,13 @@ export default async function ManagedItemEditPage({
   const user = await requireUser();
   const { id } = await params;
   const { db, session } = await getD1Context(user);
-  const [item, classificationOptions] = await Promise.all([
+  // Issue #288: 編集画面でも、同じ家庭で使用中の自由入力の詳しい種類を入力
+  // 補助の候補として渡す。getManagedItemForEditと同じく家庭への所属を必要と
+  // するため、まとめて取得してよい。
+  const [item, classificationOptions, customItemTypeOptions] = await Promise.all([
     getManagedItemForEdit(db, session, id),
     listManagedItemClassificationOptions(db),
+    listHouseholdCustomItemTypes(db, session),
   ]);
 
   if (item === null) notFound();
@@ -45,6 +50,7 @@ export default async function ManagedItemEditPage({
         <ManagedItemEditForm
           classificationOptions={classificationOptions}
           customItemType={item.customItemType}
+          customItemTypeOptions={customItemTypeOptions}
           externalUrl={item.externalUrl}
           id={id}
           itemTypeCode={item.itemTypeCode}
