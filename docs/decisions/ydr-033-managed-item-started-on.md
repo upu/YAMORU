@@ -2,7 +2,7 @@
 type: Decision
 ydr_id: YDR-033
 title: ManagedItemの開始時期をstarted_onへ段階移行し、大分類ごとの言葉で表示する
-description: purchased_onを書き換えず、新しい中立的な保存項目started_onへ既存値をコピーして段階移行する。大分類(kind)に応じて備品「購入時期」、サービス「利用・契約を始めた時期」、支払い・手続き「開始時期」を画面へ表示し、値そのものの意味は大分類によらず「対象との関係が始まった時期」で統一する
+description: purchased_onを書き換えず、新しい中立的な保存項目started_onへ既存値をコピーして段階移行する。大分類(kind)に応じて備品「購入時期」、サービス・契約「利用・契約を始めた時期」を画面へ表示し、値そのものの意味は大分類によらず「対象との関係が始まった時期」で統一する
 tags: [yamoru, decisions, ydr, managed-item, started-on]
 status: stable
 decision_status: Accepted
@@ -18,7 +18,7 @@ decision_date: 2026-08-28
 
 [#42](https://github.com/upu/YAMORU/issues/42)は、家電などの商品を念頭に`managed_items.purchased_on`を追加し、年・年月・年月日の分かる精度だけを保存できるようにした。
 
-v0.9.0の家庭内利用で、相談事業所（相談員）をManagedItemとして登録したところ、契約を始めた時期を記録する場所として「購入時期」を使うと、サービス・契約に対するラベルとして不自然だった。現在のManagedItemは「備品」だけでなく、「サービス」「支払い・手続き」も同じ台帳で扱うため（[YDR-035](ydr-035-retire-other-managed-item-kind.md)）、対象に合う自然な言葉で開始時期を記録できる必要がある（[#239](https://github.com/upu/YAMORU/issues/239)）。
+v0.9.0の家庭内利用で、相談事業所（相談員）をManagedItemとして登録したところ、契約を始めた時期を記録する場所として「購入時期」を使うと、サービス・契約に対するラベルとして不自然だった。現在のManagedItemは「備品」と「サービス・契約」を同じ台帳で扱うため（[YDR-036](ydr-036-merge-service-obligation-kinds.md)）、対象に合う自然な言葉で開始時期を記録できる必要がある（[#239](https://github.com/upu/YAMORU/issues/239)）。
 
 ## 決定
 
@@ -32,8 +32,8 @@ issue本文の設計メモにある4案のうち、案1（`purchased_on`を中�
   | `kind`のcode | 画面ラベル |
   |---|---|
   | `asset`（備品） | 購入時期 |
-  | `service`（サービス） | 利用・契約を始めた時期 |
-  | `obligation`（支払い・手続き） | 開始時期 |
+  | `service`（サービス・契約） | 利用・契約を始めた時期 |
+  | `obligation`（旧分類互換） | 開始時期 |
 
 - ラベルはアプリケーションコード側の定数として持つ（`managed_item_kinds.label`とは別）。値の意味を変えない見出し語の切り替えであり、`managed_item_kinds`のマスタ管理対象にはしない。
 - 大分類を変更しても`started_on`の値は再解釈・再計算しない。変わるのは表示上の見出し語だけで、保存された年月日（分かる精度）はそのまま維持する。
@@ -49,5 +49,5 @@ issue本文の設計メモにある4案のうち、案1（`purchased_on`を中�
 ## 見直す条件
 
 - 備品とサービスとで、開始時期が「関係が始まった時期」という単一の概念では表現できない別の意味（たとえば保証開始日のような、関係開始とは独立した日付）を必要とする事例が繰り返し現れた場合。
-- `obligation`の「開始時期」という見出し語では、対象の性質が伝わらない事例が繰り返し現れた場合。
+- 旧分類`obligation`の互換表示が不要になった場合。
 - `purchased_on`列を安全に削除できる条件が整った場合（別途migrationとして提案する）。

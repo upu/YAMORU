@@ -22,8 +22,8 @@ beforeEach(async () => {
     db.prepare("DELETE FROM household_members"),
     db.prepare("DELETE FROM households"),
     db.prepare("DELETE FROM users"),
-    db.prepare("UPDATE managed_item_kinds SET is_active = CASE WHEN code = 'other' THEN 0 ELSE 1 END"),
-    db.prepare("UPDATE managed_item_type_presets SET is_active = CASE WHEN kind_code = 'other' THEN 0 ELSE 1 END"),
+    db.prepare("UPDATE managed_item_kinds SET is_active = CASE WHEN code IN ('obligation', 'other') THEN 0 ELSE 1 END"),
+    db.prepare("UPDATE managed_item_type_presets SET is_active = CASE WHEN kind_code IN ('obligation', 'other') THEN 0 ELSE 1 END"),
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com')"),
     db.prepare("INSERT INTO households (id, name) VALUES ('household-a', 'Household A')"),
     db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'user-a')"),
@@ -36,8 +36,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
     await expect(listManagedItemClassificationOptions(db)).resolves.toMatchObject({
       kinds: [
         { code: "asset", label: "備品" },
-        { code: "service", label: "サービス" },
-        { code: "obligation", label: "支払い・手続き" },
+        { code: "service", label: "サービス・契約" },
       ],
     });
   });
@@ -52,7 +51,6 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       ]),
       kinds: expect.arrayContaining([
         { code: "asset", label: "備品" },
-        { code: "obligation", label: "支払い・手続き" },
       ]),
     });
 
@@ -84,7 +82,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       itemTypeCode: "contract",
       itemTypeLabel: "契約",
       kindCode: "service",
-      kindLabel: "サービス",
+      kindLabel: "サービス・契約",
     });
 
     await updateManagedItem(db, householdMember, "item-a", {
@@ -116,6 +114,7 @@ describe("ManagedItemの分類データアクセス(Issue #41)", () => {
       { customItemType: null, itemTypeCode: "contract", kindCode: "service" },
       { customItemType: null, itemTypeCode: "contract", kindCode: "asset" },
       { customItemType: null, itemTypeCode: "missing", kindCode: "asset" },
+      { customItemType: null, itemTypeCode: null, kindCode: "obligation" },
       { customItemType: null, itemTypeCode: null, kindCode: "other" },
     ]) {
       await expect(createManagedItem(db, householdMember, {

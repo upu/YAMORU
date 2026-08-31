@@ -5,14 +5,15 @@ title: ManagedItemの大分類を備品、サービス、支払い・手続き�
 description: assetの表示名を備品へ変更し、otherを通常の選択肢から外す。Consumableと詳しい種類の自由入力は別概念として維持する
 tags: [yamoru, decisions, ydr, managed-item, classification]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-31
 supersedes: YDR-029
+superseded_by: YDR-036
 ---
 
 # YDR-035: ManagedItemの大分類を備品、サービス、支払い・手続きの3択にする
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-036](ydr-036-merge-service-obligation-kinds.md)
 - 決定日: 2026-08-31
 - 置き換える決定: [YDR-029](ydr-029-managed-item-kind-labels.md)
 

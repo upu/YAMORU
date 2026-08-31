@@ -40,10 +40,10 @@ beforeEach(async () => {
 });
 
 describe("固定資産税の台帳分類(Issue #177)", () => {
-  it("新規登録と編集で支払い・手続き/固定資産税を保存し、既存関連データを保持する", async () => {
+  it("新規登録と編集でサービス・契約/固定資産税を保存し、既存関連データを保持する", async () => {
     await expect(listManagedItemClassificationOptions(db)).resolves.toMatchObject({
       itemTypes: expect.arrayContaining([
-        { code: "property_tax", kindCode: "obligation", label: "固定資産税" },
+        { code: "property_tax", kindCode: "service", label: "固定資産税" },
       ]),
     });
 
@@ -51,7 +51,7 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       customItemType: null,
       externalUrl: null,
       itemTypeCode: "property_tax",
-      kindCode: "obligation",
+      kindCode: "service",
       name: "2026年度 固定資産税",
       note: null,
       productInfo: null,
@@ -60,15 +60,15 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
     await expect(getManagedItemForEdit(db, householdMember, newItemId)).resolves.toMatchObject({
       itemTypeCode: "property_tax",
       itemTypeLabel: "固定資産税",
-      kindCode: "obligation",
-      kindLabel: "支払い・手続き",
+      kindCode: "service",
+      kindLabel: "サービス・契約",
     });
 
     await updateManagedItem(db, householdMember, "item-a", {
       customItemType: null,
       externalUrl: "https://example.com/existing",
       itemTypeCode: "property_tax",
-      kindCode: "obligation",
+      kindCode: "service",
       name: "既存の固定資産税",
       note: null,
       productInfo: null,
@@ -93,7 +93,7 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
       customItemType: null,
       externalUrl: null,
       itemTypeCode: "property_tax",
-      kindCode: "obligation",
+      kindCode: "service",
       name: "固定資産税",
       note: null,
       productInfo: null,

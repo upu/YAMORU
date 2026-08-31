@@ -18,8 +18,7 @@ const CLASSIFICATION_OPTIONS = {
   itemTypes: [{ code: "appliance", kindCode: "asset", label: "家電" }],
   kinds: [
     { code: "asset", label: "備品" },
-    { code: "service", label: "サービス" },
-    { code: "obligation", label: "支払い・手続き" },
+    { code: "service", label: "サービス・契約" },
   ],
 };
 
@@ -123,7 +122,6 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
   // よらず同じだが、見出し語は対象に合う自然な言葉へ切り替える(YDR-033)。
   it.each([
     ["service", "利用・契約を始めた時期"],
-    ["obligation", "開始時期"],
   ])("大分類「%s」を選ぶと見出し語が「%s」に切り替わる", (kindCode, label) => {
     render(<ManagedItemForm classificationOptions={CLASSIFICATION_OPTIONS} />);
 
@@ -214,7 +212,7 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
         item={{
           ...DETAIL_BASE,
           kindCode: "service",
-          kindLabel: "サービス",
+          kindLabel: "サービス・契約",
           startedOn: "2024-05",
         }}
       />,

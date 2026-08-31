@@ -42,7 +42,7 @@ const CLASSIFICATION_OPTIONS = {
   ],
   kinds: [
     { code: "asset", label: "備品" },
-    { code: "service", label: "サービス" },
+    { code: "service", label: "サービス・契約" },
   ],
 };
 
@@ -209,7 +209,7 @@ describe("台帳一覧の検索・絞り込み(ManagedItemsPage、Issue #218)", 
     const equipmentGroup = within(picker).getByRole("group", { name: "備品" });
     expect(within(equipmentGroup).getByRole("radio", { name: "家電" })).toBeInTheDocument();
     fireEvent.change(searchbox, { target: { value: "契約" } });
-    const serviceGroup = within(picker).getByRole("group", { name: "サービス" });
+    const serviceGroup = within(picker).getByRole("group", { name: "サービス・契約" });
     expect(within(serviceGroup).getByRole("radio", { name: "契約" })).toBeInTheDocument();
   });
 
