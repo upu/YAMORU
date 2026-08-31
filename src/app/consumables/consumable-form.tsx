@@ -1,13 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type {
   ConsumableDetail,
-  ConsumableRelationOptions,
+  ConsumableRelationOption,
+  ConsumableTaskRuleOption,
 } from "../../lib/d1/consumables";
 import { createConsumable, updateConsumable } from "./actions";
+import {
+  searchConsumableManagedItems,
+  searchConsumableTaskRules,
+} from "./relation-actions";
+import { ConsumableRelationField } from "./relation-picker";
 import { INITIAL_CONSUMABLE_STATE } from "./state";
 
 function SubmitButton({ mode }: { mode: "create" | "edit" }) {
@@ -25,14 +31,14 @@ function SubmitButton({ mode }: { mode: "create" | "edit" }) {
   );
 }
 
-function TaskRuleLabel({
-  managedItemName,
-  title,
-}: {
-  managedItemName: string | null;
-  title: string;
-}) {
+// 同名のTodoを見分けられるよう、関連する管理対象名を添える。管理対象に
+// 紐づかないTodoはタイトルだけを表示する。
+function describeTaskRule({ managedItemName, title }: ConsumableTaskRuleOption): string {
   return managedItemName === null ? title : `${title}（${managedItemName}）`;
+}
+
+function describeManagedItem({ name }: ConsumableRelationOption): string {
+  return name;
 }
 
 function ConsumableFields({ consumable }: { consumable?: ConsumableDetail }) {
@@ -60,70 +66,64 @@ function ConsumableFields({ consumable }: { consumable?: ConsumableDetail }) {
   );
 }
 
-function ManagedItemRelations({
-  options,
-  selectedIds,
+// Issue #292: 選択済みの関連だけをフォームへ表示し、追加は検索できる
+// ダイアログから行う。Todoの候補は、選択済みの管理対象を手掛かりに
+// 並べ替えるため、管理対象の選択が変わるたびに検索関数を作り直す。
+function ConsumableRelationFields({
+  initialManagedItems,
+  initialTaskRules,
 }: {
-  options: ConsumableRelationOptions["managedItems"];
-  selectedIds: Set<string>;
+  initialManagedItems: ConsumableRelationOption[];
+  initialTaskRules: ConsumableTaskRuleOption[];
 }) {
-  return (
-    <fieldset className="consumable-relations">
-      <legend>関連する管理対象（任意）</legend>
-      {options.length === 0 ? (
-        <p className="input-help">関連付けられる管理対象はありません。</p>
-      ) : options.map((item) => (
-        <label className="filter-option" key={item.id}>
-          <input defaultChecked={selectedIds.has(item.id)} name="managedItemIds"
-            type="checkbox" value={item.id} />
-          <span>{item.name}</span>
-        </label>
-      ))}
-    </fieldset>
+  const [managedItems, setManagedItems] = useState(initialManagedItems);
+  const [taskRules, setTaskRules] = useState(initialTaskRules);
+  const relatedIdsKey = managedItems.map((item) => item.id).join(",");
+  const searchTaskRules = useCallback(
+    (query: string) => searchConsumableTaskRules(
+      query,
+      relatedIdsKey === "" ? [] : relatedIdsKey.split(","),
+    ),
+    [relatedIdsKey],
   );
-}
 
-function TaskRuleRelations({
-  options,
-  selectedIds,
-}: {
-  options: ConsumableRelationOptions["taskRules"];
-  selectedIds: Set<string>;
-}) {
   return (
-    <fieldset className="consumable-relations">
-      <legend>関連するTodo（任意）</legend>
-      {options.length === 0 ? (
-        <p className="input-help">関連付けられるメンテナンスTodoはありません。</p>
-      ) : options.map((rule) => (
-        <label className="filter-option" key={rule.id}>
-          <input defaultChecked={selectedIds.has(rule.id)} name="taskRuleIds"
-            type="checkbox" value={rule.id} />
-          <span><TaskRuleLabel managedItemName={rule.managedItemName} title={rule.title} /></span>
-        </label>
-      ))}
-    </fieldset>
+    <>
+      <ConsumableRelationField
+        describe={describeManagedItem}
+        fieldName="managedItemIds"
+        items={managedItems}
+        onChange={setManagedItems}
+        search={searchConsumableManagedItems}
+        unit="管理対象"
+      />
+      <ConsumableRelationField
+        describe={describeTaskRule}
+        fieldName="taskRuleIds"
+        items={taskRules}
+        onChange={setTaskRules}
+        search={searchTaskRules}
+        unit="Todo"
+      />
+    </>
   );
 }
 
 export function ConsumableForm({
   consumable,
-  initialManagedItemId,
+  initialManagedItem,
   mode,
-  options,
 }: {
   consumable?: ConsumableDetail;
-  initialManagedItemId?: string;
+  initialManagedItem?: ConsumableRelationOption;
   mode: "create" | "edit";
-  options: ConsumableRelationOptions;
 }) {
   const action = mode === "create" ? createConsumable : updateConsumable;
   const [state, formAction] = useActionState(action, INITIAL_CONSUMABLE_STATE);
-  const selectedManagedItems = new Set(
-    consumable?.managedItems.map(({ id }) => id)
-      ?? (initialManagedItemId === undefined ? [] : [initialManagedItemId]),
-  );
-  const selectedTaskRules = new Set(consumable?.taskRules.map(({ id }) => id) ?? []);
+  // 管理対象詳細から登録へ進んだ場合(#44)の初期選択を、選択済みの1件として
+  // 引き継ぐ。
+  const initialManagedItems = consumable?.managedItems
+    ?? (initialManagedItem === undefined ? [] : [initialManagedItem]);
 
   return (
     <form action={formAction} className="auth-form consumable-form">
@@ -132,8 +132,10 @@ export function ConsumableForm({
       )}
 
       <ConsumableFields consumable={consumable} />
-      <ManagedItemRelations options={options.managedItems} selectedIds={selectedManagedItems} />
-      <TaskRuleRelations options={options.taskRules} selectedIds={selectedTaskRules} />
+      <ConsumableRelationFields
+        initialManagedItems={initialManagedItems}
+        initialTaskRules={consumable?.taskRules ?? []}
+      />
 
       <p className="input-help">
         どれにも関連付けず、家庭共通の消耗品として登録できます。

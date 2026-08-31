@@ -1510,6 +1510,94 @@ h1 {
   outline-offset: 2px;
 }
 
+/* Issue #292: 関連付けは選択済みだけをフォームへ並べ、追加は検索ダイアログ
+   から行う。選択済みの1件ずつに解除ボタンを添える。 */
+.relation-chip-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relation-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 10px 8px 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+  font-size: 0.86rem;
+}
+
+.relation-chip-remove {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: white;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.relation-chip-remove:focus-visible,
+.relation-add-trigger:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.relation-add-trigger {
+  justify-self: start;
+  padding: 10px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  color: var(--green);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.relation-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.relation-picker .filter-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.relation-picker .filter-option:has(input:focus-visible) {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.relation-picker .input-help {
+  margin: 0;
+}
+
+.relation-picker-done {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: var(--green);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .managed-item-form > p {
   margin: 0;
   font-size: 0.76rem;

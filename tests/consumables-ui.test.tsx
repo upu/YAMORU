@@ -5,6 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+// Issue #292: 関連付けの候補はダイアログを開いたときにサーバーへ問い合わせる。
+// 候補の取得と選択の詳細はtests/consumable-relation-picker-ui.test.tsxで確認する。
+vi.mock("../src/app/consumables/relation-actions", () => ({
+  searchConsumableManagedItems: vi.fn(),
+  searchConsumableTaskRules: vi.fn(),
+}));
 
 import { ConsumableForm } from "../src/app/consumables/consumable-form";
 import {
@@ -23,16 +29,6 @@ const CONSUMABLE: ConsumableListItem = {
   id: "consumable-1",
   name: "トイレットペーパー",
   stockStatus: "low",
-};
-
-const OPTIONS = {
-  managedItems: [
-    { id: "item-1", name: "猫の給水機" },
-    { id: "item-2", name: "お風呂" },
-  ],
-  taskRules: [
-    { id: "rule-1", managedItemName: "猫の給水機", title: "フィルター交換" },
-  ],
 };
 
 describe("消耗品一覧", () => {
@@ -57,17 +53,23 @@ describe("消耗品一覧", () => {
 });
 
 describe("消耗品登録・編集フォーム", () => {
-  it("参照情報と任意のManagedItem・Todoを通常の入力で選べる", () => {
-    render(<ConsumableForm initialManagedItemId="item-1" mode="create" options={OPTIONS} />);
+  it("参照情報を入力でき、関連付けは選択済みと追加操作だけを表示する", () => {
+    render(
+      <ConsumableForm
+        initialManagedItem={{ id: "item-1", name: "猫の給水機" }}
+        mode="create"
+      />,
+    );
 
     expect(screen.getByLabelText("名前")).toHaveAttribute("maxLength", "100");
     expect(screen.getByLabelText("メモ（任意）")).toHaveAttribute("maxLength", "1000");
     expect(screen.getByLabelText("型番・品番（任意）")).toHaveAttribute("maxLength", "200");
     expect(screen.getByLabelText("外部リンク（任意）")).toHaveAttribute("type", "url");
-    expect(screen.getByRole("checkbox", { name: "猫の給水機" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "お風呂" })).not.toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "フィルター交換（猫の給水機）" }))
-      .not.toBeChecked();
+    expect(screen.getByRole("group", { name: "関連する管理対象（1件・任意）" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "猫の給水機を関連から外す" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "＋ Todoを追加" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     expect(screen.getByText("どれにも関連付けず、家庭共通の消耗品として登録できます。"))
       .toBeInTheDocument();
   });
