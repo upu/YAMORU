@@ -7,6 +7,7 @@ import { createManagedItem } from "./actions";
 import {
   defaultKindCode,
   ManagedItemClassificationFields,
+  type ManagedItemCustomTypeSuggestion,
 } from "./classification-fields";
 import type { ManagedItemClassificationOptions } from "./model";
 import { ManagedItemOptionalAttributeFields } from "./optional-attribute-fields";
@@ -27,23 +28,9 @@ function SubmitButton() {
   );
 }
 
-export function ManagedItemForm({
-  classificationOptions,
-  nowIso,
-}: {
-  classificationOptions: ManagedItemClassificationOptions;
-  nowIso?: string;
-}) {
-  const [state, formAction] = useActionState(
-    createManagedItem,
-    INITIAL_MANAGED_ITEM_STATE,
-  );
-  // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
-  // 合わせて切り替えるため、大分類の状態をこのフォームへ持ち上げる(YDR-033)。
-  const [kindCode, setKindCode] = useState(() => defaultKindCode(classificationOptions));
-
+function ManagedItemNameField() {
   return (
-    <form action={formAction} className="auth-form managed-item-form">
+    <>
       <label htmlFor="managed-item-name">名前</label>
       <input
         aria-describedby="managed-item-name-help"
@@ -58,9 +45,34 @@ export function ManagedItemForm({
       <p id="managed-item-name-help">
         家庭内でこの管理対象を見分けるための呼び名です。メーカー名や型番は下の欄に書けます。
       </p>
+    </>
+  );
+}
+
+export function ManagedItemForm({
+  classificationOptions,
+  customItemTypeOptions,
+  nowIso,
+}: {
+  classificationOptions: ManagedItemClassificationOptions;
+  customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
+  nowIso?: string;
+}) {
+  const [state, formAction] = useActionState(
+    createManagedItem,
+    INITIAL_MANAGED_ITEM_STATE,
+  );
+  // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
+  // 合わせて切り替えるため、大分類の状態をこのフォームへ持ち上げる(YDR-033)。
+  const [kindCode, setKindCode] = useState(() => defaultKindCode(classificationOptions));
+
+  return (
+    <form action={formAction} className="auth-form managed-item-form">
+      <ManagedItemNameField />
 
       <ManagedItemClassificationFields
         classificationOptions={classificationOptions}
+        customItemTypeOptions={customItemTypeOptions}
         idPrefix="managed-item"
         kindCode={kindCode}
         onKindCodeChange={setKindCode}

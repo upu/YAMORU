@@ -1838,6 +1838,36 @@ h1 {
   background: var(--paper);
 }
 
+/* Issue #288: 「その他（自由入力）」の詳しい種類を入力するとき、同じ家庭で
+   使用中の種類をボタンとして並べる。押すと入力欄へ入る入力補助なので、
+   選択状態は持たせない。 */
+.custom-item-type-suggestions {
+  grid-auto-flow: row;
+  max-height: 168px;
+  margin-bottom: 10px;
+}
+
+.custom-item-type-suggestion {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.custom-item-type-suggestion:hover {
+  border-color: var(--green);
+}
+
+.auth-form .custom-item-type-suggestion {
+  width: 100%;
+}
+
 .todo-fieldset {
   display: grid;
   gap: 8px;

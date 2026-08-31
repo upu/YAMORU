@@ -2,6 +2,8 @@
 
 import { useId, useState } from "react";
 
+import { normalizeItemTypeText } from "./model";
+
 // Issue #238: 台帳一覧の「詳しい種類」絞り込みを、プリセットと家庭内で使用中の
 // 自由入力値を同じ候補一覧から選べる検索可能な単一選択欄にする(issue本文の
 // 設計メモの案1)。/todosのManagedItemSearch(#96)と同じ「テキストで候補を
@@ -23,12 +25,8 @@ export type ManagedItemTypeGroup = {
 
 const ALL_VALUE = "";
 
-function normalizeQuery(value: string): string {
-  return value.trim().toLocaleLowerCase("ja-JP");
-}
-
 function matchesQuery(option: ManagedItemTypeOption, normalizedQuery: string): boolean {
-  return option.label.toLocaleLowerCase("ja-JP").includes(normalizedQuery);
+  return normalizeItemTypeText(option.label).includes(normalizedQuery);
 }
 
 function getVisibleGroups(
@@ -113,7 +111,7 @@ export function ManagedItemTypePicker({
   const [query, setQuery] = useState("");
   const [selectedValue, setSelectedValue] = useState(initialValue);
   const queryInputId = useId();
-  const normalizedQuery = normalizeQuery(query);
+  const normalizedQuery = normalizeItemTypeText(query);
   const hasQuery = normalizedQuery !== "";
   const visibleGroups = hasQuery ? getVisibleGroups(groups, normalizedQuery) : [];
   const status = describeItemTypeSearch(normalizedQuery, countOptions(visibleGroups));

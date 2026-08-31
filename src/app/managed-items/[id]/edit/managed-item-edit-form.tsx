@@ -5,7 +5,10 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { updateManagedItem } from "../../actions";
-import { ManagedItemClassificationFields } from "../../classification-fields";
+import {
+  ManagedItemClassificationFields,
+  type ManagedItemCustomTypeSuggestion,
+} from "../../classification-fields";
 import type { ManagedItemClassificationOptions } from "../../model";
 import { ManagedItemOptionalAttributeFields } from "../../optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "../../state";
@@ -82,6 +85,7 @@ function ManagedItemExternalUrlField({ externalUrl }: { externalUrl: string | nu
 function ManagedItemEditFields({
   classificationOptions,
   customItemType,
+  customItemTypeOptions,
   externalUrl,
   itemTypeCode,
   kindCode,
@@ -92,6 +96,7 @@ function ManagedItemEditFields({
   startedOn,
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
+  customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
   nowIso?: string;
 }) {
   // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
@@ -104,6 +109,7 @@ function ManagedItemEditFields({
 
       <ManagedItemClassificationFields
         classificationOptions={classificationOptions}
+        customItemTypeOptions={customItemTypeOptions}
         idPrefix="managed-item-edit"
         initialCustomItemType={customItemType}
         initialItemTypeCode={itemTypeCode}
@@ -130,11 +136,13 @@ function ManagedItemEditFields({
 // 隠しフィールドから読み取る。
 export function ManagedItemEditForm({
   classificationOptions,
+  customItemTypeOptions,
   id,
   nowIso,
   ...values
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
+  customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
   id: string;
   nowIso?: string;
 }) {
@@ -148,6 +156,7 @@ export function ManagedItemEditForm({
       <input name="id" type="hidden" value={id} />
       <ManagedItemEditFields
         classificationOptions={classificationOptions}
+        customItemTypeOptions={customItemTypeOptions}
         nowIso={nowIso}
         {...values}
       />

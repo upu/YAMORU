@@ -14,6 +14,7 @@ import { FloatingAddButton } from "../floating-add-button";
 import { ClassificationBadges } from "./classification-badges";
 import type { ManagedItemTypeGroup } from "./item-type-picker";
 import { ManagedItemsSearchForm } from "./managed-items-search-form";
+import { normalizeItemTypeText } from "./model";
 import { buildManagedItemsHref } from "./search-href";
 
 export type ManagedItemSummary = {
@@ -69,10 +70,6 @@ function parseItemTypeParam(raw: string): {
   return { itemTypeCode: raw };
 }
 
-function normalizeForCompare(value: string): string {
-  return value.trim().toLocaleLowerCase("ja-JP");
-}
-
 // 大分類のコード値を、家族に見せる名前へ解決する。URLの生の値が存在しない
 // コードを指す場合(不正な値・仕様変更で廃止された値)は、条件を説明せず
 // 結果(0件になる)だけに任せる。
@@ -99,9 +96,9 @@ function resolveItemTypeLabel(
     return resolveClassificationLabel(itemTypeCode, classificationOptions.itemTypes);
   }
   if (customItemType !== undefined) {
-    const normalized = normalizeForCompare(customItemType);
+    const normalized = normalizeItemTypeText(customItemType);
     return customItemTypeOptions
-      .find((option) => normalizeForCompare(option.label) === normalized)?.label ?? null;
+      .find((option) => normalizeItemTypeText(option.label) === normalized)?.label ?? null;
   }
   return null;
 }
