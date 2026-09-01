@@ -190,7 +190,7 @@ export async function updateRecurringOccurrence(
   session: D1Session,
   occurrenceId: string,
   input: RecurringOccurrenceUpdate,
-): Promise<void> {
+): Promise<{ managedItemId: string | null }> {
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   if (input.assigneeUserId !== null) {
@@ -202,10 +202,11 @@ export async function updateRecurringOccurrence(
     ...assigneeStatements(db, householdId, user.userId, occurrence, input),
     ...dueDateStatements(db, householdId, user.userId, occurrence, input),
   ];
-  if (statements.length === 0) return;
+  if (statements.length === 0) return { managedItemId: occurrence.managed_item_id };
   const results = await db.batch(statements);
   const missingLog = results.some((result, index) => index % 2 === 0 && result.meta.changes !== 1);
   if (missingLog) throw new D1ConflictError("Occurrence is not pending");
+  return { managedItemId: occurrence.managed_item_id };
 }
 
 // Issue #265 / YDR-039: 名前・関連先・同じ方式内の繰り返し条件を、現在回の

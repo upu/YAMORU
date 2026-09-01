@@ -94,7 +94,7 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
 describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)", () => {
   it("今回の担当・現在期限だけを変更し、本来の予定とルールは維持する", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
-      managedItemId: null,
+      managedItemId: "item-a",
       scheduleDayOfMonth: null,
       scheduleDayOfWeek: 1,
       scheduleKind: "weekly",
@@ -106,10 +106,10 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
     const occurrenceId = await occurrenceIdForRule(ruleId);
     const before = await readTodo(occurrenceId);
 
-    await updateRecurringOccurrence(db, memberA, occurrenceId, {
+    await expect(updateRecurringOccurrence(db, memberA, occurrenceId, {
       assigneeUserId: "user-a2",
       dueAt: "2026-09-20T15:00:00.000Z",
-    });
+    })).resolves.toEqual({ managedItemId: "item-a" });
 
     await expect(readTodo(occurrenceId)).resolves.toMatchObject({
       assignee_user_id: "user-a2",

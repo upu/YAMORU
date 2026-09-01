@@ -370,16 +370,17 @@ export async function updateRecurringOccurrence(
   if (occurrenceId === null || dueAt === null) {
     return { message: "現在の期限を正しく入力してください。", status: "error" };
   }
+  let managedItemId: string | null;
   try {
     const { db, session } = await getD1Context();
-    await updateRecurringOccurrenceInD1(db, session, occurrenceId, {
+    ({ managedItemId } = await updateRecurringOccurrenceInD1(db, session, occurrenceId, {
       assigneeUserId: optionalId(formData, "assigneeUserId"),
       dueAt,
-    });
+    }));
   } catch (error) {
     return recurringEditError(error);
   }
-  revalidateTodoEditViews(occurrenceId, []);
+  revalidateTodoEditViews(occurrenceId, [managedItemId]);
   redirect(`/todos/${encodeURIComponent(occurrenceId)}`);
 }
 

@@ -176,7 +176,7 @@ describe("繰り返しTodoの編集", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
-    updateRecurringOccurrenceMock.mockResolvedValue(undefined);
+    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: null });
     updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
   });
 
@@ -198,6 +198,17 @@ describe("繰り返しTodoの編集", () => {
       },
     );
     expect(redirectMock).toHaveBeenCalledWith("/todos/occurrence-1");
+  });
+
+  it("今回の変更後に関連する管理対象の詳細を再検証する", async () => {
+    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: "item-1" });
+    const formData = new FormData();
+    formData.set("id", "occurrence-1");
+    formData.set("dueDate", "2026-09-20");
+
+    await updateRecurringOccurrence(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
   });
 
   it("定例日ルールの入力を現在の方式のままD1へ渡す", async () => {
