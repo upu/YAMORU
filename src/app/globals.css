@@ -2031,6 +2031,26 @@ h1 {
   font-size: 0.7rem;
 }
 
+/* Issue #99: 固定間隔は「5」「日」「ごと」を一行で読めるように並べる。 */
+.fixed-interval-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-form .fixed-interval-fields input {
+  width: 5.5rem;
+}
+
+.auth-form .fixed-interval-fields select {
+  width: auto;
+}
+
+.fixed-interval-fields span {
+  font-weight: 800;
+}
+
 .calendar-day-input {
   display: flex;
   align-items: center;

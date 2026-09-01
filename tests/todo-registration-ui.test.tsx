@@ -249,24 +249,32 @@ describe("Todo登録ページの一定の間隔", () => {
 
     fireEvent.click(screen.getByLabelText("一定の間隔で繰り返す"));
 
+    // 初期状態は「日ごと」で、回数は例示のプレースホルダだけを表示する。
     const count = screen.getByLabelText("間隔");
-    expect(count).toHaveValue(2);
+    expect(count).toHaveValue(null);
+    expect(count).toHaveAttribute("placeholder", "5");
     expect(count).toHaveAttribute("min", "1");
-    expect(count).toHaveAttribute("max", "520");
+    expect(count).toHaveAttribute("max", "3650");
     expect(count).toHaveAttribute("step", "1");
-    expect(screen.getByLabelText("単位")).toHaveValue("week");
+    expect(screen.getByLabelText("単位")).toHaveValue("day");
+    expect(screen.getByText("ごと")).toBeInTheDocument();
+    expect(screen.getByText(/起点日から何日ごとに予定するかを入力します。/u))
+      .toBeInTheDocument();
     expect(screen.getByLabelText("起点日")).toHaveAttribute("type", "date");
     expect(screen.getByLabelText("起点日")).toBeRequired();
-    expect(screen.getByText(/起点日から2週間ごと\(隔週\)に予定します。/u))
-      .toBeInTheDocument();
     expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("単位"), { target: { value: "day" } });
     fireEvent.change(count, { target: { value: "10" } });
 
-    expect(screen.getByLabelText("間隔")).toHaveAttribute("max", "3650");
     expect(screen.getByText(/起点日から10日ごとに予定します。/u)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("単位"), { target: { value: "week" } });
+    fireEvent.change(count, { target: { value: "2" } });
+
+    expect(screen.getByLabelText("間隔")).toHaveAttribute("max", "520");
+    expect(screen.getByText(/起点日から2週間ごと\(隔週\)に予定します。/u))
+      .toBeInTheDocument();
   });
 
   // Issue #99 / YDR-037の8: 完了日基準との違いを選択肢の補足文で示す。

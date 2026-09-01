@@ -170,17 +170,22 @@ function CompletionRuleFields({ rule }: { rule: CompletionRuleValues }) {
   );
 }
 
+// Issue #99: 登録フォームと同じく「N」「日/週間」「ごと」を一続きに読めるよう並べ、
+// 項目名(間隔・単位)は画面には出さず読み上げにだけ残す。
 function IntervalRuleFields({ rule }: { rule: IntervalRuleValues }) {
   const [unit, setUnit] = useState(rule.intervalUnit);
   return (
     <fieldset className="todo-fieldset">
       <legend>繰り返す間隔</legend>
-      <label htmlFor="recurring-rule-interval-count">間隔</label>
-      <input defaultValue={rule.intervalCount} id="recurring-rule-interval-count" max={unit === "week" ? 520 : 3650} min={1} name="fixedIntervalCount" required type="number" />
-      <label htmlFor="recurring-rule-interval-unit">単位</label>
-      <select id="recurring-rule-interval-unit" name="fixedIntervalUnit" onChange={(event) => { setUnit(event.currentTarget.value as typeof unit); }} value={unit}>
-        <option value="day">日ごと</option><option value="week">週間ごと</option>
-      </select>
+      <div className="fixed-interval-fields">
+        <label className="sr-only" htmlFor="recurring-rule-interval-count">間隔</label>
+        <input defaultValue={rule.intervalCount} id="recurring-rule-interval-count" inputMode="numeric" max={unit === "week" ? 520 : 3650} min={1} name="fixedIntervalCount" required step={1} type="number" />
+        <label className="sr-only" htmlFor="recurring-rule-interval-unit">単位</label>
+        <select id="recurring-rule-interval-unit" name="fixedIntervalUnit" onChange={(event) => { setUnit(event.currentTarget.value as typeof unit); }} value={unit}>
+          <option value="day">日</option><option value="week">週間</option>
+        </select>
+        <span>ごと</span>
+      </div>
       <label htmlFor="recurring-rule-anchor">起点日</label>
       <input defaultValue={rule.intervalAnchorOn} id="recurring-rule-anchor" name="fixedIntervalAnchorDate" required type="date" />
     </fieldset>
