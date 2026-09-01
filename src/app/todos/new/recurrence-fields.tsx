@@ -273,19 +273,20 @@ export function IntervalFields() {
   );
 }
 
-// Issue #99 / YDR-037: 固定間隔の入力。単位と回数を分けて受け取り、2週ごとは
-// 「隔週」と分かる補足を添える(保存値は2週のまま)。
+// Issue #99 / YDR-037: 固定間隔の入力。「N」「日/週間」「ごと」を一続きに読めるよう
+// 並べ、項目名(間隔・単位)は画面には出さず読み上げにだけ残す。回数は初期値を入れず、
+// 例示のプレースホルダで数字を入れる欄だと分かるようにする。
 export function FixedIntervalFields() {
-  const [count, setCount] = useState("2");
-  const [unit, setUnit] = useState<"day" | "week">("week");
+  const [count, setCount] = useState("");
+  const [unit, setUnit] = useState<"day" | "week">("day");
   const unitLabel = unit === "week" ? "週間" : "日";
   const alias = unit === "week" && count === "2" ? "(隔週)" : "";
 
   return (
     <fieldset className="todo-fieldset">
       <legend>繰り返す間隔</legend>
-      <div className="interval-fields">
-        <label htmlFor="todo-fixed-interval-count">間隔</label>
+      <div className="fixed-interval-fields">
+        <label className="sr-only" htmlFor="todo-fixed-interval-count">間隔</label>
         <input
           id="todo-fixed-interval-count"
           inputMode="numeric"
@@ -293,12 +294,13 @@ export function FixedIntervalFields() {
           min={1}
           name="fixedIntervalCount"
           onChange={(event) => { setCount(event.currentTarget.value); }}
+          placeholder="5"
           required
           step={1}
           type="number"
           value={count}
         />
-        <label htmlFor="todo-fixed-interval-unit">単位</label>
+        <label className="sr-only" htmlFor="todo-fixed-interval-unit">単位</label>
         <select
           id="todo-fixed-interval-unit"
           name="fixedIntervalUnit"
@@ -307,9 +309,10 @@ export function FixedIntervalFields() {
           }}
           value={unit}
         >
-          <option value="day">日ごと</option>
-          <option value="week">週間ごと</option>
+          <option value="day">日</option>
+          <option value="week">週間</option>
         </select>
+        <span aria-hidden="true">ごと</span>
       </div>
       <label htmlFor="todo-fixed-interval-anchor">起点日</label>
       <input
@@ -319,7 +322,10 @@ export function FixedIntervalFields() {
         type="date"
       />
       <p className="input-help">
-        起点日から{count}{unitLabel}ごと{alias}に予定します。起点日が過去の場合は、今日以降で最初に当てはまる日からTodoを作ります。
+        {count === ""
+          ? `起点日から何${unitLabel}ごとに予定するかを入力します。`
+          : `起点日から${count}${unitLabel}ごと${alias}に予定します。`}
+        起点日が過去の場合は、今日以降で最初に当てはまる日からTodoを作ります。
       </p>
     </fieldset>
   );
