@@ -95,27 +95,9 @@ export async function listPendingOccurrences(
   }));
 }
 
-export async function listRecentActiveCompletions(
-  db: D1Database,
-  session: D1Session,
-  limit: number,
-  assigneeFilter?: AssigneeFilter,
-  search?: string,
-): Promise<RecentCompletionRow[]> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  const boundedLimit = Math.min(Math.max(limit, 0), 100);
-  const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
-  const searchPattern = likeSearchPattern(search);
-  // #148: occurred_at・performed_by_user_idは、元のcompletedログの値ではなく、
-  // completion_correctionsで訂正済みなら訂正後の有効値を返す(YDR-026)。
-  // 日時訂正と実施者訂正は別行として記録されるため、それぞれ独立に最新の
-  // 訂正を相関サブクエリで引き、なければ元の値へフォールバックする。
-  // Issue #223: 絞り込みはOccurrenceの担当予定者(assignee_user_id)を対象と
-  // し、この完了を実際に行った実施者(performed_by_user_id)は対象にしない。
-  const { results } = await db.prepare(
-    `WITH ranked AS (
+const RECENT_COMPLETIONS_SQL = `WITH ranked AS (
        SELECT l.id, l.occurred_at, l.recorded_at, l.performed_by_user_id,
-              l.task_occurrence_id, o.task_rule_id,
+              l.task_occurrence_id, o.task_rule_id, o.rule_snapshot,
               row_number() OVER (
                 PARTITION BY l.task_occurrence_id
                 ORDER BY l.recorded_at DESC, l.id DESC
@@ -147,15 +129,40 @@ export async function listRecentActiveCompletions(
               ranked.performed_by_user_id
             ) AS performed_by_user_id,
             ranked.task_occurrence_id,
-            r.title AS task_rule_title, i.id AS managed_item_id,
-            i.name AS managed_item_name
+            CASE WHEN json_type(ranked.rule_snapshot, '$.title') IS NULL
+              THEN r.title ELSE json_extract(ranked.rule_snapshot, '$.title')
+            END AS task_rule_title,
+            CASE WHEN json_type(ranked.rule_snapshot, '$.managedItemId') IS NULL
+              THEN i.id ELSE json_extract(ranked.rule_snapshot, '$.managedItemId')
+            END AS managed_item_id,
+            CASE WHEN json_type(ranked.rule_snapshot, '$.managedItemName') IS NULL
+              THEN i.name ELSE json_extract(ranked.rule_snapshot, '$.managedItemName')
+            END AS managed_item_name
        FROM ranked
        JOIN task_rules r ON r.id = ranked.task_rule_id AND r.household_id = ?1
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = ?1
       WHERE ranked.position = 1
-        AND (?5 IS NULL OR LOWER(r.title) LIKE ?5 ESCAPE '\\')
+        AND (?5 IS NULL OR LOWER(
+          CASE WHEN json_type(ranked.rule_snapshot, '$.title') IS NULL
+            THEN r.title ELSE json_extract(ranked.rule_snapshot, '$.title') END
+        ) LIKE ?5 ESCAPE '\\')
       ORDER BY ranked.occurred_at DESC, ranked.recorded_at DESC, ranked.id DESC
-      LIMIT ?2`,
-  ).bind(householdId, boundedLimit, userId, unassignedOnly, searchPattern).all<RecentCompletionRow>();
+      LIMIT ?2`;
+
+// 訂正済みの実施値とOccurrence発生時のルールsnapshotを優先する。
+export async function listRecentActiveCompletions(
+  db: D1Database,
+  session: D1Session,
+  limit: number,
+  assigneeFilter?: AssigneeFilter,
+  search?: string,
+): Promise<RecentCompletionRow[]> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  const boundedLimit = Math.min(Math.max(limit, 0), 100);
+  const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
+  const searchPattern = likeSearchPattern(search);
+  const { results } = await db.prepare(RECENT_COMPLETIONS_SQL)
+    .bind(householdId, boundedLimit, userId, unassignedOnly, searchPattern)
+    .all<RecentCompletionRow>();
   return results;
 }

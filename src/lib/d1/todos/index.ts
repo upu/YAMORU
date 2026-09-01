@@ -6,4 +6,15 @@ export { claimTaskOccurrenceAssignee, postponeTaskOccurrence, setOneTimeTaskSche
 export { completeTask, undoTaskCompletion } from "./completion";
 export { correctCompletionOccurredAt, correctCompletionPerformer } from "./corrections";
 export { type CalendarTaskInput, type IntervalTaskInput, type MaintenanceTaskInput, type OneTimeTaskInput, createCalendarTask, createIntervalTask, createMaintenanceTask, createOneTimeTask } from "./creation";
-export { type OneTimeTodoUpdate, type TodoDetailRow, loadTodoDetail, updateOneTimeTodo } from "./edit";
+export {
+  type OneTimeTodoUpdate,
+  type TodoDetailRow,
+  loadTodoDetail,
+  updateOneTimeTodo,
+} from "./edit";
+export {
+  type RecurringOccurrenceUpdate,
+  type RecurringTaskRuleUpdate,
+  updateRecurringOccurrence,
+  updateRecurringTaskRule,
+} from "./recurring-edit";

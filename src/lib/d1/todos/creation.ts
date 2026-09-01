@@ -5,6 +5,7 @@ import {
   intervalFirstScheduledFor,
 } from "../calendar";
 import { type TaskBasics, requireManagedItem } from "./shared";
+import { taskRuleSnapshotExpression } from "./rule-snapshot";
 
 // Todoの新規作成(一回限り・完了日基準・定例日基準・固定間隔)。
 
@@ -86,11 +87,17 @@ function occurrenceInsert(
     taskRuleId: string;
   },
 ): D1PreparedStatement {
+  const snapshot = taskRuleSnapshotExpression();
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+      completion_calendar_version, rule_snapshot
+    )
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ${snapshot}
+      FROM task_rules r
+      LEFT JOIN managed_items i
+        ON i.id = r.managed_item_id AND i.household_id = r.household_id
+     WHERE r.id = ?3 AND r.household_id = ?2`,
   ).bind(
     input.occurrenceId,
     input.householdId,

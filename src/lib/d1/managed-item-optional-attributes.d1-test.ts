@@ -6,9 +6,9 @@ import { D1NotFoundError } from "./errors";
 import {
   createManagedItem,
   getManagedItemForEdit,
-  loadManagedItemDetail,
   updateManagedItem,
 } from "./managed-items";
+import { loadManagedItemDetail } from "./managed-item-detail";
 
 const db = env.DB;
 const householdAMember = { email: "a@example.com", userId: "user-a" };

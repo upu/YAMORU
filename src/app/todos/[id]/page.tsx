@@ -162,10 +162,10 @@ function TodoCompletionSection({
 
 // Issue #244: 「Todoの内容」の見出し横へ編集導線を集約する
 // (ManagedItemRecordSectionと同じ方式、issue本文の設計メモの第一候補)。
-// 編集できるのは繰り返しなし・未完了Todoだけ(#203の範囲)。繰り返しTodoや
-// 完了済みTodoには、利用できない編集導線も理由だけのカードも出さない。
+// Issue #265: 未完了なら繰り返し方式にかかわらず編集へ移動できる。完了済みは
+// 追記型の実施記録訂正・完了取消だけを使うため編集導線を出さない。
 function TodoContentSection({ todo }: { todo: TodoDetailData }) {
-  const canEdit = !todo.isCompleted && todo.recurrenceBasis === "once";
+  const canEdit = !todo.isCompleted;
   return (
     <section aria-labelledby="todo-summary-title" className="detail-card">
       <div className="detail-section-heading">

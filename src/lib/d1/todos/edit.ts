@@ -1,5 +1,6 @@
 import { requireCurrentHouseholdId, requireD1Session, type D1Session } from "../authorization";
 import { D1ConflictError } from "../errors";
+import { taskRuleSnapshotExpression } from "./rule-snapshot";
 import { type OccurrenceWithRule, loadOccurrence, requireHouseholdUser, requireManagedItem } from "./shared";
 
 // Todo詳細の取得と、繰り返しなしTodoの編集(Issue #203)。
@@ -47,17 +48,7 @@ export type TodoDetailRow = {
   title: string;
 };
 
-export async function loadTodoDetail(
-  db: D1Database,
-  session: D1Session,
-  occurrenceId: string,
-): Promise<TodoDetailRow | null> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  // 完了→取消→再完了でも、対象は最新のcompletedログ1件に絞る
-  // (loadActiveCompletionと同じ並び)。訂正は日時・実施者を別行として残すため、
-  // それぞれ独立に最新の訂正を引き、なければ元の値へフォールバックする。
-  return db.prepare(
-    `WITH completion AS (
+const TODO_DETAIL_SQL = `WITH completion AS (
        SELECT l.id, l.occurred_at, l.performed_by_user_id
          FROM activity_logs l
         WHERE l.household_id = ?2 AND l.task_occurrence_id = ?1
@@ -66,13 +57,44 @@ export async function loadTodoDetail(
         LIMIT 1
      )
      SELECT o.id, o.task_rule_id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
-            r.title, r.recurrence_basis, r.deadline_kind,
-            r.recommended_start_offset, r.recommended_until_offset,
-            r.recommended_start_value, r.recommended_until_value, r.recommended_unit,
-            r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
-            r.schedule_week_of_month, r.schedule_month, r.schedule_month_end,
-            r.interval_unit, r.interval_count, r.interval_anchor_on,
-            i.id AS managed_item_id, i.name AS managed_item_name,
+            CASE WHEN json_type(o.rule_snapshot, '$.title') IS NULL
+              THEN r.title ELSE json_extract(o.rule_snapshot, '$.title') END AS title,
+            CASE WHEN json_type(o.rule_snapshot, '$.recurrenceBasis') IS NULL
+              THEN r.recurrence_basis ELSE json_extract(o.rule_snapshot, '$.recurrenceBasis') END AS recurrence_basis,
+            CASE WHEN json_type(o.rule_snapshot, '$.deadlineKind') IS NULL
+              THEN r.deadline_kind ELSE json_extract(o.rule_snapshot, '$.deadlineKind') END AS deadline_kind,
+            CASE WHEN json_type(o.rule_snapshot, '$.recommendedStartOffset') IS NULL
+              THEN r.recommended_start_offset ELSE json_extract(o.rule_snapshot, '$.recommendedStartOffset') END AS recommended_start_offset,
+            CASE WHEN json_type(o.rule_snapshot, '$.recommendedUntilOffset') IS NULL
+              THEN r.recommended_until_offset ELSE json_extract(o.rule_snapshot, '$.recommendedUntilOffset') END AS recommended_until_offset,
+            CASE WHEN json_type(o.rule_snapshot, '$.recommendedStartValue') IS NULL
+              THEN r.recommended_start_value ELSE json_extract(o.rule_snapshot, '$.recommendedStartValue') END AS recommended_start_value,
+            CASE WHEN json_type(o.rule_snapshot, '$.recommendedUntilValue') IS NULL
+              THEN r.recommended_until_value ELSE json_extract(o.rule_snapshot, '$.recommendedUntilValue') END AS recommended_until_value,
+            CASE WHEN json_type(o.rule_snapshot, '$.recommendedUnit') IS NULL
+              THEN r.recommended_unit ELSE json_extract(o.rule_snapshot, '$.recommendedUnit') END AS recommended_unit,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleKind') IS NULL
+              THEN r.schedule_kind ELSE json_extract(o.rule_snapshot, '$.scheduleKind') END AS schedule_kind,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleDayOfWeek') IS NULL
+              THEN r.schedule_day_of_week ELSE json_extract(o.rule_snapshot, '$.scheduleDayOfWeek') END AS schedule_day_of_week,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleDayOfMonth') IS NULL
+              THEN r.schedule_day_of_month ELSE json_extract(o.rule_snapshot, '$.scheduleDayOfMonth') END AS schedule_day_of_month,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleWeekOfMonth') IS NULL
+              THEN r.schedule_week_of_month ELSE json_extract(o.rule_snapshot, '$.scheduleWeekOfMonth') END AS schedule_week_of_month,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleMonth') IS NULL
+              THEN r.schedule_month ELSE json_extract(o.rule_snapshot, '$.scheduleMonth') END AS schedule_month,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleMonthEnd') IS NULL
+              THEN r.schedule_month_end ELSE json_extract(o.rule_snapshot, '$.scheduleMonthEnd') END AS schedule_month_end,
+            CASE WHEN json_type(o.rule_snapshot, '$.intervalUnit') IS NULL
+              THEN r.interval_unit ELSE json_extract(o.rule_snapshot, '$.intervalUnit') END AS interval_unit,
+            CASE WHEN json_type(o.rule_snapshot, '$.intervalCount') IS NULL
+              THEN r.interval_count ELSE json_extract(o.rule_snapshot, '$.intervalCount') END AS interval_count,
+            CASE WHEN json_type(o.rule_snapshot, '$.intervalAnchorOn') IS NULL
+              THEN r.interval_anchor_on ELSE json_extract(o.rule_snapshot, '$.intervalAnchorOn') END AS interval_anchor_on,
+            CASE WHEN json_type(o.rule_snapshot, '$.managedItemId') IS NULL
+              THEN r.managed_item_id ELSE json_extract(o.rule_snapshot, '$.managedItemId') END AS managed_item_id,
+            CASE WHEN json_type(o.rule_snapshot, '$.managedItemName') IS NULL
+              THEN i.name ELSE json_extract(o.rule_snapshot, '$.managedItemName') END AS managed_item_name,
             c.id AS completed_activity_log_id,
             coalesce(
               (SELECT k.new_occurred_at FROM completion_corrections k
@@ -93,8 +115,17 @@ export async function loadTodoDetail(
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = r.household_id
        LEFT JOIN completion c ON 1 = 1
       WHERE o.id = ?1 AND o.household_id = ?2
-        AND o.status IN ('pending', 'completed')`,
-  ).bind(occurrenceId, householdId).first<TodoDetailRow>();
+        AND o.status IN ('pending', 'completed')`;
+
+export async function loadTodoDetail(
+  db: D1Database,
+  session: D1Session,
+  occurrenceId: string,
+): Promise<TodoDetailRow | null> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  return db.prepare(TODO_DETAIL_SQL)
+    .bind(occurrenceId, householdId)
+    .first<TodoDetailRow>();
 }
 
 export type OneTimeTodoUpdate = {
@@ -151,6 +182,7 @@ function oneTimeTodoStatements(
   occurrence: OccurrenceWithRule,
   input: OneTimeTodoUpdate,
 ): D1PreparedStatement[] {
+  const snapshot = taskRuleSnapshotExpression();
   return [
     // TaskRuleとTaskOccurrenceのどちらの更新も、同じpending条件を満たすときだけ
     // 適用する。片方だけが通って途中状態が残ることを防ぐ(YDR-014)。
@@ -173,12 +205,27 @@ function oneTimeTodoStatements(
     // ときは、一回限りTodoの往復と同じくscheduled_forとdue_atを揃える(YDR-030)。
     occurrence.scheduled_for === input.scheduledFor
       ? db.prepare(
-          `UPDATE task_occurrences SET assignee_user_id = ?1
+          `UPDATE task_occurrences
+              SET assignee_user_id = ?1,
+                  rule_snapshot = (
+                    SELECT ${snapshot} FROM task_rules r
+                    LEFT JOIN managed_items i
+                      ON i.id = r.managed_item_id AND i.household_id = r.household_id
+                    WHERE r.id = task_occurrences.task_rule_id
+                      AND r.household_id = task_occurrences.household_id
+                  )
             WHERE id = ?2 AND household_id = ?3 AND status = 'pending'`,
         ).bind(input.assigneeUserId, occurrence.id, householdId)
       : db.prepare(
           `UPDATE task_occurrences
-              SET assignee_user_id = ?1, scheduled_for = ?2, due_at = ?2
+              SET assignee_user_id = ?1, scheduled_for = ?2, due_at = ?2,
+                  rule_snapshot = (
+                    SELECT ${snapshot} FROM task_rules r
+                    LEFT JOIN managed_items i
+                      ON i.id = r.managed_item_id AND i.household_id = r.household_id
+                    WHERE r.id = task_occurrences.task_rule_id
+                      AND r.household_id = task_occurrences.household_id
+                  )
             WHERE id = ?3 AND household_id = ?4 AND status = 'pending'`,
         ).bind(input.assigneeUserId, input.scheduledFor, occurrence.id, householdId),
   ];

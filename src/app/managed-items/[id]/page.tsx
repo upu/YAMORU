@@ -15,7 +15,7 @@ import {
   listConsumablesForManagedItem,
   type ConsumableSummary,
 } from "../../../lib/d1/consumables";
-import { loadManagedItemDetail } from "../../../lib/d1/managed-items";
+import { loadManagedItemDetail } from "../../../lib/d1/managed-item-detail";
 import {
   isSafeExternalUrl,
 } from "../model";
