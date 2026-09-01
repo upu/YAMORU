@@ -19,7 +19,7 @@ export type TodoEditValues = {
   title: string;
 };
 
-function SubmitButton() {
+export function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button
@@ -64,7 +64,7 @@ function TitleAndScheduleFields({
   );
 }
 
-function AssigneeField({
+export function AssigneeField({
   assigneeUserId,
   members,
 }: {

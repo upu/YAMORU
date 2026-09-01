@@ -5,19 +5,31 @@ const {
   redirectMock,
   revalidatePathMock,
   updateOneTimeTodoMock,
+  updateRecurringOccurrenceMock,
+  updateRecurringTaskRuleMock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
   redirectMock: vi.fn(),
   revalidatePathMock: vi.fn(),
   updateOneTimeTodoMock: vi.fn(),
+  updateRecurringOccurrenceMock: vi.fn(),
+  updateRecurringTaskRuleMock: vi.fn(),
 }));
 
 vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
-vi.mock("../src/lib/d1/todos", () => ({ updateOneTimeTodo: updateOneTimeTodoMock }));
+vi.mock("../src/lib/d1/todos", () => ({
+  updateOneTimeTodo: updateOneTimeTodoMock,
+  updateRecurringOccurrence: updateRecurringOccurrenceMock,
+  updateRecurringTaskRule: updateRecurringTaskRuleMock,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
-import { updateTodo } from "../src/app/todos/[id]/actions";
+import {
+  updateRecurringOccurrence,
+  updateRecurringRule,
+  updateTodo,
+} from "../src/app/todos/[id]/actions";
 import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/app/managed-items/[id]/state";
 
 function editForm(overrides: Record<string, string> = {}): FormData {
@@ -157,5 +169,117 @@ describe("Todoの編集(updateTodo)", () => {
 
     expect(result).toEqual({ message: "対象のTodoを特定できませんでした。", status: "error" });
     expect(getD1ContextMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("繰り返しTodoの編集", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    updateRecurringOccurrenceMock.mockResolvedValue(undefined);
+    updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
+  });
+
+  it("今回の担当と現在期限をD1へ渡す", async () => {
+    const formData = new FormData();
+    formData.set("id", "occurrence-1");
+    formData.set("assigneeUserId", "user-2");
+    formData.set("dueDate", "2026-09-20");
+
+    await updateRecurringOccurrence(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringOccurrenceMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      {
+        assigneeUserId: "user-2",
+        dueAt: "2026-09-19T15:00:00.000Z",
+      },
+    );
+    expect(redirectMock).toHaveBeenCalledWith("/todos/occurrence-1");
+  });
+
+  it("定例日ルールの入力を現在の方式のままD1へ渡す", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "item-1",
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: "2",
+      scheduleKind: "weekly",
+      title: "毎週火曜の家族会議",
+    })) formData.set(key, value);
+
+    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      {
+        managedItemId: "item-1",
+        recurrenceBasis: "calendar",
+        scheduleDayOfMonth: null,
+        scheduleDayOfWeek: 2,
+        scheduleKind: "weekly",
+        scheduleMonth: null,
+        scheduleMonthEnd: false,
+        scheduleWeekOfMonth: null,
+        title: "毎週火曜の家族会議",
+      },
+    );
+  });
+
+  it("完了日基準の値・単位を検証してD1へ渡す", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      intervalMax: "2",
+      intervalMin: "1",
+      intervalUnit: "month",
+      managedItemId: "",
+      recurrenceBasis: "completion",
+      title: "フィルター交換",
+    })) formData.set(key, value);
+
+    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({
+        recommendedStartOffset: 0,
+        recommendedStartValue: 1,
+        recommendedUnit: "month",
+        recommendedUntilOffset: 0,
+        recommendedUntilValue: 2,
+      }),
+    );
+  });
+
+  it("不正な固定間隔はD1へ送らない", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      fixedIntervalAnchorDate: "2026-09-01",
+      fixedIntervalCount: "0",
+      fixedIntervalUnit: "day",
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "interval",
+      title: "確認",
+    })) formData.set(key, value);
+
+    const result = await updateRecurringRule(
+      INITIAL_MAINTENANCE_TODO_STATE,
+      formData,
+    );
+
+    expect(result).toEqual({
+      message: "繰り返す間隔と起点日を正しく入力してください。",
+      status: "error",
+    });
+    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
   });
 });

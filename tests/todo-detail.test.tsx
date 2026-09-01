@@ -230,16 +230,13 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.queryByRole("button", { name: /修正/u })).not.toBeInTheDocument();
   });
 
-  it("繰り返しのあるTodoには編集導線も理由だけのカードも出さない", () => {
+  it("未完了の繰り返しTodoも同じ編集画面へ移動できる", () => {
     renderDetail(todo({ recurrenceBasis: "calendar", recurrenceLabel: "毎月末" }));
 
-    expect(
-      screen.queryByRole("link", { name: "このTodoを編集" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/繰り返しのあるTodoの内容は/u),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "内容の変更" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "このTodoを編集" })).toHaveAttribute(
+      "href",
+      "/todos/occurrence-1/edit",
+    );
   });
 
   // Issue #227 / YDR-032、#244で「繰り返し」の一項目へ統合。

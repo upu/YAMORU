@@ -1,5 +1,6 @@
 import { requireCurrentHouseholdId, requireD1Session, type D1Session } from "../authorization";
 import { D1ConflictError } from "../errors";
+import { taskRuleSnapshotExpression } from "./rule-snapshot";
 import { type OccurrenceWithRule, loadOccurrence, nextOccurrence, requireHouseholdUser } from "./shared";
 
 // Todoの完了記録と完了取消。次回Occurrenceの作成と履歴の追記を原子的に行い、
@@ -33,12 +34,17 @@ function nextOccurrenceStatement(
   logId: string,
 ): D1PreparedStatement | null {
   if (input.next === null) return null;
+  const snapshot = taskRuleSnapshotExpression();
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version
-    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6
-      WHERE EXISTS (
+      completion_calendar_version, rule_snapshot
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ${snapshot}
+      FROM task_rules r
+      LEFT JOIN managed_items i
+        ON i.id = r.managed_item_id AND i.household_id = r.household_id
+     WHERE r.id = ?3 AND r.household_id = ?2
+       AND EXISTS (
         SELECT 1 FROM activity_logs WHERE id = ?7 AND household_id = ?2
       )`,
   ).bind(
@@ -259,6 +265,10 @@ function undoStatements(
              AND NOT EXISTS (
                SELECT 1 FROM activity_logs a
                 WHERE a.task_occurrence_id = n.id AND a.household_id = ?2
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM task_rule_changes c
+                WHERE c.task_occurrence_id = n.id AND c.household_id = ?2
              )
         ))`,
   ).bind(

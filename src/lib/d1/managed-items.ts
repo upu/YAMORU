@@ -53,6 +53,7 @@ export type TaskOccurrenceRow = {
   id: string;
   scheduled_for: string | null;
   status: string;
+  title_snapshot?: string;
 };
 export type TaskRuleRow = {
   deadline_kind: string;
@@ -65,7 +66,7 @@ export type TaskRuleRow = {
 // startedOnは「対象との関係が始まった時期」を表す中立的な値で、大分類に
 // よらず同じ意味を持つ(Issue #239, YDR-033)。画面ラベルだけが大分類に応じて
 // 変わる。
-type ManagedItemOptionalAttributes = {
+export type ManagedItemOptionalAttributes = {
   note: string | null;
   productInfo: string | null;
   startedOn: string | null;
@@ -78,12 +79,12 @@ export type ManagedItemDetailRow = ManagedItemSummary
     task_rules: TaskRuleRow[];
   };
 
-const OPTIONAL_ATTRIBUTE_SELECT =
+export const OPTIONAL_ATTRIBUTE_SELECT =
   "m.note, m.product_info AS productInfo, m.started_on AS startedOn";
 
 type ClassificationDefinition = { legacyKind: string };
 
-const MANAGED_ITEM_CLASSIFICATION_SELECT = `
+export const MANAGED_ITEM_CLASSIFICATION_SELECT = `
   SELECT m.id,
          m.name,
          coalesce(current_kind.code, legacy_kind.code) AS kindCode,
@@ -114,7 +115,6 @@ async function requireCurrentHousehold(db: D1Database, session: D1Session): Prom
   await requireHouseholdMembership(db, session, householdId);
   return householdId;
 }
-
 // Issue #218: 家庭内の管理対象を、任意で名前検索・大分類・詳しい種類の
 // 各条件を組み合わせて絞り込む。household_idによる絞り込み(サブクエリの
 // WHERE句)が先に効くため、他家庭の管理対象は検索候補・結果のどちらにも
@@ -356,113 +356,4 @@ export async function updateManagedItem(
   if ((results[0]?.meta.changes ?? 0) !== 1) {
     throw new D1NotFoundError("管理対象が見つかりません。");
   }
-}
-
-type FlatOccurrence = Omit<TaskOccurrenceRow, "activity_logs"> & {
-  task_rule_id: string;
-};
-
-type FlatLog = ActivityLogRow & { task_occurrence_id: string };
-
-function attachActivityLogs(
-  occurrences: FlatOccurrence[],
-  logs: FlatLog[],
-): Map<string, TaskOccurrenceRow[]> {
-  const logsByOccurrence = new Map<string, ActivityLogRow[]>();
-  for (const log of logs) {
-    const current = logsByOccurrence.get(log.task_occurrence_id) ?? [];
-    current.push(log);
-    logsByOccurrence.set(log.task_occurrence_id, current);
-  }
-  const occurrencesByRule = new Map<string, TaskOccurrenceRow[]>();
-  for (const occurrence of occurrences) {
-    const current = occurrencesByRule.get(occurrence.task_rule_id) ?? [];
-    current.push({
-      activity_logs: logsByOccurrence.get(occurrence.id) ?? [],
-      assignee_user_id: occurrence.assignee_user_id,
-      due_at: occurrence.due_at,
-      id: occurrence.id,
-      scheduled_for: occurrence.scheduled_for,
-      status: occurrence.status,
-    });
-    occurrencesByRule.set(occurrence.task_rule_id, current);
-  }
-  return occurrencesByRule;
-}
-
-type ManagedItemDetailHead = ManagedItemSummary
-  & ManagedItemOptionalAttributes
-  & { household_id: string };
-
-function loadManagedItemDetailHead(
-  db: D1Database,
-  id: string,
-  householdId: string,
-): Promise<ManagedItemDetailHead | null> {
-  return db.prepare(
-    `SELECT item.*, m.household_id, ${OPTIONAL_ATTRIBUTE_SELECT}
-       FROM (${MANAGED_ITEM_CLASSIFICATION_SELECT}
-              WHERE m.id = ?1 AND m.household_id = ?2) item
-       JOIN managed_items m ON m.id = item.id`,
-  ).bind(id, householdId).first<ManagedItemDetailHead>();
-}
-
-export async function loadManagedItemDetail(
-  db: D1Database,
-  session: D1Session,
-  id: string,
-): Promise<ManagedItemDetailRow | null> {
-  const householdId = await requireCurrentHousehold(db, session);
-  const item = await loadManagedItemDetailHead(db, id, householdId);
-  if (item === null) return null;
-  const [links, rules, occurrences, logs] = await Promise.all([
-    db.prepare("SELECT id, url FROM external_links WHERE managed_item_id = ?1 AND household_id = ?2 ORDER BY created_at, id")
-      .bind(id, householdId).all<{ id: string; url: string }>(),
-    db.prepare("SELECT id, title, deadline_kind, recurrence_basis FROM task_rules WHERE managed_item_id = ?1 AND household_id = ?2 ORDER BY created_at, id")
-      .bind(id, householdId).all<Omit<TaskRuleRow, "task_occurrences">>(),
-    db.prepare(
-      `SELECT o.id, o.task_rule_id, o.status, o.scheduled_for, o.due_at, o.assignee_user_id
-         FROM task_occurrences o
-         JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
-        WHERE r.managed_item_id = ?1 AND o.household_id = ?2
-        ORDER BY o.scheduled_for IS NOT NULL, o.scheduled_for, o.id`,
-    ).bind(id, householdId).all<FlatOccurrence>(),
-    db.prepare(
-      // #148: completedの行はcompletion_correctionsに訂正があれば有効値へ
-      // 差し替える(YDR-026)。元のl.occurred_at/l.performed_by_user_id自体は
-      // 書き換えない。corrected_activity_log_idはcompleted行しか参照しない
-      // ため、他actionの行では相関サブクエリが常にNULLになりl側の値へ
-      // フォールバックする。
-      `SELECT l.id, l.task_occurrence_id, l.action,
-              coalesce(
-                (SELECT c.new_occurred_at FROM completion_corrections c
-                   WHERE c.completed_activity_log_id = l.id AND c.household_id = l.household_id
-                     AND c.new_occurred_at IS NOT NULL
-                   ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
-                l.occurred_at
-              ) AS occurred_at,
-              l.recorded_at,
-              coalesce(
-                (SELECT c.new_performed_by_user_id FROM completion_corrections c
-                   WHERE c.completed_activity_log_id = l.id AND c.household_id = l.household_id
-                     AND c.new_performed_by_user_id IS NOT NULL
-                   ORDER BY c.corrected_at DESC, c.id DESC LIMIT 1),
-                l.performed_by_user_id
-              ) AS performed_by_user_id
-         FROM activity_logs l
-         JOIN task_occurrences o ON o.id = l.task_occurrence_id AND o.household_id = l.household_id
-         JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
-        WHERE r.managed_item_id = ?1 AND l.household_id = ?2
-        ORDER BY l.recorded_at, l.id`,
-    ).bind(id, householdId).all<FlatLog>(),
-  ]);
-  const occurrencesByRule = attachActivityLogs(occurrences.results, logs.results);
-  return {
-    ...item,
-    external_links: links.results,
-    task_rules: rules.results.map((rule) => ({
-      ...rule,
-      task_occurrences: occurrencesByRule.get(rule.id) ?? [],
-    })),
-  };
 }

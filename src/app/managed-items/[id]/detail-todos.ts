@@ -63,6 +63,7 @@ export type TaskOccurrenceRow = {
   id: string;
   scheduled_for: string | null;
   status: string;
+  title_snapshot?: string;
 };
 
 export type TaskRuleRow = {
@@ -99,7 +100,7 @@ export function buildDatedPendingTodo(
       meta: describeStrictScheduleFromIso(state, dueAt),
       recurrenceBasis,
       scheduledFor,
-      title: rule.title,
+      title: occurrence.title_snapshot ?? rule.title,
       tone: copy.tone,
     };
   }
@@ -117,7 +118,7 @@ export function buildDatedPendingTodo(
     meta: describeMaintenanceWindowFromIso(state, window),
     recurrenceBasis,
     scheduledFor,
-    title: rule.title,
+    title: occurrence.title_snapshot ?? rule.title,
     tone: copy.tone,
   };
 }
@@ -148,7 +149,7 @@ export function buildPendingTodo(
     meta: "予定日: 未定",
     recurrenceBasis,
     scheduledFor: null,
-    title: rule.title,
+    title: occurrence.title_snapshot ?? rule.title,
     tone: "upcoming",
   };
 }
@@ -184,7 +185,7 @@ export function buildRecentCompletions(
           id: occurrence.id,
           occurredAt: log.occurred_at,
           performedByUserId: log.performed_by_user_id,
-          title: rule.title,
+          title: occurrence.title_snapshot ?? rule.title,
         })),
       );
       if (completions.length === 0) return [];
