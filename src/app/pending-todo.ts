@@ -126,6 +126,15 @@ function buildMaintenanceEntry(
   };
 }
 
+// 厳密な期限を持つ繰り返し方(完了日基準以外)の呼び名。登録フォームの
+// 選択肢と同じ言い回しにそろえる(Issue #99 / YDR-037の8)。
+const STRICT_RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
+  calendar: "曜日・日付で繰り返す",
+  completion: "完了した日から繰り返す",
+  interval: "一定の間隔で繰り返す",
+  once: "繰り返しなし",
+};
+
 function toStrictCategory(
   state: StrictDisplayState,
   dueAt: string,
@@ -156,7 +165,7 @@ function buildStrictEntry(
       // 伝えるため、リスト表示では繰り返し方式(#227)を省略する。
       listSchedule: { iso: dueAt, kind: "due" },
       meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
-        recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
+        STRICT_RECURRENCE_LABELS[recurrenceBasis]
       }`,
       tone: STRICT_DISPLAY_COPY[state].tone,
     },

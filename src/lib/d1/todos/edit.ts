@@ -15,6 +15,11 @@ export type TodoDetailRow = {
   deadline_kind: string;
   due_at: string | null;
   id: string;
+  // recurrence_basis='interval'のときだけ非null。固定間隔の表示に使う
+  // (Issue #99 / YDR-037)。
+  interval_anchor_on: string | null;
+  interval_count: number | null;
+  interval_unit: string | null;
   managed_item_id: string | null;
   managed_item_name: string | null;
   // 現在有効な実施日時・実施者。完了ログがない間はnull。
@@ -62,6 +67,7 @@ export async function loadTodoDetail(
             r.recommended_start_offset, r.recommended_until_offset,
             r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
             r.schedule_week_of_month, r.schedule_month, r.schedule_month_end,
+            r.interval_unit, r.interval_count, r.interval_anchor_on,
             i.id AS managed_item_id, i.name AS managed_item_name,
             c.id AS completed_activity_log_id,
             coalesce(

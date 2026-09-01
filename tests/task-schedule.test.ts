@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type CalendarScheduleRule,
   describeCalendarSchedule,
+  describeIntervalRecurrence,
   describeCompletionRecurrence,
   MAINTENANCE_DISPLAY_COPY,
   maintenanceReminderThresholdDays,
@@ -129,5 +130,50 @@ describe("そろそろ表示のしきい値日数(maintenanceReminderThresholdDa
   it("開始日と上限日が同日(0日)以下はゼロ除算せず0を返す", () => {
     expect(maintenanceReminderThresholdDays(0)).toBe(0);
     expect(maintenanceReminderThresholdDays(-1)).toBe(0);
+  });
+});
+
+// Issue #99 / YDR-037: 固定間隔は起点日と間隔で表示し、2週ごとは「隔週」と
+// 分かるようにする。
+describe("固定間隔の繰り返し表示(describeIntervalRecurrence)", () => {
+  it("N日ごとを起点日つきで表す", () => {
+    expect(describeIntervalRecurrence({
+      intervalAnchorOn: "2026-08-01",
+      intervalCount: 10,
+      intervalUnit: "day",
+    })).toBe("8月1日から10日ごと");
+  });
+
+  it("2週ごとは隔週と分かるように併記する", () => {
+    expect(describeIntervalRecurrence({
+      intervalAnchorOn: "2026-08-03",
+      intervalCount: 2,
+      intervalUnit: "week",
+    })).toBe("8月3日から2週間ごと(隔週)");
+  });
+
+  it("2週以外の週指定には隔週を付けない", () => {
+    expect(describeIntervalRecurrence({
+      intervalAnchorOn: "2026-08-03",
+      intervalCount: 3,
+      intervalUnit: "week",
+    })).toBe("8月3日から3週間ごと");
+  });
+
+  it("固定間隔ではない行や不正な値はnullを返す", () => {
+    const valid = {
+      intervalAnchorOn: "2026-08-01",
+      intervalCount: 10,
+      intervalUnit: "day",
+    };
+    expect(describeIntervalRecurrence({
+      intervalAnchorOn: null,
+      intervalCount: null,
+      intervalUnit: null,
+    })).toBeNull();
+    expect(describeIntervalRecurrence({ ...valid, intervalCount: 0 })).toBeNull();
+    expect(describeIntervalRecurrence({ ...valid, intervalCount: 1.5 })).toBeNull();
+    expect(describeIntervalRecurrence({ ...valid, intervalUnit: "month" })).toBeNull();
+    expect(describeIntervalRecurrence({ ...valid, intervalAnchorOn: "2026-8-1" })).toBeNull();
   });
 });

@@ -20,6 +20,7 @@ import { CorrectionPanel } from "../../managed-items/[id]/correction-panel";
 import {
   describeCalendarSchedule,
   describeCompletionRecurrence,
+  describeIntervalRecurrence,
   toDeadlineKind,
   toRecurrenceBasis,
   type RecurrenceBasis,
@@ -230,6 +231,17 @@ function buildRecurrenceLabel(row: TodoDetailRow): string {
       row.recommended_start_offset,
       row.recommended_until_offset,
     );
+  }
+  if (basis === "interval") {
+    const intervalLabel = describeIntervalRecurrence({
+      intervalAnchorOn: row.interval_anchor_on,
+      intervalCount: row.interval_count,
+      intervalUnit: row.interval_unit,
+    });
+    if (intervalLabel === null) {
+      throw new Error("固定間隔Todoの繰り返し規則が不正です。");
+    }
+    return intervalLabel;
   }
   const calendarLabel = describeCalendarSchedule({
     scheduleDayOfMonth: row.schedule_day_of_month,

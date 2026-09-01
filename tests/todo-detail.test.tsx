@@ -95,6 +95,9 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     deadline_kind: "strict",
     due_at: "2026-09-01T15:00:00.000Z",
     id: "occurrence-1",
+    interval_anchor_on: null,
+    interval_count: null,
+    interval_unit: null,
     managed_item_id: null,
     managed_item_name: null,
     occurred_at: null,
@@ -358,6 +361,34 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
 
     expect(screen.getByText("繰り返し")).toBeInTheDocument();
     expect(screen.getByText("毎月末")).toBeInTheDocument();
+  });
+
+  // Issue #99 / YDR-037
+  it("固定間隔Todoでは起点日と間隔を繰り返しの一項目として表示する", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      interval_anchor_on: "2026-08-01",
+      interval_count: 10,
+      interval_unit: "day",
+      recurrence_basis: "interval",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("繰り返し")).toBeInTheDocument();
+    expect(screen.getByText("8月1日から10日ごと")).toBeInTheDocument();
+  });
+
+  it("2週ごとの固定間隔Todoは隔週と分かるように表示する", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      interval_anchor_on: "2026-08-03",
+      interval_count: 2,
+      interval_unit: "week",
+      recurrence_basis: "interval",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("8月3日から2週間ごと(隔週)")).toBeInTheDocument();
   });
 
   // Issue #244: 保存済みのrecommended_start_offset/recommended_until_offsetから

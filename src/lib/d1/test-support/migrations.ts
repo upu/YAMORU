@@ -22,6 +22,7 @@ import consumablesSql from "../../../../d1/migrations/0012_consumables.sql?raw";
 import consumableStockStatusSql from "../../../../d1/migrations/0013_consumable_stock_status.sql?raw";
 import retireOtherManagedItemKindSql from "../../../../d1/migrations/0014_retire_other_managed_item_kind.sql?raw";
 import mergeServiceObligationKindsSql from "../../../../d1/migrations/0015_merge_service_obligation_kinds.sql?raw";
+import intervalRecurrenceSql from "../../../../d1/migrations/0016_interval_recurrence.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -40,6 +41,7 @@ const MIGRATIONS = [
   { name: "0013_consumable_stock_status", sql: consumableStockStatusSql },
   { name: "0014_retire_other_managed_item_kind", sql: retireOtherManagedItemKindSql },
   { name: "0015_merge_service_obligation_kinds", sql: mergeServiceObligationKindsSql },
+  { name: "0016_interval_recurrence", sql: intervalRecurrenceSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

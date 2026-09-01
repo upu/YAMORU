@@ -106,6 +106,68 @@ export function addTokyoDays(value: string, days: number): string {
   return tokyoDateToIso(addDays(tokyoDateFromIso(value), days));
 }
 
+// Issue #99 / YDR-037: 固定間隔ルール。候補列は起点日を`A`、間隔日数を`D`と
+// して暦日`S_k = A + k * D`(k = 0, 1, 2, …)であり、完了日には依存しない。
+// N週は常に7 * N日として扱う(Asia/TokyoはDSTを持たないため、7 * N日の暦日
+// 加算は必ず同じ曜日に着地する)。
+export type IntervalSchedule = {
+  intervalAnchorOn: string;
+  intervalCount: number | null;
+  intervalUnit: string | null;
+};
+
+const INTERVAL_UNIT_DAYS: Record<string, number> = { day: 1, week: 7 };
+
+function intervalDays(schedule: IntervalSchedule): number {
+  const unitDays = schedule.intervalUnit === null
+    ? undefined
+    : INTERVAL_UNIT_DAYS[schedule.intervalUnit];
+  const count = requireNumber(schedule.intervalCount, "Invalid interval count");
+  if (unitDays === undefined) throw new Error("Invalid interval unit");
+  if (!Number.isSafeInteger(count) || count < 1) {
+    throw new Error("Invalid interval count");
+  }
+  return count * unitDays;
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (parseDate(to).getTime() - parseDate(from).getTime()) / 86_400_000,
+  );
+}
+
+// 起点日以降で、指定した暦日以上になる最初の候補。登録直後の初回Occurrenceに
+// 使う。起点日が過去でも、飛ばした候補は作らない(YDR-016)。
+export function intervalScheduledForOnOrAfter(
+  schedule: IntervalSchedule,
+  onOrAfter: string,
+): string {
+  const days = intervalDays(schedule);
+  const anchor = schedule.intervalAnchorOn;
+  parseDate(anchor);
+  const steps = Math.max(0, Math.ceil(daysBetween(anchor, onOrAfter) / days));
+  return tokyoDateToIso(addDays(anchor, steps * days));
+}
+
+// YDR-013: 直前のscheduled_forと実際の解決日時の両方より後にある最初の候補。
+// 候補列は等差数列なので、1件ずつ進めず閉じた式で求める(YDR-037の4)。
+// 候補はAsia/Tokyo 00:00の瞬間であるため、解決日時との比較は暦日で判定できる。
+export function nextIntervalOccurrence(
+  schedule: IntervalSchedule,
+  currentScheduledFor: string,
+  occurredAt: string,
+): string {
+  const days = intervalDays(schedule);
+  const anchor = schedule.intervalAnchorOn;
+  parseDate(anchor);
+  const lower = [tokyoDateFromIso(currentScheduledFor), tokyoDateFromIso(occurredAt)]
+    .sort()
+    .at(-1);
+  if (lower === undefined) throw new Error("Invalid next interval date");
+  const steps = Math.max(0, Math.floor(daysBetween(anchor, lower) / days) + 1);
+  return tokyoDateToIso(addDays(anchor, steps * days));
+}
+
 export function calendarScheduledForOnOrAfter(
   schedule: CalendarSchedule,
   onOrAfter: string,
