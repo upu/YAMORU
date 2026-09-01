@@ -312,7 +312,7 @@ export function FixedIntervalFields() {
           <option value="day">日</option>
           <option value="week">週間</option>
         </select>
-        <span aria-hidden="true">ごと</span>
+        <span>ごと</span>
       </div>
       <label htmlFor="todo-fixed-interval-anchor">起点日</label>
       <input
