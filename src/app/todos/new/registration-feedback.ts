@@ -111,6 +111,20 @@ function registeredRow(saved: RegisteredTodoSchedule): PendingOccurrenceRow {
   };
 }
 
+// 保存はすでに成功しているため、要約を組み立てられなくても登録失敗にはしない。
+// 予定日と期限の組み合わせが壊れている場合(pending-todo.tsが投げる)は、
+// 「Todoを登録しました。」だけの表示へ落として登録結果を伝える。
+export function summarizeRegisteredTodoSafely(
+  saved: RegisteredTodoSchedule,
+  nowIso: string,
+): RegisteredTodoSummary | undefined {
+  try {
+    return summarizeRegisteredTodo(saved, nowIso);
+  } catch {
+    return undefined;
+  }
+}
+
 export function summarizeRegisteredTodo(
   saved: RegisteredTodoSchedule,
   nowIso: string,

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type RegisteredTodoSchedule,
   summarizeRegisteredTodo,
+  summarizeRegisteredTodoSafely,
 } from "../src/app/todos/new/registration-feedback";
 
 // Issue #286: 登録直後に返す「次回の予定」と「ホームにまだ出ない場合の確認先」。
@@ -85,5 +86,31 @@ describe("Todo登録直後のフィードバック", () => {
         homeNotice: null,
         schedule: "推奨期間: 9月6日まで",
       });
+  });
+});
+
+describe("要約を組み立てられないTodo", () => {
+  // 予定日と期限の組み合わせが壊れている場合、分類(pending-todo.ts)は例外を
+  // 投げる。保存はすでに成功しているため、登録失敗として扱わず表示だけを落とす。
+  const BROKEN: RegisteredTodoSchedule = {
+    deadlineKind: "strict",
+    dueAt: null,
+    // 予定日未定を使えるのは繰り返しなしのTodoだけ(YDR-030)。
+    recurrenceBasis: "calendar",
+    scheduledFor: null,
+    title: "壊れた予定のTodo",
+  };
+
+  it("分類できない保存内容では例外を投げる", () => {
+    expect(() => summarizeRegisteredTodo(BROKEN, NOW)).toThrow();
+  });
+
+  it("安全版は例外を吸収し、要約なしを返す", () => {
+    expect(summarizeRegisteredTodoSafely(BROKEN, NOW)).toBeUndefined();
+  });
+
+  it("組み立てられる保存内容では、安全版も同じ要約を返す", () => {
+    expect(summarizeRegisteredTodoSafely(strictTodo("2026-09-15"), NOW))
+      .toEqual(summarizeRegisteredTodo(strictTodo("2026-09-15"), NOW));
   });
 });

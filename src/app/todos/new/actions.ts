@@ -10,7 +10,7 @@ import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state"
 import {
   type RegisteredTodoSchedule,
   type TodoRegistrationState,
-  summarizeRegisteredTodo,
+  summarizeRegisteredTodoSafely,
 } from "./registration-feedback";
 import {
   type CalendarTodoInput,
@@ -371,7 +371,7 @@ export async function createTodo(
   // その場で返す(Issue #286)。
   return {
     message: "Todoを登録しました。",
-    registered: summarizeRegisteredTodo(saved, now.toISOString()),
+    registered: summarizeRegisteredTodoSafely(saved, now.toISOString()),
     status: "success",
   };
 }

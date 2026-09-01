@@ -335,6 +335,16 @@ describe("Todo登録後の表示", () => {
       .toBeInTheDocument();
   });
 
+  // 保存は成功しているため、次回予定を組み立てられなかった場合でも
+  // 登録できたことは伝える(Copilotレビュー指摘)。
+  it("次回予定を組み立てられなかった場合も、登録できたことは伝える", async () => {
+    renderAndSubmit(undefined);
+
+    expect(await screen.findByText("Todoを登録しました。")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+  });
+
   it("登録に失敗したときは予定も導線も出さない", async () => {
     createTodoMock.mockImplementation(() =>
       Promise.resolve({
