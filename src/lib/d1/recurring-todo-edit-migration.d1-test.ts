@@ -54,4 +54,10 @@ describe("繰り返しTodo編集migration", () => {
       "SELECT count(*) AS total FROM task_rule_changes WHERE household_id = 'household-a'",
     ).first()).resolves.toEqual({ total: 1 });
   });
+
+  it("Occurrenceのrule_snapshotへ不正なJSONを保存できない", async () => {
+    await expect(db.prepare(
+      "UPDATE task_occurrences SET rule_snapshot = 'not-json' WHERE id = 'occurrence-a'",
+    ).run()).rejects.toThrow();
+  });
 });

@@ -4,7 +4,8 @@
 -- 空のJSONを既定値として列を追加し、現在のTaskRuleから全既存行をbackfillする。
 
 ALTER TABLE task_occurrences
-ADD COLUMN rule_snapshot TEXT NOT NULL DEFAULT '{}';
+ADD COLUMN rule_snapshot TEXT NOT NULL DEFAULT '{}'
+  CHECK (json_valid(rule_snapshot));
 
 UPDATE task_occurrences
    SET rule_snapshot = (

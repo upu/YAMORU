@@ -61,6 +61,37 @@ beforeEach(async () => {
 });
 
 describe("繰り返しTodoの安全な編集(Issue #265)", () => {
+  it("同じルール内容を再送しても競合扱いせず、変更履歴を増やさない", async () => {
+    const ruleId = await createCalendarTask(db, memberA, {
+      managedItemId: null,
+      scheduleDayOfMonth: null,
+      scheduleDayOfWeek: 1,
+      scheduleKind: "weekly",
+      scheduleMonth: null,
+      scheduleMonthEnd: false,
+      scheduleWeekOfMonth: null,
+      title: "毎週の家族会議",
+    });
+    const occurrenceId = await occurrenceIdForRule(ruleId);
+
+    await expect(updateRecurringTaskRule(db, memberA, occurrenceId, {
+      managedItemId: null,
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: null,
+      scheduleDayOfWeek: 1,
+      scheduleKind: "weekly",
+      scheduleMonth: null,
+      scheduleMonthEnd: false,
+      scheduleWeekOfMonth: null,
+      title: "毎週の家族会議",
+    })).resolves.toEqual({ previousManagedItemId: null });
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM task_rule_changes WHERE task_rule_id = ?1",
+    ).bind(ruleId).first()).resolves.toEqual({ count: 0 });
+  });
+});
+
+describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)", () => {
   it("今回の担当・現在期限だけを変更し、本来の予定とルールは維持する", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,

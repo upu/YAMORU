@@ -211,6 +211,11 @@ export async function updateRecurringOccurrence(
 // Issue #265 / YDR-039: 名前・関連先・同じ方式内の繰り返し条件を、現在回の
 // scheduled_for/due_atを動かさず更新する。現在回のsnapshotは新しい表示へ
 // 揃える一方、完了済みOccurrenceのsnapshotは更新しない。
+const PENDING_RECURRING_OCCURRENCE_SQL = `SELECT 1 FROM task_occurrences o
+  JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
+ WHERE o.id = ?1 AND o.household_id = ?2 AND o.status = 'pending'
+   AND r.recurrence_basis = ?3`;
+
 export async function updateRecurringTaskRule(
   db: D1Database,
   session: D1Session,
@@ -239,11 +244,12 @@ export async function updateRecurringTaskRule(
         previous_rule_snapshot, new_rule_snapshot
       )
       SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
-        FROM task_occurrences o
+       FROM task_occurrences o
         JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
         LEFT JOIN managed_items i
           ON i.id = r.managed_item_id AND i.household_id = r.household_id
-       WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'`,
+       WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
+         AND o.rule_snapshot <> ${snapshot}`,
     ).bind(changeId, householdId, user.userId, occurrenceId),
     db.prepare(
       `UPDATE task_occurrences
@@ -257,7 +263,13 @@ export async function updateRecurringTaskRule(
           )`,
     ).bind(changeId, householdId, occurrenceId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1 || (results[1]?.meta.changes ?? 0) !== 1) {
+  if ((results[1]?.meta.changes ?? 0) === 0) {
+    const pending = await db.prepare(PENDING_RECURRING_OCCURRENCE_SQL)
+      .bind(occurrenceId, householdId, input.recurrenceBasis).first();
+    if (pending === null) throw new D1ConflictError("Occurrence is not pending");
+    return { previousManagedItemId: occurrence.managed_item_id };
+  }
+  if ((results[2]?.meta.changes ?? 0) !== 1) {
     throw new D1ConflictError("Occurrence is not pending");
   }
   return { previousManagedItemId: occurrence.managed_item_id };
