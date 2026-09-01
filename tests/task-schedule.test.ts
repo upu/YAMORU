@@ -175,5 +175,7 @@ describe("固定間隔の繰り返し表示(describeIntervalRecurrence)", () => 
     expect(describeIntervalRecurrence({ ...valid, intervalCount: 1.5 })).toBeNull();
     expect(describeIntervalRecurrence({ ...valid, intervalUnit: "month" })).toBeNull();
     expect(describeIntervalRecurrence({ ...valid, intervalAnchorOn: "2026-8-1" })).toBeNull();
+    // 形式が正しくても実在しない暦日は表示しない(2月30日と誤表示しない)。
+    expect(describeIntervalRecurrence({ ...valid, intervalAnchorOn: "2026-02-30" })).toBeNull();
   });
 });

@@ -191,10 +191,23 @@ export type IntervalRecurrenceRule = {
   intervalUnit: string | null;
 };
 
+// 形式だけでなく実在する暦日かも確かめる。登録時とDBのCHECK制約で不正な
+// 起点日は弾いているが、表示側でも確かめ、データが壊れている場合に
+// 「2月30日」のような誤表示をせずnullで落とす(Issue #99のレビュー指摘)。
 function formatAnchorMonthDay(anchorOn: string): string | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(anchorOn);
   if (match === null) return null;
-  return `${String(Number(match[2]))}月${String(Number(match[3]))}日`;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return `${String(month)}月${String(day)}日`;
 }
 
 // 「2週ごと」は一般に「隔週」と呼ばれるため、週の別名として併記する
