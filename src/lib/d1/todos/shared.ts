@@ -1,4 +1,10 @@
-import { addTokyoDays, nextCalendarOccurrence, nextIntervalOccurrence } from "../calendar";
+import {
+  addTokyoCalendarInterval,
+  addTokyoDays,
+  type CompletionIntervalUnit,
+  nextCalendarOccurrence,
+  nextIntervalOccurrence,
+} from "../calendar";
 import { D1ConflictError, D1NotFoundError } from "../errors";
 
 // Todo(TaskRule/TaskOccurrence)の操作が共通で使う、家庭の確認・Occurrenceの
@@ -18,7 +24,10 @@ export type OccurrenceWithRule = {
   managed_item_id: string | null;
   recurrence_basis: string;
   recommended_start_offset: number;
+  recommended_start_value: number | null;
+  recommended_unit: string | null;
   recommended_until_offset: number;
+  recommended_until_value: number | null;
   schedule_day_of_month: number | null;
   schedule_day_of_week: number | null;
   schedule_kind: string | null;
@@ -51,6 +60,7 @@ export async function loadOccurrence(
     `SELECT o.id, o.household_id, o.task_rule_id, o.scheduled_for, o.due_at,
       o.assignee_user_id, o.status,
       r.recurrence_basis, r.recommended_start_offset, r.recommended_until_offset,
+      r.recommended_start_value, r.recommended_until_value, r.recommended_unit,
       r.managed_item_id,
       r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
       r.schedule_week_of_month, r.schedule_month,
@@ -75,60 +85,108 @@ export async function requireHouseholdUser(
   if (member === null) throw new D1NotFoundError(message);
 }
 
-export function nextOccurrence(
+type NextOccurrence = { dueAt: string; id: string; scheduledFor: string };
+
+function nextCompletionOccurrence(
   occurrence: OccurrenceWithRule,
   occurredAt: string,
-): { dueAt: string; id: string; scheduledFor: string } | null {
-  if (occurrence.recurrence_basis === "once") return null;
-  const id = crypto.randomUUID();
-  if (occurrence.recurrence_basis === "completion") {
+  id: string,
+): NextOccurrence {
+  const values = [
+    occurrence.recommended_start_value,
+    occurrence.recommended_until_value,
+    occurrence.recommended_unit,
+  ];
+  if (values.every((value) => value === null)) {
     return {
       dueAt: addTokyoDays(occurredAt, occurrence.recommended_until_offset),
       id,
       scheduledFor: addTokyoDays(occurredAt, occurrence.recommended_start_offset),
     };
   }
+  if (values.some((value) => value === null)) {
+    throw new D1ConflictError("Completion occurrence must have a complete interval rule");
+  }
+  const unit = occurrence.recommended_unit as CompletionIntervalUnit;
+  return {
+    dueAt: addTokyoCalendarInterval(
+      occurredAt,
+      occurrence.recommended_until_value as number,
+      unit,
+    ),
+    id,
+    scheduledFor: addTokyoCalendarInterval(
+      occurredAt,
+      occurrence.recommended_start_value as number,
+      unit,
+    ),
+  };
+}
+
+function nextFixedIntervalOccurrence(
+  occurrence: OccurrenceWithRule,
+  occurredAt: string,
+  id: string,
+): NextOccurrence {
+  if (occurrence.scheduled_for === null) {
+    throw new D1ConflictError("Recurring occurrence must have a schedule");
+  }
+  if (
+    occurrence.interval_anchor_on === null || occurrence.interval_count === null ||
+    occurrence.interval_unit === null
+  ) {
+    throw new D1ConflictError("Interval occurrence must have an interval rule");
+  }
+  const scheduledFor = nextIntervalOccurrence(
+    {
+      intervalAnchorOn: occurrence.interval_anchor_on,
+      intervalCount: occurrence.interval_count,
+      intervalUnit: occurrence.interval_unit,
+    },
+    occurrence.scheduled_for,
+    occurredAt,
+  );
+  return { dueAt: scheduledFor, id, scheduledFor };
+}
+
+function nextCalendarRuleOccurrence(
+  occurrence: OccurrenceWithRule,
+  occurredAt: string,
+  id: string,
+): NextOccurrence {
+  if (occurrence.scheduled_for === null) {
+    throw new D1ConflictError("Recurring occurrence must have a schedule");
+  }
+  const scheduledFor = nextCalendarOccurrence(
+    {
+      scheduleDayOfMonth: occurrence.schedule_day_of_month,
+      scheduleDayOfWeek: occurrence.schedule_day_of_week,
+      scheduleKind: occurrence.schedule_kind ?? "",
+      scheduleMonth: occurrence.schedule_month,
+      scheduleWeekOfMonth: occurrence.schedule_week_of_month,
+    },
+    occurrence.scheduled_for,
+    occurredAt,
+  );
+  return { dueAt: scheduledFor, id, scheduledFor };
+}
+
+export function nextOccurrence(
+  occurrence: OccurrenceWithRule,
+  occurredAt: string,
+): NextOccurrence | null {
+  if (occurrence.recurrence_basis === "once") return null;
+  const id = crypto.randomUUID();
+  if (occurrence.recurrence_basis === "completion") {
+    return nextCompletionOccurrence(occurrence, occurredAt, id);
+  }
   // Issue #99 / YDR-037: 固定間隔の候補列は起点日と間隔だけで決まり、完了日に
   // 引きずられない。飛ばした候補は作らず(YDR-016)、次回を1件だけ作る。
   if (occurrence.recurrence_basis === "interval") {
-    if (occurrence.scheduled_for === null) {
-      throw new D1ConflictError("Recurring occurrence must have a schedule");
-    }
-    // DBのCHECK制約(0016)でintervalの3列は必ず揃うが、読み取り側でも揃って
-    // いることを確かめ、欠けていれば汎用のErrorではなく409として扱う。
-    if (
-      occurrence.interval_anchor_on === null || occurrence.interval_count === null ||
-      occurrence.interval_unit === null
-    ) {
-      throw new D1ConflictError("Interval occurrence must have an interval rule");
-    }
-    const scheduledFor = nextIntervalOccurrence(
-      {
-        intervalAnchorOn: occurrence.interval_anchor_on,
-        intervalCount: occurrence.interval_count,
-        intervalUnit: occurrence.interval_unit,
-      },
-      occurrence.scheduled_for,
-      occurredAt,
-    );
-    return { dueAt: scheduledFor, id, scheduledFor };
+    return nextFixedIntervalOccurrence(occurrence, occurredAt, id);
   }
   if (occurrence.recurrence_basis === "calendar") {
-    if (occurrence.scheduled_for === null) {
-      throw new D1ConflictError("Recurring occurrence must have a schedule");
-    }
-    const scheduledFor = nextCalendarOccurrence(
-      {
-        scheduleDayOfMonth: occurrence.schedule_day_of_month,
-        scheduleDayOfWeek: occurrence.schedule_day_of_week,
-        scheduleKind: occurrence.schedule_kind ?? "",
-        scheduleMonth: occurrence.schedule_month,
-        scheduleWeekOfMonth: occurrence.schedule_week_of_month,
-      },
-      occurrence.scheduled_for,
-      occurredAt,
-    );
-    return { dueAt: scheduledFor, id, scheduledFor };
+    return nextCalendarRuleOccurrence(occurrence, occurredAt, id);
   }
   throw new D1ConflictError("Unsupported recurrence basis");
 }

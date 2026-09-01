@@ -230,6 +230,9 @@ function buildRecurrenceLabel(row: TodoDetailRow): string {
     return describeCompletionRecurrence(
       row.recommended_start_offset,
       row.recommended_until_offset,
+      row.recommended_start_value,
+      row.recommended_until_value,
+      row.recommended_unit,
     );
   }
   if (basis === "interval") {

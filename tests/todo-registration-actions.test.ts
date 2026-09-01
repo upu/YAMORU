@@ -128,7 +128,10 @@ describe("専用ページのTodo登録操作", () => {
       managedItemId: null,
       recurrenceBasis: "completion",
       recommendedStartOffset: 7,
+      recommendedStartValue: 1,
       recommendedUntilOffset: 14,
+      recommendedUntilValue: 2,
+      recommendedUnit: "week",
       title: "換気扇の掃除",
     });
   });
@@ -263,6 +266,78 @@ describe("専用ページのTodo登録操作", () => {
     expect(getD1ContextMock).not.toHaveBeenCalled();
     expect(result).toEqual({
       message: "繰り返し方を選択してください。",
+      status: "error",
+    });
+  });
+});
+
+describe("完了日基準Todoの月・年単位", () => {
+  it("月単位は前回実施日の月末を補正し、入力値と単位を失わず渡す", async () => {
+    await createTodo(INITIAL_STATE, todoForm({
+      anchorDate: "2027-01-31",
+      intervalMax: "2",
+      intervalMin: "1",
+      intervalUnit: "month",
+      recurrenceBasis: "completion",
+    }));
+
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith("db", "session", expect.objectContaining({
+      firstDueAt: "2027-03-30T15:00:00.000Z",
+      firstScheduledFor: "2027-02-27T15:00:00.000Z",
+      recommendedStartValue: 1,
+      recommendedUntilValue: 2,
+      recommendedUnit: "month",
+    }));
+  });
+
+  it("年単位はうるう日の初回と上限を同じ起点から計算する", async () => {
+    await createTodo(INITIAL_STATE, todoForm({
+      anchorDate: "2028-02-29",
+      intervalMax: "4",
+      intervalMin: "1",
+      intervalUnit: "year",
+      recurrenceBasis: "completion",
+    }));
+
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith("db", "session", expect.objectContaining({
+      firstDueAt: "2032-02-28T15:00:00.000Z",
+      firstScheduledFor: "2029-02-27T15:00:00.000Z",
+      recommendedStartValue: 1,
+      recommendedUntilValue: 4,
+      recommendedUnit: "year",
+    }));
+  });
+
+  it("次回開始日を指定する月単位では開始日から幅だけを暦加算する", async () => {
+    await createTodo(INITIAL_STATE, todoForm({
+      anchorDate: "2027-02-28",
+      initialDateMode: "next_window_start",
+      intervalMax: "2",
+      intervalMin: "1",
+      intervalUnit: "month",
+      recurrenceBasis: "completion",
+    }));
+
+    expect(createMaintenanceTaskMock).toHaveBeenCalledWith("db", "session", expect.objectContaining({
+      firstDueAt: "2027-03-27T15:00:00.000Z",
+      firstScheduledFor: "2027-02-27T15:00:00.000Z",
+    }));
+  });
+
+  it.each([
+    ["月の上限超過", { intervalMax: "121", intervalUnit: "month" }],
+    ["年の上限超過", { intervalMax: "11", intervalUnit: "year" }],
+    ["未定義の単位", { intervalUnit: "quarter" }],
+    ["開始が上限より大きい", { intervalMax: "1", intervalMin: "2", intervalUnit: "month" }],
+  ])("%sなら登録しない", async (_label, overrides) => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({ recurrenceBasis: "completion", ...overrides }),
+    );
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "次回の目安は0以上の整数で、短い方を長い方以下にしてください。",
       status: "error",
     });
   });

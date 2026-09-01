@@ -41,8 +41,44 @@ function addDays(value: string, days: number): string {
   return formatDate(date);
 }
 
+export type CompletionIntervalUnit = "day" | "month" | "week" | "year";
+
+function requireIntervalAmount(amount: number): void {
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    throw new Error("Invalid calendar interval amount");
+  }
+}
+
 function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+// Issue #48 / YDR-038: 月・年は固定日数へ換算しない。起点の「日」を保持した
+// まま対象年月へ一度に移動し、存在しない場合だけ対象月の月末へ補正する。
+// そのため1月31日+2か月は、2月を経由して3月28日になるのではなく3月31日。
+export function addTokyoCalendarDate(
+  value: string,
+  amount: number,
+  unit: string,
+): string {
+  requireIntervalAmount(amount);
+  const date = parseDate(value);
+  if (unit === "day") return addDays(value, amount);
+  if (unit === "week") return addDays(value, amount * 7);
+  if (unit === "month") {
+    const targetMonthIndex = date.getUTCFullYear() * 12 + date.getUTCMonth() + amount;
+    const year = Math.floor(targetMonthIndex / 12);
+    const monthIndex = targetMonthIndex % 12;
+    const day = Math.min(date.getUTCDate(), daysInMonth(year, monthIndex + 1));
+    return formatDate(new Date(Date.UTC(year, monthIndex, day)));
+  }
+  if (unit === "year") {
+    const year = date.getUTCFullYear() + amount;
+    const month = date.getUTCMonth() + 1;
+    const day = Math.min(date.getUTCDate(), daysInMonth(year, month));
+    return formatDate(new Date(Date.UTC(year, month - 1, day)));
+  }
+  throw new Error("Invalid calendar interval unit");
 }
 
 function isoDayOfWeek(date: Date): number {
@@ -113,6 +149,14 @@ export function tokyoDateFromIso(value: string): string {
 function tokyoDateToIso(value: string): string {
   parseDate(value);
   return new Date(`${value}T00:00:00${TOKYO_OFFSET}`).toISOString();
+}
+
+export function addTokyoCalendarInterval(
+  value: string,
+  amount: number,
+  unit: CompletionIntervalUnit,
+): string {
+  return tokyoDateToIso(addTokyoCalendarDate(tokyoDateFromIso(value), amount, unit));
 }
 
 export function addTokyoDays(value: string, days: number): string {
