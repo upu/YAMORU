@@ -261,6 +261,23 @@ export function calendarScheduledForOnOrAfter(
   throw new Error("Invalid calendar schedule");
 }
 
+// Issue #286: 登録直後の初回Occurrenceの予定日。登録処理(createCalendarTask /
+// createIntervalTask)と、登録できたことを返すフィードバック表示の両方が使う。
+// 同じ`now`を渡せば同じ値になるため、表示のためだけの候補計算を増やさない。
+export function calendarFirstScheduledFor(
+  schedule: CalendarSchedule,
+  now: Date,
+): string {
+  return calendarScheduledForOnOrAfter(schedule, tokyoDateFromIso(now.toISOString()));
+}
+
+export function intervalFirstScheduledFor(
+  schedule: IntervalSchedule,
+  now: Date,
+): string {
+  return intervalScheduledForOnOrAfter(schedule, tokyoDateFromIso(now.toISOString()));
+}
+
 export function nextCalendarOccurrence(
   schedule: CalendarSchedule,
   currentScheduledFor: string,

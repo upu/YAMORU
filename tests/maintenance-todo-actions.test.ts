@@ -85,10 +85,11 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/managed-items/managed-item-id",
     );
-    expect(result).toEqual({
-      message: "Todoを登録しました。",
-      status: "success",
-    });
+    expect(result.status).toBe("success");
+    expect(result.message).toBe("Todoを登録しました。");
+    // Issue #286: 成功時は次回の予定も返す(組み立ての詳細は
+    // todo-registration-feedback.test.tsで検証する)。
+    expect(result.registered?.schedule).toBe("推奨期間: 10月8日から");
   });
 
   it("次回の目安開始日を指定した場合は上限日だけを自動計算する", async () => {
@@ -126,10 +127,11 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       scheduledFor: "2026-10-09T15:00:00.000Z",
       title: "今回だけ点検",
     });
-    expect(result).toEqual({
-      message: "Todoを登録しました。",
-      status: "success",
-    });
+    expect(result.status).toBe("success");
+    expect(result.message).toBe("Todoを登録しました。");
+    // Issue #286: 成功時は次回の予定も返す(組み立ての詳細は
+    // todo-registration-feedback.test.tsで検証する)。
+    expect(result.registered?.schedule).toBe("次回: 10月10日");
   });
 
   it.each(["", "   ", "あ".repeat(101)])(

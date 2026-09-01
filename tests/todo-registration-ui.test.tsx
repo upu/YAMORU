@@ -285,3 +285,87 @@ describe("Todo登録ページの一定の間隔", () => {
       .toBeInTheDocument();
   });
 });
+
+// Issue #286: 登録直後に、登録できたことと次回の予定・確認先を確かめられる。
+describe("Todo登録後の表示", () => {
+  function renderAndSubmit(registered: {
+    homeNotice: string | null;
+    schedule: string;
+  } | undefined) {
+    createTodoMock.mockImplementation(() =>
+      Promise.resolve({ message: "Todoを登録しました。", registered, status: "success" }),
+    );
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Todo名"), {
+      target: { value: "翌月の予定表を提出する" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Todoを登録" }));
+  }
+
+  it("次回の予定と、ホームに表示され始める日・Todo一覧への導線を示す", async () => {
+    renderAndSubmit({
+      homeNotice:
+        "9月8日からホームの「近日」に表示されます。それまではTodo一覧で確認できます。",
+      schedule: "次回: 9月15日",
+    });
+
+    expect(await screen.findByText("Todoを登録しました。")).toBeInTheDocument();
+    expect(screen.getByText("次回: 9月15日")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "9月8日からホームの「近日」に表示されます。それまではTodo一覧で確認できます。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .toHaveAttribute("href", "/todos");
+  });
+
+  it("ホームへすぐ表示されるTodoでは、表示開始日の案内を重ねない", async () => {
+    renderAndSubmit({ homeNotice: null, schedule: "次回: 9月2日" });
+
+    expect(await screen.findByText("次回: 9月2日")).toBeInTheDocument();
+    expect(screen.queryByText(/ホームの/u)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .toBeInTheDocument();
+  });
+
+  // 保存は成功しているため、次回予定を組み立てられなかった場合でも
+  // 登録できたことは伝える(Copilotレビュー指摘)。
+  it("次回予定を組み立てられなかった場合も、登録できたことは伝える", async () => {
+    renderAndSubmit(undefined);
+
+    expect(await screen.findByText("Todoを登録しました。")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("登録に失敗したときは予定も導線も出さない", async () => {
+    createTodoMock.mockImplementation(() =>
+      Promise.resolve({
+        message: "Todoを登録できませんでした。時間をおいて再度お試しください。",
+        status: "error",
+      }),
+    );
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Todo名"), { target: { value: "家族会議" } });
+    fireEvent.click(screen.getByRole("button", { name: "Todoを登録" }));
+
+    expect(
+      await screen.findByText("Todoを登録できませんでした。時間をおいて再度お試しください。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+  });
+});

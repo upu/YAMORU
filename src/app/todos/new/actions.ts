@@ -2,18 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getD1Context } from "../../../lib/d1/context";
-import {
-  createCalendarTask,
-  createIntervalTask,
-  createMaintenanceTask,
-  createOneTimeTask,
-} from "../../../lib/d1/todos";
 import {
   addTokyoCalendarDate,
   type CompletionIntervalUnit,
 } from "../../../lib/d1/calendar";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import {
+  type RegisteredTodoSchedule,
+  type TodoRegistrationState,
+  summarizeRegisteredTodoSafely,
+} from "./registration-feedback";
+import {
+  type CalendarTodoInput,
+  type CompletionTodoInput,
+  type IntervalTodoInput,
+  type OneTimeTodoInput,
+  type ParsedTodoInput,
+  type TodoBasics,
+  saveTodo,
+} from "./save-todo";
 import {
   getTokyoDayDistance,
   tokyoDateToUtcIso,
@@ -44,50 +51,12 @@ const INVALID_INTERVAL: MaintenanceTodoActionState = {
   status: "error",
 };
 
-type TodoBasics = {
-  managedItemId: string | null;
-  recurrenceBasis: "calendar" | "completion" | "interval" | "once";
-  title: string;
-};
-type OneTimeTodoInput = TodoBasics & {
-  recurrenceBasis: "once";
-  scheduledFor: string | null;
-};
-type CompletionTodoInput = TodoBasics & {
-  firstDueAt: string;
-  firstScheduledFor: string;
-  recurrenceBasis: "completion";
-  recommendedStartOffset: number;
-  recommendedStartValue: number;
-  recommendedUnit: CompletionIntervalUnit;
-  recommendedUntilOffset: number;
-  recommendedUntilValue: number;
-};
-// Issue #99 / YDR-037: 固定間隔。起点日はAsia/Tokyoの暦日で保存し、候補列は
-// 起点日と間隔だけで決まる(完了日に依存しない)。
-type IntervalTodoInput = TodoBasics & {
-  intervalAnchorOn: string;
-  intervalCount: number;
-  intervalUnit: "day" | "week";
-  recurrenceBasis: "interval";
-};
 type RecommendedOffsets = {
   recommendedStartOffset: number;
   recommendedStartValue: number;
   recommendedUnit: CompletionIntervalUnit;
   recommendedUntilOffset: number;
   recommendedUntilValue: number;
-};
-type CalendarTodoInput = TodoBasics & {
-  recurrenceBasis: "calendar";
-  scheduleDayOfMonth?: number;
-  scheduleDayOfWeek?: number;
-  scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
-  // Issue #227 / YDR-032: monthly_dayのときだけ、固定日ではなく毎月末を
-  // 意味する。日付は常に31を渡す(既存の月末補正規則、YDR-021)。
-  scheduleMonthEnd: boolean;
-  scheduleMonth?: number;
-  scheduleWeekOfMonth?: number;
 };
 const INVALID_CALENDAR_SCHEDULE: MaintenanceTodoActionState = {
   message: "定例日の指定を正しく入力してください。",
@@ -355,12 +324,7 @@ function parseCompletionTodo(
 function parseTodo(
   formData: FormData,
   now: Date,
-):
-  | CalendarTodoInput
-  | CompletionTodoInput
-  | IntervalTodoInput
-  | OneTimeTodoInput
-  | MaintenanceTodoActionState {
+): ParsedTodoInput | MaintenanceTodoActionState {
   const basics = parseTodoBasics(formData);
   if ("status" in basics) return basics;
   if (basics.recurrenceBasis === "once") return parseOneTimeTodo(basics, formData);
@@ -385,29 +349,16 @@ function revalidateTodoPages(managedItemId: string | null): void {
 }
 
 export async function createTodo(
-  _previousState: MaintenanceTodoActionState,
+  _previousState: TodoRegistrationState,
   formData: FormData,
-): Promise<MaintenanceTodoActionState> {
-  const input = parseTodo(formData, new Date());
+): Promise<TodoRegistrationState> {
+  const now = new Date();
+  const input = parseTodo(formData, now);
   if ("status" in input) return input;
 
+  let saved: RegisteredTodoSchedule;
   try {
-    const { db, session } = await getD1Context();
-    if (input.recurrenceBasis === "once") {
-      await createOneTimeTask(db, session, input);
-    } else if (input.recurrenceBasis === "completion") {
-      await createMaintenanceTask(db, session, input);
-    } else if (input.recurrenceBasis === "interval") {
-      await createIntervalTask(db, session, input);
-    } else {
-      await createCalendarTask(db, session, {
-        ...input,
-        scheduleDayOfMonth: input.scheduleDayOfMonth ?? null,
-        scheduleDayOfWeek: input.scheduleDayOfWeek ?? null,
-        scheduleMonth: input.scheduleMonth ?? null,
-        scheduleWeekOfMonth: input.scheduleWeekOfMonth ?? null,
-      });
-    }
+    saved = await saveTodo(input, now);
   } catch {
     return {
       message: "Todoを登録できませんでした。時間をおいて再度お試しください。",
@@ -416,5 +367,11 @@ export async function createTodo(
   }
 
   revalidateTodoPages(input.managedItemId);
-  return { message: "Todoを登録しました。", status: "success" };
+  // 登録できたことに加えて、次回の予定と、ホームにまだ出ない場合の確認先を
+  // その場で返す(Issue #286)。
+  return {
+    message: "Todoを登録しました。",
+    registered: summarizeRegisteredTodoSafely(saved, now.toISOString()),
+    status: "success",
+  };
 }

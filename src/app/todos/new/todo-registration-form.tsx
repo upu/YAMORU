@@ -1,9 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { INITIAL_MAINTENANCE_TODO_STATE } from "../../managed-items/[id]/state";
+import type {
+  RegisteredTodoSummary,
+  TodoRegistrationState,
+} from "./registration-feedback";
 import {
   ManagedItemSearch,
   type TodoManagedItemOption,
@@ -83,6 +88,40 @@ function RecurrenceFields({
   );
 }
 
+// Issue #286: 登録できたことに加えて、次回の予定と確認先をその場で示す。
+// ホームは「いま対応すること」に絞る役割(Issue #201)を変えないため、
+// 直後にホームへ出ないTodoでは、いつ出るかとTodo一覧への導線を添える。
+function TodoRegistrationFeedback({
+  message,
+  registered,
+  status,
+}: {
+  message: string;
+  registered: RegisteredTodoSummary | undefined;
+  status: "error" | "idle" | "success";
+}) {
+  if (status === "idle") return null;
+  if (status === "error") {
+    return <p className="auth-feedback" role="status">{message}</p>;
+  }
+  return (
+    <div className="todo-registration-feedback" role="status">
+      <p className="auth-feedback todo-success">{message}</p>
+      {registered === undefined ? null : (
+        <>
+          <p className="todo-registration-schedule">{registered.schedule}</p>
+          {registered.homeNotice === null
+            ? null
+            : <p className="input-help">{registered.homeNotice}</p>}
+          <Link className="todo-registration-link" href="/todos">
+            登録したTodoを一覧で確認
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function TodoRegistrationForm({
   initialManagedItemId,
   managedItems,
@@ -91,7 +130,7 @@ export function TodoRegistrationForm({
   managedItems: TodoManagedItemOption[];
 }) {
   const [recurrenceBasis, setRecurrenceBasis] = useState<RecurrenceBasis>("once");
-  const [state, formAction] = useActionState(
+  const [state, formAction] = useActionState<TodoRegistrationState, FormData>(
     createTodo,
     INITIAL_MAINTENANCE_TODO_STATE,
   );
@@ -129,14 +168,11 @@ export function TodoRegistrationForm({
       />
 
       <SubmitButton />
-      {state.status === "idle" ? null : (
-        <p
-          className={`auth-feedback${state.status === "success" ? " todo-success" : ""}`}
-          role="status"
-        >
-          {state.message}
-        </p>
-      )}
+      <TodoRegistrationFeedback
+        message={state.message}
+        registered={state.registered}
+        status={state.status}
+      />
     </form>
   );
 }

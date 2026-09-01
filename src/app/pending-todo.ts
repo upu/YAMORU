@@ -43,7 +43,20 @@ export type PendingTodoEntry = {
 };
 
 // ホームの「近日」に含める日数。これより先の予定はTodo一覧で確認する。
-const HOME_UPCOMING_DAYS = 7;
+export const HOME_UPCOMING_DAYS = 7;
+
+// ホームに載せる区分。ここに含まれない区分(later・before-window・undated)は
+// Todo一覧で確認する(Issue #201)。ホームの節のidと区分名をそろえてあるため、
+// ホーム側(page.tsx)はこの判定だけで振り分けられる。登録直後のフィードバック
+// (Issue #286)も、同じ判定で「まだホームに出ないTodoか」を決める。
+export type HomePendingCategory = "overdue" | "reminder" | "today" | "upcoming";
+
+export function isHomePendingCategory(
+  category: PendingTodoCategory,
+): category is HomePendingCategory {
+  return category === "overdue" || category === "reminder" ||
+    category === "today" || category === "upcoming";
+}
 
 function pendingTodoItemBase(row: PendingOccurrenceRow): Pick<
   TodoCardItem,

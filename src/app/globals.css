@@ -2090,6 +2090,37 @@ h1 {
   color: var(--green);
 }
 
+/* Issue #286: 登録直後の結果表示。登録できたこと・次回の予定・確認先を
+   一つのまとまりとして見せ、ホームにまだ出ないTodoでも登録失敗と
+   受け取られないようにする。 */
+.todo-registration-feedback {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--green-pale);
+  border-radius: 14px;
+  background: var(--green-pale);
+}
+
+.todo-registration-feedback .auth-feedback,
+.todo-registration-feedback .input-help {
+  margin: 0;
+}
+
+.todo-registration-schedule {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.todo-registration-link {
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .assignee-panel {
   display: flex;
   align-items: center;

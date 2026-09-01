@@ -101,7 +101,10 @@ describe("専用ページのTodo登録操作", () => {
     // 登録直後のTodoは、ホームに載らない予定でもTodo一覧には載る(Issue #201)。
     expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
     expect(revalidatePathMock).toHaveBeenCalledWith("/todos/new");
-    expect(result).toEqual({ message: "Todoを登録しました。", status: "success" });
+    expect(result.status).toBe("success");
+    expect(result.message).toBe("Todoを登録しました。");
+    // Issue #286: 登録できたことに加えて、次回の予定を返す。
+    expect(result.registered?.schedule).toBe("次回: 10月10日");
   });
 
   it("一回限りTodoは予定日を空欄のまま登録できる", async () => {
@@ -113,7 +116,15 @@ describe("専用ページのTodo登録操作", () => {
       scheduledFor: null,
       title: "家族会議",
     });
-    expect(result).toEqual({ message: "Todoを登録しました。", status: "success" });
+    // Issue #286: 予定日未定Todoはホームに出ないため、確認先も添える。
+    expect(result).toEqual({
+      message: "Todoを登録しました。",
+      registered: {
+        homeNotice: "予定日が決まるまでホームには表示されません。Todo一覧で確認できます。",
+        schedule: "予定日: 未定",
+      },
+      status: "success",
+    });
   });
 
   it("管理対象なしの完了日基準Todoを登録する", async () => {
@@ -166,7 +177,7 @@ describe("専用ページのTodo登録操作", () => {
       scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "家族会議",
-    });
+    }, expect.any(Date));
   });
 
   it.each([
@@ -200,7 +211,7 @@ describe("専用ページのTodo登録操作", () => {
       scheduleWeekOfMonth: null,
       title: "家族会議",
       ...expected,
-    });
+    }, expect.any(Date));
   });
 
   // Issue #227 / YDR-032
@@ -225,7 +236,7 @@ describe("専用ページのTodo登録操作", () => {
       scheduleMonthEnd: true,
       scheduleWeekOfMonth: null,
       title: "家族会議",
-    });
+    }, expect.any(Date));
   });
 
   it("管理対象ありの定例Todoは選んだ管理対象をRPCへ渡す", async () => {
@@ -241,6 +252,7 @@ describe("専用ページのTodo登録操作", () => {
       "db",
       "session",
       expect.objectContaining({ managedItemId: "item-1" }),
+      expect.any(Date),
     );
   });
 
@@ -359,7 +371,7 @@ describe("専用ページの固定間隔Todo登録操作", () => {
       managedItemId: null,
       recurrenceBasis: "interval",
       title: "ゴミ出し",
-    });
+    }, expect.any(Date));
   });
 
   it("N日ごとの固定間隔Todoを登録する", async () => {
@@ -376,6 +388,7 @@ describe("専用ページの固定間隔Todo登録操作", () => {
       "db",
       "session",
       expect.objectContaining({ intervalCount: 10, intervalUnit: "day" }),
+      expect.any(Date),
     );
   });
 
@@ -436,6 +449,7 @@ describe("専用ページの固定間隔Todo登録操作", () => {
       "db",
       "session",
       expect.objectContaining({ intervalCount: 520 }),
+      expect.any(Date),
     );
   });
 });
