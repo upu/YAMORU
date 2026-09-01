@@ -1,6 +1,7 @@
 import { requireCurrentHouseholdId, type D1Session } from "../authorization";
 import {
   calendarScheduledForOnOrAfter,
+  type CompletionIntervalUnit,
   intervalScheduledForOnOrAfter,
   tokyoDateFromIso,
 } from "../calendar";
@@ -10,14 +11,23 @@ import { type TaskBasics, requireManagedItem } from "./shared";
 
 export type OneTimeTaskInput = TaskBasics & { scheduledFor: string | null };
 
-export type MaintenanceTaskInput = TaskBasics & {
+type CompletionIntervalInput =
+  | {
+      recommendedStartValue: number;
+      recommendedUnit: CompletionIntervalUnit;
+      recommendedUntilValue: number;
+    }
+  | {
+      recommendedStartValue?: never;
+      recommendedUnit?: never;
+      recommendedUntilValue?: never;
+    };
+
+export type MaintenanceTaskInput = TaskBasics & CompletionIntervalInput & {
   firstDueAt: string;
   firstScheduledFor: string;
   recommendedStartOffset: number;
-  recommendedStartValue?: number;
-  recommendedUnit?: "day" | "month" | "week" | "year";
   recommendedUntilOffset: number;
-  recommendedUntilValue?: number;
 };
 
 export type CalendarTaskInput = TaskBasics & {
@@ -72,12 +82,11 @@ function occurrenceInsert(
     dueAt: string | null;
     householdId: string;
     occurrenceId: string;
-    recommendedUnit?: "day" | "month" | "week" | "year";
+    completionCalendarVersion: 1 | null;
     scheduledFor: string | null;
     taskRuleId: string;
   },
 ): D1PreparedStatement {
-  const version = input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null;
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
@@ -89,23 +98,20 @@ function occurrenceInsert(
     input.taskRuleId,
     input.scheduledFor,
     input.dueAt,
-    version,
+    input.completionCalendarVersion,
   );
 }
 
 async function insertTask(
   db: D1Database,
   householdId: string,
-  input: TaskBasics & {
+  input: TaskBasics & CompletionIntervalInput & {
     deadlineKind: string;
     dueAt: string | null;
     interval?: IntervalTaskInput;
     recurrenceBasis: string;
     recommendedStartOffset: number;
-    recommendedStartValue?: number;
-    recommendedUnit?: "day" | "month" | "week" | "year";
     recommendedUntilOffset: number;
-    recommendedUntilValue?: number;
     schedule?: CalendarTaskInput;
     scheduledFor: string | null;
   },
@@ -141,10 +147,11 @@ async function insertTask(
       input.recommendedUnit ?? null,
     ),
     occurrenceInsert(db, {
+      completionCalendarVersion:
+        input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null,
       dueAt: input.dueAt,
       householdId,
       occurrenceId,
-      recommendedUnit: input.recommendedUnit,
       scheduledFor: input.scheduledFor,
       taskRuleId,
     }),
