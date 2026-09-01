@@ -126,8 +126,10 @@ function buildMaintenanceEntry(
   };
 }
 
-// 厳密な期限を持つ繰り返し方(完了日基準以外)の呼び名。登録フォームの
-// 選択肢と同じ言い回しにそろえる(Issue #99 / YDR-037の8)。
+// ホーム・Todo一覧のメタ文で使う繰り返し方の呼び名。登録フォームの選択肢と
+// 同じ言い回しにそろえる(Issue #99 / YDR-037の8)。完了日基準は推奨期間の
+// 文言(buildMaintenanceEntry)を使うためここには現れないが、
+// RecurrenceBasisを網羅する型にして方式追加時の記入漏れを防ぐ。
 const STRICT_RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
   calendar: "曜日・日付で繰り返す",
   completion: "完了した日から繰り返す",

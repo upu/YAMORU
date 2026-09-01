@@ -91,8 +91,16 @@ export function nextOccurrence(
   // Issue #99 / YDR-037: 固定間隔の候補列は起点日と間隔だけで決まり、完了日に
   // 引きずられない。飛ばした候補は作らず(YDR-016)、次回を1件だけ作る。
   if (occurrence.recurrence_basis === "interval") {
-    if (occurrence.scheduled_for === null || occurrence.interval_anchor_on === null) {
+    if (occurrence.scheduled_for === null) {
       throw new D1ConflictError("Recurring occurrence must have a schedule");
+    }
+    // DBのCHECK制約(0016)でintervalの3列は必ず揃うが、読み取り側でも揃って
+    // いることを確かめ、欠けていれば汎用のErrorではなく409として扱う。
+    if (
+      occurrence.interval_anchor_on === null || occurrence.interval_count === null ||
+      occurrence.interval_unit === null
+    ) {
+      throw new D1ConflictError("Interval occurrence must have an interval rule");
     }
     const scheduledFor = nextIntervalOccurrence(
       {

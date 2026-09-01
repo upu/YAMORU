@@ -54,7 +54,7 @@ function tokyoDateFromNow(days: number): string {
 function todoForm(overrides: Record<string, string> = {}) {
   const values = {
     anchorDate: "2026-10-01",
-    fixedIntervalAnchorDate: "2026-10-05",
+    fixedIntervalAnchorDate: tokyoDateFromNow(0),
     fixedIntervalCount: "2",
     fixedIntervalUnit: "week",
     initialDateMode: "previous_completion",
@@ -278,7 +278,7 @@ describe("専用ページの固定間隔Todo登録操作", () => {
     );
 
     expect(createIntervalTaskMock).toHaveBeenCalledWith("db", "session", {
-      intervalAnchorOn: "2026-10-05",
+      intervalAnchorOn: tokyoDateFromNow(0),
       intervalCount: 2,
       intervalUnit: "week",
       managedItemId: null,
