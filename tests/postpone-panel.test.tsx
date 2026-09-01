@@ -15,6 +15,19 @@ import { PostponePanel } from "../src/app/managed-items/[id]/postpone-panel";
 
 afterEach(cleanup);
 
+// PostponePanelのtomorrowDateInput()と同じ計算(ローカル日付+1日)。日付を
+// リテラルで書くと、その日を過ぎた時点で入力のmin(翌日以降)を下回り、
+// ブラウザのフォーム検証で送信自体が止まってテストが落ちるため、
+// 送信値も期待値も常にここから求める。
+function tomorrowDateInput(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const year = String(tomorrow.getFullYear());
+  const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+  const day = String(tomorrow.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function openDialog() {
   fireEvent.click(screen.getByRole("button", { name: "フィルター交換を延期する" }));
 }
@@ -44,14 +57,8 @@ describe("PostponePanel", () => {
 
     const dialog = screen.getByRole("dialog", { name: "フィルター交換を延期" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
-    // PostponePanelのtomorrowDateInput()と同じ計算(ローカル日付+1日)で
-    // 期待値を求める。完了記録側のmax=today(過去日限定)と対になる最小値。
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const year = String(tomorrow.getFullYear());
-    const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
-    const day = String(tomorrow.getDate()).padStart(2, "0");
-    const expectedMin = `${year}-${month}-${day}`;
+    // 完了記録側のmax=today(過去日限定)と対になる最小値。
+    const expectedMin = tomorrowDateInput();
     const dateInput = screen.getByLabelText("実施する予定の新しい期限");
     expect(dateInput).toHaveAttribute("min", expectedMin);
     expect(dateInput).toHaveValue(expectedMin);
@@ -90,7 +97,7 @@ describe("PostponePanel", () => {
     );
 
     openDialog();
-    fillAndSubmit("2026-09-01");
+    fillAndSubmit(tomorrowDateInput());
 
     expect(
       screen.queryByRole("dialog", { name: "フィルター交換を延期" }),
@@ -98,7 +105,7 @@ describe("PostponePanel", () => {
     expect(postponeTaskOccurrenceMock).toHaveBeenCalledWith(
       "item-1",
       "occurrence-1",
-      "2026-09-01",
+      tomorrowDateInput(),
     );
   });
 
@@ -117,7 +124,7 @@ describe("PostponePanel", () => {
     );
 
     openDialog();
-    fillAndSubmit("2026-09-01");
+    fillAndSubmit(tomorrowDateInput());
 
     expect(await screen.findByText("9月1日まで延期しました。")).toBeInTheDocument();
   });
@@ -137,7 +144,7 @@ describe("PostponePanel", () => {
     );
 
     openDialog();
-    fillAndSubmit("2026-09-01");
+    fillAndSubmit(tomorrowDateInput());
 
     expect(
       await screen.findByText("延期する日付は未来の日を指定してください。"),
@@ -159,7 +166,7 @@ describe("PostponePanel", () => {
     );
 
     openDialog();
-    fillAndSubmit("2026-09-01");
+    fillAndSubmit(tomorrowDateInput());
     await screen.findByText("9月1日まで延期しました。");
 
     openDialog();
