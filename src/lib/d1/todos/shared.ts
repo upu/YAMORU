@@ -1,7 +1,7 @@
 import {
   addTokyoCalendarInterval,
   addTokyoDays,
-  type CompletionIntervalUnit,
+  isCompletionIntervalUnit,
   nextCalendarOccurrence,
   nextIntervalOccurrence,
 } from "../calendar";
@@ -85,7 +85,12 @@ export async function requireHouseholdUser(
   if (member === null) throw new D1NotFoundError(message);
 }
 
-type NextOccurrence = { dueAt: string; id: string; scheduledFor: string };
+type NextOccurrence = {
+  completionCalendarVersion: 1 | null;
+  dueAt: string;
+  id: string;
+  scheduledFor: string;
+};
 
 function nextCompletionOccurrence(
   occurrence: OccurrenceWithRule,
@@ -99,6 +104,7 @@ function nextCompletionOccurrence(
   ];
   if (values.every((value) => value === null)) {
     return {
+      completionCalendarVersion: null,
       dueAt: addTokyoDays(occurredAt, occurrence.recommended_until_offset),
       id,
       scheduledFor: addTokyoDays(occurredAt, occurrence.recommended_start_offset),
@@ -107,8 +113,12 @@ function nextCompletionOccurrence(
   if (values.some((value) => value === null)) {
     throw new D1ConflictError("Completion occurrence must have a complete interval rule");
   }
-  const unit = occurrence.recommended_unit as CompletionIntervalUnit;
+  const unit = occurrence.recommended_unit;
+  if (unit === null || !isCompletionIntervalUnit(unit)) {
+    throw new D1ConflictError("Completion occurrence has an invalid interval unit");
+  }
   return {
+    completionCalendarVersion: unit === "month" || unit === "year" ? 1 : null,
     dueAt: addTokyoCalendarInterval(
       occurredAt,
       occurrence.recommended_until_value as number,
@@ -146,7 +156,7 @@ function nextFixedIntervalOccurrence(
     occurrence.scheduled_for,
     occurredAt,
   );
-  return { dueAt: scheduledFor, id, scheduledFor };
+  return { completionCalendarVersion: null, dueAt: scheduledFor, id, scheduledFor };
 }
 
 function nextCalendarRuleOccurrence(
@@ -168,7 +178,7 @@ function nextCalendarRuleOccurrence(
     occurrence.scheduled_for,
     occurredAt,
   );
-  return { dueAt: scheduledFor, id, scheduledFor };
+  return { completionCalendarVersion: null, dueAt: scheduledFor, id, scheduledFor };
 }
 
 export function nextOccurrence(

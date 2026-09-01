@@ -1,4 +1,9 @@
 // YDR-017: 厳密な期限とメンテナンスの推奨期間を区別する
+
+import {
+  type CompletionIntervalUnit,
+  isCompletionIntervalUnit,
+} from "../lib/d1/calendar";
 //
 // scheduled_for/due_atの意味はYDR-012に従う。maintenanceでは
 // scheduled_forを推奨期間の開始、due_atを推奨期間の上限として使う。
@@ -233,7 +238,7 @@ export function describeIntervalRecurrence(
 // Issue #48 / YDR-038: 新しい行は入力値と単位をそのまま表示する。追加列を持たない
 // 既存行だけはIssue #244の従来規則へフォールバックし、開始・上限がともに7で
 // 割り切れる場合は週、それ以外は日で表示する。
-const COMPLETION_INTERVAL_LABELS: Record<string, string> = {
+const COMPLETION_INTERVAL_LABELS: Record<CompletionIntervalUnit, string> = {
   day: "日",
   month: "か月",
   week: "週間",
@@ -253,8 +258,8 @@ function describeStoredCompletionRecurrence(
   ) {
     return null;
   }
-  const unit = recommendedUnit === null ? undefined : COMPLETION_INTERVAL_LABELS[recommendedUnit];
-  if (unit === undefined) return null;
+  if (recommendedUnit === null || !isCompletionIntervalUnit(recommendedUnit)) return null;
+  const unit = COMPLETION_INTERVAL_LABELS[recommendedUnit];
   const range = recommendedStartValue === recommendedUntilValue
     ? String(recommendedStartValue)
     : `${String(recommendedStartValue)}〜${String(recommendedUntilValue)}`;

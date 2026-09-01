@@ -66,6 +66,33 @@ function intervalValues(
   ];
 }
 
+function occurrenceInsert(
+  db: D1Database,
+  input: {
+    dueAt: string | null;
+    householdId: string;
+    occurrenceId: string;
+    recommendedUnit?: "day" | "month" | "week" | "year";
+    scheduledFor: string | null;
+    taskRuleId: string;
+  },
+): D1PreparedStatement {
+  const version = input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null;
+  return db.prepare(
+    `INSERT INTO task_occurrences (
+      id, household_id, task_rule_id, scheduled_for, due_at,
+      completion_calendar_version
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+  ).bind(
+    input.occurrenceId,
+    input.householdId,
+    input.taskRuleId,
+    input.scheduledFor,
+    input.dueAt,
+    version,
+  );
+}
+
 async function insertTask(
   db: D1Database,
   householdId: string,
@@ -113,9 +140,14 @@ async function insertTask(
       input.recommendedUntilValue ?? null,
       input.recommendedUnit ?? null,
     ),
-    db.prepare(
-      "INSERT INTO task_occurrences (id, household_id, task_rule_id, scheduled_for, due_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-    ).bind(occurrenceId, householdId, taskRuleId, input.scheduledFor, input.dueAt),
+    occurrenceInsert(db, {
+      dueAt: input.dueAt,
+      householdId,
+      occurrenceId,
+      recommendedUnit: input.recommendedUnit,
+      scheduledFor: input.scheduledFor,
+      taskRuleId,
+    }),
   ]);
   return taskRuleId;
 }

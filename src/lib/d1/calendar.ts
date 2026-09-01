@@ -43,6 +43,17 @@ function addDays(value: string, days: number): string {
 
 export type CompletionIntervalUnit = "day" | "month" | "week" | "year";
 
+const COMPLETION_INTERVAL_UNITS: readonly CompletionIntervalUnit[] = [
+  "day",
+  "week",
+  "month",
+  "year",
+];
+
+export function isCompletionIntervalUnit(value: string): value is CompletionIntervalUnit {
+  return (COMPLETION_INTERVAL_UNITS as readonly string[]).includes(value);
+}
+
 function requireIntervalAmount(amount: number): void {
   if (!Number.isSafeInteger(amount) || amount < 0) {
     throw new Error("Invalid calendar interval amount");

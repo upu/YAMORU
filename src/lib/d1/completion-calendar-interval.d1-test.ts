@@ -32,7 +32,8 @@ async function occurrenceIdForRule(ruleId: string): Promise<string> {
 
 async function readOccurrence(id: string) {
   return db.prepare(
-    "SELECT scheduled_for, due_at, status FROM task_occurrences WHERE id = ?1",
+    `SELECT scheduled_for, due_at, status, completion_calendar_version
+       FROM task_occurrences WHERE id = ?1`,
   ).bind(id).first();
 }
 
@@ -73,6 +74,7 @@ describe("完了日基準Todoの月・年単位", () => {
     if (nextId === null) throw new Error("Next occurrence not generated");
 
     await expect(readOccurrence(nextId)).resolves.toEqual({
+      completion_calendar_version: 1,
       due_at: "2025-03-30T15:00:00.000Z",
       scheduled_for: "2025-02-27T15:00:00.000Z",
       status: "pending",
@@ -100,6 +102,7 @@ describe("完了日基準Todoの月・年単位", () => {
     if (nextId === null) throw new Error("Next occurrence not generated");
 
     await expect(readOccurrence(nextId)).resolves.toMatchObject({
+      completion_calendar_version: 1,
       due_at: "2028-02-28T15:00:00.000Z",
       scheduled_for: "2025-02-27T15:00:00.000Z",
     });
@@ -123,8 +126,45 @@ describe("完了日基準Todoの月・年単位", () => {
     if (nextId === null) throw new Error("Next occurrence not generated");
 
     await expect(readOccurrence(nextId)).resolves.toMatchObject({
+      completion_calendar_version: null,
       due_at: "2025-02-13T15:00:00.000Z",
       scheduled_for: "2025-02-06T15:00:00.000Z",
     });
+  });
+
+  it("旧Worker形式の月単位次回INSERTを拒否し、完了batch全体を戻す", async () => {
+    const ruleId = await createMaintenanceTask(db, memberA, {
+      firstDueAt: "2025-02-27T15:00:00.000Z",
+      firstScheduledFor: "2025-02-27T15:00:00.000Z",
+      managedItemId: null,
+      recommendedStartOffset: 0,
+      recommendedStartValue: 1,
+      recommendedUnit: "month",
+      recommendedUntilOffset: 0,
+      recommendedUntilValue: 1,
+      title: "旧Worker防止",
+    });
+    const occurrenceId = await occurrenceIdForRule(ruleId);
+
+    await expect(db.batch([
+      db.prepare(`INSERT INTO activity_logs (
+        id, household_id, task_occurrence_id, action, actor_user_id,
+        performed_by_user_id, occurred_at, idempotency_key, next_task_occurrence_id
+      ) VALUES ('old-log', 'household-a', ?1, 'completed', 'user-a', 'user-a',
+        '2025-02-28T02:00:00.000Z', 'old-worker', 'old-next')`).bind(occurrenceId),
+      db.prepare("UPDATE task_occurrences SET status = 'completed' WHERE id = ?1")
+        .bind(occurrenceId),
+      db.prepare(`INSERT INTO task_occurrences (
+        id, household_id, task_rule_id, scheduled_for, due_at
+      ) VALUES ('old-next', 'household-a', ?1,
+        '2025-02-28T15:00:00.000Z', '2025-02-28T15:00:00.000Z')`).bind(ruleId),
+    ])).rejects.toThrow("calendar-aware Worker");
+
+    await expect(db.prepare(
+      "SELECT status FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrenceId).first()).resolves.toEqual({ status: "pending" });
+    await expect(db.prepare(
+      "SELECT COUNT(*) AS count FROM activity_logs WHERE id = 'old-log'",
+    ).first()).resolves.toEqual({ count: 0 });
   });
 });
