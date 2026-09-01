@@ -12,9 +12,14 @@ import {
 } from "../../lib/d1/managed-items";
 import { FloatingAddButton } from "../floating-add-button";
 import {
-  LedgerCategoryNavigation,
+  ledgerCategoryLabel,
   type LedgerCategory,
 } from "../ledger-category-navigation";
+import {
+  LedgerHouseholdRequiredNotice,
+  LedgerListHeading,
+  LedgerPageShell,
+} from "../ledger-page-shell";
 import { ClassificationBadges } from "./classification-badges";
 import type { ManagedItemTypeGroup } from "./item-type-picker";
 import { ManagedItemsSearchForm } from "./managed-items-search-form";
@@ -182,8 +187,10 @@ function ManagedItemsFilterSummary({
 // Issue #218: household内に一件も管理対象がない(検索・絞り込み以前の空)のか、
 // 条件に一致しないだけ(0件)なのかを区別できる案内にする(受け入れ基準)。
 function ManagedItemsEmptyState({
+  addLabel,
   filterDescription,
 }: {
+  addLabel: string;
   filterDescription: string | null;
 }) {
   if (filterDescription !== null) {
@@ -195,7 +202,7 @@ function ManagedItemsEmptyState({
   }
   return (
     <p className="ledger-empty">
-      まだ管理対象はありません。「新しく登録」から台帳に追加できます。
+      まだ管理対象はありません。「{addLabel}」から台帳に追加できます。
     </p>
   );
 }
@@ -216,22 +223,8 @@ function ManagedItemsList({ items }: { items: ManagedItemSummary[] }) {
   );
 }
 
-// Issue #285: 検索欄へ入力しなくても新規登録の入口が見つかるように、検索・
-// 絞り込みより前の行へ登録リンクを置く(右下のフローティングボタンはそのまま
-// 維持する)。件数バッジと同じ行に収めるため、モバイルでも一覧確認を押し下げる
-// 高さを増やさない。
-function LedgerListHeading({ count }: { count: number }) {
-  return (
-    <div className="ledger-list-heading">
-      <Link className="ledger-add-link" href="/managed-items/new">
-        <span aria-hidden="true">＋</span>新しく登録
-      </Link>
-      <span aria-label={`${String(count)}件`} className="count">{count}</span>
-    </div>
-  );
-}
-
 function RegisteredItemsSection({
+  addLabel,
   classificationOptions,
   customItemType,
   customItemTypeOptions,
@@ -241,6 +234,7 @@ function RegisteredItemsSection({
   kind,
   q,
 }: {
+  addLabel: string;
   classificationOptions: ManagedItemClassificationOptions;
   customItemType: string | undefined;
   customItemTypeOptions: ManagedItemCustomTypeOption[];
@@ -264,7 +258,11 @@ function RegisteredItemsSection({
       管理対象」を画面上の見出しとしては出さない(案1)。一覧領域の意味は
       支援技術向けに残したaria-labelledbyの見出しで伝える。 */}
       <h2 className="sr-only" id="registered-items-title">登録済みの管理対象</h2>
-      <LedgerListHeading count={items.length} />
+      <LedgerListHeading
+        addHref="/managed-items/new"
+        addLabel={addLabel}
+        count={items.length}
+      />
 
       <ManagedItemsSearchForm
         itemTypeGroups={itemTypeGroups}
@@ -280,22 +278,10 @@ function RegisteredItemsSection({
       />
 
       {items.length === 0 ? (
-        <ManagedItemsEmptyState filterDescription={filterDescription} />
+        <ManagedItemsEmptyState addLabel={addLabel} filterDescription={filterDescription} />
       ) : (
         <ManagedItemsList items={items} />
       )}
-    </section>
-  );
-}
-
-function HouseholdRequiredNotice() {
-  return (
-    <section aria-labelledby="household-required-title" className="detail-card">
-      <h2 id="household-required-title">家庭を作成してください</h2>
-      <p>台帳は家庭ごとに保存します。先にアカウント画面で家庭を作成してください。</p>
-      <Link className="ledger-primary-link" href="/account">
-        家庭を作成する
-      </Link>
     </section>
   );
 }
@@ -323,37 +309,38 @@ export function ManagedItemsContent({
 }) {
   const currentCategory: LedgerCategory | undefined =
     kind === "asset" || kind === "service" ? kind : undefined;
+  // Issue #309: 登録ボタンの文言だけを現在のカテゴリに合わせる。存在しない
+  // 大分類コードがURLで指定された場合は、カテゴリ名を語れないため台帳共通の
+  // 言葉へ落とす(一覧が0件になる従来の安全側の挙動に合わせる)。
+  const addLabel = currentCategory === undefined
+    ? "新しく登録"
+    : `${ledgerCategoryLabel(currentCategory)}を登録`;
   return (
-    <main className="detail-page ledger-page">
-      <header className="detail-hero">
-        <p className="detail-kicker">HOUSE LEDGER</p>
-        <h1>家の台帳</h1>
-        <p>家の備品、サービス・契約、消耗品をまとめます。</p>
-      </header>
-
+    <LedgerPageShell
+      currentCategory={currentCategory}
+      showCategoryNavigation={household !== null}
+    >
       {household === null ? (
-        <HouseholdRequiredNotice />
+        <LedgerHouseholdRequiredNotice />
       ) : (
-        <>
-          <LedgerCategoryNavigation current={currentCategory} />
-          <div className="ledger-grid">
-            <RegisteredItemsSection
-              classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
-              customItemType={customItemType}
-              customItemTypeOptions={customItemTypeOptions ?? []}
-              items={items}
-              itemTypeCode={itemTypeCode}
-              itemTypeRaw={itemTypeRaw ?? ""}
-              kind={kind}
-              q={q}
-            />
-          </div>
-        </>
+        <div className="ledger-grid">
+          <RegisteredItemsSection
+            addLabel={addLabel}
+            classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
+            customItemType={customItemType}
+            customItemTypeOptions={customItemTypeOptions ?? []}
+            items={items}
+            itemTypeCode={itemTypeCode}
+            itemTypeRaw={itemTypeRaw ?? ""}
+            kind={kind}
+            q={q}
+          />
+        </div>
       )}
       {household === null ? null : (
         <FloatingAddButton destination="managed-item" />
       )}
-    </main>
+    </LedgerPageShell>
   );
 }
 

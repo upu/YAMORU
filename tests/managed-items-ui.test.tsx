@@ -57,6 +57,51 @@ describe("家の台帳一覧", () => {
     expect(screen.queryByLabelText("大分類で絞り込み")).not.toBeInTheDocument();
   });
 
+  it("Issue #309: カテゴリを切り替えてもページ見出しと説明を「家の台帳」で保つ", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[]}
+        kind="service"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "家の台帳" })).toBeInTheDocument();
+    expect(screen.getByText("家の備品、サービス・契約、消耗品をまとめます。"))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "サービス・契約" }))
+      .not.toBeInTheDocument();
+
+    // カテゴリ切り替え → 登録導線 → 一覧の順序を、消耗品と揃える。
+    const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
+    const addLink = screen.getByRole("link", { name: "サービス・契約を登録" });
+    expect(addLink).toHaveAttribute("href", "/managed-items/new");
+    expect(navigation.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    expect(list.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_CONTAINED_BY)
+      .toBeTruthy();
+  });
+
+  it("Issue #309: 存在しない大分類のURLでは、カテゴリ名を語らない登録の言葉へ落とす", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[]}
+        kind="unknown-kind"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "家の台帳" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "新しく登録" })).toHaveAttribute(
+      "href",
+      "/managed-items/new",
+    );
+    const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
+    expect(within(navigation).queryByRole("link", { current: "page" }))
+      .not.toBeInTheDocument();
+  });
+
   it("家庭未所属の利用者には台帳を隠して家庭作成を案内する", () => {
     render(<ManagedItemsContent household={null} items={[]} />);
 
@@ -70,7 +115,7 @@ describe("家の台帳一覧", () => {
     );
     expect(screen.queryByRole("link", { name: "台帳に追加" }))
       .not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "新しく登録" }))
+    expect(screen.queryByRole("link", { name: "備品を登録" }))
       .not.toBeInTheDocument();
   });
 
@@ -87,8 +132,9 @@ describe("家の台帳一覧", () => {
       .toBeInTheDocument();
     expect(within(list).queryByRole("link", { name: "管理対象を登録" }))
       .not.toBeInTheDocument();
-    // Issue #285: 一覧の中の「新しく登録」と、右下の共通追加ボタンの両方から進める。
-    expect(within(list).getByRole("link", { name: "新しく登録" })).toHaveAttribute(
+    // Issue #285: 一覧の中の登録リンクと、右下の共通追加ボタンの両方から進める。
+    // Issue #309: 一覧の中の文言は現在のカテゴリ(既定は備品)に合わせる。
+    expect(within(list).getByRole("link", { name: "備品を登録" })).toHaveAttribute(
       "href",
       "/managed-items/new",
     );

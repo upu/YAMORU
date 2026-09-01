@@ -498,7 +498,7 @@ describe("台帳一覧の検索と新規登録の区別(ManagedItemsPage、Issue
   it("検索欄へ入力しなくても見つかる新規登録の入口を、検索・絞り込みより前に置く", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
-    const addLink = screen.getByRole("link", { name: "新しく登録" });
+    const addLink = screen.getByRole("link", { name: "備品を登録" });
     expect(addLink).toHaveAttribute("href", "/managed-items/new");
     // DOMの順序で、登録の入口が検索・絞り込みより前にあることを確かめる。
     const form = screen.getByRole("form", { name: "検索・絞り込み" });
@@ -517,7 +517,7 @@ describe("台帳一覧の検索と新規登録の区別(ManagedItemsPage、Issue
   it("管理対象がまだ無いときの案内も、新規登録の入口の言葉で説明する", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByText("まだ管理対象はありません。「新しく登録」から台帳に追加できます。"))
+    expect(screen.getByText(/まだ管理対象はありません。「備品を登録」から台帳に追加できます。/u))
       .toBeInTheDocument();
   });
 

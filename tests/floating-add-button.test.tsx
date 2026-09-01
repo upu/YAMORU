@@ -18,6 +18,15 @@ describe("共通の追加ボタン(Issue #215)", () => {
     expect(link).not.toHaveTextContent("⊕");
   });
 
+  it("Issue #309: 台帳の消耗品でも同じ名前のまま、消耗品登録へ進む", () => {
+    render(<FloatingAddButton destination="consumable" />);
+
+    const link = screen.getByRole("link", { name: "台帳に追加" });
+    expect(link).toHaveAttribute("href", "/consumables/new");
+    expect(link).toHaveAttribute("title", "台帳に追加");
+    expect(link).toHaveTextContent("＋");
+  });
+
   it("台帳画面では管理対象登録を台帳向けの名前で開く", () => {
     render(<FloatingAddButton destination="managed-item" />);
 

@@ -67,7 +67,7 @@ test("PC幅: 分類は選択時に即時反映し、詳しい種類は入力後�
   await expect(page.getByRole("link", { name: "台所の冷蔵庫" })).toBeVisible();
 
   // Issue #285: 検索欄へ入力せずに新規登録へ進める入口を一覧画面に置く。
-  await page.getByRole("link", { name: "新しく登録" }).click();
+  await page.getByRole("link", { name: "備品を登録" }).click();
   await expect(page).toHaveURL(/\/managed-items\/new$/u);
 });
 
@@ -82,7 +82,7 @@ test.describe("モバイル幅", () => {
     // Issue #285: 検索・絞り込みの見出しと新規登録の入口が、モバイル幅でも
     // 一覧の上に収まって見える。
     await expect(page.getByRole("heading", { name: "検索・絞り込み" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "新しく登録" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "備品を登録" })).toBeVisible();
     await expect(page.getByRole("link", { name: "台所の冷蔵庫" })).toBeVisible();
     const hasHorizontalOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
