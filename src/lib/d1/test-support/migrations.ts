@@ -23,6 +23,8 @@ import consumableStockStatusSql from "../../../../d1/migrations/0013_consumable_
 import retireOtherManagedItemKindSql from "../../../../d1/migrations/0014_retire_other_managed_item_kind.sql?raw";
 import mergeServiceObligationKindsSql from "../../../../d1/migrations/0015_merge_service_obligation_kinds.sql?raw";
 import intervalRecurrenceSql from "../../../../d1/migrations/0016_interval_recurrence.sql?raw";
+import completionCalendarIntervalsSql from "../../../../d1/migrations/0017_completion_calendar_intervals.sql?raw";
+import completionCalendarRolloutGuardSql from "../../../../d1/migrations/0018_completion_calendar_rollout_guard.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -42,6 +44,8 @@ const MIGRATIONS = [
   { name: "0014_retire_other_managed_item_kind", sql: retireOtherManagedItemKindSql },
   { name: "0015_merge_service_obligation_kinds", sql: mergeServiceObligationKindsSql },
   { name: "0016_interval_recurrence", sql: intervalRecurrenceSql },
+  { name: "0017_completion_calendar_intervals", sql: completionCalendarIntervalsSql },
+  { name: "0018_completion_calendar_rollout_guard", sql: completionCalendarRolloutGuardSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

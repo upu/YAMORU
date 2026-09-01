@@ -183,11 +183,44 @@ export function OneTimeFields() {
   );
 }
 
+type CompletionUnit = "day" | "month" | "week" | "year";
+
+const COMPLETION_UNITS: { label: string; value: CompletionUnit }[] = [
+  { label: "日後", value: "day" },
+  { label: "週間後", value: "week" },
+  { label: "か月後", value: "month" },
+  { label: "年後", value: "year" },
+];
+
+const COMPLETION_UNIT_LABELS: Record<CompletionUnit, string> = {
+  day: "日後",
+  month: "か月後",
+  week: "週間後",
+  year: "年後",
+};
+
+function CalendarAdjustmentHelp({ unit }: { unit: CompletionUnit }) {
+  if (unit !== "month" && unit !== "year") return null;
+  return (
+    <p className="input-help">
+      月末やうるう日など、移動先に存在しない日は、その月の月末に合わせます。
+    </p>
+  );
+}
+
+function completionIntervalDescription(
+  minimum: string,
+  maximum: string,
+  unit: CompletionUnit,
+): string {
+  return `完了すると、その日から${minimum}〜${maximum}${COMPLETION_UNIT_LABELS[unit]}が次回の目安になります。`;
+}
+
 export function IntervalFields() {
   const [intervalMin, setIntervalMin] = useState("1");
   const [intervalMax, setIntervalMax] = useState("2");
-  const [intervalUnit, setIntervalUnit] = useState<"day" | "week">("week");
-  const unitLabel = intervalUnit === "week" ? "週間後" : "日後";
+  const [intervalUnit, setIntervalUnit] = useState<CompletionUnit>("week");
+  const maximum = { day: 3650, month: 120, week: 520, year: 10 }[intervalUnit];
 
   return (
     <fieldset className="todo-fieldset">
@@ -196,6 +229,7 @@ export function IntervalFields() {
         <label htmlFor="todo-interval-min">最短</label>
         <input
           id="todo-interval-min"
+          max={maximum}
           min={0}
           name="intervalMin"
           onChange={(event) => { setIntervalMin(event.currentTarget.value); }}
@@ -208,6 +242,7 @@ export function IntervalFields() {
         <label htmlFor="todo-interval-max">最長</label>
         <input
           id="todo-interval-max"
+          max={maximum}
           min={0}
           name="intervalMax"
           onChange={(event) => { setIntervalMax(event.currentTarget.value); }}
@@ -221,17 +256,19 @@ export function IntervalFields() {
           id="todo-interval-unit"
           name="intervalUnit"
           onChange={(event) => {
-            setIntervalUnit(event.currentTarget.value as "day" | "week");
+            setIntervalUnit(event.currentTarget.value as CompletionUnit);
           }}
           value={intervalUnit}
         >
-          <option value="day">日後</option>
-          <option value="week">週間後</option>
+          {COMPLETION_UNITS.map((unit) => (
+            <option key={unit.value} value={unit.value}>{unit.label}</option>
+          ))}
         </select>
       </div>
       <p className="input-help">
-        完了すると、その日から{intervalMin}〜{intervalMax}{unitLabel}が次回の目安になります。
+        {completionIntervalDescription(intervalMin, intervalMax, intervalUnit)}
       </p>
+      <CalendarAdjustmentHelp unit={intervalUnit} />
     </fieldset>
   );
 }

@@ -87,6 +87,13 @@ describe("完了日基準Todoの推奨期間表示(describeCompletionRecurrence)
     expect(describeCompletionRecurrence(28, 28)).toBe("完了から4週間後");
     expect(describeCompletionRecurrence(10, 10)).toBe("完了から10日後");
   });
+
+  it("保存した月・年単位を日数へ言い換えず表示する", () => {
+    expect(describeCompletionRecurrence(0, 0, 1, 2, "month"))
+      .toBe("完了から1〜2か月後");
+    expect(describeCompletionRecurrence(0, 0, 1, 1, "year"))
+      .toBe("完了から1年後");
+  });
 });
 
 describe("メンテナンスTodoの表示文言(MAINTENANCE_DISPLAY_COPY)", () => {

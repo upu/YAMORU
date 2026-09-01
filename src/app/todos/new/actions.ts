@@ -9,16 +9,24 @@ import {
   createMaintenanceTask,
   createOneTimeTask,
 } from "../../../lib/d1/todos";
+import {
+  addTokyoCalendarDate,
+  type CompletionIntervalUnit,
+} from "../../../lib/d1/calendar";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import {
-  addDaysToTokyoDateUtcIso,
   getTokyoDayDistance,
   tokyoDateToUtcIso,
 } from "../../time-zone";
 
 const TASK_TITLE_MAX_LENGTH = 100;
-const MAX_RECOMMENDED_OFFSET = 3650;
 const INTERVAL_UNIT_DAYS = { day: 1, week: 7 } as const;
+const MAX_RECOMMENDED_VALUE: Record<CompletionIntervalUnit, number> = {
+  day: 3650,
+  month: 120,
+  week: 520,
+  year: 10,
+};
 const INVALID_OFFSETS: MaintenanceTodoActionState = {
   message: "次回の目安は0以上の整数で、短い方を長い方以下にしてください。",
   status: "error",
@@ -50,7 +58,10 @@ type CompletionTodoInput = TodoBasics & {
   firstScheduledFor: string;
   recurrenceBasis: "completion";
   recommendedStartOffset: number;
+  recommendedStartValue: number;
+  recommendedUnit: CompletionIntervalUnit;
   recommendedUntilOffset: number;
+  recommendedUntilValue: number;
 };
 // Issue #99 / YDR-037: 固定間隔。起点日はAsia/Tokyoの暦日で保存し、候補列は
 // 起点日と間隔だけで決まる(完了日に依存しない)。
@@ -62,7 +73,10 @@ type IntervalTodoInput = TodoBasics & {
 };
 type RecommendedOffsets = {
   recommendedStartOffset: number;
+  recommendedStartValue: number;
+  recommendedUnit: CompletionIntervalUnit;
   recommendedUntilOffset: number;
+  recommendedUntilValue: number;
 };
 type CalendarTodoInput = TodoBasics & {
   recurrenceBasis: "calendar";
@@ -269,21 +283,30 @@ function parseRecommendedOffsets(
   if (
     intervalMin === null ||
     intervalMax === null ||
-    (rawUnit !== "day" && rawUnit !== "week")
+    (rawUnit !== "day" && rawUnit !== "week" && rawUnit !== "month" && rawUnit !== "year")
   ) {
     return INVALID_OFFSETS;
   }
 
-  const multiplier = INTERVAL_UNIT_DAYS[rawUnit];
-  const recommendedStartOffset = intervalMin * multiplier;
-  const recommendedUntilOffset = intervalMax * multiplier;
+  const maximum = MAX_RECOMMENDED_VALUE[rawUnit];
   if (
-    recommendedStartOffset > recommendedUntilOffset ||
-    recommendedUntilOffset > MAX_RECOMMENDED_OFFSET
+    intervalMin > intervalMax ||
+    intervalMax > maximum
   ) {
     return INVALID_OFFSETS;
   }
-  return { recommendedStartOffset, recommendedUntilOffset };
+  // 旧日数列は既存Workerとの互換性のため残す。日・週は従来値を保存できるが、
+  // 月・年は固定日数へ換算しないため0を互換用の番兵値とし、新しい値・単位列を正にする。
+  const multiplier = rawUnit === "day" || rawUnit === "week"
+    ? INTERVAL_UNIT_DAYS[rawUnit]
+    : 0;
+  return {
+    recommendedStartOffset: intervalMin * multiplier,
+    recommendedStartValue: intervalMin,
+    recommendedUnit: rawUnit,
+    recommendedUntilOffset: intervalMax * multiplier,
+    recommendedUntilValue: intervalMax,
+  };
 }
 
 function parseCompletionTodo(
@@ -300,14 +323,24 @@ function parseCompletionTodo(
 
   const anchorDate = formData.get("anchorDate");
   if (typeof anchorDate !== "string") return INVALID_WINDOW;
-  const startDays = mode === "previous_completion"
-    ? offsets.recommendedStartOffset
+  const startValue = mode === "previous_completion"
+    ? offsets.recommendedStartValue
     : 0;
-  const dueDays = mode === "previous_completion"
-    ? offsets.recommendedUntilOffset
-    : offsets.recommendedUntilOffset - offsets.recommendedStartOffset;
-  const firstScheduledFor = addDaysToTokyoDateUtcIso(anchorDate, startDays);
-  const firstDueAt = addDaysToTokyoDateUtcIso(anchorDate, dueDays);
+  const dueValue = mode === "previous_completion"
+    ? offsets.recommendedUntilValue
+    : offsets.recommendedUntilValue - offsets.recommendedStartValue;
+  let firstScheduledFor: string | null = null;
+  let firstDueAt: string | null = null;
+  try {
+    firstScheduledFor = tokyoDateToUtcIso(
+      addTokyoCalendarDate(anchorDate, startValue, offsets.recommendedUnit),
+    );
+    firstDueAt = tokyoDateToUtcIso(
+      addTokyoCalendarDate(anchorDate, dueValue, offsets.recommendedUnit),
+    );
+  } catch {
+    return INVALID_WINDOW;
+  }
   if (firstScheduledFor === null || firstDueAt === null) return INVALID_WINDOW;
 
   return {

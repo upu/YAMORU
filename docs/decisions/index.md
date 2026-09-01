@@ -49,6 +49,7 @@
 | YDR-035 | ManagedItemの大分類を備品、サービス、支払い・手続きの3択にする | Superseded by YDR-036 | [ydr-035-retire-other-managed-item-kind.md](ydr-035-retire-other-managed-item-kind.md) |
 | YDR-036 | ManagedItemの大分類を備品、サービス・契約の2択にする | Accepted | [ydr-036-merge-service-obligation-kinds.md](ydr-036-merge-service-obligation-kinds.md) |
 | YDR-037 | 固定間隔の繰り返しを起点日と間隔日数が決める候補列として定義する | Accepted | [ydr-037-fixed-interval-recurrence.md](ydr-037-fixed-interval-recurrence.md) |
+| YDR-038 | 完了日基準Todoの月・年単位を対象月の月末へ補正する | Accepted | [ydr-038-completion-calendar-intervals.md](ydr-038-completion-calendar-intervals.md) |
 
 ## 新しい意思決定の追加
 

@@ -1,6 +1,7 @@
 import { requireCurrentHouseholdId, type D1Session } from "../authorization";
 import {
   calendarScheduledForOnOrAfter,
+  type CompletionIntervalUnit,
   intervalScheduledForOnOrAfter,
   tokyoDateFromIso,
 } from "../calendar";
@@ -10,7 +11,19 @@ import { type TaskBasics, requireManagedItem } from "./shared";
 
 export type OneTimeTaskInput = TaskBasics & { scheduledFor: string | null };
 
-export type MaintenanceTaskInput = TaskBasics & {
+type CompletionIntervalInput =
+  | {
+      recommendedStartValue: number;
+      recommendedUnit: CompletionIntervalUnit;
+      recommendedUntilValue: number;
+    }
+  | {
+      recommendedStartValue?: never;
+      recommendedUnit?: never;
+      recommendedUntilValue?: never;
+    };
+
+export type MaintenanceTaskInput = TaskBasics & CompletionIntervalInput & {
   firstDueAt: string;
   firstScheduledFor: string;
   recommendedStartOffset: number;
@@ -63,10 +76,36 @@ function intervalValues(
   ];
 }
 
+function occurrenceInsert(
+  db: D1Database,
+  input: {
+    dueAt: string | null;
+    householdId: string;
+    occurrenceId: string;
+    completionCalendarVersion: 1 | null;
+    scheduledFor: string | null;
+    taskRuleId: string;
+  },
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO task_occurrences (
+      id, household_id, task_rule_id, scheduled_for, due_at,
+      completion_calendar_version
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+  ).bind(
+    input.occurrenceId,
+    input.householdId,
+    input.taskRuleId,
+    input.scheduledFor,
+    input.dueAt,
+    input.completionCalendarVersion,
+  );
+}
+
 async function insertTask(
   db: D1Database,
   householdId: string,
-  input: TaskBasics & {
+  input: TaskBasics & CompletionIntervalInput & {
     deadlineKind: string;
     dueAt: string | null;
     interval?: IntervalTaskInput;
@@ -89,8 +128,9 @@ async function insertTask(
         deadline_kind, recommended_start_offset, recommended_until_offset,
         schedule_kind, schedule_day_of_week, schedule_day_of_month,
         schedule_week_of_month, schedule_month, schedule_month_end,
-        interval_unit, interval_count, interval_anchor_on
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`,
+        interval_unit, interval_count, interval_anchor_on,
+        recommended_start_value, recommended_until_value, recommended_unit
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)`,
     ).bind(
       taskRuleId,
       householdId,
@@ -102,10 +142,19 @@ async function insertTask(
       input.recommendedUntilOffset,
       ...scheduleValues(schedule),
       ...intervalValues(interval),
+      input.recommendedStartValue ?? null,
+      input.recommendedUntilValue ?? null,
+      input.recommendedUnit ?? null,
     ),
-    db.prepare(
-      "INSERT INTO task_occurrences (id, household_id, task_rule_id, scheduled_for, due_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-    ).bind(occurrenceId, householdId, taskRuleId, input.scheduledFor, input.dueAt),
+    occurrenceInsert(db, {
+      completionCalendarVersion:
+        input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null,
+      dueAt: input.dueAt,
+      householdId,
+      occurrenceId,
+      scheduledFor: input.scheduledFor,
+      taskRuleId,
+    }),
   ]);
   return taskRuleId;
 }

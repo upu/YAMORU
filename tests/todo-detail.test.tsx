@@ -103,7 +103,10 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     occurred_at: null,
     performed_by_user_id: null,
     recommended_start_offset: 0,
+    recommended_start_value: null,
+    recommended_unit: null,
     recommended_until_offset: 0,
+    recommended_until_value: null,
     recurrence_basis: "once",
     scheduled_for: "2026-09-01T15:00:00.000Z",
     schedule_day_of_month: null,
@@ -430,6 +433,20 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
     render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
 
     expect(screen.getByText("完了から4週間後")).toBeInTheDocument();
+  });
+
+  it("完了日基準Todoの月単位を日数へ言い換えず表示する", async () => {
+    loadTodoDetailMock.mockResolvedValue(pendingRow({
+      deadline_kind: "maintenance",
+      recommended_start_value: 1,
+      recommended_unit: "month",
+      recommended_until_value: 2,
+      recurrence_basis: "completion",
+    }));
+
+    render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
+
+    expect(screen.getByText("完了から1〜2か月後")).toBeInTheDocument();
   });
 
   it("他家庭のTodoは見つからないものとして扱う", async () => {

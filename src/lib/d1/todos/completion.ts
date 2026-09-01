@@ -17,17 +17,44 @@ async function findCompletionReplay(
   ).bind(householdId, idempotencyKey).first();
 }
 
+type CompletionStatementsInput = {
+  actorId: string;
+  householdId: string;
+  idempotencyKey: string;
+  next: ReturnType<typeof nextOccurrence>;
+  occurredAt: string;
+  occurrence: OccurrenceWithRule;
+  performerId: string;
+};
+
+function nextOccurrenceStatement(
+  db: D1Database,
+  input: CompletionStatementsInput,
+  logId: string,
+): D1PreparedStatement | null {
+  if (input.next === null) return null;
+  return db.prepare(
+    `INSERT INTO task_occurrences (
+      id, household_id, task_rule_id, scheduled_for, due_at,
+      completion_calendar_version
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6
+      WHERE EXISTS (
+        SELECT 1 FROM activity_logs WHERE id = ?7 AND household_id = ?2
+      )`,
+  ).bind(
+    input.next.id,
+    input.householdId,
+    input.occurrence.task_rule_id,
+    input.next.scheduledFor,
+    input.next.dueAt,
+    input.next.completionCalendarVersion,
+    logId,
+  );
+}
+
 function completionStatements(
   db: D1Database,
-  input: {
-    actorId: string;
-    householdId: string;
-    idempotencyKey: string;
-    next: ReturnType<typeof nextOccurrence>;
-    occurredAt: string;
-    occurrence: OccurrenceWithRule;
-    performerId: string;
-  },
+  input: CompletionStatementsInput,
 ): D1PreparedStatement[] {
   const logId = crypto.randomUUID();
   const statements = [
@@ -58,23 +85,8 @@ function completionStatements(
           )`,
     ).bind(input.occurrence.id, input.householdId, logId),
   ];
-  if (input.next !== null) {
-    statements.push(db.prepare(
-      `INSERT INTO task_occurrences (
-        id, household_id, task_rule_id, scheduled_for, due_at
-      ) SELECT ?1, ?2, ?3, ?4, ?5
-        WHERE EXISTS (
-          SELECT 1 FROM activity_logs WHERE id = ?6 AND household_id = ?2
-        )`,
-    ).bind(
-      input.next.id,
-      input.householdId,
-      input.occurrence.task_rule_id,
-      input.next.scheduledFor,
-      input.next.dueAt,
-      logId,
-    ));
-  }
+  const next = nextOccurrenceStatement(db, input, logId);
+  if (next !== null) statements.push(next);
   return statements;
 }
 

@@ -1,4 +1,9 @@
 // YDR-017: 厳密な期限とメンテナンスの推奨期間を区別する
+
+import {
+  type CompletionIntervalUnit,
+  isCompletionIntervalUnit,
+} from "../lib/d1/calendar";
 //
 // scheduled_for/due_atの意味はYDR-012に従う。maintenanceでは
 // scheduled_forを推奨期間の開始、due_atを推奨期間の上限として使う。
@@ -230,16 +235,50 @@ export function describeIntervalRecurrence(
   return `${anchor}から${count}週間ごと${intervalCount === 2 ? "(隔週)" : ""}`;
 }
 
-// Issue #244(設計メモ案1): 完了日基準Todoの推奨期間は、task_rulesに保存された
-// 完了からの日数(recommended_start_offset/recommended_until_offset)だけを持ち、
-// 登録時に選ばれた元の単位(日/週)は保存していない。開始・上限のどちらも7で
-// 割り切れる場合だけ週間で表示し、それ以外は日数で表示する。28〜56日は
-// 「完了から4〜8週間後」、10〜20日は「完了から10〜20日後」になる。開始と上限が
-// 同じ値のときは、「完了から4週間後」のように値を重複させない。
+// Issue #48 / YDR-038: 新しい行は入力値と単位をそのまま表示する。追加列を持たない
+// 既存行だけはIssue #244の従来規則へフォールバックし、開始・上限がともに7で
+// 割り切れる場合は週、それ以外は日で表示する。
+const COMPLETION_INTERVAL_LABELS: Record<CompletionIntervalUnit, string> = {
+  day: "日",
+  month: "か月",
+  week: "週間",
+  year: "年",
+};
+
+function describeStoredCompletionRecurrence(
+  recommendedStartValue: number | null = null,
+  recommendedUntilValue: number | null = null,
+  recommendedUnit: string | null = null,
+): string | null {
+  if (
+    recommendedStartValue === null || recommendedUntilValue === null ||
+    !Number.isSafeInteger(recommendedStartValue) ||
+    !Number.isSafeInteger(recommendedUntilValue) ||
+    recommendedStartValue < 0 || recommendedUntilValue < recommendedStartValue
+  ) {
+    return null;
+  }
+  if (recommendedUnit === null || !isCompletionIntervalUnit(recommendedUnit)) return null;
+  const unit = COMPLETION_INTERVAL_LABELS[recommendedUnit];
+  const range = recommendedStartValue === recommendedUntilValue
+    ? String(recommendedStartValue)
+    : `${String(recommendedStartValue)}〜${String(recommendedUntilValue)}`;
+  return `完了から${range}${unit}後`;
+}
+
 export function describeCompletionRecurrence(
   recommendedStartOffsetDays: number,
   recommendedUntilOffsetDays: number,
+  recommendedStartValue: number | null = null,
+  recommendedUntilValue: number | null = null,
+  recommendedUnit: string | null = null,
 ): string {
+  const stored = describeStoredCompletionRecurrence(
+    recommendedStartValue,
+    recommendedUntilValue,
+    recommendedUnit,
+  );
+  if (stored !== null) return stored;
   const useWeeks =
     recommendedStartOffsetDays % 7 === 0 && recommendedUntilOffsetDays % 7 === 0;
   const unit = useWeeks ? "週間" : "日";

@@ -78,8 +78,32 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("最短")).toHaveValue(1);
     expect(screen.getByLabelText("最長")).toHaveValue(2);
     expect(screen.getByLabelText("単位")).toHaveValue("week");
+    expect(screen.getByRole("option", { name: "か月後" })).toHaveValue("month");
+    expect(screen.getByRole("option", { name: "年後" })).toHaveValue("year");
     expect(screen.getByLabelText("前回実施日")).toHaveAttribute("type", "date");
     expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+  });
+
+  it("月・年を選ぶと約10年の単位別上限と暦補正を案内する", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("完了した日から繰り返す"));
+    fireEvent.change(screen.getByLabelText("単位"), { target: { value: "month" } });
+
+    expect(screen.getByLabelText("最短")).toHaveAttribute("max", "120");
+    expect(screen.getByLabelText("最長")).toHaveAttribute("max", "120");
+    expect(screen.getByText(/存在しない日は、その月の月末に合わせます。/u))
+      .toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("単位"), { target: { value: "year" } });
+    expect(screen.getByLabelText("最短")).toHaveAttribute("max", "10");
+    expect(screen.getByLabelText("最長")).toHaveAttribute("max", "10");
   });
 
   it("定例日基準で週次・月次日付・月次第N曜日・年次を構造化して選べる", () => {

@@ -76,7 +76,10 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       managedItemId: "managed-item-id",
       recurrenceBasis: "completion",
       recommendedStartOffset: 7,
+      recommendedStartValue: 1,
+      recommendedUnit: "week",
       recommendedUntilOffset: 14,
+      recommendedUntilValue: 2,
       title: "フィルター交換",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith(
@@ -150,7 +153,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
     ["1.5", "2", "week"],
     ["2", "1", "week"],
     ["1", "3651", "day"],
-    ["1", "2", "month"],
+    ["1", "2", "quarter"],
   ])(
     "無効な次回の目安(%s, %s, %s)はRPCへ送らない",
     async (intervalMin, intervalMax, intervalUnit) => {

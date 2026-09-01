@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addTokyoCalendarDate,
+  addTokyoCalendarInterval,
   calendarScheduledForOnOrAfter,
   intervalScheduledForOnOrAfter,
   nextCalendarOccurrence,
@@ -53,6 +55,37 @@ describe("D1の暦基準Todo計算", () => {
       "2026-08-16T15:00:00.000Z",
       "2026-08-25T00:00:00.000Z",
     )).toBe("2026-08-30T15:00:00.000Z");
+  });
+});
+
+// Issue #48 / YDR-038: 完了日基準の月・年は固定日数へ換算せず、起点から
+// 対象年月へ一度に移動して存在しない日だけ月末へ補正する。
+describe("完了日基準Todoの暦間隔加算", () => {
+  it("日・週は従来どおり東京の暦日を加算する", () => {
+    expect(addTokyoCalendarDate("2026-12-31", 1, "day")).toBe("2027-01-01");
+    expect(addTokyoCalendarDate("2026-12-28", 1, "week")).toBe("2027-01-04");
+  });
+
+  it("1月31日の1か月後は2月末、2か月後は3月31日にする", () => {
+    expect(addTokyoCalendarDate("2027-01-31", 1, "month")).toBe("2027-02-28");
+    expect(addTokyoCalendarDate("2028-01-31", 1, "month")).toBe("2028-02-29");
+    expect(addTokyoCalendarDate("2027-01-31", 2, "month")).toBe("2027-03-31");
+  });
+
+  it("2月29日の1年後は2月28日、4年後は2月29日にする", () => {
+    expect(addTokyoCalendarDate("2028-02-29", 1, "year")).toBe("2029-02-28");
+    expect(addTokyoCalendarDate("2028-02-29", 4, "year")).toBe("2032-02-29");
+  });
+
+  it("完了日時は東京の暦日に直してから同じ補正規則を使う", () => {
+    expect(addTokyoCalendarInterval("2027-01-31T15:00:00.000Z", 1, "month"))
+      .toBe("2027-02-28T15:00:00.000Z");
+  });
+
+  it("負値・小数・未定義の単位は計算しない", () => {
+    expect(() => addTokyoCalendarDate("2027-01-31", -1, "month")).toThrow();
+    expect(() => addTokyoCalendarDate("2027-01-31", 1.5, "month")).toThrow();
+    expect(() => addTokyoCalendarDate("2027-01-31", 1, "quarter")).toThrow();
   });
 });
 
