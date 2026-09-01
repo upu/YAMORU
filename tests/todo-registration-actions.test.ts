@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createCalendarTaskMock,
+  createIntervalTaskMock,
   createMaintenanceTaskMock,
   createOneTimeTaskMock,
   getD1ContextMock,
   revalidatePathMock,
 } = vi.hoisted(() => ({
   createCalendarTaskMock: vi.fn(),
+  createIntervalTaskMock: vi.fn(),
   createMaintenanceTaskMock: vi.fn(),
   createOneTimeTaskMock: vi.fn(),
   getD1ContextMock: vi.fn(),
@@ -17,6 +19,7 @@ const {
 vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({
   createCalendarTask: createCalendarTaskMock,
+  createIntervalTask: createIntervalTaskMock,
   createMaintenanceTask: createMaintenanceTaskMock,
   createOneTimeTask: createOneTimeTaskMock,
 }));
@@ -32,9 +35,28 @@ const INVALID_CALENDAR_CASES: Record<string, string>[] = [
   { scheduleDayOfMonth: "30", scheduleKind: "yearly", scheduleMonth: "2" },
 ];
 
+// Issue #99 / YDR-037: 起点日の受け付け範囲は登録日の前後3650日。日付を
+// リテラルで書くとその日を過ぎたときに落ちるため、実行日から求める。
+// 受け付け範囲はAsia/Tokyoの暦日で数えるため、UTCの日付ではなく東京の
+// 今日から数える(そうしないと15:00Z以降で境界が1日ずれる)。
+function tokyoDateFromNow(days: number): string {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  }).format(new Date());
+  const base = new Date(`${today}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
 function todoForm(overrides: Record<string, string> = {}) {
   const values = {
     anchorDate: "2026-10-01",
+    fixedIntervalAnchorDate: tokyoDateFromNow(0),
+    fixedIntervalCount: "2",
+    fixedIntervalUnit: "week",
     initialDateMode: "previous_completion",
     intervalMax: "2",
     intervalMin: "1",
@@ -55,14 +77,16 @@ function todoForm(overrides: Record<string, string> = {}) {
   return formData;
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+  createCalendarTaskMock.mockResolvedValue("task-rule-id");
+  createIntervalTaskMock.mockResolvedValue("task-rule-id");
+  createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
+  createOneTimeTaskMock.mockResolvedValue("task-rule-id");
+});
+
 describe("専用ページのTodo登録操作", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
-    createCalendarTaskMock.mockResolvedValue("task-rule-id");
-    createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
-    createOneTimeTaskMock.mockResolvedValue("task-rule-id");
-  });
 
   it("管理対象なしの一回限りTodoを登録する", async () => {
     const result = await createTodo(INITIAL_STATE, todoForm());
@@ -241,5 +265,102 @@ describe("専用ページのTodo登録操作", () => {
       message: "繰り返し方を選択してください。",
       status: "error",
     });
+  });
+});
+
+// Issue #99 / YDR-037: 固定間隔(N日ごと・N週ごと)の登録と入力制約。
+describe("専用ページの固定間隔Todo登録操作", () => {
+  // Issue #99 / YDR-037
+  it("隔週(2週ごと)の固定間隔Todoを、単位と回数を分けたまま登録する", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({ recurrenceBasis: "interval", title: "ゴミ出し" }),
+    );
+
+    expect(createIntervalTaskMock).toHaveBeenCalledWith("db", "session", {
+      intervalAnchorOn: tokyoDateFromNow(0),
+      intervalCount: 2,
+      intervalUnit: "week",
+      managedItemId: null,
+      recurrenceBasis: "interval",
+      title: "ゴミ出し",
+    });
+  });
+
+  it("N日ごとの固定間隔Todoを登録する", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        fixedIntervalCount: "10",
+        fixedIntervalUnit: "day",
+        recurrenceBasis: "interval",
+      }),
+    );
+
+    expect(createIntervalTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ intervalCount: 10, intervalUnit: "day" }),
+    );
+  });
+
+  it.each([
+    ["0", "week"],
+    ["-1", "week"],
+    ["1.5", "week"],
+    ["521", "week"],
+    ["3651", "day"],
+  ])("間隔が%s(%s)ならRPCへ送らない", async (count, unit) => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        fixedIntervalCount: count,
+        fixedIntervalUnit: unit,
+        recurrenceBasis: "interval",
+      }),
+    );
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "繰り返す間隔と起点日を正しく入力してください。",
+      status: "error",
+    });
+  });
+
+  it.each([
+    ["未定義の単位", { fixedIntervalUnit: "month" }],
+    ["存在しない起点日", { fixedIntervalAnchorDate: "2026-02-30" }],
+    ["空の起点日", { fixedIntervalAnchorDate: "" }],
+    ["10年より先の起点日", { fixedIntervalAnchorDate: tokyoDateFromNow(3651) }],
+    ["10年より前の起点日", { fixedIntervalAnchorDate: tokyoDateFromNow(-3651) }],
+  ])("%sはRPCへ送らない", async (_label, overrides) => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({ recurrenceBasis: "interval", ...overrides }),
+    );
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "繰り返す間隔と起点日を正しく入力してください。",
+      status: "error",
+    });
+  });
+
+  it("上限ちょうどの間隔と起点日は登録できる", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        fixedIntervalAnchorDate: tokyoDateFromNow(3650),
+        fixedIntervalCount: "520",
+        fixedIntervalUnit: "week",
+        recurrenceBasis: "interval",
+      }),
+    );
+
+    expect(createIntervalTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ intervalCount: 520 }),
+    );
   });
 });

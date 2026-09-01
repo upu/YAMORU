@@ -60,7 +60,8 @@ export function toDeadlineKind(value: string): DeadlineKind {
   return value;
 }
 
-export const RECURRENCE_BASES = ["calendar", "completion", "once"] as const;
+// Issue #99 / YDR-037: "interval"は「起点日からN日ごと・N週ごと」の固定間隔。
+export const RECURRENCE_BASES = ["calendar", "completion", "interval", "once"] as const;
 
 export type RecurrenceBasis = (typeof RECURRENCE_BASES)[number];
 
@@ -180,6 +181,53 @@ export function describeCalendarSchedule(schedule: CalendarScheduleRule): string
     default:
       return null;
   }
+}
+
+// Issue #99 / YDR-037: 固定間隔Todoの繰り返しを、起点日と間隔で表示する。
+// 保存値は単位(日・週)と回数のままで、ここでは表示だけを組み立てる。
+export type IntervalRecurrenceRule = {
+  intervalAnchorOn: string | null;
+  intervalCount: number | null;
+  intervalUnit: string | null;
+};
+
+// 形式だけでなく実在する暦日かも確かめる。登録時とDBのCHECK制約で不正な
+// 起点日は弾いているが、表示側でも確かめ、データが壊れている場合に
+// 「2月30日」のような誤表示をせずnullで落とす(Issue #99のレビュー指摘)。
+function formatAnchorMonthDay(anchorOn: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(anchorOn);
+  if (match === null) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return `${String(month)}月${String(day)}日`;
+}
+
+// 「2週ごと」は一般に「隔週」と呼ばれるため、週の別名として併記する
+// (保存値は2週のままで、隔週を独立した値にはしない。Issue #99の設計メモ)。
+export function describeIntervalRecurrence(
+  rule: IntervalRecurrenceRule,
+): string | null {
+  const { intervalAnchorOn, intervalCount, intervalUnit } = rule;
+  if (
+    intervalAnchorOn === null || intervalCount === null ||
+    !Number.isSafeInteger(intervalCount) || intervalCount < 1
+  ) {
+    return null;
+  }
+  const anchor = formatAnchorMonthDay(intervalAnchorOn);
+  if (anchor === null) return null;
+  const count = String(intervalCount);
+  if (intervalUnit === "day") return `${anchor}から${count}日ごと`;
+  if (intervalUnit !== "week") return null;
+  return `${anchor}から${count}週間ごと${intervalCount === 2 ? "(隔週)" : ""}`;
 }
 
 // Issue #244(設計メモ案1): 完了日基準Todoの推奨期間は、task_rulesに保存された

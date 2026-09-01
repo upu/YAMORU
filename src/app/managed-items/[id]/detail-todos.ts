@@ -43,6 +43,8 @@ export type RecentCompletionData = {
 export const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
   calendar: "曜日・日付で繰り返す",
   completion: "繰り返し",
+  // Issue #99 / YDR-037: 固定間隔。具体的な間隔はTodo詳細で表示する。
+  interval: "一定の間隔で繰り返す",
   once: "繰り返しなし",
 };
 

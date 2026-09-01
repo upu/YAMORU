@@ -126,6 +126,17 @@ function buildMaintenanceEntry(
   };
 }
 
+// ホーム・Todo一覧のメタ文で使う繰り返し方の呼び名。登録フォームの選択肢と
+// 同じ言い回しにそろえる(Issue #99 / YDR-037の8)。完了日基準は推奨期間の
+// 文言(buildMaintenanceEntry)を使うためここには現れないが、
+// RecurrenceBasisを網羅する型にして方式追加時の記入漏れを防ぐ。
+const STRICT_RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
+  calendar: "曜日・日付で繰り返す",
+  completion: "完了した日から繰り返す",
+  interval: "一定の間隔で繰り返す",
+  once: "繰り返しなし",
+};
+
 function toStrictCategory(
   state: StrictDisplayState,
   dueAt: string,
@@ -156,7 +167,7 @@ function buildStrictEntry(
       // 伝えるため、リスト表示では繰り返し方式(#227)を省略する。
       listSchedule: { iso: dueAt, kind: "due" },
       meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
-        recurrenceBasis === "calendar" ? "曜日・日付で繰り返す" : "繰り返しなし"
+        STRICT_RECURRENCE_LABELS[recurrenceBasis]
       }`,
       tone: STRICT_DISPLAY_COPY[state].tone,
     },

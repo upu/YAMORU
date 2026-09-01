@@ -5,12 +5,14 @@ import { revalidatePath } from "next/cache";
 import { getD1Context } from "../../../lib/d1/context";
 import {
   createCalendarTask,
+  createIntervalTask,
   createMaintenanceTask,
   createOneTimeTask,
 } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import {
   addDaysToTokyoDateUtcIso,
+  getTokyoDayDistance,
   tokyoDateToUtcIso,
 } from "../../time-zone";
 
@@ -25,10 +27,18 @@ const INVALID_WINDOW: MaintenanceTodoActionState = {
   message: "初回の計算に使う有効な日付を入力してください。",
   status: "error",
 };
+// Issue #99 / YDR-037の7: 上限はDBのCHECK制約と同じ値にそろえる。起点日は
+// 登録日の前後3650日(約10年)までを受け付ける。
+const MAX_INTERVAL_COUNT = { day: 3650, week: 520 } as const;
+const MAX_INTERVAL_ANCHOR_DISTANCE_DAYS = 3650;
+const INVALID_INTERVAL: MaintenanceTodoActionState = {
+  message: "繰り返す間隔と起点日を正しく入力してください。",
+  status: "error",
+};
 
 type TodoBasics = {
   managedItemId: string | null;
-  recurrenceBasis: "calendar" | "completion" | "once";
+  recurrenceBasis: "calendar" | "completion" | "interval" | "once";
   title: string;
 };
 type OneTimeTodoInput = TodoBasics & {
@@ -41,6 +51,14 @@ type CompletionTodoInput = TodoBasics & {
   recurrenceBasis: "completion";
   recommendedStartOffset: number;
   recommendedUntilOffset: number;
+};
+// Issue #99 / YDR-037: 固定間隔。起点日はAsia/Tokyoの暦日で保存し、候補列は
+// 起点日と間隔だけで決まる(完了日に依存しない)。
+type IntervalTodoInput = TodoBasics & {
+  intervalAnchorOn: string;
+  intervalCount: number;
+  intervalUnit: "day" | "week";
+  recurrenceBasis: "interval";
 };
 type RecommendedOffsets = {
   recommendedStartOffset: number;
@@ -84,6 +102,7 @@ function parseTodoBasics(
   if (
     recurrenceBasis !== "calendar" &&
     recurrenceBasis !== "completion" &&
+    recurrenceBasis !== "interval" &&
     recurrenceBasis !== "once"
   ) {
     return { message: "繰り返し方を選択してください。", status: "error" };
@@ -188,6 +207,39 @@ function parseCalendarTodo(
   return INVALID_CALENDAR_SCHEDULE;
 }
 
+function parseIntervalTodo(
+  basics: TodoBasics,
+  formData: FormData,
+  now: Date,
+): IntervalTodoInput | MaintenanceTodoActionState {
+  const unit = formData.get("fixedIntervalUnit");
+  if (unit !== "day" && unit !== "week") return INVALID_INTERVAL;
+
+  const count = parseBoundedInteger(
+    formData.get("fixedIntervalCount"),
+    1,
+    MAX_INTERVAL_COUNT[unit],
+  );
+  if (count === null) return INVALID_INTERVAL;
+
+  const anchorOn = formData.get("fixedIntervalAnchorDate");
+  if (typeof anchorOn !== "string") return INVALID_INTERVAL;
+  const anchorIso = tokyoDateToUtcIso(anchorOn);
+  if (anchorIso === null) return INVALID_INTERVAL;
+  const distance = getTokyoDayDistance(now.toISOString(), anchorIso);
+  if (Math.abs(distance) > MAX_INTERVAL_ANCHOR_DISTANCE_DAYS) {
+    return INVALID_INTERVAL;
+  }
+
+  return {
+    ...basics,
+    intervalAnchorOn: anchorOn,
+    intervalCount: count,
+    intervalUnit: unit,
+    recurrenceBasis: "interval",
+  };
+}
+
 function parseOneTimeTodo(
   basics: TodoBasics,
   formData: FormData,
@@ -269,12 +321,21 @@ function parseCompletionTodo(
 
 function parseTodo(
   formData: FormData,
-): CalendarTodoInput | CompletionTodoInput | OneTimeTodoInput | MaintenanceTodoActionState {
+  now: Date,
+):
+  | CalendarTodoInput
+  | CompletionTodoInput
+  | IntervalTodoInput
+  | OneTimeTodoInput
+  | MaintenanceTodoActionState {
   const basics = parseTodoBasics(formData);
   if ("status" in basics) return basics;
   if (basics.recurrenceBasis === "once") return parseOneTimeTodo(basics, formData);
   if (basics.recurrenceBasis === "completion") {
     return parseCompletionTodo(basics, formData);
+  }
+  if (basics.recurrenceBasis === "interval") {
+    return parseIntervalTodo(basics, formData, now);
   }
   return parseCalendarTodo(basics, formData);
 }
@@ -294,7 +355,7 @@ export async function createTodo(
   _previousState: MaintenanceTodoActionState,
   formData: FormData,
 ): Promise<MaintenanceTodoActionState> {
-  const input = parseTodo(formData);
+  const input = parseTodo(formData, new Date());
   if ("status" in input) return input;
 
   try {
@@ -303,6 +364,8 @@ export async function createTodo(
       await createOneTimeTask(db, session, input);
     } else if (input.recurrenceBasis === "completion") {
       await createMaintenanceTask(db, session, input);
+    } else if (input.recurrenceBasis === "interval") {
+      await createIntervalTask(db, session, input);
     } else {
       await createCalendarTask(db, session, {
         ...input,

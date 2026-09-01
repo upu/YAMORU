@@ -32,6 +32,7 @@ describe("Todo登録ページ", () => {
     expect(screen.getByRole("link", { name: /ホームへ戻る/ })).toHaveAttribute("href", "/");
     expect(screen.getByLabelText("繰り返しなし")).toBeChecked();
     expect(screen.getByLabelText("完了した日から繰り返す")).not.toBeChecked();
+    expect(screen.getByLabelText("一定の間隔で繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("曜日・日付で繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
@@ -207,5 +208,56 @@ describe("Todo登録ページ", () => {
       "href",
       "/account",
     );
+  });
+});
+
+// Issue #99 / YDR-037: 固定間隔(N日ごと・N週ごと)の入力欄。
+describe("Todo登録ページの一定の間隔", () => {
+  // Issue #99 / YDR-037
+  it("一定の間隔ではN日ごと・N週ごとと起点日を入力でき、2週は隔週と分かる", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("一定の間隔で繰り返す"));
+
+    const count = screen.getByLabelText("間隔");
+    expect(count).toHaveValue(2);
+    expect(count).toHaveAttribute("min", "1");
+    expect(count).toHaveAttribute("max", "520");
+    expect(count).toHaveAttribute("step", "1");
+    expect(screen.getByLabelText("単位")).toHaveValue("week");
+    expect(screen.getByLabelText("起点日")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("起点日")).toBeRequired();
+    expect(screen.getByText(/起点日から2週間ごと\(隔週\)に予定します。/u))
+      .toBeInTheDocument();
+    expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("単位"), { target: { value: "day" } });
+    fireEvent.change(count, { target: { value: "10" } });
+
+    expect(screen.getByLabelText("間隔")).toHaveAttribute("max", "3650");
+    expect(screen.getByText(/起点日から10日ごとに予定します。/u)).toBeInTheDocument();
+  });
+
+  // Issue #99 / YDR-037の8: 完了日基準との違いを選択肢の補足文で示す。
+  it("完了日基準と一定の間隔の違いを選択肢の補足文で説明する", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    expect(screen.getByText(/遅れて完了すると、その分だけ次回も後ろへずれます。/u))
+      .toBeInTheDocument();
+    expect(screen.getByText(/遅れて完了しても周期はずれません。/u))
+      .toBeInTheDocument();
   });
 });

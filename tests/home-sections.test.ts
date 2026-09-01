@@ -198,6 +198,20 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
     expect(items.today[0].detailHref).toBeUndefined();
   });
 
+  // Issue #99 / YDR-037: 固定間隔も厳密な期限で分類し、方式の呼び名だけが変わる。
+  it("固定間隔Todoをstrict日付で分類し、一定の間隔で繰り返すと示す", () => {
+    const row = onceRow("interval", "2026-08-14T15:00:00.000Z");
+    row.task_rules.recurrence_basis = "interval";
+    row.task_rules.title = "水槽の水換え";
+
+    const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
+
+    expect(items.upcoming[0]).toMatchObject({
+      meta: "8月15日の予定です ・ 一定の間隔で繰り返す",
+      title: "水槽の水換え",
+    });
+  });
+
   it("定例日基準Todoをstrict日付で分類し、繰り返し方式を見分けられる", () => {
     const row = onceRow("calendar", "2026-08-14T15:00:00.000Z");
     row.task_rules.recurrence_basis = "calendar";

@@ -1,4 +1,4 @@
-import { addTokyoDays, nextCalendarOccurrence } from "../calendar";
+import { addTokyoDays, nextCalendarOccurrence, nextIntervalOccurrence } from "../calendar";
 import { D1ConflictError, D1NotFoundError } from "../errors";
 
 // Todo(TaskRule/TaskOccurrence)の操作が共通で使う、家庭の確認・Occurrenceの
@@ -11,6 +11,10 @@ export type OccurrenceWithRule = {
   due_at: string | null;
   household_id: string;
   id: string;
+  // recurrence_basis='interval'のときだけ非null(Issue #99 / YDR-037)。
+  interval_anchor_on: string | null;
+  interval_count: number | null;
+  interval_unit: string | null;
   managed_item_id: string | null;
   recurrence_basis: string;
   recommended_start_offset: number;
@@ -49,7 +53,8 @@ export async function loadOccurrence(
       r.recurrence_basis, r.recommended_start_offset, r.recommended_until_offset,
       r.managed_item_id,
       r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
-      r.schedule_week_of_month, r.schedule_month
+      r.schedule_week_of_month, r.schedule_month,
+      r.interval_unit, r.interval_count, r.interval_anchor_on
      FROM task_occurrences o
      JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
      WHERE o.id = ?1 AND o.household_id = ?2`,
@@ -82,6 +87,31 @@ export function nextOccurrence(
       id,
       scheduledFor: addTokyoDays(occurredAt, occurrence.recommended_start_offset),
     };
+  }
+  // Issue #99 / YDR-037: 固定間隔の候補列は起点日と間隔だけで決まり、完了日に
+  // 引きずられない。飛ばした候補は作らず(YDR-016)、次回を1件だけ作る。
+  if (occurrence.recurrence_basis === "interval") {
+    if (occurrence.scheduled_for === null) {
+      throw new D1ConflictError("Recurring occurrence must have a schedule");
+    }
+    // DBのCHECK制約(0016)でintervalの3列は必ず揃うが、読み取り側でも揃って
+    // いることを確かめ、欠けていれば汎用のErrorではなく409として扱う。
+    if (
+      occurrence.interval_anchor_on === null || occurrence.interval_count === null ||
+      occurrence.interval_unit === null
+    ) {
+      throw new D1ConflictError("Interval occurrence must have an interval rule");
+    }
+    const scheduledFor = nextIntervalOccurrence(
+      {
+        intervalAnchorOn: occurrence.interval_anchor_on,
+        intervalCount: occurrence.interval_count,
+        intervalUnit: occurrence.interval_unit,
+      },
+      occurrence.scheduled_for,
+      occurredAt,
+    );
+    return { dueAt: scheduledFor, id, scheduledFor };
   }
   if (occurrence.recurrence_basis === "calendar") {
     if (occurrence.scheduled_for === null) {
