@@ -1,9 +1,8 @@
 import { requireCurrentHouseholdId, type D1Session } from "../authorization";
 import {
-  calendarScheduledForOnOrAfter,
+  calendarFirstScheduledFor,
   type CompletionIntervalUnit,
-  intervalScheduledForOnOrAfter,
-  tokyoDateFromIso,
+  intervalFirstScheduledFor,
 } from "../calendar";
 import { type TaskBasics, requireManagedItem } from "./shared";
 
@@ -197,7 +196,7 @@ export async function createCalendarTask(
   now = new Date(),
 ): Promise<string> {
   const householdId = await requireCurrentHouseholdId(db, session);
-  const first = calendarScheduledForOnOrAfter(input, tokyoDateFromIso(now.toISOString()));
+  const first = calendarFirstScheduledFor(input, now);
   return insertTask(db, householdId, {
     ...input,
     deadlineKind: "strict",
@@ -220,14 +219,7 @@ export async function createIntervalTask(
   now = new Date(),
 ): Promise<string> {
   const householdId = await requireCurrentHouseholdId(db, session);
-  const first = intervalScheduledForOnOrAfter(
-    {
-      intervalAnchorOn: input.intervalAnchorOn,
-      intervalCount: input.intervalCount,
-      intervalUnit: input.intervalUnit,
-    },
-    tokyoDateFromIso(now.toISOString()),
-  );
+  const first = intervalFirstScheduledFor(input, now);
   return insertTask(db, householdId, {
     ...input,
     deadlineKind: "strict",

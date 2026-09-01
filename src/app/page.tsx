@@ -21,7 +21,7 @@ import { loadAccountState } from "../lib/d1/households";
 import type { D1Session } from "../lib/d1/authorization";
 import {
   buildPendingTodoEntries,
-  type PendingTodoCategory,
+  isHomePendingCategory,
 } from "./pending-todo";
 import { TodoCard, type TodoCardItem } from "./todo-card";
 import { formatTokyoDate } from "./time-zone";
@@ -54,19 +54,6 @@ const OPEN_SECTION_IDS = new Set<HomeSectionId>([
   "upcoming",
 ]);
 
-// ホームは「いま対応すること」に絞る。ここへ載せない区分はTodo一覧
-// (/todos)で確認する(Issue #201)。
-// - later: 7日より先の予定
-// - before-window: 完了日基準Todoの推奨期間前(YDR-017)
-// - undated: 予定日未定Todo。着手できる時期が決まっていないため、要対応の
-//   表示にも「件の予定」にも含めない(Issue #202、YDR-031)。
-const HOME_SECTION_BY_CATEGORY = new Map<PendingTodoCategory, OpenSectionId>([
-  ["overdue", "overdue"],
-  ["today", "today"],
-  ["reminder", "reminder"],
-  ["upcoming", "upcoming"],
-]);
-
 const HOME_SECTION_SKELETON: Omit<HomeSection, "items">[] = [
   { description: "期限を過ぎています", id: "overdue", title: "期限切れ" },
   { description: "今日確認したいこと", id: "today", title: "今日" },
@@ -90,9 +77,12 @@ export function buildPendingSectionItems(
     upcoming: [],
   };
 
+  // ホームは「いま対応すること」に絞る。ここへ載せない区分(later・
+  // before-window・undated)はTodo一覧(/todos)で確認する(Issue #201)。
+  // どの区分を載せるかはpending-todo.tsのisHomePendingCategoryが持ち、
+  // 登録直後のフィードバック(Issue #286)と同じ判定を共有する。
   buildPendingTodoEntries(rows, nowIso).forEach((entry) => {
-    const sectionId = HOME_SECTION_BY_CATEGORY.get(entry.category);
-    if (sectionId !== undefined) result[sectionId].push(entry.item);
+    if (isHomePendingCategory(entry.category)) result[entry.category].push(entry.item);
   });
 
   // Issue #281: 同じメンテナンス区分では、上限超過→そろそろ→推奨期間の

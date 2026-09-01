@@ -55,10 +55,11 @@ describe("専用ページの一回限りTodo登録操作", () => {
       title: "家族会議",
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
-    expect(result).toEqual({
-      message: "Todoを登録しました。",
-      status: "success",
-    });
+    expect(result.status).toBe("success");
+    expect(result.message).toBe("Todoを登録しました。");
+    // Issue #286: 成功時は次回の予定も返す(組み立ての詳細は
+    // todo-registration-feedback.test.tsで検証する)。
+    expect(result.registered?.schedule).toBe("次回: 10月10日");
   });
 
   it("管理対象を選ぶと同じ入口から関連付けて登録する", async () => {
