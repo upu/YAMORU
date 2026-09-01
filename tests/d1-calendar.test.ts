@@ -134,6 +134,18 @@ describe("D1の固定間隔Todo計算", () => {
     )).toBe("2026-08-30T15:00:00.000Z");
   });
 
+  it("実在しない起点日は繰り上げず、その場で失敗する", () => {
+    expect(() => intervalScheduledForOnOrAfter(
+      { ...everyTenDays, intervalAnchorOn: "2026-02-30" },
+      "2026-03-01",
+    )).toThrow("Invalid calendar date");
+    expect(() => nextIntervalOccurrence(
+      { ...everyTenDays, intervalAnchorOn: "2026-02-30" },
+      "2026-08-10T15:00:00.000Z",
+      "2026-08-16T02:00:00.000Z",
+    )).toThrow("Invalid calendar date");
+  });
+
   it("単位や回数が不正なら計算せずに失敗する", () => {
     expect(() => intervalScheduledForOnOrAfter(
       { ...everyTenDays, intervalUnit: "month" },

@@ -8,10 +8,23 @@ type CalendarSchedule = {
   scheduleWeekOfMonth: number | null;
 };
 
+// 形式だけでなく実在する暦日かも確かめる。Date.UTCは2026-02-30のような
+// 存在しない日付を黙って繰り上げるため、そのままでは誤った候補日を返す
+// (Issue #99のレビュー指摘)。保存側のCHECK制約と同じ判定にそろえる。
 function parseDate(value: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match === null) throw new Error("Invalid calendar date");
-  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw new Error("Invalid calendar date");
+  }
+  return parsed;
 }
 
 function formatDate(value: Date): string {
