@@ -26,6 +26,7 @@ import intervalRecurrenceSql from "../../../../d1/migrations/0016_interval_recur
 import completionCalendarIntervalsSql from "../../../../d1/migrations/0017_completion_calendar_intervals.sql?raw";
 import completionCalendarRolloutGuardSql from "../../../../d1/migrations/0018_completion_calendar_rollout_guard.sql?raw";
 import recurringTodoEditSql from "../../../../d1/migrations/0019_recurring_todo_edit.sql?raw";
+import consumableRefillsSql from "../../../../d1/migrations/0020_consumable_refills.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -48,6 +49,7 @@ const MIGRATIONS = [
   { name: "0017_completion_calendar_intervals", sql: completionCalendarIntervalsSql },
   { name: "0018_completion_calendar_rollout_guard", sql: completionCalendarRolloutGuardSql },
   { name: "0019_recurring_todo_edit", sql: recurringTodoEditSql },
+  { name: "0020_consumable_refills", sql: consumableRefillsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

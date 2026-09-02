@@ -16,7 +16,7 @@ import {
 import { ConsumableRelationField } from "./relation-picker";
 import { INITIAL_CONSUMABLE_STATE } from "./state";
 
-type ConsumableFormData = Omit<ConsumableDetail, "taskRules"> & {
+type ConsumableFormData = Omit<ConsumableDetail, "refills" | "taskRules"> & {
   taskRules: ConsumableTaskRuleOption[];
 };
 
