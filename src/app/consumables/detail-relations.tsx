@@ -42,6 +42,10 @@ type RelationSave = (
   related: boolean,
 ) => Promise<ConsumableRelationUpdateResult>;
 
+// サーバーアクションの呼び出し自体が失敗した(通信が切れたなど)ときの言葉。
+// アクションが返す失敗と同じ場所に同じ調子で出す。
+const UNEXPECTED_ERROR_MESSAGE = "関連を更新できませんでした。時間をおいて再度お試しください。";
+
 // 詳細画面で追加したTodoは、次回予定をまだサーバーから受け取っていない。
 // 予定の行を出さないことで、未取得を「予定なし」と言い切らない。
 type DetailTaskRule = ConsumableTaskRuleOption & {
@@ -145,7 +149,13 @@ function useRelationEditor<T extends RelationCandidate>(
 
   function apply(item: T, related: boolean) {
     startSaving(async () => {
-      const result = await save(item.id, related);
+      let result: ConsumableRelationUpdateResult;
+      try {
+        result = await save(item.id, related);
+      } catch {
+        setMessage(UNEXPECTED_ERROR_MESSAGE);
+        return;
+      }
       if (result.status === "error") {
         setMessage(result.message);
         return;

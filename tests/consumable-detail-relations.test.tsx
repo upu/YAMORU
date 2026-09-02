@@ -200,6 +200,19 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
     expect(within(section).getByRole("link", { name: "猫の給水機" })).toBeInTheDocument();
   });
 
+  it("保存の呼び出し自体が失敗しても、同じカードで理由を伝える", async () => {
+    setManagedItemRelationMock.mockRejectedValue(new Error("network"));
+    render(<ConsumableDetailContent consumable={detail({ managedItems: [MANAGED_ITEMS[0]] })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "猫の給水機を関連から外す" }));
+
+    const section = relationSection("管理対象");
+    expect(await within(section).findByRole("alert")).toHaveTextContent(
+      "関連を更新できませんでした。時間をおいて再度お試しください。",
+    );
+    expect(within(section).getByRole("link", { name: "猫の給水機" })).toBeInTheDocument();
+  });
+
   it("キーボードで追加ダイアログを開閉し、閉じたら＋へ焦点を戻す", () => {
     render(<ConsumableDetailContent consumable={detail()} />);
 
