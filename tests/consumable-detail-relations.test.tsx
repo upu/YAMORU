@@ -163,6 +163,27 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
     expect(screen.getByRole("link", { name: "消耗品を編集" })).toBeInTheDocument();
   });
 
+  it("続けて追加したとき、保存の完了順が入れ替わっても取りこぼさない", async () => {
+    const resolvers: ((result: { status: "ok" }) => void)[] = [];
+    setManagedItemRelationMock.mockImplementation(
+      () => new Promise<{ status: "ok" }>((resolve) => { resolvers.push(resolve); }),
+    );
+    render(<ConsumableDetailContent consumable={detail()} />);
+
+    const dialog = openPicker("管理対象");
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "猫の給水機" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "お風呂" }));
+
+    await waitFor(() => { expect(resolvers).toHaveLength(2); });
+    // 後から始めた保存が先に完了する。
+    resolvers[1]({ status: "ok" });
+    resolvers[0]({ status: "ok" });
+
+    const section = relationSection("管理対象");
+    expect(await within(section).findByRole("link", { name: "猫の給水機" })).toBeInTheDocument();
+    expect(within(section).getByRole("link", { name: "お風呂" })).toBeInTheDocument();
+  });
+
   it("保存に失敗したら一覧を変えずに理由を伝える", async () => {
     setManagedItemRelationMock.mockResolvedValue({
       message: "関連を更新できませんでした。時間をおいて再度お試しください。",

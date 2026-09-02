@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import {
+  type Dispatch,
   type ReactNode,
   type RefObject,
+  type SetStateAction,
   useCallback,
   useRef,
   useState,
@@ -132,9 +134,10 @@ function RelationList<T extends RelationCandidate>({
 
 // 追加・解除はサーバーへ反映できたときだけ一覧へ映す。失敗したときは一覧を
 // 変えず、理由をその場に出す。
+// 続けて操作したときに保存の完了順が入れ替わっても取りこぼさないよう、
+// 反映は操作を始めた時点の一覧ではなく、そのときの最新の一覧から作る。
 function useRelationEditor<T extends RelationCandidate>(
-  items: T[],
-  onChange: (items: T[]) => void,
+  onChange: Dispatch<SetStateAction<T[]>>,
   save: RelationSave,
 ) {
   const [message, setMessage] = useState("");
@@ -148,9 +151,12 @@ function useRelationEditor<T extends RelationCandidate>(
         return;
       }
       setMessage("");
-      onChange(related
-        ? [...items, item]
-        : items.filter((selected) => selected.id !== item.id));
+      onChange((current) => {
+        if (!related) return current.filter((selected) => selected.id !== item.id);
+        return current.some((selected) => selected.id === item.id)
+          ? current
+          : [...current, item];
+      });
     });
   }
 
@@ -193,7 +199,7 @@ function RelationSection<T extends RelationCandidate>({
   describe: (item: T) => string;
   items: T[];
   kicker: string;
-  onChange: (items: T[]) => void;
+  onChange: Dispatch<SetStateAction<T[]>>;
   renderItem: (item: T) => ReactNode;
   save: RelationSave;
   search: CandidateSearch<T>;
@@ -201,7 +207,7 @@ function RelationSection<T extends RelationCandidate>({
   unit: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { apply, isSaving, message } = useRelationEditor(items, onChange, save);
+  const { apply, isSaving, message } = useRelationEditor(onChange, save);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const selectedIds = new Set(items.map((item) => item.id));
 
