@@ -13,12 +13,19 @@ import {
   searchConsumableManagedItems,
   searchConsumableTaskRules,
 } from "./relation-actions";
-import { ConsumableRelationField } from "./relation-picker";
+import {
+  ConsumableRelationField,
+  describeManagedItem,
+  describeTaskRule,
+} from "./relation-picker";
 import { INITIAL_CONSUMABLE_STATE } from "./state";
 
-type ConsumableFormData = Omit<ConsumableDetail, "refills" | "taskRules"> & {
-  taskRules: ConsumableTaskRuleOption[];
-};
+// Issue #311: 関連付けは消耗品詳細から操作するため、フォームは本体の
+// 属性だけを受け取る。
+type ConsumableFormData = Pick<
+  ConsumableDetail,
+  "externalUrl" | "id" | "name" | "note" | "productCode"
+>;
 
 function SubmitButton({ mode }: { mode: "create" | "edit" }) {
   const { pending } = useFormStatus();
@@ -33,16 +40,6 @@ function SubmitButton({ mode }: { mode: "create" | "edit" }) {
       {pending ? "保存中…" : idleLabel}
     </button>
   );
-}
-
-// 同名のTodoを見分けられるよう、関連する管理対象名を添える。管理対象に
-// 紐づかないTodoはタイトルだけを表示する。
-function describeTaskRule({ managedItemName, title }: ConsumableTaskRuleOption): string {
-  return managedItemName === null ? title : `${title}（${managedItemName}）`;
-}
-
-function describeManagedItem({ name }: ConsumableRelationOption): string {
-  return name;
 }
 
 function ConsumableFields({ consumable }: { consumable?: ConsumableFormData }) {
@@ -73,15 +70,14 @@ function ConsumableFields({ consumable }: { consumable?: ConsumableFormData }) {
 // Issue #292: 選択済みの関連だけをフォームへ表示し、追加は検索できる
 // ダイアログから行う。Todoの候補は、選択済みの管理対象を手掛かりに
 // 並べ替えるため、管理対象の選択が変わるたびに検索関数を作り直す。
+// Issue #311: 登録のときだけ表示する。既存の消耗品の関連は詳細画面で扱う。
 function ConsumableRelationFields({
   initialManagedItems,
-  initialTaskRules,
 }: {
   initialManagedItems: ConsumableRelationOption[];
-  initialTaskRules: ConsumableTaskRuleOption[];
 }) {
   const [managedItems, setManagedItems] = useState(initialManagedItems);
-  const [taskRules, setTaskRules] = useState(initialTaskRules);
+  const [taskRules, setTaskRules] = useState<ConsumableTaskRuleOption[]>([]);
   const relatedIdsKey = managedItems.map((item) => item.id).join(",");
   const searchTaskRules = useCallback(
     (query: string) => searchConsumableTaskRules(
@@ -113,6 +109,36 @@ function ConsumableRelationFields({
   );
 }
 
+// Issue #311: 登録時は詳細画面がまだ無いため、最初の関連もここで選べる。
+// 既存の消耗品では関連の入口を詳細画面へ集約し、編集フォームは名前・型番・
+// 外部リンク・メモという本体属性の編集に絞る。
+function ConsumableRelationSection({
+  initialManagedItem,
+  mode,
+}: {
+  initialManagedItem?: ConsumableRelationOption;
+  mode: "create" | "edit";
+}) {
+  if (mode === "edit") {
+    return (
+      <p className="input-help">
+        関連する管理対象・Todoは、消耗品の詳細画面から追加・解除できます。
+      </p>
+    );
+  }
+  return (
+    <>
+      {/* 管理対象詳細から登録へ進んだ場合(#44)の初期選択を引き継ぐ。 */}
+      <ConsumableRelationFields
+        initialManagedItems={initialManagedItem === undefined ? [] : [initialManagedItem]}
+      />
+      <p className="input-help">
+        どれにも関連付けず、家庭共通の消耗品として登録できます。
+      </p>
+    </>
+  );
+}
+
 export function ConsumableForm({
   consumable,
   initialManagedItem,
@@ -124,10 +150,6 @@ export function ConsumableForm({
 }) {
   const action = mode === "create" ? createConsumable : updateConsumable;
   const [state, formAction] = useActionState(action, INITIAL_CONSUMABLE_STATE);
-  // 管理対象詳細から登録へ進んだ場合(#44)の初期選択を、選択済みの1件として
-  // 引き継ぐ。
-  const initialManagedItems = consumable?.managedItems
-    ?? (initialManagedItem === undefined ? [] : [initialManagedItem]);
 
   return (
     <form action={formAction} className="auth-form consumable-form">
@@ -136,14 +158,8 @@ export function ConsumableForm({
       )}
 
       <ConsumableFields consumable={consumable} />
-      <ConsumableRelationFields
-        initialManagedItems={initialManagedItems}
-        initialTaskRules={consumable?.taskRules ?? []}
-      />
+      <ConsumableRelationSection initialManagedItem={initialManagedItem} mode={mode} />
 
-      <p className="input-help">
-        どれにも関連付けず、家庭共通の消耗品として登録できます。
-      </p>
       <SubmitButton mode={mode} />
       {state.status === "error" ? (
         <p className="auth-feedback" role="alert">{state.message}</p>

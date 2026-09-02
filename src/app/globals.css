@@ -1209,8 +1209,11 @@ h1 {
 }
 
 /* Issue #240: RECORD見出し横の鉛筆アイコンなど、丸いアイコンだけのリンク。
-   refresh-button/account-menu-triggerと同じ大きさ・フォーカス表示にそろえる。 */
-.icon-link {
+   refresh-button/account-menu-triggerと同じ大きさ・フォーカス表示にそろえる。
+   Issue #311: 関連する管理対象・Todoの見出し横に置く「＋」も、同じ丸い
+   ボタンとして扱う。 */
+.icon-link,
+.icon-button {
   display: grid;
   flex: none;
   width: 42px;
@@ -1224,11 +1227,21 @@ h1 {
   text-decoration: none;
 }
 
-.icon-link:hover {
+.icon-button {
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-link:hover,
+.icon-button:hover {
   background: var(--green-pale);
 }
 
-.icon-link:focus-visible {
+.icon-link:focus-visible,
+.icon-button:focus-visible {
   outline: 3px solid rgb(64 103 120 / 38%);
   outline-offset: 2px;
 }
@@ -1749,10 +1762,12 @@ h1 {
   justify-content: flex-end;
 }
 
+/* Issue #311: 各項目の右端に解除ボタンが並ぶため、本文は残りの幅を使う。 */
 .consumable-related-todo {
   display: grid;
+  flex: 1;
   gap: 4px;
-  width: 100%;
+  min-width: 0;
 }
 
 .consumable-related-todo .input-help {

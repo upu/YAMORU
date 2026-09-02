@@ -7,6 +7,8 @@ import {
   listConsumables,
   listConsumablesForManagedItem,
   listConsumablesForTaskRule,
+  setConsumableManagedItemRelation,
+  setConsumableTaskRuleRelation,
   updateConsumable,
 } from "./consumables";
 import {
@@ -176,13 +178,13 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       taskRuleIds: [ruleId],
     });
 
+    await setConsumableManagedItemRelation(db, householdAMember, id, "item-a", false);
+    await setConsumableTaskRuleRelation(db, householdAMember, id, ruleId, false);
     await updateConsumable(db, householdAMember, id, {
       externalUrl: "https://example.com/filter",
-      managedItemIds: [],
       name: "交換フィルター",
       note: "型番を確認する",
       productCode: "FILTER-A",
-      taskRuleIds: [],
     });
 
     await expect(getConsumable(db, householdAMember, id)).resolves.toEqual({
@@ -195,6 +197,32 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       refills: [],
       stockStatus: "available",
       taskRules: [],
+    });
+  });
+
+  it("Issue #311: 本体の編集は関連付けを保ったまま属性だけを書き換える", async () => {
+    const { ruleId } = await createHouseholdAMaintenanceTask(db);
+    const id = await createConsumable(db, householdAMember, {
+      externalUrl: null,
+      managedItemIds: ["item-a"],
+      name: "交換フィルター",
+      note: null,
+      productCode: null,
+      taskRuleIds: [ruleId],
+    });
+
+    await updateConsumable(db, householdAMember, id, {
+      externalUrl: null,
+      name: "交換フィルター(大)",
+      note: null,
+      productCode: "FILTER-L",
+    });
+
+    await expect(getConsumable(db, householdAMember, id)).resolves.toMatchObject({
+      managedItems: [{ id: "item-a", name: "Item A" }],
+      name: "交換フィルター(大)",
+      productCode: "FILTER-L",
+      taskRules: [expect.objectContaining({ id: ruleId })],
     });
   });
 
@@ -235,12 +263,13 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
     await expect(getConsumable(db, householdAMember, id)).resolves.toBeNull();
     await expect(updateConsumable(db, householdAMember, id, {
       externalUrl: null,
-      managedItemIds: [],
       name: "書き換え不可",
       note: null,
       productCode: null,
-      taskRuleIds: [],
     })).rejects.toThrow("消耗品が見つかりません。");
+    await expect(
+      setConsumableManagedItemRelation(db, householdAMember, id, "item-a", true),
+    ).rejects.toThrow("消耗品が見つかりません。");
   });
 
   it("未認証・家庭未所属の利用者は読み書きできない", async () => {

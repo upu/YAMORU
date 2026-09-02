@@ -104,19 +104,21 @@ describe("Consumable編集操作", () => {
     updateConsumableInD1Mock.mockResolvedValue(undefined);
   });
 
-  it("関連を空にしてもConsumableを更新し、詳細へ戻す", async () => {
+  it("Issue #311: 本体の属性だけを更新し、関連付けには触れずに詳細へ戻す", async () => {
+    // 関連付けは詳細画面から操作するため、編集フォームは関連IDを送らない。
+    // 万一送られても本体属性の更新だけを行う。
     await updateConsumable(INITIAL_STATE, form({
       id: "consumable-id",
-      managedItemIds: [],
-      taskRuleIds: [],
+      managedItemIds: ["item-1"],
+      taskRuleIds: ["rule-1"],
     }));
 
-    expect(updateConsumableInD1Mock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      "consumable-id",
-      expect.objectContaining({ managedItemIds: [], taskRuleIds: [] }),
-    );
+    expect(updateConsumableInD1Mock).toHaveBeenCalledWith("db", "session", "consumable-id", {
+      externalUrl: "https://example.com/filter",
+      name: "交換フィルター",
+      note: "予備は棚の中",
+      productCode: "FILTER-A",
+    });
     expect(revalidatePathMock).toHaveBeenCalledWith("/consumables/consumable-id");
     expect(redirectMock).toHaveBeenCalledWith("/consumables/consumable-id");
   });

@@ -6,7 +6,7 @@ import { getConsumable, type ConsumableDetail } from "../../../lib/d1/consumable
 import { getD1Context } from "../../../lib/d1/context";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
-import { formatTokyoDateInput, formatTokyoMonthDay } from "../../time-zone";
+import { ConsumableRelations } from "../detail-relations";
 import { StockStatusControl } from "../stock-status-control";
 import { ConsumableRefillControl } from "../refill-control";
 
@@ -58,66 +58,6 @@ function ConsumableRecord({
   );
 }
 
-function ConsumableRelations({ consumable }: { consumable: ConsumableDetailData }) {
-  return (
-    <>
-      <section aria-labelledby="consumable-managed-items-title" className="detail-card">
-          <p className="detail-kicker">MANAGED ITEMS</p>
-          <h2 id="consumable-managed-items-title">関連する管理対象</h2>
-          {consumable.managedItems.length === 0 ? (
-            <p className="ledger-empty">関連する管理対象はありません。</p>
-          ) : (
-            <ul className="ledger-list">
-              {consumable.managedItems.map((item) => (
-                <li key={item.id}>
-                  <Link href={`/managed-items/${encodeURIComponent(item.id)}`}>{item.name}</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-      </section>
-
-      <section aria-labelledby="consumable-task-rules-title" className="detail-card">
-          <p className="detail-kicker">TODOS</p>
-          <h2 id="consumable-task-rules-title">関連するTodo</h2>
-          {consumable.taskRules.length === 0 ? (
-            <p className="ledger-empty">関連するTodoはありません。</p>
-          ) : (
-            <ul className="ledger-list">
-              {consumable.taskRules.map((rule) => (
-                <li key={rule.id}>
-                  <span className="consumable-related-todo">
-                    <span>{rule.title}</span>
-                    {rule.managedItemName === null ? null : (
-                      <span className="input-help">{rule.managedItemName}</span>
-                    )}
-                    <span className="input-help">{nextScheduleLabel(rule.nextOccurrence)}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-      </section>
-    </>
-  );
-}
-
-function nextScheduleLabel(
-  occurrence: ConsumableDetailData["taskRules"][number]["nextOccurrence"],
-): string {
-  if (occurrence === null) return "次回予定なし";
-  const { dueAt, scheduledFor } = occurrence;
-  if (scheduledFor === null && dueAt === null) return "次回: 未定";
-  if (scheduledFor === null || dueAt === null) {
-    throw new Error("Todoの予定日と期限の組み合わせが不正です。");
-  }
-  const scheduledLabel = formatTokyoMonthDay(scheduledFor);
-  if (formatTokyoDateInput(scheduledFor) === formatTokyoDateInput(dueAt)) {
-    return `次回: ${scheduledLabel}`;
-  }
-  return `次回: ${scheduledLabel}〜${formatTokyoMonthDay(dueAt)}`;
-}
-
 export function ConsumableDetailContent({
   consumable,
 }: {
@@ -137,7 +77,12 @@ export function ConsumableDetailContent({
         <StockStatusControl consumableId={consumable.id} stockStatus={consumable.stockStatus} />
         <ConsumableRefillControl consumableId={consumable.id} refills={consumable.refills} />
         <ConsumableRecord consumable={consumable} />
-        <ConsumableRelations consumable={consumable} />
+        {/* Issue #311: 関連の追加・解除は、関連を確認している場所で行う。 */}
+        <ConsumableRelations
+          consumableId={consumable.id}
+          managedItems={consumable.managedItems}
+          taskRules={consumable.taskRules}
+        />
       </div>
     </main>
   );
