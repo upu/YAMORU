@@ -200,6 +200,27 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
     expect(within(section).getByRole("link", { name: "猫の給水機" })).toBeInTheDocument();
   });
 
+  it("保存が終わるまで解除ボタンを押せないようにする", async () => {
+    let finishSave: (result: { status: "ok" }) => void = () => undefined;
+    setManagedItemRelationMock.mockImplementation(
+      () => new Promise<{ status: "ok" }>((resolve) => { finishSave = resolve; }),
+    );
+    render(<ConsumableDetailContent consumable={detail({ managedItems: MANAGED_ITEMS })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "猫の給水機を関連から外す" }));
+
+    // React 19のトランジションは、awaitをまたいでも保存が終わるまで進行中を保つ。
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "お風呂を関連から外す" })).toBeDisabled();
+    });
+
+    finishSave({ status: "ok" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "お風呂を関連から外す" })).toBeEnabled();
+    });
+  });
+
   it("保存の呼び出し自体が失敗しても、同じカードで理由を伝える", async () => {
     setManagedItemRelationMock.mockRejectedValue(new Error("network"));
     render(<ConsumableDetailContent consumable={detail({ managedItems: [MANAGED_ITEMS[0]] })} />);
