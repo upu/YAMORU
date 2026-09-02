@@ -118,36 +118,35 @@ describe("消耗品フォームの関連付け (Issue #292)", () => {
     });
   });
 
-  it("管理対象詳細から進んだ初期選択と、既存の関連を選択済みとして引き継ぐ", () => {
-    const { unmount } = render(
-      <ConsumableForm initialManagedItem={MANAGED_ITEMS[0]} mode="create" />,
-    );
+  it("管理対象詳細から進んだ初期選択を、登録フォームの選択済みとして引き継ぐ", () => {
+    render(<ConsumableForm initialManagedItem={MANAGED_ITEMS[0]} mode="create" />);
 
     expect(screen.getByRole("group", { name: "関連する管理対象（1件・任意）" }))
       .toBeInTheDocument();
     expect(selectedIds("managedItemIds")).toEqual(["item-1"]);
-    unmount();
+  });
 
+  it("Issue #311: 編集フォームは関連付けを扱わず、詳細画面へ案内する", () => {
     render(
       <ConsumableForm
         consumable={{
           externalUrl: null,
           id: "consumable-1",
-          managedItems: [MANAGED_ITEMS[1]],
           name: "交換フィルター",
           note: null,
           productCode: null,
-          stockStatus: "available",
-          taskRules: [TASK_RULES[0]],
         }}
         mode="edit"
       />,
     );
 
-    expect(selectedIds("managedItemIds")).toEqual(["item-2"]);
-    expect(selectedIds("taskRuleIds")).toEqual(["rule-1"]);
-    expect(screen.getByRole("button", { name: "給水機を掃除する（猫の給水機）を関連から外す" }))
+    expect(screen.queryByRole("button", { name: "＋ 管理対象を追加" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "＋ Todoを追加" })).not.toBeInTheDocument();
+    expect(selectedIds("managedItemIds")).toEqual([]);
+    expect(selectedIds("taskRuleIds")).toEqual([]);
+    expect(screen.getByText("関連する管理対象・Todoは、消耗品の詳細画面から追加・解除できます。"))
       .toBeInTheDocument();
+    expect(screen.getByLabelText("名前")).toHaveValue("交換フィルター");
   });
 
   it("候補が多い場合と0件の場合に、状況を読み上げ可能な案内で伝える", async () => {

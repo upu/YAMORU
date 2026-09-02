@@ -9,6 +9,10 @@ import {
   useState,
 } from "react";
 
+import type {
+  ConsumableRelationOption,
+  ConsumableTaskRuleOption,
+} from "../../lib/d1/consumables";
 import { DialogShell } from "../dialog-shell";
 import type { ConsumableCandidateResult } from "./relation-actions";
 
@@ -17,6 +21,20 @@ import type { ConsumableCandidateResult } from "./relation-actions";
 // 管理対象とTodoで同じ操作になるよう、単位の呼び名(unit)と候補の表示文
 // (describe)、候補の検索関数(search)だけを差し替えて共有する。
 export type RelationCandidate = { id: string };
+
+// 同名のTodoを見分けられるよう、関連する管理対象名を添える。管理対象に
+// 紐づかないTodoはタイトルだけを表示する。登録フォーム(#292)と消耗品詳細の
+// 関連カード(#311)が同じ言い回しを使う。
+export function describeTaskRule({
+  managedItemName,
+  title,
+}: ConsumableTaskRuleOption): string {
+  return managedItemName === null ? title : `${title}（${managedItemName}）`;
+}
+
+export function describeManagedItem({ name }: ConsumableRelationOption): string {
+  return name;
+}
 
 // 入力のたびにサーバーへ問い合わせないための待ち時間。空文字(ダイアログを
 // 開いた直後の初期候補)は待たずに取得する。
@@ -29,7 +47,7 @@ type CandidateState<T> =
   | { message: string; phase: "error" }
   | { phase: "loading" };
 
-type CandidateSearch<T> = (query: string) => Promise<ConsumableCandidateResult<T>>;
+export type CandidateSearch<T> = (query: string) => Promise<ConsumableCandidateResult<T>>;
 
 // 検索語が変わるたびに前回の取得を打ち切り、遅れて届いた結果で新しい結果を
 // 上書きしないようにする(activeフラグ)。reloadKeyは失敗後の再試行で増やす。
@@ -141,7 +159,9 @@ function CandidateSearchField({
   );
 }
 
-function RelationPickerDialog<T extends RelationCandidate>({
+// 詳細画面の関連カード(#311)も同じダイアログで候補を選ぶ。呼び出し側は
+// 選択済みのIDと切り替えの受け取りだけを渡す。
+export function RelationPickerDialog<T extends RelationCandidate>({
   describe,
   onClose,
   onToggle,

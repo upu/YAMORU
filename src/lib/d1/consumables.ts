@@ -29,12 +29,18 @@ export type ConsumableRelatedTaskRule = ConsumableTaskRuleOption & {
   nextOccurrence: ConsumableTaskRuleNextOccurrence | null;
 };
 
-export type ConsumableWriteInput = {
+// 消耗品本体の属性。#311で詳細画面から関連を操作できるようにしたため、
+// 編集フォームの保存は本体属性だけを書き換え、関連には触れない。
+export type ConsumableAttributesInput = {
   externalUrl: string | null;
-  managedItemIds: string[];
   name: string;
   note: string | null;
   productCode: string | null;
+};
+
+// 登録時は詳細画面がまだ無いため、最初の関連もまとめて受け取る。
+export type ConsumableWriteInput = ConsumableAttributesInput & {
+  managedItemIds: string[];
   taskRuleIds: string[];
 };
 
@@ -190,27 +196,76 @@ export async function updateConsumable(
   db: D1Database,
   session: D1Session,
   id: string,
-  input: ConsumableWriteInput,
+  input: ConsumableAttributesInput,
 ): Promise<void> {
   const householdId = await requireCurrentHouseholdId(db, session);
-  if (await loadConsumableRow(db, householdId, id) === null) {
+  const result = await db.prepare(
+    `UPDATE consumables
+        SET name = ?1, note = ?2, product_code = ?3, external_url = ?4,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      WHERE id = ?5 AND household_id = ?6`,
+  ).bind(input.name, input.note, input.productCode, input.externalUrl, id, householdId).run();
+  if (result.meta.changes !== 1) {
     throw new D1NotFoundError("消耗品が見つかりません。");
   }
-  await db.batch([
-    db.prepare(
-      `UPDATE consumables
-          SET name = ?1, note = ?2, product_code = ?3, external_url = ?4,
-              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-        WHERE id = ?5 AND household_id = ?6`,
-    ).bind(input.name, input.note, input.productCode, input.externalUrl, id, householdId),
-    db.prepare(
-      "DELETE FROM managed_item_consumables WHERE consumable_id = ?1 AND household_id = ?2",
-    ).bind(id, householdId),
-    db.prepare(
-      "DELETE FROM task_rule_consumables WHERE consumable_id = ?1 AND household_id = ?2",
-    ).bind(id, householdId),
-    ...relationStatements(db, householdId, id, input),
-  ]);
+}
+
+// Issue #311: 消耗品詳細の関連表示から1件ずつ追加・解除する。登録時の
+// まとめ書き(#44)と違い、他の関連には触れない。同じ関連を重ねて追加しても
+// 主キーの重複を無視して1件のままにし、家庭をまたぐIDは(id, household_id)の
+// 複合外部キーがDB側で拒否する。
+async function requireConsumableHousehold(
+  db: D1Database,
+  session: D1Session,
+  consumableId: string,
+): Promise<string> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  if (await loadConsumableRow(db, householdId, consumableId) === null) {
+    throw new D1NotFoundError("消耗品が見つかりません。");
+  }
+  return householdId;
+}
+
+export async function setConsumableManagedItemRelation(
+  db: D1Database,
+  session: D1Session,
+  consumableId: string,
+  managedItemId: string,
+  related: boolean,
+): Promise<void> {
+  const householdId = await requireConsumableHousehold(db, session, consumableId);
+  await (related
+    ? db.prepare(
+        `INSERT OR IGNORE INTO managed_item_consumables (
+          household_id, managed_item_id, consumable_id
+        ) VALUES (?1, ?2, ?3)`,
+      )
+    : db.prepare(
+        `DELETE FROM managed_item_consumables
+          WHERE household_id = ?1 AND managed_item_id = ?2 AND consumable_id = ?3`,
+      )
+  ).bind(householdId, managedItemId, consumableId).run();
+}
+
+export async function setConsumableTaskRuleRelation(
+  db: D1Database,
+  session: D1Session,
+  consumableId: string,
+  taskRuleId: string,
+  related: boolean,
+): Promise<void> {
+  const householdId = await requireConsumableHousehold(db, session, consumableId);
+  await (related
+    ? db.prepare(
+        `INSERT OR IGNORE INTO task_rule_consumables (
+          household_id, task_rule_id, consumable_id
+        ) VALUES (?1, ?2, ?3)`,
+      )
+    : db.prepare(
+        `DELETE FROM task_rule_consumables
+          WHERE household_id = ?1 AND task_rule_id = ?2 AND consumable_id = ?3`,
+      )
+  ).bind(householdId, taskRuleId, consumableId).run();
 }
 
 export async function updateConsumableStockStatus(

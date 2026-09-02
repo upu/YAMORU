@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import {
   createConsumable as createConsumableInD1,
   updateConsumable as updateConsumableInD1,
-  type ConsumableWriteInput,
+  type ConsumableAttributesInput,
 } from "../../lib/d1/consumables";
 import { getD1Context } from "../../lib/d1/context";
 import { isSafeExternalUrl } from "../managed-items/model";
@@ -43,9 +43,12 @@ function selectedIds(formData: FormData, field: string): string[] {
   )];
 }
 
-function parseConsumableForm(
+// Issue #311: 関連付けは詳細画面から1件ずつ操作する。フォームが扱うのは
+// 名前・型番・外部リンク・メモという消耗品本体の属性だけとし、登録のときに
+// 限って最初の関連もあわせて受け取る。
+function parseConsumableAttributes(
   formData: FormData,
-): ({ status: "ok" } & ConsumableWriteInput) | ConsumableActionState {
+): ({ status: "ok" } & ConsumableAttributesInput) | ConsumableActionState {
   const rawName = formData.get("name");
   const name = typeof rawName === "string" ? rawName.trim() : "";
   if (name === "" || Array.from(name).length > NAME_MAX_LENGTH) {
@@ -80,23 +83,21 @@ function parseConsumableForm(
 
   return {
     externalUrl: externalUrl.value,
-    managedItemIds: selectedIds(formData, "managedItemIds"),
     name,
     note: note.value,
     productCode: productCode.value,
     status: "ok",
-    taskRuleIds: selectedIds(formData, "taskRuleIds"),
   };
 }
 
-function writeInput(parsed: { status: "ok" } & ConsumableWriteInput): ConsumableWriteInput {
+function attributesInput(
+  parsed: { status: "ok" } & ConsumableAttributesInput,
+): ConsumableAttributesInput {
   return {
     externalUrl: parsed.externalUrl,
-    managedItemIds: parsed.managedItemIds,
     name: parsed.name,
     note: parsed.note,
     productCode: parsed.productCode,
-    taskRuleIds: parsed.taskRuleIds,
   };
 }
 
@@ -104,13 +105,17 @@ export async function createConsumable(
   _previousState: ConsumableActionState,
   formData: FormData,
 ): Promise<ConsumableActionState> {
-  const parsed = parseConsumableForm(formData);
+  const parsed = parseConsumableAttributes(formData);
   if (parsed.status !== "ok") return parsed;
 
   let id: string;
   try {
     const { db, session } = await getD1Context();
-    id = await createConsumableInD1(db, session, writeInput(parsed));
+    id = await createConsumableInD1(db, session, {
+      ...attributesInput(parsed),
+      managedItemIds: selectedIds(formData, "managedItemIds"),
+      taskRuleIds: selectedIds(formData, "taskRuleIds"),
+    });
   } catch {
     return {
       message: "消耗品を登録できませんでした。時間をおいて再度お試しください。",
@@ -133,12 +138,12 @@ export async function updateConsumable(
     return { message: "消耗品を特定できませんでした。", status: "error" };
   }
   const id = rawId.trim();
-  const parsed = parseConsumableForm(formData);
+  const parsed = parseConsumableAttributes(formData);
   if (parsed.status !== "ok") return parsed;
 
   try {
     const { db, session } = await getD1Context();
-    await updateConsumableInD1(db, session, id, writeInput(parsed));
+    await updateConsumableInD1(db, session, id, attributesInput(parsed));
   } catch {
     return {
       message: "消耗品を更新できませんでした。時間をおいて再度お試しください。",

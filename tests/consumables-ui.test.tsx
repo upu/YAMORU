@@ -6,10 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // Issue #292: 関連付けの候補はダイアログを開いたときにサーバーへ問い合わせる。
-// 候補の取得と選択の詳細はtests/consumable-relation-picker-ui.test.tsxで確認する。
+// 候補の取得と選択の詳細はtests/consumable-relation-picker-ui.test.tsx、
+// 詳細画面からの追加・解除はtests/consumable-detail-relations.test.tsxで確認する。
 vi.mock("../src/app/consumables/relation-actions", () => ({
   searchConsumableManagedItems: vi.fn(),
   searchConsumableTaskRules: vi.fn(),
+  setConsumableManagedItemRelation: vi.fn(),
+  setConsumableTaskRuleRelation: vi.fn(),
 }));
 
 import { ConsumableForm } from "../src/app/consumables/consumable-form";
@@ -141,6 +144,9 @@ describe("消耗品詳細", () => {
       "href",
       "/consumables/consumable-1/edit",
     );
+    // Issue #311: 本体属性の編集と関連付けの編集を、別々の入口として示す。
+    expect(screen.getByRole("button", { name: "管理対象を追加" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Todoを追加" })).toBeInTheDocument();
   });
 
   it("Issue #295: 関連Todoの一日・期間・未定・次回なしをTokyo暦日で表示する", () => {
