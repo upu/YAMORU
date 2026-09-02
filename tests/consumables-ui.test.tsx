@@ -35,7 +35,9 @@ describe("消耗品一覧", () => {
   it("Issue #291: 台帳の3入口で消耗品を現在地として示し、関連なしでも登録・確認できる", () => {
     render(<ConsumablesContent consumables={[CONSUMABLE]} />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "消耗品" })).toBeInTheDocument();
+    // Issue #309: 台帳内のカテゴリを切り替えてもページ見出しは「家の台帳」を保つ。
+    expect(screen.getByRole("heading", { level: 1, name: "家の台帳" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "消耗品" })).not.toBeInTheDocument();
     const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
     expect(within(navigation).getByRole("link", { name: "備品" }))
       .toHaveAttribute("href", "/managed-items?kind=asset");
@@ -54,6 +56,40 @@ describe("消耗品一覧", () => {
       "/consumables/consumable-1",
     );
     expect(screen.getByText("少ない")).toBeInTheDocument();
+  });
+
+  it("Issue #309: 台帳共通のヘッダーと、備品・サービス・契約と同じ位置の登録導線を持つ", () => {
+    render(<ConsumablesContent consumables={[CONSUMABLE]} />);
+
+    expect(screen.getByText("家の備品、サービス・契約、消耗品をまとめます。"))
+      .toBeInTheDocument();
+
+    // カテゴリ切り替え → 登録導線 → 一覧の順序を、備品・サービス・契約と揃える。
+    const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
+    const addLink = screen.getByRole("link", { name: "消耗品を登録" });
+    const list = screen.getByRole("region", { name: "登録済みの消耗品" });
+    expect(navigation.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(addLink.compareDocumentPosition(
+      within(list).getByRole("link", { name: "トイレットペーパー" }),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // 右下の共通追加ボタンも、備品・サービス・契約と同じ名前のまま消耗品登録へ進む。
+    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
+      "href",
+      "/consumables/new",
+    );
+  });
+
+  it("Issue #309: 消耗品が無いときも、登録の入口の言葉で案内する", () => {
+    render(<ConsumablesContent consumables={[]} />);
+
+    expect(screen.getByText(/まだ消耗品はありません。「消耗品を登録」から台帳に追加できます。/u))
+      .toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "消耗品を登録" })).toHaveAttribute(
+      "href",
+      "/consumables/new",
+    );
   });
 });
 
