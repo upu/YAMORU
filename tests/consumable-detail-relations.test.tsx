@@ -24,6 +24,9 @@ vi.mock("../src/app/consumables/relation-actions", () => ({
   setConsumableTaskRuleRelation: setTaskRuleRelationMock,
 }));
 
+import type {
+  ConsumableRelationUpdateResult,
+} from "../src/app/consumables/relation-actions";
 import {
   ConsumableDetailContent,
   type ConsumableDetailData,
@@ -195,6 +198,35 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
 
     const section = relationSection("管理対象");
     expect(await within(section).findByRole("alert")).toHaveTextContent(
+      "関連を更新できませんでした。時間をおいて再度お試しください。",
+    );
+    expect(within(section).getByRole("link", { name: "猫の給水機" })).toBeInTheDocument();
+  });
+
+  it("並行する保存が成功しても、失敗した操作の理由は残す", async () => {
+    const finishers: ((result: ConsumableRelationUpdateResult) => void)[] = [];
+    setManagedItemRelationMock.mockImplementation(
+      () => new Promise<ConsumableRelationUpdateResult>((resolve) => {
+        finishers.push(resolve);
+      }),
+    );
+    render(<ConsumableDetailContent consumable={detail({ managedItems: [MANAGED_ITEMS[0]] })} />);
+
+    const dialog = openPicker("管理対象");
+    // 解除(失敗する)と追加(成功する)を続けて行う。
+    fireEvent.click(await within(dialog).findByRole("checkbox", { name: "猫の給水機" }));
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "お風呂" }));
+
+    await waitFor(() => { expect(finishers).toHaveLength(2); });
+    finishers[0]({
+      message: "関連を更新できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
+    finishers[1]({ status: "ok" });
+
+    const section = relationSection("管理対象");
+    expect(await within(section).findByRole("link", { name: "お風呂" })).toBeInTheDocument();
+    expect(within(section).getByRole("alert")).toHaveTextContent(
       "関連を更新できませんでした。時間をおいて再度お試しください。",
     );
     expect(within(section).getByRole("link", { name: "猫の給水機" })).toBeInTheDocument();

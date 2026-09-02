@@ -148,6 +148,9 @@ function useRelationEditor<T extends RelationCandidate>(
   const [isSaving, startSaving] = useTransition();
 
   function apply(item: T, related: boolean) {
+    // 理由を消すのは新しい操作を始めるときだけにする。並行する保存が
+    // 成功したときに消さないことで、失敗した操作の理由が流れない。
+    setMessage("");
     startSaving(async () => {
       let result: ConsumableRelationUpdateResult;
       try {
@@ -160,7 +163,6 @@ function useRelationEditor<T extends RelationCandidate>(
         setMessage(result.message);
         return;
       }
-      setMessage("");
       onChange((current) => {
         if (!related) return current.filter((selected) => selected.id !== item.id);
         return current.some((selected) => selected.id === item.id)
