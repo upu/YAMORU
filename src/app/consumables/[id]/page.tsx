@@ -8,6 +8,7 @@ import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
 import { formatTokyoDateInput, formatTokyoMonthDay } from "../../time-zone";
 import { StockStatusControl } from "../stock-status-control";
+import { ConsumableRefillControl } from "../refill-control";
 
 export type ConsumableDetailData = ConsumableDetail;
 
@@ -134,6 +135,7 @@ export function ConsumableDetailContent({
 
       <div className="ledger-grid">
         <StockStatusControl consumableId={consumable.id} stockStatus={consumable.stockStatus} />
+        <ConsumableRefillControl consumableId={consumable.id} refills={consumable.refills} />
         <ConsumableRecord consumable={consumable} />
         <ConsumableRelations consumable={consumable} />
       </div>
