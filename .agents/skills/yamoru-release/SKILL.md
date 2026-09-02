@@ -30,7 +30,7 @@ Previewでは固定の架空アカウントだけを使う。ProductionのSecret
 - `target_sha`: Release対象とする`origin/main`の40桁commit SHA
 - `mode`: `dry-run`または`execute`。指定がなければ、依頼が評価だけなら`dry-run`、Release実施なら`execute`
 
-不足値はリポジトリとGitHubから読み取って候補を示せるが、複数候補があるversionまたはmilestoneを推測で選ばない。`target_sha`は同期確認後の`origin/main`から導出し、短縮SHAへ置き換えない。
+不足値はリポジトリとGitHubから読み取って候補を示せるが、複数候補があるversionまたはmilestoneを推測で選ばない。`target_sha`は同期確認後の`origin/main`から導出し、短縮SHAへ置き換えない。`execute`の依頼は、後述する安全条件をすべて満たすlocal `main`のfast-forward同期を含む。この同期だけを理由に追加承認を求めない。
 
 ## 状態とNo-Go
 
@@ -47,7 +47,7 @@ Previewでは固定の架空アカウントだけを使う。ProductionのSecret
 
 - tag、milestone、target SHAが未確定、形式不正、または互いに対応しない
 - milestoneにopen Issueが残る
-- 作業ツリーがdirty、現在branchが`main`でない、またはlocal `main`・`origin/main`・target SHAが一致しない
+- 作業ツリーがdirty、現在branchが`main`でない、または後述する許可済み同期後もlocal `main`・`origin/main`・target SHAが一致しない
 - target SHAに対する`Quality checks`または`Deploy preview`が未完了、失敗、あるいは別SHA向け
 - 同名tagまたはReleaseが意図しない状態・対象で既に存在する
 - Draftが`draft=true`、`prerelease=false`、完全なtarget SHAを同時に満たさない
@@ -58,20 +58,23 @@ Previewでは固定の架空アカウントだけを使う。ProductionのSecret
 
 公開承認がまだない状態は失敗ではなく`AWAITING_PUBLISH_APPROVAL`である。最初のRelease依頼を公開承認として流用せず、E2E成功の証拠を示した後に改めて承認を得る。
 
-## 1. 読み取り専用の準備確認
+## 1. 準備確認と安全なmain同期
 
-最初はGitHub Release、tag、workflowを変更しない。少なくとも次を確認する。
+最初はGitHub Release、tag、workflowを変更しない。`execute`で許可する唯一のローカル変更は、以下の条件を満たすlocal `main`のfast-forward同期である。少なくとも次を確認する。
 
 1. `git status --short`が空で、現在branchが`main`である。
-2. `git fetch origin main --tags --prune`後、local `main`と`origin/main`が一致し、その40桁SHAが`target_sha`である。
-3. milestoneが存在し、対象versionと対応し、open Issueが0件である。
-4. `target_sha`に対するmainの`Quality checks`が成功している。
-5. 同じ`target_sha`に対する`Deploy preview`が成功している。
-6. `release_tag`と同名の既存Releaseまたはremote tagがない。中断したDraftを再開する場合は、上書きせず後述のDraft条件をすべて照合する。
+2. `git fetch origin main --tags --prune`後、local `main`と`origin/main`の完全なSHAと祖先関係を確認する。
+3. SHAが異なり、`mode`が`execute`で、手順1の条件を維持し、かつlocal `main`が`origin/main`の祖先であるbehind-onlyの場合だけ、追加承認なしで`git merge --ff-only origin/main`を実行する。実行直後に現在branch、`git status --short`、local `main`、`origin/main`を読み直す。fast-forwardに失敗した場合や、ahead/divergedである場合は`NO_GO`として停止する。
+4. `dry-run`ではbranchやworktreeを変更しない。local `main`と`origin/main`が異なる場合は、同期候補を示して`NO_GO`とする。
+5. local `main`と`origin/main`が一致し、その40桁SHAが`target_sha`である。
+6. milestoneが存在し、対象versionと対応し、open Issueが0件である。
+7. `target_sha`に対するmainの`Quality checks`が成功している。
+8. 同じ`target_sha`に対する`Deploy preview`が成功している。
+9. `release_tag`と同名の既存Releaseまたはremote tagがない。中断したDraftを再開する場合は、上書きせず後述のDraft条件をすべて照合する。
 
 workflowは最新の`.github/workflows/`を読み、runの`headSha`、event、status、conclusion、URLを照合する。名前だけ一致する古いrunを証拠にしない。結果をtag、milestone、完全なSHA、各run URL付きで提示する。
 
-`dry-run`はここで終了し、変更系コマンドを実行しない。全項目成功なら`READY_FOR_DRAFT`、一項目でも失敗なら`NO_GO`を返す。これにより、正常なsnapshotと、例えば別SHAのPreview runまたは未完了Issueを含むsnapshotの両方を読み取り専用で評価できる。
+`dry-run`はここで終了し、fetch以外の変更系コマンドを実行しない。全項目成功なら`READY_FOR_DRAFT`、一項目でも失敗なら`NO_GO`を返す。これにより、正常なsnapshotと、例えばlocal `main`の遅れ、別SHAのPreview run、未完了Issueを含むsnapshotの両方を評価できる。
 
 ## 2. Draft ReleaseとPreview E2E
 
