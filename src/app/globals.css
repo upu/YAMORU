@@ -1809,6 +1809,49 @@ h1 {
   font-weight: 800;
 }
 
+.refill-action-form {
+  margin-top: 14px;
+}
+
+.refill-action-button {
+  min-height: 44px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--paper);
+  background: var(--green);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.refill-action-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.refill-history-title {
+  margin: 22px 0 0;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+
+.refill-history-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.refill-history-list li {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  font-weight: 800;
+}
+
 .stock-status-badge {
   flex: none;
   padding: 4px 9px;

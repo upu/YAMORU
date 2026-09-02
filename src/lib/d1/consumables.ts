@@ -25,6 +25,12 @@ export type ConsumableTaskRuleNextOccurrence = {
   scheduledFor: string | null;
 };
 
+export type ConsumableRefill = {
+  id: string;
+  recordedAt: string;
+  refilledOn: string;
+};
+
 export type ConsumableRelatedTaskRule = ConsumableTaskRuleOption & {
   nextOccurrence: ConsumableTaskRuleNextOccurrence | null;
 };
@@ -51,6 +57,7 @@ export type ConsumableDetail = {
   name: string;
   note: string | null;
   productCode: string | null;
+  refills: ConsumableRefill[];
   stockStatus: ConsumableStockStatus;
   taskRules: ConsumableRelatedTaskRule[];
 };
@@ -135,6 +142,58 @@ async function loadConsumableRow(
   ).bind(id, householdId).first<ConsumableRow>();
 }
 
+function loadConsumableManagedItems(
+  db: D1Database,
+  householdId: string,
+  id: string,
+) {
+  return db.prepare(
+    `SELECT m.id, m.name
+       FROM managed_item_consumables r
+       JOIN managed_items m
+         ON m.id = r.managed_item_id AND m.household_id = r.household_id
+      WHERE r.consumable_id = ?1 AND r.household_id = ?2
+      ORDER BY m.name COLLATE NOCASE, m.id`,
+  ).bind(id, householdId).all<ConsumableRelationOption>();
+}
+
+function loadConsumableTaskRules(
+  db: D1Database,
+  householdId: string,
+  id: string,
+) {
+  return db.prepare(
+    `SELECT t.id, t.title, m.name AS managedItemName,
+            o.id AS occurrenceId,
+            o.scheduled_for AS scheduledFor,
+            o.due_at AS dueAt
+       FROM task_rule_consumables r
+       JOIN task_rules t
+         ON t.id = r.task_rule_id AND t.household_id = r.household_id
+       LEFT JOIN managed_items m
+         ON m.id = t.managed_item_id AND m.household_id = t.household_id
+       LEFT JOIN task_occurrences o
+         ON o.task_rule_id = t.id
+        AND o.household_id = t.household_id
+        AND o.status = 'pending'
+      WHERE r.consumable_id = ?1 AND r.household_id = ?2
+      ORDER BY t.title COLLATE NOCASE, t.id`,
+  ).bind(id, householdId).all<ConsumableRelatedTaskRuleRow>();
+}
+
+function loadConsumableRefills(
+  db: D1Database,
+  householdId: string,
+  id: string,
+) {
+  return db.prepare(
+    `SELECT id, refilled_on AS refilledOn, recorded_at AS recordedAt
+       FROM consumable_refills
+      WHERE consumable_id = ?1 AND household_id = ?2
+      ORDER BY refilled_on DESC, recorded_at DESC, id DESC`,
+  ).bind(id, householdId).all<ConsumableRefill>();
+}
+
 export async function getConsumable(
   db: D1Database,
   session: D1Session,
@@ -143,32 +202,10 @@ export async function getConsumable(
   const householdId = await requireCurrentHouseholdId(db, session);
   const row = await loadConsumableRow(db, householdId, id);
   if (row === null) return null;
-  const [managedItems, taskRules] = await Promise.all([
-    db.prepare(
-      `SELECT m.id, m.name
-         FROM managed_item_consumables r
-         JOIN managed_items m
-           ON m.id = r.managed_item_id AND m.household_id = r.household_id
-        WHERE r.consumable_id = ?1 AND r.household_id = ?2
-        ORDER BY m.name COLLATE NOCASE, m.id`,
-    ).bind(id, householdId).all<ConsumableRelationOption>(),
-    db.prepare(
-      `SELECT t.id, t.title, m.name AS managedItemName,
-              o.id AS occurrenceId,
-              o.scheduled_for AS scheduledFor,
-              o.due_at AS dueAt
-         FROM task_rule_consumables r
-         JOIN task_rules t
-           ON t.id = r.task_rule_id AND t.household_id = r.household_id
-         LEFT JOIN managed_items m
-           ON m.id = t.managed_item_id AND m.household_id = t.household_id
-         LEFT JOIN task_occurrences o
-           ON o.task_rule_id = t.id
-          AND o.household_id = t.household_id
-          AND o.status = 'pending'
-        WHERE r.consumable_id = ?1 AND r.household_id = ?2
-        ORDER BY t.title COLLATE NOCASE, t.id`,
-    ).bind(id, householdId).all<ConsumableRelatedTaskRuleRow>(),
+  const [managedItems, taskRules, refills] = await Promise.all([
+    loadConsumableManagedItems(db, householdId, id),
+    loadConsumableTaskRules(db, householdId, id),
+    loadConsumableRefills(db, householdId, id),
   ]);
   return {
     externalUrl: row.external_url,
@@ -177,6 +214,7 @@ export async function getConsumable(
     name: row.name,
     note: row.note,
     productCode: row.product_code,
+    refills: refills.results,
     stockStatus: row.stock_status,
     taskRules: taskRules.results.map((taskRule) => ({
       id: taskRule.id,
@@ -190,6 +228,34 @@ export async function getConsumable(
       title: taskRule.title,
     })),
   };
+}
+
+export async function recordConsumableRefill(
+  db: D1Database,
+  session: D1Session,
+  id: string,
+  refilledOn: string,
+): Promise<void> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  if (await loadConsumableRow(db, householdId, id) === null) {
+    throw new D1NotFoundError("消耗品が見つかりません。");
+  }
+  const refillId = crypto.randomUUID();
+  // D1のbatchは一つのトランザクションとして扱われる。履歴追加が制約違反で
+  // 失敗した場合も、現在の在庫状態だけを「ある」へ変えない。
+  await db.batch([
+    db.prepare(
+      `UPDATE consumables
+          SET stock_status = 'available',
+              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = ?1 AND household_id = ?2`,
+    ).bind(id, householdId),
+    db.prepare(
+      `INSERT INTO consumable_refills (
+        id, household_id, consumable_id, refilled_on
+      ) VALUES (?1, ?2, ?3, ?4)`,
+    ).bind(refillId, householdId, id, refilledOn),
+  ]);
 }
 
 export async function updateConsumable(

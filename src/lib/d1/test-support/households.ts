@@ -19,6 +19,7 @@ export async function resetHouseholdFixtures(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare("DELETE FROM task_rule_consumables"),
     db.prepare("DELETE FROM managed_item_consumables"),
+    db.prepare("DELETE FROM consumable_refills"),
     db.prepare("DELETE FROM consumables"),
     db.prepare("DELETE FROM completion_corrections"),
     db.prepare("DELETE FROM invitation_claims"),

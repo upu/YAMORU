@@ -128,6 +128,7 @@ describe("消耗品詳細", () => {
       name: "トイレットペーパー",
       note: "収納棚の上段",
       productCode: "TP-12",
+      refills: [],
       stockStatus: "available",
       taskRules: [],
     };
@@ -157,6 +158,7 @@ describe("消耗品詳細", () => {
       name: "交換フィルター",
       note: null,
       productCode: null,
+      refills: [],
       stockStatus: "available",
       taskRules: [
         {

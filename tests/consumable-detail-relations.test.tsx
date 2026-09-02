@@ -56,6 +56,7 @@ function detail(overrides: Partial<ConsumableDetailData> = {}): ConsumableDetail
     name: "交換フィルター",
     note: null,
     productCode: null,
+    refills: [],
     stockStatus: "available",
     taskRules: [],
     ...overrides,

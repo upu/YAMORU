@@ -8,6 +8,7 @@ import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
 import { ConsumableRelations } from "../detail-relations";
 import { StockStatusControl } from "../stock-status-control";
+import { ConsumableRefillControl } from "../refill-control";
 
 export type ConsumableDetailData = ConsumableDetail;
 
@@ -74,6 +75,7 @@ export function ConsumableDetailContent({
 
       <div className="ledger-grid">
         <StockStatusControl consumableId={consumable.id} stockStatus={consumable.stockStatus} />
+        <ConsumableRefillControl consumableId={consumable.id} refills={consumable.refills} />
         <ConsumableRecord consumable={consumable} />
         {/* Issue #311: 関連の追加・解除は、関連を確認している場所で行う。 */}
         <ConsumableRelations
