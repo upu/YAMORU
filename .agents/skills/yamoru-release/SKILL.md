@@ -63,8 +63,16 @@ Previewでは固定の架空アカウントだけを使う。ProductionのSecret
 最初はGitHub Release、tag、workflowを変更しない。`execute`で許可する唯一のローカル変更は、以下の条件を満たすlocal `main`のfast-forward同期である。少なくとも次を確認する。
 
 1. `git status --short`が空で、現在branchが`main`である。
-2. `git fetch origin main --tags --prune`後、local `main`と`origin/main`の完全なSHAと祖先関係を確認する。
-3. SHAが異なり、`mode`が`execute`で、手順1の条件を維持し、かつlocal `main`が`origin/main`の祖先であるbehind-onlyの場合だけ、追加承認なしで`git merge --ff-only origin/main`を実行する。実行直後に現在branch、`git status --short`、local `main`、`origin/main`を読み直す。fast-forwardに失敗した場合や、ahead/divergedである場合は`NO_GO`として停止する。
+2. `git fetch origin main --tags --prune`後、次を実行してlocal `main`と`origin/main`の完全なSHA、ahead/behind件数、祖先関係を確認する。`git rev-list`の出力は左がlocalだけにあるcommit数、右が`origin/main`だけにあるcommit数である。
+
+   ```powershell
+   git rev-parse main
+   git rev-parse origin/main
+   git rev-list --left-right --count main...origin/main
+   git merge-base --is-ancestor main origin/main
+   ```
+
+3. SHAが異なり、`mode`が`execute`で、手順1の条件を維持し、`git rev-list`が`0 N`(`N > 0`)かつ`git merge-base --is-ancestor`が終了code 0のbehind-onlyの場合だけ、追加承認なしで`git merge --ff-only origin/main`を実行する。実行直後に`git branch --show-current`、`git status --short`、手順2の4コマンドを再実行し、branchが`main`、statusが空、SHAが一致、件数が`0 0`、祖先確認が終了code 0であることを確認する。fast-forwardや確認コマンドに失敗した場合、左の件数が1以上の場合、または祖先確認が終了code 0でない場合はahead/divergedとして`NO_GO`で停止する。
 4. `dry-run`ではbranchやworktreeを変更しない。local `main`と`origin/main`が異なる場合は、同期候補を示して`NO_GO`とする。
 5. local `main`と`origin/main`が一致し、その40桁SHAが`target_sha`である。
 6. milestoneが存在し、対象versionと対応し、open Issueが0件である。
