@@ -107,7 +107,7 @@ describe("固定資産税の台帳分類(Issue #177)", () => {
     await createCalendarTask(db, householdMember, {
       managedItemId: itemId,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "yearly",
       scheduleMonth: 5,
       scheduleMonthEnd: false,

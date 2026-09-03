@@ -224,7 +224,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,

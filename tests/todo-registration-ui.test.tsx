@@ -118,7 +118,9 @@ describe("Todo登録ページ", () => {
     fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
 
     expect(screen.getByLabelText("定例パターン")).toHaveValue("weekly");
-    expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    // Issue #102: 毎週は月〜日を複数選べるチェックボックスにする。
+    expect(screen.getByRole("checkbox", { name: "月曜日" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "日曜日" })).not.toBeChecked();
     expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
 
@@ -232,6 +234,36 @@ describe("Todo登録ページ", () => {
       "href",
       "/account",
     );
+  });
+});
+
+// Issue #102 / YDR-040: 毎週は複数の曜日を選べる。
+describe("Todo登録ページの毎週の曜日選択", () => {
+  it("毎週で曜日をすべて外すと、入力箇所と関連付いたエラーを表示する", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
+    const monday = screen.getByRole("checkbox", { name: "月曜日" });
+    const thursday = screen.getByRole("checkbox", { name: "木曜日" });
+
+    fireEvent.click(thursday);
+    expect(thursday).toBeChecked();
+    expect(screen.queryByText("曜日を1つ以上選んでください。")).not.toBeInTheDocument();
+
+    fireEvent.click(monday);
+    fireEvent.click(thursday);
+
+    const error = screen.getByText("曜日を1つ以上選んでください。");
+    expect(error).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "曜日" }))
+      .toHaveAttribute("aria-errormessage", error.id);
+    expect(monday).toBeRequired();
   });
 });
 

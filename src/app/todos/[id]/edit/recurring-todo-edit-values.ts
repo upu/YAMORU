@@ -1,3 +1,4 @@
+import { parseCalendarScheduleSpecs } from "../../../../lib/d1/calendar";
 import { type TodoDetailRow } from "../../../../lib/d1/todos";
 import { toRecurrenceBasis } from "../../../task-schedule";
 import { type RecurringRuleEditValues } from "./recurring-todo-edit-form";
@@ -40,20 +41,27 @@ function intervalValues(todo: TodoDetailRow): RecurringRuleEditValues {
   };
 }
 
+// Issue #102 / YDR-040: 編集フォームの初期値も候補指定の配列から作る。毎週は
+// 選択済みの曜日をすべて渡し、他の種類は候補指定1件から単一値を取り出す。
 function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
   const validKinds = ["weekly", "monthly_day", "monthly_nth_weekday", "yearly"];
-  if (todo.schedule_kind === null || !validKinds.includes(todo.schedule_kind)) {
+  const specs = parseCalendarScheduleSpecs(todo.schedule_specs);
+  const first = specs.at(0);
+  if (
+    todo.schedule_kind === null || !validKinds.includes(todo.schedule_kind) ||
+    first === undefined || first.kind !== todo.schedule_kind
+  ) {
     throw new Error("定例日基準Todoの条件が不正です。");
   }
   return {
     managedItemId: todo.managed_item_id,
     recurrenceBasis: "calendar",
-    scheduleDayOfMonth: todo.schedule_day_of_month,
-    scheduleDayOfWeek: todo.schedule_day_of_week,
+    scheduleDayOfMonth: first.dayOfMonth === 0 ? null : first.dayOfMonth,
+    scheduleDaysOfWeek: specs.map((spec) => spec.dayOfWeek).filter((day) => day !== 0),
     scheduleKind: todo.schedule_kind as "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly",
-    scheduleMonth: todo.schedule_month,
-    scheduleMonthEnd: todo.schedule_month_end === 1,
-    scheduleWeekOfMonth: todo.schedule_week_of_month,
+    scheduleMonth: first.month === 0 ? null : first.month,
+    scheduleMonthEnd: first.monthEnd,
+    scheduleWeekOfMonth: first.weekOfMonth === 0 ? null : first.weekOfMonth,
     title: todo.title,
   };
 }

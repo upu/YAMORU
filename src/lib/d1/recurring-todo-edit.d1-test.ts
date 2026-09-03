@@ -65,7 +65,7 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -78,7 +78,7 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -96,7 +96,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: "item-a",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -130,7 +130,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -144,7 +144,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       managedItemId: "item-a",
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 1,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -178,7 +178,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: "item-a",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -197,7 +197,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 1,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -205,22 +205,28 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       title: "月初の家族会議",
     });
 
-    await expect(loadTodoDetail(db, memberA, completedId)).resolves.toMatchObject({
+    // Issue #102 / YDR-040: 候補指定もスナップショットへ残るため、過去回は
+    // 当時の候補指定、現在回は編集後の候補指定を返す。
+    const completedDetail = await loadTodoDetail(db, memberA, completedId);
+    expect(completedDetail).toMatchObject({
       managed_item_id: "item-a",
       managed_item_name: "Item A",
       recurrence_basis: "calendar",
-      schedule_day_of_month: null,
-      schedule_day_of_week: 1,
       schedule_kind: "weekly",
       title: "毎週の家族会議",
     });
-    await expect(loadTodoDetail(db, memberA, nextId as string)).resolves.toMatchObject({
+    expect(JSON.parse(completedDetail?.schedule_specs ?? "[]")).toEqual([
+      expect.objectContaining({ dayOfWeek: 1, kind: "weekly" }),
+    ]);
+    const nextDetail = await loadTodoDetail(db, memberA, nextId as string);
+    expect(nextDetail).toMatchObject({
       managed_item_id: null,
-      schedule_day_of_month: 1,
-      schedule_day_of_week: null,
       schedule_kind: "monthly_day",
       title: "月初の家族会議",
     });
+    expect(JSON.parse(nextDetail?.schedule_specs ?? "[]")).toEqual([
+      expect.objectContaining({ dayOfMonth: 1, kind: "monthly_day" }),
+    ]);
     await expect(listRecentActiveCompletions(db, memberA, 10)).resolves.toEqual([
       expect.objectContaining({
         managed_item_id: "item-a",
@@ -244,7 +250,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -263,7 +269,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 8,
+      scheduleDaysOfWeek: [8],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -400,7 +406,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -417,7 +423,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       managedItemId: "item-b",
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 2,
+      scheduleDaysOfWeek: [2],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -428,7 +434,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 2,
+      scheduleDaysOfWeek: [2],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,

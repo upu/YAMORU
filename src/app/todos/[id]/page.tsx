@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
+import { parseCalendarScheduleSpecs } from "../../../lib/d1/calendar";
 import { getD1Context } from "../../../lib/d1/context";
 import {
   listConsumablesForTaskRule,
@@ -246,14 +247,9 @@ function buildRecurrenceLabel(row: TodoDetailRow): string {
     }
     return intervalLabel;
   }
-  const calendarLabel = describeCalendarSchedule({
-    scheduleDayOfMonth: row.schedule_day_of_month,
-    scheduleDayOfWeek: row.schedule_day_of_week,
-    scheduleKind: row.schedule_kind,
-    scheduleMonth: row.schedule_month,
-    scheduleMonthEnd: row.schedule_month_end === 1,
-    scheduleWeekOfMonth: row.schedule_week_of_month,
-  });
+  const calendarLabel = describeCalendarSchedule(
+    parseCalendarScheduleSpecs(row.schedule_specs),
+  );
   if (calendarLabel === null) {
     throw new Error("定例日基準Todoの繰り返しパターンが不正です。");
   }

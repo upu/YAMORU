@@ -1,6 +1,7 @@
 import type { D1Session } from "../../../lib/d1/authorization";
 import {
   calendarFirstScheduledFor,
+  calendarScheduleFromInput,
   type CompletionIntervalUnit,
   intervalFirstScheduledFor,
 } from "../../../lib/d1/calendar";
@@ -51,7 +52,8 @@ export type IntervalTodoInput = TodoBasics & {
 export type CalendarTodoInput = TodoBasics & {
   recurrenceBasis: "calendar";
   scheduleDayOfMonth?: number;
-  scheduleDayOfWeek?: number;
+  // Issue #102 / YDR-040: 毎週だけ複数の曜日を持つ。第N曜日は1件だけ入れる。
+  scheduleDaysOfWeek?: number[];
   scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
   // Issue #227 / YDR-032: monthly_dayのときだけ、固定日ではなく毎月末を
   // 意味する。日付は常に31を渡す(既存の月末補正規則、YDR-021)。
@@ -75,12 +77,12 @@ async function saveCalendarTodo(
   const schedule = {
     ...input,
     scheduleDayOfMonth: input.scheduleDayOfMonth ?? null,
-    scheduleDayOfWeek: input.scheduleDayOfWeek ?? null,
+    scheduleDaysOfWeek: input.scheduleDaysOfWeek ?? [],
     scheduleMonth: input.scheduleMonth ?? null,
     scheduleWeekOfMonth: input.scheduleWeekOfMonth ?? null,
   };
   await createCalendarTask(db, session, schedule, now);
-  const first = calendarFirstScheduledFor(schedule, now);
+  const first = calendarFirstScheduledFor(calendarScheduleFromInput(schedule), now);
   return { dueAt: first, scheduledFor: first };
 }
 

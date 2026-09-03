@@ -1,11 +1,18 @@
 const TOKYO_OFFSET = "+09:00";
 
-type CalendarSchedule = {
-  scheduleDayOfMonth: number | null;
-  scheduleDayOfWeek: number | null;
+// Issue #102 / YDR-040: 定例日基準ルールは1件以上の「候補指定」を持つ。
+// 候補列は各指定が生む暦日の和集合を昇順に並べ、同一暦日を1件へ畳んだもの。
+// 未使用の項目は0で表す(task_rule_schedulesの保存形式と同じ)。
+export type CalendarScheduleSpec = {
+  dayOfMonth: number;
+  dayOfWeek: number;
+  month: number;
+  weekOfMonth: number;
+};
+
+export type CalendarSchedule = {
   scheduleKind: string;
-  scheduleMonth: number | null;
-  scheduleWeekOfMonth: number | null;
+  specs: readonly CalendarScheduleSpec[];
 };
 
 // 形式だけでなく実在する暦日かも確かめる。Date.UTCは2026-02-30のような
@@ -124,18 +131,29 @@ function requireNumber(value: number | null, message: string): number {
   return value;
 }
 
-function monthlyOnOrAfter(schedule: CalendarSchedule, onOrAfter: string): string {
+// 候補指定では0が「未使用」を表すため、計算に使う値は正の数であることまで
+// 確かめる。0のまま計算すると、存在しない曜日・週・日付を無限に探し続ける。
+function requireSpecValue(value: number, message: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(message);
+  return value;
+}
+
+function monthlyOnOrAfter(
+  scheduleKind: string,
+  spec: CalendarScheduleSpec,
+  onOrAfter: string,
+): string {
   const start = parseDate(onOrAfter);
   let year = start.getUTCFullYear();
   let month = start.getUTCMonth() + 1;
   for (;;) {
-    const candidate = schedule.scheduleKind === "monthly_day"
-      ? monthlyCandidate(year, month, requireNumber(schedule.scheduleDayOfMonth, "Invalid monthly day"))
+    const candidate = scheduleKind === "monthly_day"
+      ? monthlyCandidate(year, month, requireSpecValue(spec.dayOfMonth, "Invalid monthly day"))
       : nthWeekdayCandidate(
           year,
           month,
-          requireNumber(schedule.scheduleDayOfWeek, "Invalid weekday"),
-          requireNumber(schedule.scheduleWeekOfMonth, "Invalid week"),
+          requireSpecValue(spec.dayOfWeek, "Invalid weekday"),
+          requireSpecValue(spec.weekOfMonth, "Invalid week"),
         );
     if (candidate !== null && candidate >= onOrAfter) return candidate;
     month += 1;
@@ -236,29 +254,48 @@ export function nextIntervalOccurrence(
   return tokyoDateToIso(addDays(anchor, steps * days));
 }
 
-export function calendarScheduledForOnOrAfter(
-  schedule: CalendarSchedule,
+// 候補指定1件が生む、指定した暦日以降の最初の候補(Asia/Tokyoの暦日)。
+function specDateOnOrAfter(
+  scheduleKind: string,
+  spec: CalendarScheduleSpec,
   onOrAfter: string,
 ): string {
   const start = parseDate(onOrAfter);
-  if (schedule.scheduleKind === "weekly") {
-    const target = requireNumber(schedule.scheduleDayOfWeek, "Invalid weekday");
-    return tokyoDateToIso(addDays(onOrAfter, (target - isoDayOfWeek(start) + 7) % 7));
+  if (scheduleKind === "weekly") {
+    const target = requireSpecValue(spec.dayOfWeek, "Invalid weekday");
+    return addDays(onOrAfter, (target - isoDayOfWeek(start) + 7) % 7);
   }
-  if (schedule.scheduleKind === "monthly_day" || schedule.scheduleKind === "monthly_nth_weekday") {
-    return tokyoDateToIso(monthlyOnOrAfter(schedule, onOrAfter));
+  if (scheduleKind === "monthly_day" || scheduleKind === "monthly_nth_weekday") {
+    return monthlyOnOrAfter(scheduleKind, spec, onOrAfter);
   }
-  if (schedule.scheduleKind === "yearly") {
-    const month = requireNumber(schedule.scheduleMonth, "Invalid month");
-    const day = requireNumber(schedule.scheduleDayOfMonth, "Invalid day");
+  if (scheduleKind === "yearly") {
+    const month = requireSpecValue(spec.month, "Invalid month");
+    const day = requireSpecValue(spec.dayOfMonth, "Invalid day");
     let year = start.getUTCFullYear();
     for (;;) {
       const candidate = monthlyCandidate(year, month, day);
-      if (candidate >= onOrAfter) return tokyoDateToIso(candidate);
+      if (candidate >= onOrAfter) return candidate;
       year += 1;
     }
   }
   throw new Error("Invalid calendar schedule");
+}
+
+// Issue #102 / YDR-040の5: 統合済み候補列の「指定した暦日以降の最初の候補」は、
+// 候補指定ごとに最初の候補を求めてその最小値を採る。候補指定の件数に比例した
+// 計算で済み、暦日を1日ずつ進める探索をしない。同一暦日を複数の指定が生んでも
+// 最小値は1つに定まるため、重複排除は最小値を採ること自体で満たされる。
+export function calendarScheduledForOnOrAfter(
+  schedule: CalendarSchedule,
+  onOrAfter: string,
+): string {
+  const candidates = schedule.specs.map(
+    (spec) => specDateOnOrAfter(schedule.scheduleKind, spec, onOrAfter),
+  );
+  const earliest = candidates.sort().at(0);
+  // 候補指定が0件のルールは「候補なし」を返さずエラーにする(YDR-040の7)。
+  if (earliest === undefined) throw new Error("Calendar schedule has no spec");
+  return tokyoDateToIso(earliest);
 }
 
 // Issue #286: 登録直後の初回Occurrenceの予定日。登録処理(createCalendarTask /
@@ -296,4 +333,135 @@ export function nextCalendarOccurrence(
     );
   }
   return candidate;
+}
+
+// Issue #102 / YDR-040: 保存された候補指定(task_rule_schedules、および
+// YDR-039のrule_snapshot内のscheduleSpecs)を読む形。候補計算に使う項目に
+// 加えて、表示だけが使う種類・月末・最終曜日も持つ。
+export type StoredCalendarSpec = {
+  dayOfMonth: number;
+  dayOfWeek: number;
+  kind: string;
+  month: number;
+  monthEnd: boolean;
+  weekLast: boolean;
+  weekOfMonth: number;
+};
+
+function toSpecNumber(value: unknown): number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+
+function toSpecFlag(value: unknown): boolean {
+  return value === 1 || value === true;
+}
+
+function toStoredCalendarSpec(value: unknown): StoredCalendarSpec | null {
+  if (typeof value !== "object" || value === null) return null;
+  const spec = value as Record<string, unknown>;
+  if (typeof spec.kind !== "string" || spec.kind === "") return null;
+  return {
+    dayOfMonth: toSpecNumber(spec.dayOfMonth),
+    dayOfWeek: toSpecNumber(spec.dayOfWeek),
+    kind: spec.kind,
+    month: toSpecNumber(spec.month),
+    monthEnd: toSpecFlag(spec.monthEnd),
+    weekLast: toSpecFlag(spec.weekLast),
+    weekOfMonth: toSpecNumber(spec.weekOfMonth),
+  };
+}
+
+// 候補指定は暦上の昇順で扱い、保存順・入力順に依存しない(YDR-040の7)。
+// 壊れた行を黙って捨てると候補が静かにずれるため、形が違う要素は落とさず
+// 空配列として扱い、呼び出し側でエラーにする。
+export function parseCalendarScheduleSpecs(value: string | null): StoredCalendarSpec[] {
+  if (value === null || value === "") return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const specs = parsed.map(toStoredCalendarSpec);
+  if (specs.some((spec) => spec === null)) return [];
+  return (specs as StoredCalendarSpec[]).sort(compareStoredCalendarSpecs);
+}
+
+// 並び順は保存側(rule-snapshot.tsのCALENDAR_SCHEDULE_SPEC_ORDER)と同じキー順に
+// そろえる。読み書きで順序が食い違うと、同じ候補指定でもスナップショットの
+// 比較が一致しなくなる。
+function compareStoredCalendarSpecs(
+  left: StoredCalendarSpec,
+  right: StoredCalendarSpec,
+): number {
+  return left.month - right.month ||
+    left.dayOfMonth - right.dayOfMonth ||
+    left.weekOfMonth - right.weekOfMonth ||
+    Number(left.weekLast) - Number(right.weekLast) ||
+    left.dayOfWeek - right.dayOfWeek;
+}
+
+// 保存された候補指定から候補計算用のスケジュールを組み立てる。一つのルールの
+// 候補指定はすべて同じ種類である(YDR-040の3)。
+export function calendarScheduleFromSpecs(
+  specs: readonly StoredCalendarSpec[],
+): CalendarSchedule {
+  const scheduleKind = specs.at(0)?.kind;
+  if (scheduleKind === undefined) throw new Error("Calendar schedule has no spec");
+  if (specs.some((spec) => spec.kind !== scheduleKind)) {
+    throw new Error("Calendar schedule mixes spec kinds");
+  }
+  return { scheduleKind, specs };
+}
+
+// 登録・編集フォームが渡す定例日の指定。毎週だけ複数の曜日を持てる
+// (Issue #102 / YDR-040の3)。
+export type CalendarScheduleInput = {
+  scheduleDayOfMonth: number | null;
+  scheduleDaysOfWeek: readonly number[];
+  scheduleKind: string;
+  scheduleMonth: number | null;
+  scheduleMonthEnd: boolean;
+  scheduleWeekOfMonth: number | null;
+};
+
+const MAX_CALENDAR_SPECS = 7;
+
+// 入力を保存形式の候補指定へ変換する。曜日は昇順に並べ、同じ曜日は1件へ畳む
+// (YDR-040の7)。毎週以外は候補指定を1件だけ持つ。
+export function calendarSpecsFromInput(
+  input: CalendarScheduleInput,
+): StoredCalendarSpec[] {
+  const weekdays = [...new Set(input.scheduleDaysOfWeek)].sort((left, right) => left - right);
+  if (input.scheduleKind === "weekly") {
+    if (weekdays.length === 0 || weekdays.length > MAX_CALENDAR_SPECS) {
+      throw new Error("Weekly schedule requires 1 to 7 weekdays");
+    }
+    return weekdays.map((dayOfWeek) => ({
+      dayOfMonth: 0,
+      dayOfWeek,
+      kind: input.scheduleKind,
+      month: 0,
+      monthEnd: false,
+      weekLast: false,
+      weekOfMonth: 0,
+    }));
+  }
+  if (weekdays.length > 1) {
+    throw new Error("Only weekly schedules can have multiple weekdays");
+  }
+  return [{
+    dayOfMonth: input.scheduleDayOfMonth ?? 0,
+    dayOfWeek: weekdays.at(0) ?? 0,
+    kind: input.scheduleKind,
+    month: input.scheduleMonth ?? 0,
+    monthEnd: input.scheduleMonthEnd,
+    weekLast: false,
+    weekOfMonth: input.scheduleWeekOfMonth ?? 0,
+  }];
+}
+
+export function calendarScheduleFromInput(input: CalendarScheduleInput): CalendarSchedule {
+  return calendarScheduleFromSpecs(calendarSpecsFromInput(input));
 }
