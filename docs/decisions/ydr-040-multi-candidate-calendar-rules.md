@@ -118,6 +118,8 @@ decision_date: 2026-09-03
 - 最終曜日は`week_last = 1`で表し、そのとき`week_of_month`は5とする。第5曜日は`week_of_month = 5`かつ`week_last = 0`である。両方を同時に指定でき、金曜が5回ある月では2で述べたとおり同じ候補へ畳まれる。
 - 家庭境界は既存テーブルと同じく複合外部キー`(task_rule_id, household_id)`で守り、クライアントから`household_id`を受け取らない。
 - 候補指定の種類と値の組み合わせ(`weekly`なら曜日だけ、`monthly_nth_weekday`なら曜日と週、`yearly_nth_weekday`なら曜日と週と月が非0)は、子テーブルのCHECK制約で表現する。親の`schedule_kind`との一致は、`task_rules`の`(id, schedule_kind)`に対する複合外部キーで守る。
+- ただしSQLiteの外部キーは、参照先の列にPRIMARY KEYまたはUNIQUEの索引があることを要求する。現在の`task_rules`は`id`のPRIMARY KEYと`UNIQUE (id, household_id)`しか持たないため、この複合外部キーはそのままでは成立しない。成立させるには`task_rules`へ`UNIQUE (id, schedule_kind)`を追加する必要があり、追加はこの節の最後に述べるテーブル再作成と同じ変更で行う。追加しない場合、親子の種類の一致はアプリ層の検証だけに残るため、その形は採らない。
+- 子行が親の`schedule_kind`を参照するため、定例日の種類そのものを変える編集(例: `weekly`から`monthly_nth_weekday`)では、古い子行を残したまま親だけを更新できない。次の項目と同じく、1つのD1 batch内で子行の削除→親の`schedule_kind`更新→新しい子行の挿入の順に実行する。
 - 「候補指定が1件以上」と「7件以下」は行数に対する条件であり、SQLiteのCHECK制約では表現できない。書き込み経路をアプリ層の検証と1つのD1 batch(子行の削除→親の更新→子行の挿入)へ閉じることで守る。途中状態で子行が0件になる更新手順を許す必要があるため、最後の1件の削除を拒否するTRIGGERは置かない。
 - `task_rules`の`recurrence_basis`ごとの複合CHECK制約は、`schedule_kind`の列挙に`yearly_nth_weekday`を加えるため作り直す。SQLiteではCHECK制約の列挙をALTER TABLEで拡張できないため、`0016_interval_recurrence.sql`と同じテーブル再作成の手順(子テーブル群も同じ順序で作り直す)を用いる。
 
