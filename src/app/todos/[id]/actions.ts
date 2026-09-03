@@ -12,7 +12,7 @@ import {
 } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import { getTokyoDayDistance, tokyoDateToUtcIso } from "../../time-zone";
-import { WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
+import { parseCalendarRuleSchedule } from "./calendar-rule-input";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const COMPLETION_UNIT_DAYS = { day: 1, week: 7 } as const;
@@ -226,77 +226,18 @@ function recurringBasics(
   };
 }
 
-type CalendarSchedule = Pick<
-  Extract<RecurringTaskRuleUpdate, { recurrenceBasis: "calendar" }>,
-  | "scheduleDayOfMonth" | "scheduleDaysOfWeek" | "scheduleKind"
-  | "scheduleMonth" | "scheduleMonthEnd" | "scheduleWeekOfMonth"
->;
-
-// Issue #102 / YDR-040: 毎週は複数の曜日を選べる。同じ曜日は畳み、昇順に
-// そろえてから渡す。1つも選ばれていない場合は保存しない(YDR-040の7)。
-function weeklySchedule(formData: FormData): CalendarSchedule | null {
-  const values = formData.getAll(WEEKDAYS_FIELD_NAME);
-  const weekdays = values.map((value) =>
-    typeof value === "string" && /^[1-7]$/.test(value) ? Number(value) : null
-  );
-  if (weekdays.length === 0 || weekdays.some((weekday) => weekday === null)) return null;
-  return {
-    scheduleDayOfMonth: null,
-    scheduleDaysOfWeek: [...new Set(weekdays as number[])].sort((left, right) => left - right),
-    scheduleKind: "weekly",
-    scheduleMonth: null,
-    scheduleMonthEnd: false,
-    scheduleWeekOfMonth: null,
-  };
-}
-
-function monthlyDaySchedule(formData: FormData): CalendarSchedule | null {
-  const monthEnd = formData.get("scheduleMonthEnd") === "1";
-  const day = monthEnd ? 31 : parseIntegerField(formData, "scheduleDayOfMonth", 1, 31);
-  return day === null ? null : {
-    scheduleDayOfMonth: day, scheduleDaysOfWeek: [], scheduleKind: "monthly_day",
-    scheduleMonth: null, scheduleMonthEnd: monthEnd, scheduleWeekOfMonth: null,
-  };
-}
-
-function monthlyWeekdaySchedule(formData: FormData): CalendarSchedule | null {
-  const weekday = parseIntegerField(formData, "scheduleDayOfWeek", 1, 7);
-  const week = parseIntegerField(formData, "scheduleWeekOfMonth", 1, 5);
-  return weekday === null || week === null ? null : {
-    scheduleDayOfMonth: null, scheduleDaysOfWeek: [weekday],
-    scheduleKind: "monthly_nth_weekday", scheduleMonth: null,
-    scheduleMonthEnd: false, scheduleWeekOfMonth: week,
-  };
-}
-
-function yearlySchedule(formData: FormData): CalendarSchedule | null {
-  const month = parseIntegerField(formData, "scheduleMonth", 1, 12);
-  const day = parseIntegerField(formData, "scheduleDayOfMonth", 1, 31);
-  return month === null || day === null ? null : {
-    scheduleDayOfMonth: day, scheduleDaysOfWeek: [], scheduleKind: "yearly",
-    scheduleMonth: month, scheduleMonthEnd: false, scheduleWeekOfMonth: null,
-  };
-}
-
-function calendarSchedule(formData: FormData, kind: string): CalendarSchedule | null {
-  switch (kind) {
-    case "weekly": return weeklySchedule(formData);
-    case "monthly_day": return monthlyDaySchedule(formData);
-    case "monthly_nth_weekday": return monthlyWeekdaySchedule(formData);
-    case "yearly": return yearlySchedule(formData);
-    default: return null;
-  }
-}
-
 function calendarRuleInput(
   formData: FormData,
   basics: Exclude<ReturnType<typeof recurringBasics>, MaintenanceTodoActionState>,
 ): RecurringTaskRuleUpdate | MaintenanceTodoActionState {
   const rawKind = formData.get("scheduleKind");
-  const schedule = typeof rawKind === "string" ? calendarSchedule(formData, rawKind) : null;
+  const schedule = typeof rawKind === "string"
+    ? parseCalendarRuleSchedule(formData, rawKind)
+    : null;
   if (schedule === null) {
     return { message: "定例パターンを正しく入力してください。", status: "error" };
   }
+  if ("status" in schedule) return schedule;
   return {
     managedItemId: basics.managedItemId,
     recurrenceBasis: "calendar",

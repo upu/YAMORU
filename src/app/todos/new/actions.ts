@@ -26,6 +26,11 @@ import {
   tokyoDateToUtcIso,
 } from "../../time-zone";
 import { EMPTY_WEEKDAYS_MESSAGE, WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
+import {
+  EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE,
+  MONTHLY_WEEK_LAST_FIELD_NAME,
+  MONTHLY_WEEKS_FIELD_NAME,
+} from "../monthly-week-position-checkboxes";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const INTERVAL_UNIT_DAYS = { day: 1, week: 7 } as const;
@@ -66,6 +71,10 @@ const INVALID_CALENDAR_SCHEDULE: MaintenanceTodoActionState = {
 // Issue #102 / YDR-040の7: 候補指定が0件のルールは作れない。
 const EMPTY_WEEKDAYS: MaintenanceTodoActionState = {
   message: EMPTY_WEEKDAYS_MESSAGE,
+  status: "error",
+};
+const EMPTY_MONTHLY_WEEK_POSITIONS: MaintenanceTodoActionState = {
+  message: EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE,
   status: "error",
 };
 
@@ -172,44 +181,75 @@ function parseWeeklyCalendarTodo(
   };
 }
 
+function parseMonthlyWeekPositions(
+  formData: FormData,
+): { last: boolean; weeks: number[] } | null {
+  const rawLast = formData.get(MONTHLY_WEEK_LAST_FIELD_NAME);
+  if (rawLast !== null && rawLast !== "0" && rawLast !== "1") return null;
+  const values = formData.getAll(MONTHLY_WEEKS_FIELD_NAME);
+  const parsed = values.map((value) => parseBoundedInteger(value, 1, 5));
+  if (parsed.some((week) => week === null)) return null;
+  return {
+    last: rawLast === "1",
+    weeks: [...new Set(parsed as number[])].sort((left, right) => left - right),
+  };
+}
+
+function parseMonthlyWeekdayCalendarTodo(
+  basics: TodoBasics,
+  formData: FormData,
+): CalendarTodoInput | MaintenanceTodoActionState {
+  const dayOfWeek = parseBoundedInteger(formData.get("scheduleDayOfWeek"), 1, 7);
+  const positions = parseMonthlyWeekPositions(formData);
+  if (dayOfWeek === null || positions === null) return INVALID_CALENDAR_SCHEDULE;
+  if (positions.weeks.length === 0 && !positions.last) {
+    return EMPTY_MONTHLY_WEEK_POSITIONS;
+  }
+  return {
+    ...basics,
+    recurrenceBasis: "calendar",
+    scheduleDaysOfWeek: [dayOfWeek],
+    scheduleKind: "monthly_nth_weekday",
+    scheduleMonthEnd: false,
+    scheduleWeekLast: positions.last,
+    scheduleWeekOfMonth: positions.weeks.at(0) ?? null,
+    scheduleWeeksOfMonth: positions.weeks,
+  };
+}
+
+function parseYearlyCalendarTodo(
+  basics: TodoBasics,
+  formData: FormData,
+): CalendarTodoInput | MaintenanceTodoActionState {
+  const day = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
+  const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
+  if (day === null || month === null || !isValidYearlyDate(month, day)) {
+    return INVALID_CALENDAR_SCHEDULE;
+  }
+  return {
+    ...basics,
+    recurrenceBasis: "calendar",
+    scheduleDayOfMonth: day,
+    scheduleKind: "yearly",
+    scheduleMonth: month,
+    scheduleMonthEnd: false,
+  };
+}
+
 function parseCalendarTodo(
   basics: TodoBasics,
   formData: FormData,
 ): CalendarTodoInput | MaintenanceTodoActionState {
   const scheduleKind = formData.get("scheduleKind");
-  const dayOfWeek = parseBoundedInteger(formData.get("scheduleDayOfWeek"), 1, 7);
-  const dayOfMonth = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
-  const weekOfMonth = parseBoundedInteger(formData.get("scheduleWeekOfMonth"), 1, 5);
-  const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
-
   if (scheduleKind === "weekly") return parseWeeklyCalendarTodo(basics, formData);
   if (scheduleKind === "monthly_day") {
-    const parsed = parseMonthlyDayCalendarTodo(basics, formData, dayOfMonth);
-    if (parsed !== null) return parsed;
+    const day = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
+    return parseMonthlyDayCalendarTodo(basics, formData, day) ?? INVALID_CALENDAR_SCHEDULE;
   }
-  if (scheduleKind === "monthly_nth_weekday" && dayOfWeek !== null && weekOfMonth !== null) {
-    return {
-      ...basics,
-      recurrenceBasis: "calendar",
-      scheduleDaysOfWeek: [dayOfWeek],
-      scheduleKind,
-      scheduleMonthEnd: false,
-      scheduleWeekOfMonth: weekOfMonth,
-    };
+  if (scheduleKind === "monthly_nth_weekday") {
+    return parseMonthlyWeekdayCalendarTodo(basics, formData);
   }
-  if (
-    scheduleKind === "yearly" && month !== null && dayOfMonth !== null &&
-    isValidYearlyDate(month, dayOfMonth)
-  ) {
-    return {
-      ...basics,
-      recurrenceBasis: "calendar",
-      scheduleDayOfMonth: dayOfMonth,
-      scheduleKind,
-      scheduleMonth: month,
-      scheduleMonthEnd: false,
-    };
-  }
+  if (scheduleKind === "yearly") return parseYearlyCalendarTodo(basics, formData);
   return INVALID_CALENDAR_SCHEDULE;
 }
 

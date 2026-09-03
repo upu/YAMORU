@@ -70,6 +70,7 @@ function todoForm(overrides: Record<string, string | string[]> = {}) {
     scheduleDaysOfWeek: ["1"],
     scheduleKind: "weekly",
     scheduleMonth: "8",
+    scheduleWeekLast: "0",
     scheduleWeekOfMonth: "2",
     title: "家族会議",
     ...overrides,
@@ -220,7 +221,12 @@ describe("専用ページのTodo登録操作", () => {
     ["monthly_day", { scheduleDayOfMonth: 31 }],
     [
       "monthly_nth_weekday",
-      { scheduleDaysOfWeek: [2], scheduleWeekOfMonth: 5 },
+      {
+        scheduleDaysOfWeek: [2],
+        scheduleWeekLast: false,
+        scheduleWeekOfMonth: 5,
+        scheduleWeeksOfMonth: [5],
+      },
     ],
     ["yearly", { scheduleDayOfMonth: 29, scheduleMonth: 2 }],
   ])("%sの構造化された暦規則をRPCへ渡す", async (scheduleKind, expected) => {
@@ -249,7 +255,55 @@ describe("専用ページのTodo登録操作", () => {
       ...expected,
     }, expect.any(Date));
   });
+});
 
+describe("毎月の複数第N曜日と最終曜日", () => {
+  // Issue #100 / YDR-040: 曜日は1つ、第1〜第5と最終は複数選択として渡す。
+  it("毎月の複数の第N曜日と最終曜日を昇順・重複なしで渡す", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        recurrenceBasis: "calendar",
+        scheduleDayOfWeek: "2",
+        scheduleKind: "monthly_nth_weekday",
+        scheduleWeekLast: "1",
+        scheduleWeekOfMonth: ["4", "2", "4", "5"],
+      }),
+    );
+
+    expect(createCalendarTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({
+        scheduleDaysOfWeek: [2],
+        scheduleKind: "monthly_nth_weekday",
+        scheduleWeekLast: true,
+        scheduleWeeksOfMonth: [2, 4, 5],
+      }),
+      expect.any(Date),
+    );
+  });
+
+  it("毎月の曜日方式で出現位置を1つも選ばないと登録しない", async () => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        recurrenceBasis: "calendar",
+        scheduleKind: "monthly_nth_weekday",
+        scheduleWeekLast: "0",
+        scheduleWeekOfMonth: [],
+      }),
+    );
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "第1〜第5または最終を1つ以上選んでください。",
+      status: "error",
+    });
+  });
+});
+
+describe("専用ページのTodo登録操作", () => {
   // Issue #227 / YDR-032
   it("毎月末は日付31日として保存し、固定日と区別するフラグを立てる", async () => {
     await createTodo(

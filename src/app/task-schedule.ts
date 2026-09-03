@@ -165,13 +165,20 @@ function describeMonthlyDaySchedule(specs: readonly StoredCalendarSpec[]): strin
 function describeMonthlyNthWeekdaySchedule(
   specs: readonly StoredCalendarSpec[],
 ): string | null {
-  const parts = specs.map((spec) => {
-    const weekday = weekdayLabel(spec.dayOfWeek);
-    if (weekday === null || spec.weekOfMonth === 0) return null;
-    return `第${String(spec.weekOfMonth)}${weekday}`;
-  });
-  if (parts.length === 0 || parts.some((part) => part === null)) return null;
-  return `毎月${parts.join("・")}`;
+  const sorted = [...specs].sort((left, right) =>
+    left.weekOfMonth - right.weekOfMonth || Number(left.weekLast) - Number(right.weekLast)
+  );
+  const weekday = weekdayLabel(sorted.at(0)?.dayOfWeek ?? 0);
+  if (
+    weekday === null || sorted.length === 0 ||
+    sorted.some((spec) => spec.dayOfWeek !== sorted[0].dayOfWeek || spec.weekOfMonth === 0)
+  ) {
+    return null;
+  }
+  const positions = sorted.map((spec) =>
+    spec.weekLast ? "最終" : `第${String(spec.weekOfMonth)}`
+  );
+  return `毎月${positions.join("・")}${weekday}`;
 }
 
 function describeYearlySchedule(specs: readonly StoredCalendarSpec[]): string | null {

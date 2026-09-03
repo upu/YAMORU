@@ -1,19 +1,19 @@
+import { type CalendarSchedule, type CalendarScheduleSpec } from "./calendar-schedule-specs";
+
+export {
+  calendarScheduleFromInput,
+  calendarScheduleFromSpecs,
+  calendarSpecsFromInput,
+  parseCalendarScheduleSpecs,
+} from "./calendar-schedule-specs";
+export type {
+  CalendarSchedule,
+  CalendarScheduleInput,
+  CalendarScheduleSpec,
+  StoredCalendarSpec,
+} from "./calendar-schedule-specs";
+
 const TOKYO_OFFSET = "+09:00";
-
-// Issue #102 / YDR-040: 定例日基準ルールは1件以上の「候補指定」を持つ。
-// 候補列は各指定が生む暦日の和集合を昇順に並べ、同一暦日を1件へ畳んだもの。
-// 未使用の項目は0で表す(task_rule_schedulesの保存形式と同じ)。
-export type CalendarScheduleSpec = {
-  dayOfMonth: number;
-  dayOfWeek: number;
-  month: number;
-  weekOfMonth: number;
-};
-
-export type CalendarSchedule = {
-  scheduleKind: string;
-  specs: readonly CalendarScheduleSpec[];
-};
 
 // 形式だけでなく実在する暦日かも確かめる。Date.UTCは2026-02-30のような
 // 存在しない日付を黙って繰り上げるため、そのままでは誤った候補日を返す
@@ -126,6 +126,17 @@ function nthWeekdayCandidate(
   return formatDate(new Date(Date.UTC(year, month - 1, day)));
 }
 
+function lastWeekdayCandidate(
+  year: number,
+  month: number,
+  weekday: number,
+): string {
+  const lastDay = daysInMonth(year, month);
+  const last = new Date(Date.UTC(year, month - 1, lastDay));
+  const day = lastDay - ((isoDayOfWeek(last) - weekday + 7) % 7);
+  return formatDate(new Date(Date.UTC(year, month - 1, day)));
+}
+
 function requireNumber(value: number | null, message: string): number {
   if (value === null) throw new Error(message);
   return value;
@@ -147,14 +158,7 @@ function monthlyOnOrAfter(
   let year = start.getUTCFullYear();
   let month = start.getUTCMonth() + 1;
   for (;;) {
-    const candidate = scheduleKind === "monthly_day"
-      ? monthlyCandidate(year, month, requireSpecValue(spec.dayOfMonth, "Invalid monthly day"))
-      : nthWeekdayCandidate(
-          year,
-          month,
-          requireSpecValue(spec.dayOfWeek, "Invalid weekday"),
-          requireSpecValue(spec.weekOfMonth, "Invalid week"),
-        );
+    const candidate = monthlyCandidateForSpec(scheduleKind, spec, year, month);
     if (candidate !== null && candidate >= onOrAfter) return candidate;
     month += 1;
     if (month === 13) {
@@ -162,6 +166,27 @@ function monthlyOnOrAfter(
       year += 1;
     }
   }
+}
+
+function monthlyCandidateForSpec(
+  scheduleKind: string,
+  spec: CalendarScheduleSpec,
+  year: number,
+  month: number,
+): string | null {
+  if (scheduleKind === "monthly_day") {
+    return monthlyCandidate(
+      year,
+      month,
+      requireSpecValue(spec.dayOfMonth, "Invalid monthly day"),
+    );
+  }
+  const weekday = requireSpecValue(spec.dayOfWeek, "Invalid weekday");
+  const week = requireSpecValue(spec.weekOfMonth, "Invalid week");
+  if (spec.weekLast && week !== 5) throw new Error("Invalid last weekday");
+  return spec.weekLast
+    ? lastWeekdayCandidate(year, month, weekday)
+    : nthWeekdayCandidate(year, month, weekday, week);
 }
 
 export function tokyoDateFromIso(value: string): string {
@@ -333,135 +358,4 @@ export function nextCalendarOccurrence(
     );
   }
   return candidate;
-}
-
-// Issue #102 / YDR-040: 保存された候補指定(task_rule_schedules、および
-// YDR-039のrule_snapshot内のscheduleSpecs)を読む形。候補計算に使う項目に
-// 加えて、表示だけが使う種類・月末・最終曜日も持つ。
-export type StoredCalendarSpec = {
-  dayOfMonth: number;
-  dayOfWeek: number;
-  kind: string;
-  month: number;
-  monthEnd: boolean;
-  weekLast: boolean;
-  weekOfMonth: number;
-};
-
-function toSpecNumber(value: unknown): number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0;
-}
-
-function toSpecFlag(value: unknown): boolean {
-  return value === 1 || value === true;
-}
-
-function toStoredCalendarSpec(value: unknown): StoredCalendarSpec | null {
-  if (typeof value !== "object" || value === null) return null;
-  const spec = value as Record<string, unknown>;
-  if (typeof spec.kind !== "string" || spec.kind === "") return null;
-  return {
-    dayOfMonth: toSpecNumber(spec.dayOfMonth),
-    dayOfWeek: toSpecNumber(spec.dayOfWeek),
-    kind: spec.kind,
-    month: toSpecNumber(spec.month),
-    monthEnd: toSpecFlag(spec.monthEnd),
-    weekLast: toSpecFlag(spec.weekLast),
-    weekOfMonth: toSpecNumber(spec.weekOfMonth),
-  };
-}
-
-// 候補指定は暦上の昇順で扱い、保存順・入力順に依存しない(YDR-040の7)。
-// 壊れた行を黙って捨てると候補が静かにずれるため、形が違う要素は落とさず
-// 空配列として扱い、呼び出し側でエラーにする。
-export function parseCalendarScheduleSpecs(value: string | null): StoredCalendarSpec[] {
-  if (value === null || value === "") return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-  const specs = parsed.map(toStoredCalendarSpec);
-  if (specs.some((spec) => spec === null)) return [];
-  return (specs as StoredCalendarSpec[]).sort(compareStoredCalendarSpecs);
-}
-
-// 並び順は保存側(rule-snapshot.tsのCALENDAR_SCHEDULE_SPEC_ORDER)と同じキー順に
-// そろえる。読み書きで順序が食い違うと、同じ候補指定でもスナップショットの
-// 比較が一致しなくなる。
-function compareStoredCalendarSpecs(
-  left: StoredCalendarSpec,
-  right: StoredCalendarSpec,
-): number {
-  return left.month - right.month ||
-    left.dayOfMonth - right.dayOfMonth ||
-    left.weekOfMonth - right.weekOfMonth ||
-    Number(left.weekLast) - Number(right.weekLast) ||
-    left.dayOfWeek - right.dayOfWeek;
-}
-
-// 保存された候補指定から候補計算用のスケジュールを組み立てる。一つのルールの
-// 候補指定はすべて同じ種類である(YDR-040の3)。
-export function calendarScheduleFromSpecs(
-  specs: readonly StoredCalendarSpec[],
-): CalendarSchedule {
-  const scheduleKind = specs.at(0)?.kind;
-  if (scheduleKind === undefined) throw new Error("Calendar schedule has no spec");
-  if (specs.some((spec) => spec.kind !== scheduleKind)) {
-    throw new Error("Calendar schedule mixes spec kinds");
-  }
-  return { scheduleKind, specs };
-}
-
-// 登録・編集フォームが渡す定例日の指定。毎週だけ複数の曜日を持てる
-// (Issue #102 / YDR-040の3)。
-export type CalendarScheduleInput = {
-  scheduleDayOfMonth: number | null;
-  scheduleDaysOfWeek: readonly number[];
-  scheduleKind: string;
-  scheduleMonth: number | null;
-  scheduleMonthEnd: boolean;
-  scheduleWeekOfMonth: number | null;
-};
-
-const MAX_CALENDAR_SPECS = 7;
-
-// 入力を保存形式の候補指定へ変換する。曜日は昇順に並べ、同じ曜日は1件へ畳む
-// (YDR-040の7)。毎週以外は候補指定を1件だけ持つ。
-export function calendarSpecsFromInput(
-  input: CalendarScheduleInput,
-): StoredCalendarSpec[] {
-  const weekdays = [...new Set(input.scheduleDaysOfWeek)].sort((left, right) => left - right);
-  if (input.scheduleKind === "weekly") {
-    if (weekdays.length === 0 || weekdays.length > MAX_CALENDAR_SPECS) {
-      throw new Error("Weekly schedule requires 1 to 7 weekdays");
-    }
-    return weekdays.map((dayOfWeek) => ({
-      dayOfMonth: 0,
-      dayOfWeek,
-      kind: input.scheduleKind,
-      month: 0,
-      monthEnd: false,
-      weekLast: false,
-      weekOfMonth: 0,
-    }));
-  }
-  if (weekdays.length > 1) {
-    throw new Error("Only weekly schedules can have multiple weekdays");
-  }
-  return [{
-    dayOfMonth: input.scheduleDayOfMonth ?? 0,
-    dayOfWeek: weekdays.at(0) ?? 0,
-    kind: input.scheduleKind,
-    month: input.scheduleMonth ?? 0,
-    monthEnd: input.scheduleMonthEnd,
-    weekLast: false,
-    weekOfMonth: input.scheduleWeekOfMonth ?? 0,
-  }];
-}
-
-export function calendarScheduleFromInput(input: CalendarScheduleInput): CalendarSchedule {
-  return calendarScheduleFromSpecs(calendarSpecsFromInput(input));
 }
