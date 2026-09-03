@@ -2138,6 +2138,14 @@ h1 {
   font-weight: 600;
 }
 
+/* Issue #102: 毎週の曜日は複数選べるチェックボックスにする。狭い画面でも
+   選択済みの曜日が一覧で見えるよう、幅に合わせて折り返す。 */
+.weekday-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 8px 12px;
+}
+
 .auth-form .radio-option input {
   width: auto;
 }

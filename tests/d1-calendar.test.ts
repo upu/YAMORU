@@ -10,12 +10,15 @@ import {
   tokyoDateFromIso,
 } from "../src/lib/d1/calendar";
 
-const EMPTY = {
-  scheduleDayOfMonth: null,
-  scheduleDayOfWeek: null,
-  scheduleMonth: null,
-  scheduleWeekOfMonth: null,
-};
+// Issue #102 / YDR-040: 候補指定では未使用の項目を0で表す。
+const EMPTY_SPEC = { dayOfMonth: 0, dayOfWeek: 0, month: 0, weekOfMonth: 0 };
+
+function schedule(
+  scheduleKind: string,
+  ...specs: Partial<typeof EMPTY_SPEC>[]
+) {
+  return { scheduleKind, specs: specs.map((spec) => ({ ...EMPTY_SPEC, ...spec })) };
+}
 
 describe("D1の暦基準Todo計算", () => {
   it("ISO日時を実行環境の表示形式に依存せず東京日付へ変換する", () => {
@@ -25,36 +28,93 @@ describe("D1の暦基準Todo計算", () => {
 
   it("月末31日は短い月の最終日へ丸める", () => {
     expect(calendarScheduledForOnOrAfter(
-      { ...EMPTY, scheduleDayOfMonth: 31, scheduleKind: "monthly_day" },
+      schedule("monthly_day", { dayOfMonth: 31 }),
       "2027-02-01",
     )).toBe("2027-02-27T15:00:00.000Z");
   });
 
   it("存在しない第5曜日は次に存在する月まで進める", () => {
     expect(calendarScheduledForOnOrAfter(
-      {
-        ...EMPTY,
-        scheduleDayOfWeek: 1,
-        scheduleKind: "monthly_nth_weekday",
-        scheduleWeekOfMonth: 5,
-      },
+      schedule("monthly_nth_weekday", { dayOfWeek: 1, weekOfMonth: 5 }),
       "2026-02-01",
     )).toBe("2026-03-29T15:00:00.000Z");
   });
 
   it("年次2月29日は非うるう年の月末へ丸める", () => {
     expect(calendarScheduledForOnOrAfter(
-      { ...EMPTY, scheduleDayOfMonth: 29, scheduleKind: "yearly", scheduleMonth: 2 },
+      schedule("yearly", { dayOfMonth: 29, month: 2 }),
       "2027-01-01",
     )).toBe("2027-02-27T15:00:00.000Z");
   });
 
   it("完了日と現在Occurrenceの翌日の遅い方から次回を求める", () => {
     expect(nextCalendarOccurrence(
-      { ...EMPTY, scheduleDayOfWeek: 1, scheduleKind: "weekly" },
+      schedule("weekly", { dayOfWeek: 1 }),
       "2026-08-16T15:00:00.000Z",
       "2026-08-25T00:00:00.000Z",
     )).toBe("2026-08-30T15:00:00.000Z");
+  });
+});
+
+// Issue #102 / YDR-040: 複数の候補指定を持つルールは、指定ごとの候補の和集合を
+// 昇順に並べ、同一暦日を1件へ畳んだ候補列として扱う。
+describe("複数候補を持つ定例日ルールの候補計算", () => {
+  // 2026年8月の月曜は3・10・17・24・31日、木曜は6・13・20・27日。
+  const mondayAndThursday = schedule("weekly", { dayOfWeek: 1 }, { dayOfWeek: 4 });
+
+  it("指定した暦日以降で最も早い曜日を候補にする", () => {
+    expect(calendarScheduledForOnOrAfter(mondayAndThursday, "2026-08-04"))
+      .toBe("2026-08-05T15:00:00.000Z");
+    expect(calendarScheduledForOnOrAfter(mondayAndThursday, "2026-08-07"))
+      .toBe("2026-08-09T15:00:00.000Z");
+  });
+
+  it("候補指定の順序は結果を変えない", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("weekly", { dayOfWeek: 4 }, { dayOfWeek: 1 }),
+      "2026-08-04",
+    )).toBe("2026-08-05T15:00:00.000Z");
+  });
+
+  it("完了すると次の選択曜日へ進む", () => {
+    // 8月3日(月)の予定を当日完了すると、次回は同じ週の木曜。
+    expect(nextCalendarOccurrence(
+      mondayAndThursday,
+      "2026-08-02T15:00:00.000Z",
+      "2026-08-03T02:00:00.000Z",
+    )).toBe("2026-08-05T15:00:00.000Z");
+  });
+
+  it("遅延完了では実施日時以前の候補を飛ばす", () => {
+    // 8月3日(月)の予定を8月20日(木)に完了すると、次回は8月24日(月)。
+    expect(nextCalendarOccurrence(
+      mondayAndThursday,
+      "2026-08-02T15:00:00.000Z",
+      "2026-08-20T02:00:00.000Z",
+    )).toBe("2026-08-23T15:00:00.000Z");
+  });
+
+  it("前倒し完了でも直前の予定日より後の候補へ進む", () => {
+    // 8月6日(木)の予定を8月4日に完了しても、次回は8月10日(月)。
+    expect(nextCalendarOccurrence(
+      mondayAndThursday,
+      "2026-08-05T15:00:00.000Z",
+      "2026-08-04T02:00:00.000Z",
+    )).toBe("2026-08-09T15:00:00.000Z");
+  });
+
+  it("同じ暦日を生む候補指定があっても候補は1件に畳まれる", () => {
+    // 「毎週月曜」と「毎月第1月曜」は同じ種類にできないため、同じ曜日を
+    // 二重に指定した場合で確かめる。
+    expect(calendarScheduledForOnOrAfter(
+      schedule("weekly", { dayOfWeek: 1 }, { dayOfWeek: 1 }),
+      "2026-08-04",
+    )).toBe("2026-08-09T15:00:00.000Z");
+  });
+
+  it("候補指定を持たないルールは候補なしにせずエラーにする", () => {
+    expect(() => calendarScheduledForOnOrAfter(schedule("weekly"), "2026-08-04"))
+      .toThrow("Calendar schedule has no spec");
   });
 });
 

@@ -9,6 +9,7 @@ import {
   ManagedItemSearch,
   type TodoManagedItemOption,
 } from "../../managed-item-search";
+import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../../weekday-checkboxes";
 import { updateRecurringOccurrence, updateRecurringRule } from "../actions";
 import { AssigneeField, SubmitButton } from "./todo-edit-form";
 
@@ -16,7 +17,8 @@ type CalendarRuleValues = {
   managedItemId: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
-  scheduleDayOfWeek: number | null;
+  // Issue #102 / YDR-040: 毎週の選択済み曜日。他の種類では1件だけ入る。
+  scheduleDaysOfWeek: number[];
   scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
   scheduleMonth: number | null;
   scheduleMonthEnd: boolean;
@@ -53,11 +55,6 @@ type RecurringOccurrenceValues = {
   scheduledDate: string;
 };
 
-const WEEKDAYS = [
-  [1, "月曜日"], [2, "火曜日"], [3, "水曜日"], [4, "木曜日"],
-  [5, "金曜日"], [6, "土曜日"], [7, "日曜日"],
-] as const;
-
 function FormFeedback({ state }: { state: typeof INITIAL_MAINTENANCE_TODO_STATE }) {
   return state.status === "error"
     ? <p className="auth-feedback" role="alert">{state.message}</p>
@@ -69,7 +66,7 @@ function WeekdayField({ value }: { value: number | null }) {
     <>
       <label htmlFor="recurring-rule-weekday">曜日</label>
       <select defaultValue={String(value ?? 1)} id="recurring-rule-weekday" name="scheduleDayOfWeek">
-        {WEEKDAYS.map(([weekday, label]) => (
+        {WEEKDAY_OPTIONS.map(([weekday, label]) => (
           <option key={weekday} value={weekday}>{label}</option>
         ))}
       </select>
@@ -106,7 +103,7 @@ function MonthlyNthWeekdayFields({ rule }: { rule: CalendarRuleValues }) {
       <select defaultValue={String(rule.scheduleWeekOfMonth ?? 1)} id="recurring-rule-week" name="scheduleWeekOfMonth">
         {[1, 2, 3, 4, 5].map((week) => <option key={week} value={week}>第{week}週</option>)}
       </select>
-      <WeekdayField value={rule.scheduleDayOfWeek} />
+      <WeekdayField value={rule.scheduleDaysOfWeek.at(0) ?? null} />
     </>
   );
 }
@@ -143,7 +140,9 @@ function CalendarRuleFields({ rule }: { rule: CalendarRuleValues }) {
         <option value="monthly_nth_weekday">毎月の第N曜日</option>
         <option value="yearly">毎年の月日</option>
       </select>
-      {kind === "weekly" ? <WeekdayField value={rule.scheduleDayOfWeek} /> : null}
+      {kind === "weekly"
+        ? <WeekdayCheckboxes defaultSelected={rule.scheduleDaysOfWeek} />
+        : null}
       {kind === "monthly_day" ? <MonthlyDayFields rule={rule} /> : null}
       {kind === "monthly_nth_weekday" ? <MonthlyNthWeekdayFields rule={rule} /> : null}
       {kind === "yearly" ? <YearlyFields rule={rule} /> : null}

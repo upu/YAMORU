@@ -25,6 +25,7 @@ import {
   getTokyoDayDistance,
   tokyoDateToUtcIso,
 } from "../../time-zone";
+import { EMPTY_WEEKDAYS_MESSAGE, WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const INTERVAL_UNIT_DAYS = { day: 1, week: 7 } as const;
@@ -60,6 +61,11 @@ type RecommendedOffsets = {
 };
 const INVALID_CALENDAR_SCHEDULE: MaintenanceTodoActionState = {
   message: "定例日の指定を正しく入力してください。",
+  status: "error",
+};
+// Issue #102 / YDR-040の7: 候補指定が0件のルールは作れない。
+const EMPTY_WEEKDAYS: MaintenanceTodoActionState = {
+  message: EMPTY_WEEKDAYS_MESSAGE,
   status: "error",
 };
 
@@ -141,6 +147,31 @@ function parseMonthlyDayCalendarTodo(
   };
 }
 
+// 毎週の曜日は複数選べる(Issue #102)。同じ曜日の重複は畳み、昇順に並べてから
+// 保存側へ渡す(YDR-040の7)。1つでも不正な値があれば、黙って捨てずに拒否する。
+function parseWeekdays(formData: FormData): number[] | null {
+  const values = formData.getAll(WEEKDAYS_FIELD_NAME);
+  const weekdays = values.map((value) => parseBoundedInteger(value, 1, 7));
+  if (weekdays.some((weekday) => weekday === null)) return null;
+  return [...new Set(weekdays as number[])].sort((left, right) => left - right);
+}
+
+function parseWeeklyCalendarTodo(
+  basics: TodoBasics,
+  formData: FormData,
+): CalendarTodoInput | MaintenanceTodoActionState {
+  const weekdays = parseWeekdays(formData);
+  if (weekdays === null) return INVALID_CALENDAR_SCHEDULE;
+  if (weekdays.length === 0) return EMPTY_WEEKDAYS;
+  return {
+    ...basics,
+    recurrenceBasis: "calendar",
+    scheduleDaysOfWeek: weekdays,
+    scheduleKind: "weekly",
+    scheduleMonthEnd: false,
+  };
+}
+
 function parseCalendarTodo(
   basics: TodoBasics,
   formData: FormData,
@@ -151,15 +182,7 @@ function parseCalendarTodo(
   const weekOfMonth = parseBoundedInteger(formData.get("scheduleWeekOfMonth"), 1, 5);
   const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
 
-  if (scheduleKind === "weekly" && dayOfWeek !== null) {
-    return {
-      ...basics,
-      recurrenceBasis: "calendar",
-      scheduleDayOfWeek: dayOfWeek,
-      scheduleKind,
-      scheduleMonthEnd: false,
-    };
-  }
+  if (scheduleKind === "weekly") return parseWeeklyCalendarTodo(basics, formData);
   if (scheduleKind === "monthly_day") {
     const parsed = parseMonthlyDayCalendarTodo(basics, formData, dayOfMonth);
     if (parsed !== null) return parsed;
@@ -168,7 +191,7 @@ function parseCalendarTodo(
     return {
       ...basics,
       recurrenceBasis: "calendar",
-      scheduleDayOfWeek: dayOfWeek,
+      scheduleDaysOfWeek: [dayOfWeek],
       scheduleKind,
       scheduleMonthEnd: false,
       scheduleWeekOfMonth: weekOfMonth,

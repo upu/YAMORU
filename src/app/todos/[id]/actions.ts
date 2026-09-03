@@ -12,6 +12,7 @@ import {
 } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import { getTokyoDayDistance, tokyoDateToUtcIso } from "../../time-zone";
+import { WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const COMPLETION_UNIT_DAYS = { day: 1, week: 7 } as const;
@@ -227,15 +228,25 @@ function recurringBasics(
 
 type CalendarSchedule = Pick<
   Extract<RecurringTaskRuleUpdate, { recurrenceBasis: "calendar" }>,
-  | "scheduleDayOfMonth" | "scheduleDayOfWeek" | "scheduleKind"
+  | "scheduleDayOfMonth" | "scheduleDaysOfWeek" | "scheduleKind"
   | "scheduleMonth" | "scheduleMonthEnd" | "scheduleWeekOfMonth"
 >;
 
+// Issue #102 / YDR-040: 毎週は複数の曜日を選べる。同じ曜日は畳み、昇順に
+// そろえてから渡す。1つも選ばれていない場合は保存しない(YDR-040の7)。
 function weeklySchedule(formData: FormData): CalendarSchedule | null {
-  const weekday = parseIntegerField(formData, "scheduleDayOfWeek", 1, 7);
-  return weekday === null ? null : {
-    scheduleDayOfMonth: null, scheduleDayOfWeek: weekday, scheduleKind: "weekly",
-    scheduleMonth: null, scheduleMonthEnd: false, scheduleWeekOfMonth: null,
+  const values = formData.getAll(WEEKDAYS_FIELD_NAME);
+  const weekdays = values.map((value) =>
+    typeof value === "string" && /^[1-7]$/.test(value) ? Number(value) : null
+  );
+  if (weekdays.length === 0 || weekdays.some((weekday) => weekday === null)) return null;
+  return {
+    scheduleDayOfMonth: null,
+    scheduleDaysOfWeek: [...new Set(weekdays as number[])].sort((left, right) => left - right),
+    scheduleKind: "weekly",
+    scheduleMonth: null,
+    scheduleMonthEnd: false,
+    scheduleWeekOfMonth: null,
   };
 }
 
@@ -243,7 +254,7 @@ function monthlyDaySchedule(formData: FormData): CalendarSchedule | null {
   const monthEnd = formData.get("scheduleMonthEnd") === "1";
   const day = monthEnd ? 31 : parseIntegerField(formData, "scheduleDayOfMonth", 1, 31);
   return day === null ? null : {
-    scheduleDayOfMonth: day, scheduleDayOfWeek: null, scheduleKind: "monthly_day",
+    scheduleDayOfMonth: day, scheduleDaysOfWeek: [], scheduleKind: "monthly_day",
     scheduleMonth: null, scheduleMonthEnd: monthEnd, scheduleWeekOfMonth: null,
   };
 }
@@ -252,7 +263,7 @@ function monthlyWeekdaySchedule(formData: FormData): CalendarSchedule | null {
   const weekday = parseIntegerField(formData, "scheduleDayOfWeek", 1, 7);
   const week = parseIntegerField(formData, "scheduleWeekOfMonth", 1, 5);
   return weekday === null || week === null ? null : {
-    scheduleDayOfMonth: null, scheduleDayOfWeek: weekday,
+    scheduleDayOfMonth: null, scheduleDaysOfWeek: [weekday],
     scheduleKind: "monthly_nth_weekday", scheduleMonth: null,
     scheduleMonthEnd: false, scheduleWeekOfMonth: week,
   };
@@ -262,7 +273,7 @@ function yearlySchedule(formData: FormData): CalendarSchedule | null {
   const month = parseIntegerField(formData, "scheduleMonth", 1, 12);
   const day = parseIntegerField(formData, "scheduleDayOfMonth", 1, 31);
   return month === null || day === null ? null : {
-    scheduleDayOfMonth: day, scheduleDayOfWeek: null, scheduleKind: "yearly",
+    scheduleDayOfMonth: day, scheduleDaysOfWeek: [], scheduleKind: "yearly",
     scheduleMonth: month, scheduleMonthEnd: false, scheduleWeekOfMonth: null,
   };
 }

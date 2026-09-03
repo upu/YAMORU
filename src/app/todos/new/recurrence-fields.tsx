@@ -2,28 +2,20 @@
 
 import { useState } from "react";
 
+import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../weekday-checkboxes";
+
 // Issue #99: Todo登録フォームの、繰り返し方ごとの入力欄。方式が4つになり
 // 1ファイルに収まらなくなったため、フォーム本体(todo-registration-form.tsx)
 // から入力欄だけを分けた。表示・入力の責務だけを持ち、送信はフォーム側が行う。
 
 type ScheduleKind = "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
 
-const WEEKDAYS = [
-  [1, "月曜日"],
-  [2, "火曜日"],
-  [3, "水曜日"],
-  [4, "木曜日"],
-  [5, "金曜日"],
-  [6, "土曜日"],
-  [7, "日曜日"],
-] as const;
-
 function WeekdaySelect() {
   return (
     <>
       <label htmlFor="todo-schedule-weekday">曜日</label>
       <select defaultValue="1" id="todo-schedule-weekday" name="scheduleDayOfWeek">
-        {WEEKDAYS.map(([value, label]) => (
+        {WEEKDAY_OPTIONS.map(([value, label]) => (
           <option key={value} value={value}>{label}</option>
         ))}
       </select>
@@ -117,7 +109,9 @@ function MonthlyDayFields() {
 function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind }) {
   switch (scheduleKind) {
     case "weekly":
-      return <WeekdaySelect />;
+      // Issue #102 / YDR-040: 毎週は複数の曜日を選べる。第N曜日は1件のままなので
+      // 単一選択のWeekdaySelectを使う。
+      return <WeekdayCheckboxes defaultSelected={[1]} />;
     case "monthly_day":
       return <MonthlyDayFields />;
     case "monthly_nth_weekday":

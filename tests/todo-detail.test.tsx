@@ -109,12 +109,8 @@ function pendingRow(overrides: Record<string, unknown> = {}) {
     recommended_until_value: null,
     recurrence_basis: "once",
     scheduled_for: "2026-09-01T15:00:00.000Z",
-    schedule_day_of_month: null,
-    schedule_day_of_week: null,
     schedule_kind: null,
-    schedule_month: null,
-    schedule_month_end: 0,
-    schedule_week_of_month: null,
+    schedule_specs: null,
     status: "pending",
     task_rule_id: "rule-1",
     title: "通知書が届いたら申請",
@@ -352,9 +348,16 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
   it("毎月末の定例日基準Todoでは「毎月末」を表示する(Issue #227 / YDR-032)", async () => {
     loadTodoDetailMock.mockResolvedValue(pendingRow({
       recurrence_basis: "calendar",
-      schedule_day_of_month: 31,
       schedule_kind: "monthly_day",
-      schedule_month_end: 1,
+      schedule_specs: JSON.stringify([{
+        dayOfMonth: 31,
+        dayOfWeek: 0,
+        kind: "monthly_day",
+        month: 0,
+        monthEnd: 1,
+        weekLast: 0,
+        weekOfMonth: 0,
+      }]),
     }));
 
     render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));

@@ -28,8 +28,8 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import { createTodo } from "../src/app/todos/new/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
-const INVALID_CALENDAR_CASES: Record<string, string>[] = [
-  { scheduleDayOfWeek: "0", scheduleKind: "weekly" },
+const INVALID_CALENDAR_CASES: Record<string, string | string[]>[] = [
+  { scheduleDaysOfWeek: ["0"], scheduleKind: "weekly" },
   { scheduleDayOfMonth: "32", scheduleKind: "monthly_day" },
   { scheduleKind: "monthly_nth_weekday", scheduleWeekOfMonth: "6" },
   { scheduleDayOfMonth: "30", scheduleKind: "yearly", scheduleMonth: "2" },
@@ -51,8 +51,8 @@ function tokyoDateFromNow(days: number): string {
   return base.toISOString().slice(0, 10);
 }
 
-function todoForm(overrides: Record<string, string> = {}) {
-  const values = {
+function todoForm(overrides: Record<string, string | string[]> = {}) {
+  const values: Record<string, string | string[]> = {
     anchorDate: "2026-10-01",
     fixedIntervalAnchorDate: tokyoDateFromNow(0),
     fixedIntervalCount: "2",
@@ -66,6 +66,8 @@ function todoForm(overrides: Record<string, string> = {}) {
     recurrenceBasis: "once",
     scheduleDayOfMonth: "25",
     scheduleDayOfWeek: "1",
+    // Issue #102: 毎週の曜日はチェックボックスなので複数送られる。
+    scheduleDaysOfWeek: ["1"],
     scheduleKind: "weekly",
     scheduleMonth: "8",
     scheduleWeekOfMonth: "2",
@@ -73,7 +75,13 @@ function todoForm(overrides: Record<string, string> = {}) {
     ...overrides,
   };
   const formData = new FormData();
-  Object.entries(values).forEach(([key, value]) => { formData.set(key, value); });
+  Object.entries(values).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => { formData.append(key, entry); });
+      return;
+    }
+    formData.set(key, value);
+  });
   return formData;
 }
 
@@ -164,14 +172,14 @@ describe("専用ページのTodo登録操作", () => {
   it("管理対象なしの週次定例Todoを登録する", async () => {
     await createTodo(
       INITIAL_STATE,
-      todoForm({ recurrenceBasis: "calendar", scheduleDayOfWeek: "3" }),
+      todoForm({ recurrenceBasis: "calendar", scheduleDaysOfWeek: ["3"] }),
     );
 
     expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 3,
+      scheduleDaysOfWeek: [3],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -180,11 +188,39 @@ describe("専用ページのTodo登録操作", () => {
     }, expect.any(Date));
   });
 
+  // Issue #102 / YDR-040: 毎週は複数の曜日を選べる。重複は畳み、昇順に並べる。
+  it("毎週で選んだ複数の曜日を昇順・重複なしで渡す", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        recurrenceBasis: "calendar",
+        scheduleDaysOfWeek: ["4", "1", "4"],
+      }),
+    );
+
+    expect(createCalendarTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ scheduleDaysOfWeek: [1, 4], scheduleKind: "weekly" }),
+      expect.any(Date),
+    );
+  });
+
+  it("毎週で曜日を1つも選ばないと登録しない", async () => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({ recurrenceBasis: "calendar", scheduleDaysOfWeek: [] }),
+    );
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ message: "曜日を1つ以上選んでください。", status: "error" });
+  });
+
   it.each([
     ["monthly_day", { scheduleDayOfMonth: 31 }],
     [
       "monthly_nth_weekday",
-      { scheduleDayOfWeek: 2, scheduleWeekOfMonth: 5 },
+      { scheduleDaysOfWeek: [2], scheduleWeekOfMonth: 5 },
     ],
     ["yearly", { scheduleDayOfMonth: 29, scheduleMonth: 2 }],
   ])("%sの構造化された暦規則をRPCへ渡す", async (scheduleKind, expected) => {
@@ -204,7 +240,7 @@ describe("専用ページのTodo登録操作", () => {
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind,
       scheduleMonth: null,
       scheduleMonthEnd: false,
@@ -230,7 +266,7 @@ describe("専用ページのTodo登録操作", () => {
       managedItemId: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,

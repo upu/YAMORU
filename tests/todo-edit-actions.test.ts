@@ -217,10 +217,10 @@ describe("繰り返しTodoの編集", () => {
       id: "occurrence-1",
       managedItemId: "item-1",
       recurrenceBasis: "calendar",
-      scheduleDayOfWeek: "2",
       scheduleKind: "weekly",
       title: "毎週火曜の家族会議",
     })) formData.set(key, value);
+    formData.append("scheduleDaysOfWeek", "2");
 
     await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
 
@@ -232,7 +232,7 @@ describe("繰り返しTodoの編集", () => {
         managedItemId: "item-1",
         recurrenceBasis: "calendar",
         scheduleDayOfMonth: null,
-        scheduleDayOfWeek: 2,
+        scheduleDaysOfWeek: [2],
         scheduleKind: "weekly",
         scheduleMonth: null,
         scheduleMonthEnd: false,
@@ -240,6 +240,44 @@ describe("繰り返しTodoの編集", () => {
         title: "毎週火曜の家族会議",
       },
     );
+  });
+
+  // Issue #102 / YDR-040: 毎週の曜日は複数選べる。未選択のままでは保存しない。
+  it("毎週の複数曜日を昇順・重複なしでD1へ渡す", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleKind: "weekly",
+      title: "毎週火曜と金曜の家族会議",
+    })) formData.set(key, value);
+    for (const weekday of ["5", "2", "5"]) formData.append("scheduleDaysOfWeek", weekday);
+
+    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({ scheduleDaysOfWeek: [2, 5], scheduleKind: "weekly" }),
+    );
+  });
+
+  it("毎週で曜日が1つも選ばれていないと保存しない", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleKind: "weekly",
+      title: "毎週の家族会議",
+    })) formData.set(key, value);
+
+    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
+    expect(result.status).toBe("error");
   });
 
   it("完了日基準の値・単位を検証してD1へ渡す", async () => {

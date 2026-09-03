@@ -2,6 +2,7 @@
 
 import {
   type CompletionIntervalUnit,
+  type StoredCalendarSpec,
   isCompletionIntervalUnit,
 } from "../lib/d1/calendar";
 //
@@ -141,48 +142,62 @@ const CALENDAR_WEEKDAY_LABELS: Record<number, string> = {
   7: "日曜日",
 };
 
-export type CalendarScheduleRule = {
-  scheduleDayOfMonth: number | null;
-  scheduleDayOfWeek: number | null;
-  scheduleKind: string | null;
-  scheduleMonth: number | null;
-  scheduleMonthEnd: boolean;
-  scheduleWeekOfMonth: number | null;
-};
+// Issue #102 / YDR-040: 定例日ルールは複数の候補指定を持てる。表示も保存された
+// 候補指定の配列から組み立て、曜日・週番号の昇順で並べる(YDR-040の10)。
+function weekdayLabel(dayOfWeek: number): string | null {
+  return CALENDAR_WEEKDAY_LABELS[dayOfWeek] ?? null;
+}
 
-function describeMonthlyDaySchedule(schedule: CalendarScheduleRule): string | null {
-  if (schedule.scheduleMonthEnd) return "毎月末";
-  return schedule.scheduleDayOfMonth === null
-    ? null
-    : `毎月${String(schedule.scheduleDayOfMonth)}日`;
+function describeWeeklySchedule(specs: readonly StoredCalendarSpec[]): string | null {
+  const labels = specs.map((spec) => weekdayLabel(spec.dayOfWeek));
+  if (labels.length === 0 || labels.some((label) => label === null)) return null;
+  return `毎週${labels.join("・")}`;
+}
+
+function describeMonthlyDaySchedule(specs: readonly StoredCalendarSpec[]): string | null {
+  const parts = specs.map((spec) =>
+    spec.monthEnd ? "末" : spec.dayOfMonth === 0 ? null : `${String(spec.dayOfMonth)}日`
+  );
+  if (parts.length === 0 || parts.some((part) => part === null)) return null;
+  return `毎月${parts.join("・")}`;
 }
 
 function describeMonthlyNthWeekdaySchedule(
-  schedule: CalendarScheduleRule,
-  weekday: string | null,
+  specs: readonly StoredCalendarSpec[],
 ): string | null {
-  if (weekday === null || schedule.scheduleWeekOfMonth === null) return null;
-  return `毎月第${String(schedule.scheduleWeekOfMonth)}${weekday}`;
+  const parts = specs.map((spec) => {
+    const weekday = weekdayLabel(spec.dayOfWeek);
+    if (weekday === null || spec.weekOfMonth === 0) return null;
+    return `第${String(spec.weekOfMonth)}${weekday}`;
+  });
+  if (parts.length === 0 || parts.some((part) => part === null)) return null;
+  return `毎月${parts.join("・")}`;
 }
 
-function describeYearlySchedule(schedule: CalendarScheduleRule): string | null {
-  if (schedule.scheduleMonth === null || schedule.scheduleDayOfMonth === null) return null;
-  return `毎年${String(schedule.scheduleMonth)}月${String(schedule.scheduleDayOfMonth)}日`;
+function describeYearlySchedule(specs: readonly StoredCalendarSpec[]): string | null {
+  const parts = specs.map((spec) =>
+    spec.month === 0 || spec.dayOfMonth === 0
+      ? null
+      : `${String(spec.month)}月${String(spec.dayOfMonth)}日`
+  );
+  if (parts.length === 0 || parts.some((part) => part === null)) return null;
+  return `毎年${parts.join("・")}`;
 }
 
-export function describeCalendarSchedule(schedule: CalendarScheduleRule): string | null {
-  const weekday = schedule.scheduleDayOfWeek === null
-    ? null
-    : CALENDAR_WEEKDAY_LABELS[schedule.scheduleDayOfWeek] ?? null;
-  switch (schedule.scheduleKind) {
+export function describeCalendarSchedule(
+  specs: readonly StoredCalendarSpec[],
+): string | null {
+  const kind = specs.at(0)?.kind;
+  if (kind === undefined || specs.some((spec) => spec.kind !== kind)) return null;
+  switch (kind) {
     case "weekly":
-      return weekday === null ? null : `毎週${weekday}`;
+      return describeWeeklySchedule(specs);
     case "monthly_day":
-      return describeMonthlyDaySchedule(schedule);
+      return describeMonthlyDaySchedule(specs);
     case "monthly_nth_weekday":
-      return describeMonthlyNthWeekdaySchedule(schedule, weekday);
+      return describeMonthlyNthWeekdaySchedule(specs);
     case "yearly":
-      return describeYearlySchedule(schedule);
+      return describeYearlySchedule(specs);
     default:
       return null;
   }

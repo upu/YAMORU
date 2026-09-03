@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { type StoredCalendarSpec } from "../src/lib/d1/calendar";
 import {
-  type CalendarScheduleRule,
   describeCalendarSchedule,
   describeIntervalRecurrence,
   describeCompletionRecurrence,
@@ -16,56 +16,62 @@ it("定例日基準を既知の繰り返し方式として扱う", () => {
 
 // Issue #227 / YDR-032
 describe("定例日基準Todoの繰り返しパターン表示", () => {
-  const EMPTY: CalendarScheduleRule = {
-    scheduleDayOfMonth: null,
-    scheduleDayOfWeek: null,
-    scheduleKind: null,
-    scheduleMonth: null,
-    scheduleMonthEnd: false,
-    scheduleWeekOfMonth: null,
+  const EMPTY_SPEC = {
+    dayOfMonth: 0,
+    dayOfWeek: 0,
+    month: 0,
+    monthEnd: false,
+    weekLast: false,
+    weekOfMonth: 0,
   };
 
+  function specs(kind: string, ...values: Partial<StoredCalendarSpec>[]): StoredCalendarSpec[] {
+    return values.map((value) => ({ ...EMPTY_SPEC, kind, ...value }));
+  }
+
   it("毎週の曜日を表示する", () => {
-    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfWeek: 1, scheduleKind: "weekly" }))
-      .toBe("毎週月曜日");
+    expect(describeCalendarSchedule(specs("weekly", { dayOfWeek: 1 }))).toBe("毎週月曜日");
+  });
+
+  // Issue #102 / YDR-040の10
+  it("毎週の複数曜日を並べて表示する", () => {
+    expect(describeCalendarSchedule(specs("weekly", { dayOfWeek: 1 }, { dayOfWeek: 4 })))
+      .toBe("毎週月曜日・木曜日");
   });
 
   it("毎月の固定日を表示する", () => {
-    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfMonth: 25, scheduleKind: "monthly_day" }))
+    expect(describeCalendarSchedule(specs("monthly_day", { dayOfMonth: 25 })))
       .toBe("毎月25日");
   });
 
   it("固定日31日と月末を区別して表示する", () => {
-    expect(describeCalendarSchedule({ ...EMPTY, scheduleDayOfMonth: 31, scheduleKind: "monthly_day" }))
+    expect(describeCalendarSchedule(specs("monthly_day", { dayOfMonth: 31 })))
       .toBe("毎月31日");
-    expect(describeCalendarSchedule({
-      ...EMPTY,
-      scheduleDayOfMonth: 31,
-      scheduleKind: "monthly_day",
-      scheduleMonthEnd: true,
-    })).toBe("毎月末");
+    expect(describeCalendarSchedule(
+      specs("monthly_day", { dayOfMonth: 31, monthEnd: true }),
+    )).toBe("毎月末");
   });
 
   it("毎月の第N曜日を表示する", () => {
-    expect(describeCalendarSchedule({
-      ...EMPTY,
-      scheduleDayOfWeek: 2,
-      scheduleKind: "monthly_nth_weekday",
-      scheduleWeekOfMonth: 5,
-    })).toBe("毎月第5火曜日");
+    expect(describeCalendarSchedule(
+      specs("monthly_nth_weekday", { dayOfWeek: 2, weekOfMonth: 5 }),
+    )).toBe("毎月第5火曜日");
   });
 
   it("毎年の月日を表示する", () => {
-    expect(describeCalendarSchedule({
-      ...EMPTY,
-      scheduleDayOfMonth: 29,
-      scheduleKind: "yearly",
-      scheduleMonth: 2,
-    })).toBe("毎年2月29日");
+    expect(describeCalendarSchedule(specs("yearly", { dayOfMonth: 29, month: 2 })))
+      .toBe("毎年2月29日");
   });
 
   it("繰り返しなし・完了日基準では表示しない", () => {
-    expect(describeCalendarSchedule(EMPTY)).toBeNull();
+    expect(describeCalendarSchedule([])).toBeNull();
+  });
+
+  it("種類の違う候補指定が混ざっている場合は表示しない", () => {
+    expect(describeCalendarSchedule([
+      { ...EMPTY_SPEC, dayOfWeek: 1, kind: "weekly" },
+      { ...EMPTY_SPEC, dayOfMonth: 5, kind: "monthly_day" },
+    ])).toBeNull();
   });
 });
 

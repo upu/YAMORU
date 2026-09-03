@@ -1,6 +1,6 @@
 import { requireCurrentHouseholdId, requireD1Session, type D1Session } from "../authorization";
 import { D1ConflictError } from "../errors";
-import { taskRuleSnapshotExpression } from "./rule-snapshot";
+import { calendarScheduleSpecsExpression, taskRuleSnapshotExpression } from "./rule-snapshot";
 import { type OccurrenceWithRule, loadOccurrence, requireHouseholdUser, requireManagedItem } from "./shared";
 
 // Todo詳細の取得と、繰り返しなしTodoの編集(Issue #203)。
@@ -37,12 +37,10 @@ export type TodoDetailRow = {
   scheduled_for: string | null;
   // recurrence_basis='calendar'のときだけ非null。定例パターンの表示に使う
   // (Issue #227 / YDR-032)。
-  schedule_day_of_month: number | null;
-  schedule_day_of_week: number | null;
   schedule_kind: string | null;
-  schedule_month: number | null;
-  schedule_month_end: number;
-  schedule_week_of_month: number | null;
+  // Issue #102 / YDR-040: 候補指定の配列(JSON)。発生時のスナップショットを
+  // 優先し、持たない古い行だけ現在のTaskRuleの候補指定へフォールバックする。
+  schedule_specs: string | null;
   status: string;
   task_rule_id: string;
   title: string;
@@ -75,16 +73,9 @@ const TODO_DETAIL_SQL = `WITH completion AS (
               THEN r.recommended_unit ELSE json_extract(o.rule_snapshot, '$.recommendedUnit') END AS recommended_unit,
             CASE WHEN json_type(o.rule_snapshot, '$.scheduleKind') IS NULL
               THEN r.schedule_kind ELSE json_extract(o.rule_snapshot, '$.scheduleKind') END AS schedule_kind,
-            CASE WHEN json_type(o.rule_snapshot, '$.scheduleDayOfWeek') IS NULL
-              THEN r.schedule_day_of_week ELSE json_extract(o.rule_snapshot, '$.scheduleDayOfWeek') END AS schedule_day_of_week,
-            CASE WHEN json_type(o.rule_snapshot, '$.scheduleDayOfMonth') IS NULL
-              THEN r.schedule_day_of_month ELSE json_extract(o.rule_snapshot, '$.scheduleDayOfMonth') END AS schedule_day_of_month,
-            CASE WHEN json_type(o.rule_snapshot, '$.scheduleWeekOfMonth') IS NULL
-              THEN r.schedule_week_of_month ELSE json_extract(o.rule_snapshot, '$.scheduleWeekOfMonth') END AS schedule_week_of_month,
-            CASE WHEN json_type(o.rule_snapshot, '$.scheduleMonth') IS NULL
-              THEN r.schedule_month ELSE json_extract(o.rule_snapshot, '$.scheduleMonth') END AS schedule_month,
-            CASE WHEN json_type(o.rule_snapshot, '$.scheduleMonthEnd') IS NULL
-              THEN r.schedule_month_end ELSE json_extract(o.rule_snapshot, '$.scheduleMonthEnd') END AS schedule_month_end,
+            CASE WHEN json_type(o.rule_snapshot, '$.scheduleSpecs') IS NULL
+              THEN ${calendarScheduleSpecsExpression()}
+              ELSE json_extract(o.rule_snapshot, '$.scheduleSpecs') END AS schedule_specs,
             CASE WHEN json_type(o.rule_snapshot, '$.intervalUnit') IS NULL
               THEN r.interval_unit ELSE json_extract(o.rule_snapshot, '$.intervalUnit') END AS interval_unit,
             CASE WHEN json_type(o.rule_snapshot, '$.intervalCount') IS NULL

@@ -59,7 +59,7 @@ describe("毎月末の定例日基準Todo(createCalendarTask)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,
@@ -85,7 +85,7 @@ describe("毎月末の定例日基準Todo(createCalendarTask)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,
@@ -111,7 +111,7 @@ describe("毎月末の定例日基準Todo(createCalendarTask)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,
@@ -148,7 +148,7 @@ describe("毎月末の定例日基準Todo(createCalendarTask)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,
@@ -173,7 +173,7 @@ describe("毎月末の定例日基準Todo(createCalendarTask)", () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: 31,
-      scheduleDayOfWeek: null,
+      scheduleDaysOfWeek: [],
       scheduleKind: "monthly_day",
       scheduleMonth: null,
       scheduleMonthEnd: true,

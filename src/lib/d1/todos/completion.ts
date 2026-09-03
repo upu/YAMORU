@@ -38,8 +38,10 @@ function nextOccurrenceStatement(
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version, rule_snapshot
-    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ${snapshot}
+      completion_calendar_version, schedule_spec_version, rule_snapshot
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6,
+             CASE WHEN r.recurrence_basis = 'calendar' THEN 1 END,
+             ${snapshot}
       FROM task_rules r
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id

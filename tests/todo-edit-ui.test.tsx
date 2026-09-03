@@ -126,7 +126,7 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
           managedItemId: "item-1",
           recurrenceBasis: "calendar",
           scheduleDayOfMonth: null,
-          scheduleDayOfWeek: 1,
+          scheduleDaysOfWeek: [1, 4],
           scheduleKind: "weekly",
           scheduleMonth: null,
           scheduleMonthEnd: false,
@@ -144,7 +144,11 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
     expect(screen.getByRole("heading", { name: "今後の繰り返し" })).toBeInTheDocument();
     expect(screen.getByLabelText("Todo名")).toHaveValue("毎週の家族会議");
     expect(screen.getByLabelText("定例パターン")).toHaveValue("weekly");
-    expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    // Issue #102: 毎週は複数の曜日をチェックボックスで選ぶ。保存済みの曜日は
+    // すべてチェック済みで表示する。
+    expect(screen.getByRole("checkbox", { name: "月曜日" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "木曜日" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "金曜日" })).not.toBeChecked();
     expect(screen.getByText(/現在回の予定と期限は変わりません/u)).toBeInTheDocument();
     expect(screen.getByText(/過去の完了記録は変わりません/u)).toBeInTheDocument();
   });

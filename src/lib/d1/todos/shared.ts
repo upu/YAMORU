@@ -1,11 +1,14 @@
 import {
   addTokyoCalendarInterval,
   addTokyoDays,
+  calendarScheduleFromSpecs,
   isCompletionIntervalUnit,
   nextCalendarOccurrence,
   nextIntervalOccurrence,
+  parseCalendarScheduleSpecs,
 } from "../calendar";
 import { D1ConflictError, D1NotFoundError } from "../errors";
+import { calendarScheduleSpecsExpression } from "./rule-snapshot";
 
 // Todo(TaskRule/TaskOccurrence)の操作が共通で使う、家庭の確認・Occurrenceの
 // 取得・次回予定の算出(#280)。
@@ -28,11 +31,10 @@ export type OccurrenceWithRule = {
   recommended_unit: string | null;
   recommended_until_offset: number;
   recommended_until_value: number | null;
-  schedule_day_of_month: number | null;
-  schedule_day_of_week: number | null;
   schedule_kind: string | null;
-  schedule_month: number | null;
-  schedule_week_of_month: number | null;
+  // Issue #102 / YDR-040: 候補指定の正本。JSON配列で読み、候補計算はこの集合
+  // だけから行う(task_rulesのschedule_*列は読まない)。
+  schedule_specs: string | null;
   scheduled_for: string | null;
   status: string;
   task_rule_id: string;
@@ -62,8 +64,8 @@ export async function loadOccurrence(
       r.recurrence_basis, r.recommended_start_offset, r.recommended_until_offset,
       r.recommended_start_value, r.recommended_until_value, r.recommended_unit,
       r.managed_item_id,
-      r.schedule_kind, r.schedule_day_of_week, r.schedule_day_of_month,
-      r.schedule_week_of_month, r.schedule_month,
+      r.schedule_kind,
+      ${calendarScheduleSpecsExpression()} AS schedule_specs,
       r.interval_unit, r.interval_count, r.interval_anchor_on
      FROM task_occurrences o
      JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
@@ -167,14 +169,14 @@ function nextCalendarRuleOccurrence(
   if (occurrence.scheduled_for === null) {
     throw new D1ConflictError("Recurring occurrence must have a schedule");
   }
+  // 候補指定が読めない定例日ルールは、黙って1件目の曜日だけで進めず失敗させる
+  // (YDR-040の7)。
+  const specs = parseCalendarScheduleSpecs(occurrence.schedule_specs);
+  if (specs.length === 0) {
+    throw new D1ConflictError("Calendar occurrence must have a schedule spec");
+  }
   const scheduledFor = nextCalendarOccurrence(
-    {
-      scheduleDayOfMonth: occurrence.schedule_day_of_month,
-      scheduleDayOfWeek: occurrence.schedule_day_of_week,
-      scheduleKind: occurrence.schedule_kind ?? "",
-      scheduleMonth: occurrence.schedule_month,
-      scheduleWeekOfMonth: occurrence.schedule_week_of_month,
-    },
+    calendarScheduleFromSpecs(specs),
     occurrence.scheduled_for,
     occurredAt,
   );

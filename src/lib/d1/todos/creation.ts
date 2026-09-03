@@ -1,6 +1,10 @@
 import { requireCurrentHouseholdId, type D1Session } from "../authorization";
 import {
+  type CalendarScheduleInput,
+  type StoredCalendarSpec,
   calendarFirstScheduledFor,
+  calendarScheduleFromInput,
+  calendarSpecsFromInput,
   type CompletionIntervalUnit,
   intervalFirstScheduledFor,
 } from "../calendar";
@@ -30,17 +34,11 @@ export type MaintenanceTaskInput = TaskBasics & CompletionIntervalInput & {
   recommendedUntilOffset: number;
 };
 
-export type CalendarTaskInput = TaskBasics & {
-  scheduleDayOfMonth: number | null;
-  scheduleDayOfWeek: number | null;
-  scheduleKind: string;
-  // Issue #227 / YDR-032: 「毎月末」は schedule_kind='monthly_day' /
-  // scheduleDayOfMonth=31 と組み合わせて保存する。候補計算には使わない
-  // (src/lib/d1/calendar.tsは変更しない)。
-  scheduleMonthEnd: boolean;
-  scheduleMonth: number | null;
-  scheduleWeekOfMonth: number | null;
-};
+// Issue #102 / YDR-040: 候補指定の正本はtask_rule_schedules。毎週だけ複数の
+// 曜日(scheduleDaysOfWeek)を持てる。
+// Issue #227 / YDR-032: 「毎月末」は schedule_kind='monthly_day' /
+// scheduleDayOfMonth=31 と組み合わせて保存する。候補計算には使わない。
+export type CalendarTaskInput = TaskBasics & CalendarScheduleInput;
 
 // Issue #99 / YDR-037: 「起点日からN日ごと・N週ごと」。単位と回数は利用者の
 // 意図(「隔週」か「14日ごと」か)を残すため分けて保存し、候補計算は
@@ -53,17 +51,50 @@ export type IntervalTaskInput = TaskBasics & {
 
 // 方式ごとの列は、その方式のTodoだけが値を持つ(001_init.sql / 0016の
 // CHECK制約)。列の並びはINSERT文のプレースホルダと同じ順序で返す。
+//
+// Issue #102 / YDR-040: 定例日の候補指定の正本はtask_rule_schedulesであり、
+// task_rulesのschedule_*列は0021の間だけ残す旧Worker互換の値である。複数曜日
+// ルールでは最も早い曜日を入れる(CHECK制約が単一の曜日を求めるため)。旧Worker
+// が複数候補ルールの次回を誤って作ることは0021のロールアウトガードが防ぐ。
 function scheduleValues(
-  schedule: CalendarTaskInput | undefined,
+  specs: readonly StoredCalendarSpec[] | undefined,
 ): (number | string | null)[] {
+  const first = specs?.at(0);
+  if (first === undefined) return [null, null, null, null, null, 0];
   return [
-    schedule?.scheduleKind ?? null,
-    schedule?.scheduleDayOfWeek ?? null,
-    schedule?.scheduleDayOfMonth ?? null,
-    schedule?.scheduleWeekOfMonth ?? null,
-    schedule?.scheduleMonth ?? null,
-    schedule?.scheduleMonthEnd === true ? 1 : 0,
+    first.kind,
+    first.dayOfWeek === 0 ? null : first.dayOfWeek,
+    first.dayOfMonth === 0 ? null : first.dayOfMonth,
+    first.weekOfMonth === 0 ? null : first.weekOfMonth,
+    first.month === 0 ? null : first.month,
+    first.monthEnd ? 1 : 0,
   ];
+}
+
+function scheduleSpecInserts(
+  db: D1Database,
+  householdId: string,
+  taskRuleId: string,
+  specs: readonly StoredCalendarSpec[],
+): D1PreparedStatement[] {
+  return specs.map((spec) =>
+    db.prepare(
+      `INSERT INTO task_rule_schedules (
+        id, household_id, task_rule_id, schedule_kind,
+        day_of_week, week_of_month, week_last, day_of_month, month_end, month
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9)`,
+    ).bind(
+      crypto.randomUUID(),
+      householdId,
+      taskRuleId,
+      spec.kind,
+      spec.dayOfWeek,
+      spec.weekOfMonth,
+      spec.dayOfMonth,
+      spec.monthEnd ? 1 : 0,
+      spec.month,
+    )
+  );
 }
 
 function intervalValues(
@@ -91,9 +122,11 @@ function occurrenceInsert(
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version, rule_snapshot
+      completion_calendar_version, schedule_spec_version, rule_snapshot
     )
-    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ${snapshot}
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6,
+           CASE WHEN r.recurrence_basis = 'calendar' THEN 1 END,
+           ${snapshot}
       FROM task_rules r
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id
@@ -118,14 +151,14 @@ async function insertTask(
     recurrenceBasis: string;
     recommendedStartOffset: number;
     recommendedUntilOffset: number;
-    schedule?: CalendarTaskInput;
+    scheduleSpecs?: readonly StoredCalendarSpec[];
     scheduledFor: string | null;
   },
 ): Promise<string> {
   await requireManagedItem(db, householdId, input.managedItemId);
   const taskRuleId = crypto.randomUUID();
   const occurrenceId = crypto.randomUUID();
-  const schedule = input.schedule;
+  const specs = input.scheduleSpecs;
   const interval = input.interval;
   await db.batch([
     db.prepare(
@@ -146,12 +179,15 @@ async function insertTask(
       input.deadlineKind,
       input.recommendedStartOffset,
       input.recommendedUntilOffset,
-      ...scheduleValues(schedule),
+      ...scheduleValues(specs),
       ...intervalValues(interval),
       input.recommendedStartValue ?? null,
       input.recommendedUntilValue ?? null,
       input.recommendedUnit ?? null,
     ),
+    ...scheduleSpecInserts(db, householdId, taskRuleId, specs ?? []),
+    // 候補指定を入れた後にOccurrenceを作る。rule_snapshotが候補指定を含み
+    // (YDR-039 / YDR-040)、0021のロールアウトガードも候補指定の件数を見るため。
     occurrenceInsert(db, {
       completionCalendarVersion:
         input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null,
@@ -203,7 +239,8 @@ export async function createCalendarTask(
   now = new Date(),
 ): Promise<string> {
   const householdId = await requireCurrentHouseholdId(db, session);
-  const first = calendarFirstScheduledFor(input, now);
+  const specs = calendarSpecsFromInput(input);
+  const first = calendarFirstScheduledFor(calendarScheduleFromInput(input), now);
   return insertTask(db, householdId, {
     ...input,
     deadlineKind: "strict",
@@ -211,7 +248,7 @@ export async function createCalendarTask(
     recurrenceBasis: "calendar",
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
-    schedule: input,
+    scheduleSpecs: specs,
     scheduledFor: first,
   });
 }

@@ -146,7 +146,7 @@ describe("D1 Todo atomicity and IDOR resistance", () => {
     await createCalendarTask(db, householdBMember, {
       managedItemId: null,
       scheduleDayOfMonth: null,
-      scheduleDayOfWeek: 1,
+      scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
       scheduleMonth: null,
       scheduleMonthEnd: false,
