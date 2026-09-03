@@ -51,6 +51,7 @@
 | YDR-037 | 固定間隔の繰り返しを起点日と間隔日数が決める候補列として定義する | Accepted | [ydr-037-fixed-interval-recurrence.md](ydr-037-fixed-interval-recurrence.md) |
 | YDR-038 | 完了日基準Todoの月・年単位を対象月の月末へ補正する | Accepted | [ydr-038-completion-calendar-intervals.md](ydr-038-completion-calendar-intervals.md) |
 | YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Accepted | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
+| YDR-040 | 複数候補を持つ定例日ルールを候補指定の和集合として定義する | Accepted | [ydr-040-multi-candidate-calendar-rules.md](ydr-040-multi-candidate-calendar-rules.md) |
 
 ## 新しい意思決定の追加
 
