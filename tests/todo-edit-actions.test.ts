@@ -280,6 +280,27 @@ describe("繰り返しTodoの編集", () => {
     expect(result.status).toBe("error");
   });
 
+  it("毎年で実在しない月日は保存しない", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleDayOfMonth: "31",
+      scheduleKind: "yearly",
+      scheduleMonth: "4",
+      title: "年度末の確認",
+    })) formData.set(key, value);
+
+    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "定例パターンを正しく入力してください。",
+      status: "error",
+    });
+  });
+
   // Issue #100 / YDR-040: 月次の曜日方式は曜日を1つ、第N・最終を複数選ぶ。
   it("毎月の複数の第N曜日と最終曜日をD1へ渡す", async () => {
     const formData = new FormData();

@@ -94,10 +94,15 @@ function monthlyWeekdaySchedule(
   };
 }
 
+function isValidYearlyDate(month: number, day: number): boolean {
+  const candidate = new Date(Date.UTC(2000, month - 1, day));
+  return candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
+}
+
 function yearlySchedule(formData: FormData): CalendarRuleSchedule | null {
   const month = integerField(formData, "scheduleMonth", 1, 12);
   const day = integerField(formData, "scheduleDayOfMonth", 1, 31);
-  return month === null || day === null ? null : {
+  return month === null || day === null || !isValidYearlyDate(month, day) ? null : {
     scheduleDayOfMonth: day,
     scheduleDaysOfWeek: [],
     scheduleKind: "yearly",
