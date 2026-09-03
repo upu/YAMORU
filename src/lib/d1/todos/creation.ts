@@ -9,6 +9,7 @@ import {
   intervalFirstScheduledFor,
 } from "../calendar";
 import { type TaskBasics, requireManagedItem } from "./shared";
+import { legacyCalendarColumnValues } from "./calendar-columns";
 import { taskRuleSnapshotExpression } from "./rule-snapshot";
 
 // Todoの新規作成(一回限り・完了日基準・定例日基準・固定間隔)。
@@ -48,28 +49,6 @@ export type IntervalTaskInput = TaskBasics & {
   intervalCount: number;
   intervalUnit: "day" | "week";
 };
-
-// 方式ごとの列は、その方式のTodoだけが値を持つ(001_init.sql / 0016の
-// CHECK制約)。列の並びはINSERT文のプレースホルダと同じ順序で返す。
-//
-// Issue #102 / YDR-040: 定例日の候補指定の正本はtask_rule_schedulesであり、
-// task_rulesのschedule_*列は0021の間だけ残す旧Worker互換の値である。複数曜日
-// ルールでは最も早い曜日を入れる(CHECK制約が単一の曜日を求めるため)。旧Worker
-// が複数候補ルールの次回を誤って作ることは0021のロールアウトガードが防ぐ。
-function scheduleValues(
-  specs: readonly StoredCalendarSpec[] | undefined,
-): (number | string | null)[] {
-  const first = specs?.at(0);
-  if (first === undefined) return [null, null, null, null, null, 0];
-  return [
-    first.kind,
-    first.dayOfWeek === 0 ? null : first.dayOfWeek,
-    first.dayOfMonth === 0 ? null : first.dayOfMonth,
-    first.weekOfMonth === 0 ? null : first.weekOfMonth,
-    first.month === 0 ? null : first.month,
-    first.monthEnd ? 1 : 0,
-  ];
-}
 
 function scheduleSpecInserts(
   db: D1Database,
@@ -179,7 +158,7 @@ async function insertTask(
       input.deadlineKind,
       input.recommendedStartOffset,
       input.recommendedUntilOffset,
-      ...scheduleValues(specs),
+      ...legacyCalendarColumnValues(specs),
       ...intervalValues(interval),
       input.recommendedStartValue ?? null,
       input.recommendedUntilValue ?? null,

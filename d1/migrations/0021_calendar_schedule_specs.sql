@@ -123,7 +123,7 @@ UPDATE task_occurrences
          'dayOfMonth', s.day_of_month,
          'monthEnd', s.month_end,
          'month', s.month
-       ))
+       ) ORDER BY s.month, s.day_of_month, s.week_of_month, s.week_last, s.day_of_week)
          FROM task_rule_schedules s
         WHERE s.task_rule_id = task_occurrences.task_rule_id
           AND s.household_id = task_occurrences.household_id

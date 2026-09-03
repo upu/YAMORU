@@ -1,6 +1,7 @@
 import { requireCurrentHouseholdId, requireD1Session, type D1Session } from "../authorization";
 import { type StoredCalendarSpec, calendarSpecsFromInput } from "../calendar";
 import { D1ConflictError } from "../errors";
+import { legacyCalendarColumnValues } from "./calendar-columns";
 import { taskRuleSnapshotExpression } from "./rule-snapshot";
 import { type OccurrenceWithRule, loadOccurrence, requireHouseholdUser, requireManagedItem } from "./shared";
 
@@ -61,16 +62,9 @@ function recurringRuleValues(input: RecurringTaskRuleUpdate): (number | string |
     ];
   }
   if (input.recurrenceBasis === "calendar") {
-    // task_rulesのschedule_*列は0021の間だけ残す旧Worker互換の値。複数曜日
-    // ルールでは最も早い曜日を入れる(creation.tsのscheduleValuesと同じ)。
     return [
       0, 0, null, null, null,
-      input.scheduleKind,
-      input.scheduleDaysOfWeek.at(0) ?? null,
-      input.scheduleDayOfMonth,
-      input.scheduleWeekOfMonth,
-      input.scheduleMonth,
-      input.scheduleMonthEnd ? 1 : 0,
+      ...legacyCalendarColumnValues(calendarSpecsFromInput(input)),
       null, null, null,
     ];
   }

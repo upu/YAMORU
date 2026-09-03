@@ -388,6 +388,9 @@ export function parseCalendarScheduleSpecs(value: string | null): StoredCalendar
   return (specs as StoredCalendarSpec[]).sort(compareStoredCalendarSpecs);
 }
 
+// 並び順は保存側(rule-snapshot.tsのCALENDAR_SCHEDULE_SPEC_ORDER)と同じキー順に
+// そろえる。読み書きで順序が食い違うと、同じ候補指定でもスナップショットの
+// 比較が一致しなくなる。
 function compareStoredCalendarSpecs(
   left: StoredCalendarSpec,
   right: StoredCalendarSpec,
@@ -395,6 +398,7 @@ function compareStoredCalendarSpecs(
   return left.month - right.month ||
     left.dayOfMonth - right.dayOfMonth ||
     left.weekOfMonth - right.weekOfMonth ||
+    Number(left.weekLast) - Number(right.weekLast) ||
     left.dayOfWeek - right.dayOfWeek;
 }
 

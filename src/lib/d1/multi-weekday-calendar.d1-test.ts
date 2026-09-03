@@ -281,6 +281,40 @@ describe("複数曜日ルールの編集(updateRecurringTaskRule)", () => {
     });
   });
 
+  // Copilotのレビュー指摘: 集約の並び順が取得順任せだと、同じ候補指定でも
+  // スナップショットの文字列が揺れ、変更がなくても履歴が作られてしまう。
+  it("候補指定を入れ替えても、変更がなければ履歴を作らない", async () => {
+    const ruleId = await createCalendarTask(db, memberA, weeklyInput([1, 4]), TOKYO_2026_08_04);
+    const occurrence = await pendingOccurrence(ruleId);
+    const rule = {
+      managedItemId: null,
+      recurrenceBasis: "calendar" as const,
+      scheduleDayOfMonth: null,
+      scheduleDaysOfWeek: [4, 1],
+      scheduleKind: "weekly",
+      scheduleMonth: null,
+      scheduleMonthEnd: false,
+      scheduleWeekOfMonth: null,
+      title: "毎週の家族会議",
+    };
+
+    // 同じ候補指定を逆順で送り直す。候補指定の行は作り直されるが、内容は同じ。
+    await updateRecurringTaskRule(db, memberA, occurrence.id, rule);
+    await updateRecurringTaskRule(db, memberA, occurrence.id, rule);
+
+    await expect(db.prepare(
+      "SELECT count(*) AS count FROM task_rule_changes WHERE task_rule_id = ?1",
+    ).bind(ruleId).first()).resolves.toEqual({ count: 0 });
+    const snapshot = await db.prepare(
+      "SELECT rule_snapshot FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrence.id).first<{ rule_snapshot: string }>();
+    expect(
+      (JSON.parse(snapshot?.rule_snapshot ?? "{}") as {
+        scheduleSpecs: { dayOfWeek: number }[];
+      }).scheduleSpecs.map((spec) => spec.dayOfWeek),
+    ).toEqual([1, 4]);
+  });
+
   it("編集後の完了は新しい候補指定で次回を決める", async () => {
     const ruleId = await createCalendarTask(db, memberA, weeklyInput([1, 4]), TOKYO_2026_08_04);
     const occurrence = await pendingOccurrence(ruleId);
