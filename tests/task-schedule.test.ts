@@ -73,6 +73,29 @@ describe("定例日基準Todoの繰り返しパターン表示", () => {
       .toBe("毎年2月29日");
   });
 
+  // Issue #101 / YDR-040の10
+  it("毎年の第N曜日を月とあわせて表示する", () => {
+    expect(describeCalendarSchedule(
+      specs("yearly_nth_weekday", { dayOfWeek: 4, month: 11, weekOfMonth: 3 }),
+    )).toBe("毎年11月第3木曜日");
+  });
+
+  it("毎年の第5曜日と最終曜日を別の言葉で表示する", () => {
+    expect(describeCalendarSchedule(specs(
+      "yearly_nth_weekday",
+      { dayOfWeek: 1, month: 5, weekOfMonth: 5 },
+      { dayOfWeek: 1, month: 5, weekLast: true, weekOfMonth: 5 },
+    ))).toBe("毎年5月第5・最終月曜日");
+  });
+
+  it("毎年の第N曜日で月が食い違う候補指定は表示しない", () => {
+    expect(describeCalendarSchedule(specs(
+      "yearly_nth_weekday",
+      { dayOfWeek: 1, month: 5, weekOfMonth: 2 },
+      { dayOfWeek: 1, month: 6, weekOfMonth: 2 },
+    ))).toBeNull();
+  });
+
   it("繰り返しなし・完了日基準では表示しない", () => {
     expect(describeCalendarSchedule([])).toBeNull();
   });

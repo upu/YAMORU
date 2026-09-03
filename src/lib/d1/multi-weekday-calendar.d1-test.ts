@@ -207,11 +207,13 @@ describe("候補指定のDB制約", () => {
     await expect(insertSpec(ruleId, { day_of_week: 1 })).rejects.toThrow(/UNIQUE/u);
   });
 
+  // Issue #101 / YDR-040の8: 0023で親子の種類の一致はTRIGGERから
+  // (task_rule_id, schedule_kind)の複合外部キーへ移した。
   it("親と違う種類の候補指定を保存できない", async () => {
     const ruleId = await createCalendarTask(db, memberA, weeklyInput([1]), TOKYO_2026_08_04);
     await expect(
       insertSpec(ruleId, { day_of_month: 5, day_of_week: 0, schedule_kind: "monthly_day" }),
-    ).rejects.toThrow(/same schedule_kind/u);
+    ).rejects.toThrow(/FOREIGN KEY/u);
   });
 
   it("範囲外の曜日と、まだ有効化していない最終曜日を保存できない", async () => {

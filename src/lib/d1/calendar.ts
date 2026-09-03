@@ -168,6 +168,22 @@ function monthlyOnOrAfter(
   }
 }
 
+// Issue #100 / #101 / YDR-040の4: 第N曜日と最終曜日は別の暦規則で計算する。
+// 毎月(monthly_nth_weekday)と毎年(yearly_nth_weekday)で同じ規則を使い、
+// 年次側に独自実装を持たない。
+function weekdayCandidateForSpec(
+  spec: CalendarScheduleSpec,
+  year: number,
+  month: number,
+): string | null {
+  const weekday = requireSpecValue(spec.dayOfWeek, "Invalid weekday");
+  const week = requireSpecValue(spec.weekOfMonth, "Invalid week");
+  if (spec.weekLast && week !== 5) throw new Error("Invalid last weekday");
+  return spec.weekLast
+    ? lastWeekdayCandidate(year, month, weekday)
+    : nthWeekdayCandidate(year, month, weekday, week);
+}
+
 function monthlyCandidateForSpec(
   scheduleKind: string,
   spec: CalendarScheduleSpec,
@@ -181,12 +197,27 @@ function monthlyCandidateForSpec(
       requireSpecValue(spec.dayOfMonth, "Invalid monthly day"),
     );
   }
-  const weekday = requireSpecValue(spec.dayOfWeek, "Invalid weekday");
-  const week = requireSpecValue(spec.weekOfMonth, "Invalid week");
-  if (spec.weekLast && week !== 5) throw new Error("Invalid last weekday");
-  return spec.weekLast
-    ? lastWeekdayCandidate(year, month, weekday)
-    : nthWeekdayCandidate(year, month, weekday, week);
+  return weekdayCandidateForSpec(spec, year, month);
+}
+
+// Issue #101 / YDR-021の5: 毎年の第N曜日は、指定月にその週がない年を飛ばして
+// 次に成立する年へ進める。2月の第5曜日のように成立が数十年に一度でも、
+// Gregorian暦の400年周期にはすべての年型が現れるため、その範囲で必ず見つかる。
+// 上限に達するのは保存値が壊れている場合だけなので、無限ループにせず落とす。
+const MAX_YEARLY_SEARCH_YEARS = 400;
+
+function yearlyOnOrAfter(
+  spec: CalendarScheduleSpec,
+  onOrAfter: string,
+  candidateFor: (year: number, month: number) => string | null,
+): string {
+  const month = requireSpecValue(spec.month, "Invalid month");
+  const startYear = parseDate(onOrAfter).getUTCFullYear();
+  for (let offset = 0; offset <= MAX_YEARLY_SEARCH_YEARS; offset += 1) {
+    const candidate = candidateFor(startYear + offset, month);
+    if (candidate !== null && candidate >= onOrAfter) return candidate;
+  }
+  throw new Error("Invalid yearly calendar schedule");
 }
 
 export function tokyoDateFromIso(value: string): string {
@@ -294,14 +325,19 @@ function specDateOnOrAfter(
     return monthlyOnOrAfter(scheduleKind, spec, onOrAfter);
   }
   if (scheduleKind === "yearly") {
-    const month = requireSpecValue(spec.month, "Invalid month");
     const day = requireSpecValue(spec.dayOfMonth, "Invalid day");
-    let year = start.getUTCFullYear();
-    for (;;) {
-      const candidate = monthlyCandidate(year, month, day);
-      if (candidate >= onOrAfter) return candidate;
-      year += 1;
-    }
+    return yearlyOnOrAfter(
+      spec,
+      onOrAfter,
+      (year, month) => monthlyCandidate(year, month, day),
+    );
+  }
+  if (scheduleKind === "yearly_nth_weekday") {
+    return yearlyOnOrAfter(
+      spec,
+      onOrAfter,
+      (year, month) => weekdayCandidateForSpec(spec, year, month),
+    );
   }
   throw new Error("Invalid calendar schedule");
 }

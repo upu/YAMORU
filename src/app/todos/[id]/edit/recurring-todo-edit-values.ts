@@ -1,7 +1,10 @@
 import { parseCalendarScheduleSpecs } from "../../../../lib/d1/calendar";
 import { type TodoDetailRow } from "../../../../lib/d1/todos";
 import { toRecurrenceBasis } from "../../../task-schedule";
-import { type RecurringRuleEditValues } from "./recurring-todo-edit-form";
+import {
+  type CalendarScheduleKind,
+  type RecurringRuleEditValues,
+} from "./recurring-todo-edit-form";
 
 function completionValues(todo: TodoDetailRow): RecurringRuleEditValues {
   const hasSavedValues = todo.recommended_start_value !== null &&
@@ -41,19 +44,28 @@ function intervalValues(todo: TodoDetailRow): RecurringRuleEditValues {
   };
 }
 
-// Issue #100 / YDR-040: 編集フォームの初期値も候補指定の配列から作る。毎週は
-// 選択済み曜日、毎月の曜日方式は第Nと最終をそれぞれ復元する。
+const CALENDAR_SCHEDULE_KINDS: readonly CalendarScheduleKind[] = [
+  "monthly_day",
+  "monthly_nth_weekday",
+  "weekly",
+  "yearly",
+  "yearly_nth_weekday",
+];
+
+function toCalendarScheduleKind(value: string | null): CalendarScheduleKind | null {
+  return CALENDAR_SCHEDULE_KINDS.find((kind) => kind === value) ?? null;
+}
+
+// Issue #100 / #101 / YDR-040: 編集フォームの初期値も候補指定の配列から作る。
+// 毎週は選択済み曜日、毎月・毎年の曜日方式は第Nと最終をそれぞれ復元する。
 function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
-  const validKinds = ["weekly", "monthly_day", "monthly_nth_weekday", "yearly"];
   const specs = parseCalendarScheduleSpecs(todo.schedule_specs);
   const first = specs.at(0);
-  if (
-    todo.schedule_kind === null || !validKinds.includes(todo.schedule_kind) ||
-    first === undefined || first.kind !== todo.schedule_kind
-  ) {
+  const scheduleKind = toCalendarScheduleKind(todo.schedule_kind);
+  if (scheduleKind === null || first === undefined || first.kind !== scheduleKind) {
     throw new Error("定例日基準Todoの条件が不正です。");
   }
-  const monthlyWeeks = specs
+  const weekPositions = specs
     .filter((spec) => !spec.weekLast)
     .map((spec) => spec.weekOfMonth)
     .filter((week) => week !== 0);
@@ -64,12 +76,12 @@ function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
     scheduleDaysOfWeek: [...new Set(
       specs.map((spec) => spec.dayOfWeek).filter((day) => day !== 0),
     )],
-    scheduleKind: todo.schedule_kind as "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly",
+    scheduleKind,
     scheduleMonth: first.month === 0 ? null : first.month,
     scheduleMonthEnd: first.monthEnd,
     scheduleWeekLast: specs.some((spec) => spec.weekLast),
     scheduleWeekOfMonth: first.weekOfMonth === 0 ? null : first.weekOfMonth,
-    scheduleWeeksOfMonth: monthlyWeeks,
+    scheduleWeeksOfMonth: weekPositions,
     title: todo.title,
   };
 }

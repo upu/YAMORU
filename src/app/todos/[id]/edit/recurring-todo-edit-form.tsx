@@ -10,17 +10,25 @@ import {
   type TodoManagedItemOption,
 } from "../../managed-item-search";
 import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../../weekday-checkboxes";
-import { MonthlyWeekPositionCheckboxes } from "../../monthly-week-position-checkboxes";
+import { WeekPositionCheckboxes } from "../../week-position-checkboxes";
 import { updateRecurringOccurrence, updateRecurringRule } from "../actions";
 import { AssigneeField, SubmitButton } from "./todo-edit-form";
+
+export type CalendarScheduleKind =
+  | "monthly_day"
+  | "monthly_nth_weekday"
+  | "weekly"
+  | "yearly"
+  | "yearly_nth_weekday";
 
 type CalendarRuleValues = {
   managedItemId: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
-  // Issue #100 / #102 / YDR-040: 毎週は複数曜日、月次の曜日方式は1曜日を持つ。
+  // Issue #100 / #101 / #102 / YDR-040: 毎週は複数曜日、月次・年次の曜日方式は
+  // 1曜日と複数の出現位置を持つ。
   scheduleDaysOfWeek: number[];
-  scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
+  scheduleKind: CalendarScheduleKind;
   scheduleMonth: number | null;
   scheduleMonthEnd: boolean;
   scheduleWeekLast?: boolean;
@@ -102,7 +110,7 @@ function MonthlyDayFields({ rule }: { rule: CalendarRuleValues }) {
 function MonthlyNthWeekdayFields({ rule }: { rule: CalendarRuleValues }) {
   return (
     <>
-      <MonthlyWeekPositionCheckboxes
+      <WeekPositionCheckboxes
         defaultLast={rule.scheduleWeekLast}
         defaultSelected={rule.scheduleWeeksOfMonth ??
           (rule.scheduleWeekOfMonth === null ? [] : [rule.scheduleWeekOfMonth])}
@@ -115,23 +123,87 @@ function MonthlyNthWeekdayFields({ rule }: { rule: CalendarRuleValues }) {
   );
 }
 
-function YearlyFields({ rule }: { rule: CalendarRuleValues }) {
+function MonthField({ value }: { value: number | null }) {
   return (
     <>
       <label htmlFor="recurring-rule-month">月</label>
-      <select defaultValue={String(rule.scheduleMonth ?? 1)} id="recurring-rule-month" name="scheduleMonth">
+      <select defaultValue={String(value ?? 1)} id="recurring-rule-month" name="scheduleMonth">
         {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
           <option key={month} value={month}>{month}月</option>
         ))}
       </select>
+    </>
+  );
+}
+
+function YearlyDayFields({ rule }: { rule: CalendarRuleValues }) {
+  return (
+    <>
       <label htmlFor="recurring-rule-day">日付</label>
       <input defaultValue={rule.scheduleDayOfMonth ?? 1} id="recurring-rule-day" max={31} min={1} name="scheduleDayOfMonth" required type="number" />
     </>
   );
 }
 
+// Issue #101 / YDR-040の3・4: 毎年の曜日方式も、毎月と同じ出現位置の入力欄を
+// 使う。第5曜日がない年はスキップし、最終は指定した月に必ず候補を作る。
+function YearlyNthWeekdayFields({ rule }: { rule: CalendarRuleValues }) {
+  return (
+    <>
+      <WeekPositionCheckboxes
+        defaultLast={rule.scheduleWeekLast}
+        defaultSelected={rule.scheduleWeeksOfMonth ??
+          (rule.scheduleWeekOfMonth === null ? [] : [rule.scheduleWeekOfMonth])}
+      />
+      <WeekdayField value={rule.scheduleDaysOfWeek.at(0) ?? null} />
+      <p className="input-help">
+        第5曜日がない年はその年をスキップし、最終は指定した月の最後の曜日を選びます。
+      </p>
+    </>
+  );
+}
+
 type CalendarPattern = "monthly" | "weekly" | "yearly";
 type MonthlyMode = "monthly_day" | "monthly_nth_weekday";
+type YearlyMode = "yearly" | "yearly_nth_weekday";
+
+function YearlyRuleFields({ rule }: { rule: CalendarRuleValues }) {
+  const initialMode = rule.scheduleKind === "yearly_nth_weekday"
+    ? "yearly_nth_weekday"
+    : "yearly";
+  const [mode, setMode] = useState<YearlyMode>(initialMode);
+  return (
+    <>
+      <fieldset className="todo-fieldset">
+        <legend>毎年の指定方法</legend>
+        <label className="radio-option">
+          <input
+            checked={mode === "yearly"}
+            name="scheduleKind"
+            onChange={() => { setMode("yearly"); }}
+            type="radio"
+            value="yearly"
+          />
+          日付で指定
+        </label>
+        <label className="radio-option">
+          <input
+            checked={mode === "yearly_nth_weekday"}
+            name="scheduleKind"
+            onChange={() => { setMode("yearly_nth_weekday"); }}
+            type="radio"
+            value="yearly_nth_weekday"
+          />
+          曜日で指定
+        </label>
+      </fieldset>
+      <MonthField value={rule.scheduleMonth} />
+      {mode === "yearly"
+        ? <YearlyDayFields rule={rule} />
+        : <YearlyNthWeekdayFields rule={rule} />}
+    </>
+  );
+}
 
 function MonthlyRuleFields({ rule }: { rule: CalendarRuleValues }) {
   const initialMode = rule.scheduleKind === "monthly_nth_weekday"
@@ -172,6 +244,7 @@ function MonthlyRuleFields({ rule }: { rule: CalendarRuleValues }) {
 
 function patternForKind(kind: CalendarRuleValues["scheduleKind"]): CalendarPattern {
   if (kind === "monthly_day" || kind === "monthly_nth_weekday") return "monthly";
+  if (kind === "yearly" || kind === "yearly_nth_weekday") return "yearly";
   return kind;
 }
 
@@ -189,15 +262,13 @@ function CalendarRuleFields({ rule }: { rule: CalendarRuleValues }) {
       >
         <option value="weekly">毎週</option>
         <option value="monthly">毎月</option>
-        <option value="yearly">毎年の月日</option>
+        <option value="yearly">毎年</option>
       </select>
       {pattern === "weekly"
         ? <><input name="scheduleKind" type="hidden" value="weekly" /><WeekdayCheckboxes defaultSelected={rule.scheduleDaysOfWeek} /></>
         : null}
       {pattern === "monthly" ? <MonthlyRuleFields rule={rule} /> : null}
-      {pattern === "yearly"
-        ? <><input name="scheduleKind" type="hidden" value="yearly" /><YearlyFields rule={rule} /></>
-        : null}
+      {pattern === "yearly" ? <YearlyRuleFields rule={rule} /> : null}
     </fieldset>
   );
 }

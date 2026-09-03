@@ -1,10 +1,10 @@
 import { type RecurringTaskRuleUpdate } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import {
-  EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE,
-  MONTHLY_WEEK_LAST_FIELD_NAME,
-  MONTHLY_WEEKS_FIELD_NAME,
-} from "../monthly-week-position-checkboxes";
+  EMPTY_WEEK_POSITIONS_MESSAGE,
+  WEEK_LAST_FIELD_NAME,
+  WEEK_POSITIONS_FIELD_NAME,
+} from "../week-position-checkboxes";
 import { WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
 
 export type CalendarRuleSchedule = Pick<
@@ -57,12 +57,13 @@ function monthlyDaySchedule(formData: FormData): CalendarRuleSchedule | null {
   };
 }
 
-function monthlyPositions(
+// Issue #100 / #101: 第Nと最終の選択は、毎月・毎年で同じ入力欄を使う。
+function weekPositions(
   formData: FormData,
 ): { last: boolean; weeks: number[] } | null {
-  const rawLast = formData.get(MONTHLY_WEEK_LAST_FIELD_NAME);
+  const rawLast = formData.get(WEEK_LAST_FIELD_NAME);
   if (rawLast !== null && rawLast !== "0" && rawLast !== "1") return null;
-  const values = formData.getAll(MONTHLY_WEEKS_FIELD_NAME);
+  const values = formData.getAll(WEEK_POSITIONS_FIELD_NAME);
   const weeks = values.map((value) =>
     typeof value === "string" && /^[1-5]$/u.test(value) ? Number(value) : null
   );
@@ -73,25 +74,37 @@ function monthlyPositions(
   };
 }
 
-function monthlyWeekdaySchedule(
+// 毎月はmonth = null、毎年は選んだ月を候補指定へ入れる。それ以外は同じ形。
+function nthWeekdaySchedule(
   formData: FormData,
+  scheduleKind: string,
+  month: number | null,
 ): CalendarRuleSchedule | MaintenanceTodoActionState | null {
   const weekday = integerField(formData, "scheduleDayOfWeek", 1, 7);
-  const positions = monthlyPositions(formData);
+  const positions = weekPositions(formData);
   if (weekday === null || positions === null) return null;
   if (positions.weeks.length === 0 && !positions.last) {
-    return { message: EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE, status: "error" };
+    return { message: EMPTY_WEEK_POSITIONS_MESSAGE, status: "error" };
   }
   return {
     scheduleDayOfMonth: null,
     scheduleDaysOfWeek: [weekday],
-    scheduleKind: "monthly_nth_weekday",
-    scheduleMonth: null,
+    scheduleKind,
+    scheduleMonth: month,
     scheduleMonthEnd: false,
     scheduleWeekLast: positions.last,
     scheduleWeekOfMonth: positions.weeks.at(0) ?? null,
     scheduleWeeksOfMonth: positions.weeks,
   };
+}
+
+function yearlyWeekdaySchedule(
+  formData: FormData,
+): CalendarRuleSchedule | MaintenanceTodoActionState | null {
+  const month = integerField(formData, "scheduleMonth", 1, 12);
+  return month === null
+    ? null
+    : nthWeekdaySchedule(formData, "yearly_nth_weekday", month);
 }
 
 function isValidYearlyDate(month: number, day: number): boolean {
@@ -119,8 +132,10 @@ export function parseCalendarRuleSchedule(
   switch (kind) {
     case "weekly": return weeklySchedule(formData);
     case "monthly_day": return monthlyDaySchedule(formData);
-    case "monthly_nth_weekday": return monthlyWeekdaySchedule(formData);
+    case "monthly_nth_weekday":
+      return nthWeekdaySchedule(formData, "monthly_nth_weekday", null);
     case "yearly": return yearlySchedule(formData);
+    case "yearly_nth_weekday": return yearlyWeekdaySchedule(formData);
     default: return null;
   }
 }

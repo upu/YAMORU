@@ -241,6 +241,17 @@ describe("繰り返しTodoの編集", () => {
       },
     );
   });
+});
+
+// Issue #100 / #101 / #102 / YDR-040: 定例日ルールの候補指定は方式ごとに
+// 入力の形が違う。方式ごとの解釈だけをまとめて確かめる。
+describe("繰り返しTodoの編集(定例日の候補指定)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: null });
+    updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
+  });
 
   // Issue #102 / YDR-040: 毎週の曜日は複数選べる。未選択のままでは保存しない。
   it("毎週の複数曜日を昇順・重複なしでD1へ渡す", async () => {
@@ -350,6 +361,70 @@ describe("繰り返しTodoの編集", () => {
       message: "第1〜第5または最終を1つ以上選んでください。",
       status: "error",
     });
+  });
+
+  // Issue #101 / YDR-040の3: 年次の曜日方式は月・曜日・出現位置を渡す。
+  it("毎年の第N曜日と最終曜日をD1へ渡す", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: "4",
+      scheduleKind: "yearly_nth_weekday",
+      scheduleMonth: "11",
+      scheduleWeekLast: "1",
+      title: "年末の大掃除",
+    })) formData.set(key, value);
+    for (const week of ["3", "1", "3"]) {
+      formData.append("scheduleWeekOfMonth", week);
+    }
+
+    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({
+        scheduleDaysOfWeek: [4],
+        scheduleKind: "yearly_nth_weekday",
+        scheduleMonth: 11,
+        scheduleWeekLast: true,
+        scheduleWeeksOfMonth: [1, 3],
+      }),
+    );
+  });
+
+  it("毎年の曜日方式で月が範囲外なら保存しない", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: "4",
+      scheduleKind: "yearly_nth_weekday",
+      scheduleMonth: "0",
+      scheduleWeekOfMonth: "3",
+      title: "年末の大掃除",
+    })) formData.set(key, value);
+
+    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "定例パターンを正しく入力してください。",
+      status: "error",
+    });
+  });
+});
+
+describe("繰り返しTodoの編集(完了日基準・固定間隔)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: null });
+    updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
   });
 
   it("完了日基準の値・単位を検証してD1へ渡す", async () => {

@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 
-export const MONTHLY_WEEKS_FIELD_NAME = "scheduleWeekOfMonth";
-export const MONTHLY_WEEK_LAST_FIELD_NAME = "scheduleWeekLast";
-export const EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE =
+export const WEEK_POSITIONS_FIELD_NAME = "scheduleWeekOfMonth";
+export const WEEK_LAST_FIELD_NAME = "scheduleWeekLast";
+export const EMPTY_WEEK_POSITIONS_MESSAGE =
   "第1〜第5または最終を1つ以上選んでください。";
 
 const WEEK_OPTIONS = [1, 2, 3, 4, 5] as const;
 
-// Issue #100 / YDR-040: 第5と最終は同じ月に同日になることがあっても別の意味を
-// 持つため、独立したチェックボックスとして常に選択状態を見せる。
-export function MonthlyWeekPositionCheckboxes({
+// Issue #100 / #101 / YDR-040: 第5と最終は同じ月に同日になることがあっても別の
+// 意味を持つため、独立したチェックボックスとして常に選択状態を見せる。
+// 毎月(monthly_nth_weekday)と毎年(yearly_nth_weekday)の曜日方式が同じ
+// 入力欄を使う。年次では、選んだ月の中の何回目かを表す。
+export function WeekPositionCheckboxes({
   defaultLast = false,
   defaultSelected,
 }: {
@@ -38,7 +40,7 @@ export function MonthlyWeekPositionCheckboxes({
           <label className="radio-option" key={week}>
             <input
               checked={selected.includes(week)}
-              name={MONTHLY_WEEKS_FIELD_NAME}
+              name={WEEK_POSITIONS_FIELD_NAME}
               onChange={(event) => {
                 const { checked } = event.currentTarget;
                 setSelected((current) => checked
@@ -54,7 +56,7 @@ export function MonthlyWeekPositionCheckboxes({
         <label className="radio-option">
           <input
             checked={last}
-            name={MONTHLY_WEEK_LAST_FIELD_NAME}
+            name={WEEK_LAST_FIELD_NAME}
             onChange={(event) => { setLast(event.currentTarget.checked); }}
             type="checkbox"
             value="1"
@@ -64,7 +66,7 @@ export function MonthlyWeekPositionCheckboxes({
       </div>
       {isEmpty ? (
         <p className="field-error" id={errorId} role="alert">
-          {EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE}
+          {EMPTY_WEEK_POSITIONS_MESSAGE}
         </p>
       ) : null}
     </fieldset>

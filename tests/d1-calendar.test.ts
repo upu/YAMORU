@@ -66,6 +66,75 @@ describe("D1の暦基準Todo計算", () => {
     )).toBe("2027-02-27T15:00:00.000Z");
   });
 
+  // Issue #101 / YDR-040の3: 毎年の第N曜日。
+  it("毎年の第N曜日は指定月のその週を候補にする", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("yearly_nth_weekday", { dayOfWeek: 4, month: 11, weekOfMonth: 3 }),
+      "2026-01-01",
+    )).toBe("2026-11-18T15:00:00.000Z");
+  });
+
+  it("毎年の第N曜日は指定月を過ぎていると翌年へ進む", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("yearly_nth_weekday", { dayOfWeek: 4, month: 11, weekOfMonth: 3 }),
+      "2026-12-01",
+    )).toBe("2027-11-17T15:00:00.000Z");
+  });
+
+  it("毎年の第5曜日がない年はその年をスキップする", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("yearly_nth_weekday", { dayOfWeek: 1, month: 5, weekOfMonth: 5 }),
+      "2026-01-01",
+    )).toBe("2027-05-30T15:00:00.000Z");
+  });
+
+  // 2月の第5曜日はうるう年の1曜日にしか現れない。数年〜数十年スキップしても
+  // 探索が止まらないことまで確かめる。
+  it("うるう年にしか現れない2月の第5曜日も見つける", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("yearly_nth_weekday", { dayOfWeek: 7, month: 2, weekOfMonth: 5 }),
+      "2026-01-01",
+    )).toBe("2032-02-28T15:00:00.000Z");
+  });
+
+  it("毎年の最終曜日は4回しかない年も候補を作る", () => {
+    const lastMonday = schedule("yearly_nth_weekday", {
+      dayOfWeek: 1,
+      month: 5,
+      weekLast: true,
+      weekOfMonth: 5,
+    });
+    expect(calendarScheduledForOnOrAfter(lastMonday, "2026-01-01"))
+      .toBe("2026-05-24T15:00:00.000Z");
+    expect(calendarScheduledForOnOrAfter(lastMonday, "2027-01-01"))
+      .toBe("2027-05-30T15:00:00.000Z");
+  });
+
+  it("毎年の複数の出現位置は同じ月の候補をまとめて扱う", () => {
+    const secondAndLast = schedule(
+      "yearly_nth_weekday",
+      { dayOfWeek: 1, month: 5, weekOfMonth: 2 },
+      { dayOfWeek: 1, month: 5, weekLast: true, weekOfMonth: 5 },
+    );
+    expect(calendarScheduledForOnOrAfter(secondAndLast, "2026-01-01"))
+      .toBe("2026-05-10T15:00:00.000Z");
+    expect(nextCalendarOccurrence(
+      secondAndLast,
+      "2026-05-10T15:00:00.000Z",
+      "2026-05-11T02:00:00.000Z",
+    )).toBe("2026-05-24T15:00:00.000Z");
+  });
+
+  // YDR-013 / YDR-016: 遅延完了では実施日時以前の候補を飛ばし、飛ばした候補は
+  // さかのぼって作らない。
+  it("毎年の第N曜日を遅れて完了すると翌年の候補へ進む", () => {
+    expect(nextCalendarOccurrence(
+      schedule("yearly_nth_weekday", { dayOfWeek: 4, month: 11, weekOfMonth: 3 }),
+      "2026-11-18T15:00:00.000Z",
+      "2026-12-20T02:00:00.000Z",
+    )).toBe("2027-11-17T15:00:00.000Z");
+  });
+
   it("完了日と現在Occurrenceの翌日の遅い方から次回を求める", () => {
     expect(nextCalendarOccurrence(
       schedule("weekly", { dayOfWeek: 1 }),

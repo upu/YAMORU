@@ -52,9 +52,15 @@ export type IntervalTodoInput = TodoBasics & {
 export type CalendarTodoInput = TodoBasics & {
   recurrenceBasis: "calendar";
   scheduleDayOfMonth?: number;
-  // Issue #100 / YDR-040: 毎週は複数曜日、毎月の曜日方式は複数の第Nと最終を持つ。
+  // Issue #100 / #101 / YDR-040: 毎週は複数曜日、毎月・毎年の曜日方式は
+  // 複数の第Nと最終を持つ。
   scheduleDaysOfWeek?: number[];
-  scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
+  scheduleKind:
+    | "monthly_day"
+    | "monthly_nth_weekday"
+    | "weekly"
+    | "yearly"
+    | "yearly_nth_weekday";
   // Issue #227 / YDR-032: monthly_dayのときだけ、固定日ではなく毎月末を
   // 意味する。日付は常に31を渡す(既存の月末補正規則、YDR-021)。
   scheduleMonthEnd: boolean;

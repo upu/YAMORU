@@ -1,5 +1,6 @@
-// Issue #100 / YDR-040: 定例日基準Todoの候補指定を、保存・入力・計算で共有する。
-// 未使用値はtask_rule_schedulesと同じ0で表し、同一種類の1〜7件へ正規化する。
+// Issue #100 / #101 / YDR-040: 定例日基準Todoの候補指定を、保存・入力・計算で
+// 共有する。未使用値はtask_rule_schedulesと同じ0で表し、同一種類の1〜7件へ
+// 正規化する。
 
 export type CalendarScheduleSpec = {
   dayOfMonth: number;
@@ -113,9 +114,13 @@ function weeklySpecs(kind: string, weekdays: number[]): StoredCalendarSpec[] {
   }));
 }
 
-function monthlyWeekdaySpecs(
+// Issue #100 / #101 / YDR-040の3: 第N曜日・最終曜日の候補指定は、毎月
+// (monthly_nth_weekday)と毎年(yearly_nth_weekday)で同じ形を持つ。違いは
+// monthが0か1〜12かだけなので、正規化も一つの関数で行う。
+function nthWeekdaySpecs(
   input: CalendarScheduleInput,
   weekdays: number[],
+  month: number,
 ): StoredCalendarSpec[] {
   const sourceWeeks = input.scheduleWeeksOfMonth ??
     (input.scheduleWeekOfMonth === null ? [] : [input.scheduleWeekOfMonth]);
@@ -127,14 +132,14 @@ function monthlyWeekdaySpecs(
     weeks.some((week) => !isIntegerInRange(week, 1, 5)) ||
     positionCount < 1 || positionCount > MAX_CALENDAR_SPECS
   ) {
-    throw new Error("Monthly weekday schedule requires a weekday and 1 to 6 positions");
+    throw new Error("Nth weekday schedule requires a weekday and 1 to 6 positions");
   }
   const dayOfWeek = weekdays[0];
   const specs = weeks.map((weekOfMonth) => ({
     dayOfMonth: 0,
     dayOfWeek,
     kind: input.scheduleKind,
-    month: 0,
+    month,
     monthEnd: false,
     weekLast: false,
     weekOfMonth,
@@ -144,13 +149,27 @@ function monthlyWeekdaySpecs(
       dayOfMonth: 0,
       dayOfWeek,
       kind: input.scheduleKind,
-      month: 0,
+      month,
       monthEnd: false,
       weekLast: true,
       weekOfMonth: 5,
     });
   }
   return specs;
+}
+
+// 毎年の第N曜日は月も候補指定の一部になる。一つのルールで選べる月は1つだけと
+// するため(Issue #101の「このIssueでは行わないこと」)、すべての候補指定へ
+// 同じ月を入れる。
+function yearlyWeekdaySpecs(
+  input: CalendarScheduleInput,
+  weekdays: number[],
+): StoredCalendarSpec[] {
+  const month = input.scheduleMonth;
+  if (month === null || !isIntegerInRange(month, 1, 12)) {
+    throw new Error("Yearly weekday schedule requires a month");
+  }
+  return nthWeekdaySpecs(input, weekdays, month);
 }
 
 function singleSpec(
@@ -175,7 +194,10 @@ export function calendarSpecsFromInput(
   const weekdays = [...new Set(input.scheduleDaysOfWeek)].sort((left, right) => left - right);
   if (input.scheduleKind === "weekly") return weeklySpecs(input.scheduleKind, weekdays);
   if (input.scheduleKind === "monthly_nth_weekday") {
-    return monthlyWeekdaySpecs(input, weekdays);
+    return nthWeekdaySpecs(input, weekdays, 0);
+  }
+  if (input.scheduleKind === "yearly_nth_weekday") {
+    return yearlyWeekdaySpecs(input, weekdays);
   }
   return singleSpec(input, weekdays);
 }

@@ -215,4 +215,41 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
     expect(screen.getByRole("checkbox", { name: "第5" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "最終" })).toBeChecked();
   });
+
+  // Issue #101 / YDR-040の3
+  it("毎年の曜日方式では保存済みの月・曜日・出現位置を表示する", () => {
+    render(
+      <RecurringTodoEditForms
+        id="occurrence-1"
+        managedItems={MANAGED_ITEMS}
+        members={MEMBERS}
+        occurrence={{
+          assigneeUserId: null,
+          dueDate: "2026-11-19",
+          scheduledDate: "2026-11-19",
+        }}
+        rule={{
+          managedItemId: null,
+          recurrenceBasis: "calendar",
+          scheduleDayOfMonth: null,
+          scheduleDaysOfWeek: [4],
+          scheduleKind: "yearly_nth_weekday",
+          scheduleMonth: 11,
+          scheduleMonthEnd: false,
+          scheduleWeekLast: false,
+          scheduleWeekOfMonth: 3,
+          scheduleWeeksOfMonth: [3],
+          title: "年末の大掃除",
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("定例パターン")).toHaveValue("yearly");
+    expect(screen.getByLabelText("曜日で指定")).toBeChecked();
+    expect(screen.getByLabelText("月")).toHaveValue("11");
+    expect(screen.getByLabelText("曜日")).toHaveValue("4");
+    expect(screen.getByRole("checkbox", { name: "第3" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "最終" })).not.toBeChecked();
+    expect(screen.queryByLabelText("日付")).not.toBeInTheDocument();
+  });
 });
