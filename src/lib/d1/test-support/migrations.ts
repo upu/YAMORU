@@ -28,6 +28,7 @@ import completionCalendarRolloutGuardSql from "../../../../d1/migrations/0018_co
 import recurringTodoEditSql from "../../../../d1/migrations/0019_recurring_todo_edit.sql?raw";
 import consumableRefillsSql from "../../../../d1/migrations/0020_consumable_refills.sql?raw";
 import calendarScheduleSpecsSql from "../../../../d1/migrations/0021_calendar_schedule_specs.sql?raw";
+import monthlyWeekdayPositionsSql from "../../../../d1/migrations/0022_monthly_weekday_positions.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -52,6 +53,7 @@ const MIGRATIONS = [
   { name: "0019_recurring_todo_edit", sql: recurringTodoEditSql },
   { name: "0020_consumable_refills", sql: consumableRefillsSql },
   { name: "0021_calendar_schedule_specs", sql: calendarScheduleSpecsSql },
+  { name: "0022_monthly_weekday_positions", sql: monthlyWeekdayPositionsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

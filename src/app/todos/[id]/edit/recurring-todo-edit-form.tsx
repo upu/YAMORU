@@ -10,6 +10,7 @@ import {
   type TodoManagedItemOption,
 } from "../../managed-item-search";
 import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../../weekday-checkboxes";
+import { MonthlyWeekPositionCheckboxes } from "../../monthly-week-position-checkboxes";
 import { updateRecurringOccurrence, updateRecurringRule } from "../actions";
 import { AssigneeField, SubmitButton } from "./todo-edit-form";
 
@@ -17,12 +18,14 @@ type CalendarRuleValues = {
   managedItemId: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
-  // Issue #102 / YDR-040: 毎週の選択済み曜日。他の種類では1件だけ入る。
+  // Issue #100 / #102 / YDR-040: 毎週は複数曜日、月次の曜日方式は1曜日を持つ。
   scheduleDaysOfWeek: number[];
   scheduleKind: "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
   scheduleMonth: number | null;
   scheduleMonthEnd: boolean;
+  scheduleWeekLast?: boolean;
   scheduleWeekOfMonth: number | null;
+  scheduleWeeksOfMonth?: number[];
   title: string;
 };
 
@@ -99,11 +102,15 @@ function MonthlyDayFields({ rule }: { rule: CalendarRuleValues }) {
 function MonthlyNthWeekdayFields({ rule }: { rule: CalendarRuleValues }) {
   return (
     <>
-      <label htmlFor="recurring-rule-week">第何週</label>
-      <select defaultValue={String(rule.scheduleWeekOfMonth ?? 1)} id="recurring-rule-week" name="scheduleWeekOfMonth">
-        {[1, 2, 3, 4, 5].map((week) => <option key={week} value={week}>第{week}週</option>)}
-      </select>
+      <MonthlyWeekPositionCheckboxes
+        defaultLast={rule.scheduleWeekLast}
+        defaultSelected={rule.scheduleWeeksOfMonth ??
+          (rule.scheduleWeekOfMonth === null ? [] : [rule.scheduleWeekOfMonth])}
+      />
       <WeekdayField value={rule.scheduleDaysOfWeek.at(0) ?? null} />
+      <p className="input-help">
+        第5曜日がない月はその月をスキップし、最終は毎月の最後の曜日を選びます。
+      </p>
     </>
   );
 }
@@ -123,29 +130,74 @@ function YearlyFields({ rule }: { rule: CalendarRuleValues }) {
   );
 }
 
+type CalendarPattern = "monthly" | "weekly" | "yearly";
+type MonthlyMode = "monthly_day" | "monthly_nth_weekday";
+
+function MonthlyRuleFields({ rule }: { rule: CalendarRuleValues }) {
+  const initialMode = rule.scheduleKind === "monthly_nth_weekday"
+    ? "monthly_nth_weekday"
+    : "monthly_day";
+  const [mode, setMode] = useState<MonthlyMode>(initialMode);
+  return (
+    <>
+      <fieldset className="todo-fieldset">
+        <legend>毎月の指定方法</legend>
+        <label className="radio-option">
+          <input
+            checked={mode === "monthly_day"}
+            name="scheduleKind"
+            onChange={() => { setMode("monthly_day"); }}
+            type="radio"
+            value="monthly_day"
+          />
+          日付で指定
+        </label>
+        <label className="radio-option">
+          <input
+            checked={mode === "monthly_nth_weekday"}
+            name="scheduleKind"
+            onChange={() => { setMode("monthly_nth_weekday"); }}
+            type="radio"
+            value="monthly_nth_weekday"
+          />
+          曜日で指定
+        </label>
+      </fieldset>
+      {mode === "monthly_day"
+        ? <MonthlyDayFields rule={rule} />
+        : <MonthlyNthWeekdayFields rule={rule} />}
+    </>
+  );
+}
+
+function patternForKind(kind: CalendarRuleValues["scheduleKind"]): CalendarPattern {
+  if (kind === "monthly_day" || kind === "monthly_nth_weekday") return "monthly";
+  return kind;
+}
+
 function CalendarRuleFields({ rule }: { rule: CalendarRuleValues }) {
-  const [kind, setKind] = useState(rule.scheduleKind);
+  const [pattern, setPattern] = useState<CalendarPattern>(patternForKind(rule.scheduleKind));
   return (
     <fieldset className="todo-fieldset">
       <legend>定例日</legend>
       <label htmlFor="recurring-rule-kind">定例パターン</label>
       <select
         id="recurring-rule-kind"
-        name="scheduleKind"
-        onChange={(event) => { setKind(event.currentTarget.value as CalendarRuleValues["scheduleKind"]); }}
-        value={kind}
+        name="calendarPattern"
+        onChange={(event) => { setPattern(event.currentTarget.value as CalendarPattern); }}
+        value={pattern}
       >
         <option value="weekly">毎週</option>
-        <option value="monthly_day">毎月の日付</option>
-        <option value="monthly_nth_weekday">毎月の第N曜日</option>
+        <option value="monthly">毎月</option>
         <option value="yearly">毎年の月日</option>
       </select>
-      {kind === "weekly"
-        ? <WeekdayCheckboxes defaultSelected={rule.scheduleDaysOfWeek} />
+      {pattern === "weekly"
+        ? <><input name="scheduleKind" type="hidden" value="weekly" /><WeekdayCheckboxes defaultSelected={rule.scheduleDaysOfWeek} /></>
         : null}
-      {kind === "monthly_day" ? <MonthlyDayFields rule={rule} /> : null}
-      {kind === "monthly_nth_weekday" ? <MonthlyNthWeekdayFields rule={rule} /> : null}
-      {kind === "yearly" ? <YearlyFields rule={rule} /> : null}
+      {pattern === "monthly" ? <MonthlyRuleFields rule={rule} /> : null}
+      {pattern === "yearly"
+        ? <><input name="scheduleKind" type="hidden" value="yearly" /><YearlyFields rule={rule} /></>
+        : null}
     </fieldset>
   );
 }

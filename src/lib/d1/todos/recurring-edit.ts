@@ -14,13 +14,15 @@ type CalendarRuleUpdate = {
   managedItemId: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
-  // Issue #102 / YDR-040: 毎週は複数の曜日を持てる。候補指定の正本は
-  // task_rule_schedulesであり、編集では行ごと置き換える。
+  // Issue #100 / #102 / YDR-040: 毎週は複数曜日、月次の曜日方式は複数の
+  // 出現位置を持てる。候補指定の正本はtask_rule_schedulesで、編集時は行ごと置き換える。
   scheduleDaysOfWeek: number[];
   scheduleKind: string;
   scheduleMonth: number | null;
   scheduleMonthEnd: boolean;
+  scheduleWeekLast?: boolean;
   scheduleWeekOfMonth: number | null;
+  scheduleWeeksOfMonth?: number[];
   title: string;
 };
 
@@ -134,7 +136,7 @@ function scheduleSpecStatements(
         `INSERT INTO task_rule_schedules (
           id, household_id, task_rule_id, schedule_kind,
           day_of_week, week_of_month, week_last, day_of_month, month_end, month
-        ) SELECT ?4, ?1, ?3, ?5, ?6, ?7, 0, ?8, ?9, ?10
+        ) SELECT ?4, ?1, ?3, ?5, ?6, ?7, ?8, ?9, ?10, ?11
            WHERE ${pendingCondition}`,
       ).bind(
         householdId,
@@ -144,6 +146,7 @@ function scheduleSpecStatements(
         spec.kind,
         spec.dayOfWeek,
         spec.weekOfMonth,
+        spec.weekLast ? 1 : 0,
         spec.dayOfMonth,
         spec.monthEnd ? 1 : 0,
         spec.month,

@@ -106,7 +106,7 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("最長")).toHaveAttribute("max", "10");
   });
 
-  it("定例日基準で週次・月次日付・月次第N曜日・年次を構造化して選べる", () => {
+  it("定例日基準で毎月を一つの選択肢にまとめ、日付方式と曜日方式を切り替えられる", () => {
     render(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
@@ -124,9 +124,14 @@ describe("Todo登録ページ", () => {
     expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
 
+    expect(screen.getByRole("option", { name: "毎月" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "毎月の日付" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "毎月の第N曜日" })).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText("定例パターン"), {
-      target: { value: "monthly_day" },
+      target: { value: "monthly" },
     });
+    expect(screen.getByLabelText("日付で指定")).toBeChecked();
     const monthlyDayInput = screen.getByLabelText("日付");
     expect(monthlyDayInput).toHaveAttribute("max", "31");
     expect(monthlyDayInput).toHaveAttribute("min", "1");
@@ -137,13 +142,13 @@ describe("Todo登録ページ", () => {
     );
     expect(screen.getByText("日")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("定例パターン"), {
-      target: { value: "monthly_nth_weekday" },
-    });
-    expect(screen.getByLabelText("第何週")).toHaveValue("1");
+    fireEvent.click(screen.getByLabelText("曜日で指定"));
     expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    expect(screen.getByRole("checkbox", { name: "第1" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "第5" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "最終" })).not.toBeChecked();
     expect(
-      screen.getByText("第5曜日がない月は、その月をスキップします。"),
+      screen.getByText("第5曜日がない月はその月をスキップし、最終は毎月の最後の曜日を選びます。"),
     ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("定例パターン"), {
@@ -165,7 +170,7 @@ describe("Todo登録ページ", () => {
 
     fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
     fireEvent.change(screen.getByLabelText("定例パターン"), {
-      target: { value: "monthly_day" },
+      target: { value: "monthly" },
     });
 
     expect(screen.getByLabelText("日付を指定")).toBeChecked();
@@ -190,7 +195,7 @@ describe("Todo登録ページ", () => {
 
     fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
     fireEvent.change(screen.getByLabelText("定例パターン"), {
-      target: { value: "monthly_day" },
+      target: { value: "monthly" },
     });
     const dayInput = screen.getByLabelText("日付");
 

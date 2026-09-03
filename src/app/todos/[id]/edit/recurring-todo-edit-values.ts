@@ -41,8 +41,8 @@ function intervalValues(todo: TodoDetailRow): RecurringRuleEditValues {
   };
 }
 
-// Issue #102 / YDR-040: 編集フォームの初期値も候補指定の配列から作る。毎週は
-// 選択済みの曜日をすべて渡し、他の種類は候補指定1件から単一値を取り出す。
+// Issue #100 / YDR-040: 編集フォームの初期値も候補指定の配列から作る。毎週は
+// 選択済み曜日、毎月の曜日方式は第Nと最終をそれぞれ復元する。
 function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
   const validKinds = ["weekly", "monthly_day", "monthly_nth_weekday", "yearly"];
   const specs = parseCalendarScheduleSpecs(todo.schedule_specs);
@@ -53,15 +53,23 @@ function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
   ) {
     throw new Error("定例日基準Todoの条件が不正です。");
   }
+  const monthlyWeeks = specs
+    .filter((spec) => !spec.weekLast)
+    .map((spec) => spec.weekOfMonth)
+    .filter((week) => week !== 0);
   return {
     managedItemId: todo.managed_item_id,
     recurrenceBasis: "calendar",
     scheduleDayOfMonth: first.dayOfMonth === 0 ? null : first.dayOfMonth,
-    scheduleDaysOfWeek: specs.map((spec) => spec.dayOfWeek).filter((day) => day !== 0),
+    scheduleDaysOfWeek: [...new Set(
+      specs.map((spec) => spec.dayOfWeek).filter((day) => day !== 0),
+    )],
     scheduleKind: todo.schedule_kind as "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly",
     scheduleMonth: first.month === 0 ? null : first.month,
     scheduleMonthEnd: first.monthEnd,
+    scheduleWeekLast: specs.some((spec) => spec.weekLast),
     scheduleWeekOfMonth: first.weekOfMonth === 0 ? null : first.weekOfMonth,
+    scheduleWeeksOfMonth: monthlyWeeks,
     title: todo.title,
   };
 }

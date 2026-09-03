@@ -11,7 +11,13 @@ import {
 } from "../src/lib/d1/calendar";
 
 // Issue #102 / YDR-040: 候補指定では未使用の項目を0で表す。
-const EMPTY_SPEC = { dayOfMonth: 0, dayOfWeek: 0, month: 0, weekOfMonth: 0 };
+const EMPTY_SPEC = {
+  dayOfMonth: 0,
+  dayOfWeek: 0,
+  month: 0,
+  weekLast: false,
+  weekOfMonth: 0,
+};
 
 function schedule(
   scheduleKind: string,
@@ -38,6 +44,19 @@ describe("D1の暦基準Todo計算", () => {
       schedule("monthly_nth_weekday", { dayOfWeek: 1, weekOfMonth: 5 }),
       "2026-02-01",
     )).toBe("2026-03-29T15:00:00.000Z");
+  });
+
+  // Issue #100 / YDR-040: 最終曜日は第5曜日とは別の指定で、4回しかない月も
+  // 必ずその月の最後の該当曜日を候補にする。
+  it("最終曜日は4回しかない月もその月の最後の曜日を返す", () => {
+    expect(calendarScheduledForOnOrAfter(
+      schedule("monthly_nth_weekday", {
+        dayOfWeek: 5,
+        weekLast: true,
+        weekOfMonth: 5,
+      }),
+      "2026-08-01",
+    )).toBe("2026-08-27T15:00:00.000Z");
   });
 
   it("年次2月29日は非うるう年の月末へ丸める", () => {
@@ -110,6 +129,24 @@ describe("複数候補を持つ定例日ルールの候補計算", () => {
       schedule("weekly", { dayOfWeek: 1 }, { dayOfWeek: 1 }),
       "2026-08-04",
     )).toBe("2026-08-09T15:00:00.000Z");
+  });
+
+  it("第5曜日と最終曜日が同じ日でも次回候補を一度だけ進める", () => {
+    const fifthAndLastFriday = schedule(
+      "monthly_nth_weekday",
+      { dayOfWeek: 5, weekOfMonth: 5 },
+      { dayOfWeek: 5, weekLast: true, weekOfMonth: 5 },
+    );
+
+    // 2026年7月は金曜が5回あり、第5・最終がどちらも7月31日になる。
+    expect(calendarScheduledForOnOrAfter(fifthAndLastFriday, "2026-07-31"))
+      .toBe("2026-07-30T15:00:00.000Z");
+    // 7月31日を完了した次回は、8月の最終金曜。第5金曜だけなら10月まで飛ぶ。
+    expect(nextCalendarOccurrence(
+      fifthAndLastFriday,
+      "2026-07-30T15:00:00.000Z",
+      "2026-07-31T02:00:00.000Z",
+    )).toBe("2026-08-27T15:00:00.000Z");
   });
 
   it("候補指定を持たないルールは候補なしにせずエラーにする", () => {

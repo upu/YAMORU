@@ -280,6 +280,57 @@ describe("繰り返しTodoの編集", () => {
     expect(result.status).toBe("error");
   });
 
+  // Issue #100 / YDR-040: 月次の曜日方式は曜日を1つ、第N・最終を複数選ぶ。
+  it("毎月の複数の第N曜日と最終曜日をD1へ渡す", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: "5",
+      scheduleKind: "monthly_nth_weekday",
+      scheduleWeekLast: "1",
+      title: "資源ごみを出す",
+    })) formData.set(key, value);
+    for (const week of ["4", "2", "4", "5"]) {
+      formData.append("scheduleWeekOfMonth", week);
+    }
+
+    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({
+        scheduleDaysOfWeek: [5],
+        scheduleKind: "monthly_nth_weekday",
+        scheduleWeekLast: true,
+        scheduleWeeksOfMonth: [2, 4, 5],
+      }),
+    );
+  });
+
+  it("毎月の曜日方式で出現位置を1つも選ばないと保存しない", async () => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries({
+      id: "occurrence-1",
+      managedItemId: "",
+      recurrenceBasis: "calendar",
+      scheduleDayOfWeek: "5",
+      scheduleKind: "monthly_nth_weekday",
+      title: "資源ごみを出す",
+    })) formData.set(key, value);
+
+    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "第1〜第5または最終を1つ以上選んでください。",
+      status: "error",
+    });
+  });
+
   it("完了日基準の値・単位を検証してD1へ渡す", async () => {
     const formData = new FormData();
     for (const [key, value] of Object.entries({

@@ -3,12 +3,14 @@
 import { useState } from "react";
 
 import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../weekday-checkboxes";
+import { MonthlyWeekPositionCheckboxes } from "../monthly-week-position-checkboxes";
 
 // Issue #99: Todo登録フォームの、繰り返し方ごとの入力欄。方式が4つになり
 // 1ファイルに収まらなくなったため、フォーム本体(todo-registration-form.tsx)
 // から入力欄だけを分けた。表示・入力の責務だけを持ち、送信はフォーム側が行う。
 
-type ScheduleKind = "monthly_day" | "monthly_nth_weekday" | "weekly" | "yearly";
+type CalendarPattern = "monthly" | "weekly" | "yearly";
+type MonthlyMode = "monthly_day" | "monthly_nth_weekday";
 
 function WeekdaySelect() {
   return (
@@ -106,30 +108,65 @@ function MonthlyDayFields() {
   );
 }
 
-function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind }) {
-  switch (scheduleKind) {
+function MonthlyWeekdayFields() {
+  return (
+    <>
+      <MonthlyWeekPositionCheckboxes defaultSelected={[1]} />
+      <WeekdaySelect />
+      <p className="input-help">
+        第5曜日がない月はその月をスキップし、最終は毎月の最後の曜日を選びます。
+      </p>
+    </>
+  );
+}
+
+function MonthlyFields() {
+  const [mode, setMode] = useState<MonthlyMode>("monthly_day");
+  return (
+    <>
+      <fieldset className="todo-fieldset">
+        <legend>毎月の指定方法</legend>
+        <label className="radio-option">
+          <input
+            checked={mode === "monthly_day"}
+            name="scheduleKind"
+            onChange={() => { setMode("monthly_day"); }}
+            type="radio"
+            value="monthly_day"
+          />
+          日付で指定
+        </label>
+        <label className="radio-option">
+          <input
+            checked={mode === "monthly_nth_weekday"}
+            name="scheduleKind"
+            onChange={() => { setMode("monthly_nth_weekday"); }}
+            type="radio"
+            value="monthly_nth_weekday"
+          />
+          曜日で指定
+        </label>
+      </fieldset>
+      {mode === "monthly_day" ? <MonthlyDayFields /> : <MonthlyWeekdayFields />}
+    </>
+  );
+}
+
+function CalendarPatternFields({ pattern }: { pattern: CalendarPattern }) {
+  switch (pattern) {
     case "weekly":
-      // Issue #102 / YDR-040: 毎週は複数の曜日を選べる。第N曜日は1件のままなので
-      // 単一選択のWeekdaySelectを使う。
-      return <WeekdayCheckboxes defaultSelected={[1]} />;
-    case "monthly_day":
-      return <MonthlyDayFields />;
-    case "monthly_nth_weekday":
       return (
         <>
-          <label htmlFor="todo-schedule-week">第何週</label>
-          <select defaultValue="1" id="todo-schedule-week" name="scheduleWeekOfMonth">
-            {[1, 2, 3, 4, 5].map((week) => (
-              <option key={week} value={week}>第{week}週</option>
-            ))}
-          </select>
-          <WeekdaySelect />
-          <p className="input-help">第5曜日がない月は、その月をスキップします。</p>
+          <input name="scheduleKind" type="hidden" value="weekly" />
+          <WeekdayCheckboxes defaultSelected={[1]} />
         </>
       );
+    case "monthly":
+      return <MonthlyFields />;
     case "yearly":
       return (
         <>
+          <input name="scheduleKind" type="hidden" value="yearly" />
           <label htmlFor="todo-schedule-month">月</label>
           <select defaultValue="1" id="todo-schedule-month" name="scheduleMonth">
             {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
@@ -143,23 +180,22 @@ function CalendarPatternFields({ scheduleKind }: { scheduleKind: ScheduleKind })
 }
 
 export function CalendarFields() {
-  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("weekly");
+  const [pattern, setPattern] = useState<CalendarPattern>("weekly");
   return (
     <fieldset className="todo-fieldset">
       <legend>定例日</legend>
       <label htmlFor="todo-schedule-kind">定例パターン</label>
       <select
         id="todo-schedule-kind"
-        name="scheduleKind"
-        onChange={(event) => { setScheduleKind(event.currentTarget.value as ScheduleKind); }}
-        value={scheduleKind}
+        name="calendarPattern"
+        onChange={(event) => { setPattern(event.currentTarget.value as CalendarPattern); }}
+        value={pattern}
       >
         <option value="weekly">毎週</option>
-        <option value="monthly_day">毎月の日付</option>
-        <option value="monthly_nth_weekday">毎月の第N曜日</option>
+        <option value="monthly">毎月</option>
         <option value="yearly">毎年の月日</option>
       </select>
-      <CalendarPatternFields scheduleKind={scheduleKind} />
+      <CalendarPatternFields pattern={pattern} />
       <p className="input-help">登録日を含め、最初に当てはまる日からTodoを作ります。</p>
     </fieldset>
   );

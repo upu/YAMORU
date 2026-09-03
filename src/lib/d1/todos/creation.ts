@@ -61,7 +61,7 @@ function scheduleSpecInserts(
       `INSERT INTO task_rule_schedules (
         id, household_id, task_rule_id, schedule_kind,
         day_of_week, week_of_month, week_last, day_of_month, month_end, month
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9)`,
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`,
     ).bind(
       crypto.randomUUID(),
       householdId,
@@ -69,6 +69,7 @@ function scheduleSpecInserts(
       spec.kind,
       spec.dayOfWeek,
       spec.weekOfMonth,
+      spec.weekLast ? 1 : 0,
       spec.dayOfMonth,
       spec.monthEnd ? 1 : 0,
       spec.month,

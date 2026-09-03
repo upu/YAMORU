@@ -179,4 +179,40 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
     expect(screen.getByLabelText("単位")).toHaveValue("week");
     expect(screen.getByLabelText("起点日")).toHaveValue("2026-09-01");
   });
+
+  it("毎月の曜日方式では保存済みの第N曜日と最終曜日を複数表示する", () => {
+    render(
+      <RecurringTodoEditForms
+        id="occurrence-1"
+        managedItems={MANAGED_ITEMS}
+        members={MEMBERS}
+        occurrence={{
+          assigneeUserId: null,
+          dueDate: "2026-09-25",
+          scheduledDate: "2026-09-25",
+        }}
+        rule={{
+          managedItemId: null,
+          recurrenceBasis: "calendar",
+          scheduleDayOfMonth: null,
+          scheduleDaysOfWeek: [5],
+          scheduleKind: "monthly_nth_weekday",
+          scheduleMonth: null,
+          scheduleMonthEnd: false,
+          scheduleWeekLast: true,
+          scheduleWeekOfMonth: 2,
+          scheduleWeeksOfMonth: [2, 4],
+          title: "資源ごみを出す",
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("定例パターン")).toHaveValue("monthly");
+    expect(screen.getByLabelText("曜日で指定")).toBeChecked();
+    expect(screen.getByLabelText("曜日")).toHaveValue("5");
+    expect(screen.getByRole("checkbox", { name: "第2" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "第4" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "第5" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "最終" })).toBeChecked();
+  });
 });
