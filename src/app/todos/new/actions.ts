@@ -7,13 +7,13 @@ import {
   type CompletionIntervalUnit,
 } from "../../../lib/d1/calendar";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import { parseCalendarTodo } from "./calendar-todo-input";
 import {
   type RegisteredTodoSchedule,
   type TodoRegistrationState,
   summarizeRegisteredTodoSafely,
 } from "./registration-feedback";
 import {
-  type CalendarTodoInput,
   type CompletionTodoInput,
   type IntervalTodoInput,
   type OneTimeTodoInput,
@@ -25,12 +25,6 @@ import {
   getTokyoDayDistance,
   tokyoDateToUtcIso,
 } from "../../time-zone";
-import { EMPTY_WEEKDAYS_MESSAGE, WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
-import {
-  EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE,
-  MONTHLY_WEEK_LAST_FIELD_NAME,
-  MONTHLY_WEEKS_FIELD_NAME,
-} from "../monthly-week-position-checkboxes";
 
 const TASK_TITLE_MAX_LENGTH = 100;
 const INTERVAL_UNIT_DAYS = { day: 1, week: 7 } as const;
@@ -64,20 +58,6 @@ type RecommendedOffsets = {
   recommendedUntilOffset: number;
   recommendedUntilValue: number;
 };
-const INVALID_CALENDAR_SCHEDULE: MaintenanceTodoActionState = {
-  message: "定例日の指定を正しく入力してください。",
-  status: "error",
-};
-// Issue #102 / YDR-040の7: 候補指定が0件のルールは作れない。
-const EMPTY_WEEKDAYS: MaintenanceTodoActionState = {
-  message: EMPTY_WEEKDAYS_MESSAGE,
-  status: "error",
-};
-const EMPTY_MONTHLY_WEEK_POSITIONS: MaintenanceTodoActionState = {
-  message: EMPTY_MONTHLY_WEEK_POSITIONS_MESSAGE,
-  status: "error",
-};
-
 function invalidTitle(): MaintenanceTodoActionState {
   return {
     message: "Todo名は1文字以上100文字以内で入力してください。",
@@ -123,134 +103,6 @@ function parseBoundedInteger(
   return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
     ? parsed
     : null;
-}
-
-function isValidYearlyDate(month: number, day: number): boolean {
-  const candidate = new Date(Date.UTC(2000, month - 1, day));
-  return candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
-}
-
-// Issue #227 / YDR-032: 「毎月末」は日付入力を求めず、常に31日として保存する
-// (既存の月末補正規則、YDR-021)。
-function parseMonthlyDayCalendarTodo(
-  basics: TodoBasics,
-  formData: FormData,
-  dayOfMonth: number | null,
-): CalendarTodoInput | null {
-  if (formData.get("scheduleMonthEnd") === "1") {
-    return {
-      ...basics,
-      recurrenceBasis: "calendar",
-      scheduleDayOfMonth: 31,
-      scheduleKind: "monthly_day",
-      scheduleMonthEnd: true,
-    };
-  }
-  if (dayOfMonth === null) return null;
-  return {
-    ...basics,
-    recurrenceBasis: "calendar",
-    scheduleDayOfMonth: dayOfMonth,
-    scheduleKind: "monthly_day",
-    scheduleMonthEnd: false,
-  };
-}
-
-// 毎週の曜日は複数選べる(Issue #102)。同じ曜日の重複は畳み、昇順に並べてから
-// 保存側へ渡す(YDR-040の7)。1つでも不正な値があれば、黙って捨てずに拒否する。
-function parseWeekdays(formData: FormData): number[] | null {
-  const values = formData.getAll(WEEKDAYS_FIELD_NAME);
-  const weekdays = values.map((value) => parseBoundedInteger(value, 1, 7));
-  if (weekdays.some((weekday) => weekday === null)) return null;
-  return [...new Set(weekdays as number[])].sort((left, right) => left - right);
-}
-
-function parseWeeklyCalendarTodo(
-  basics: TodoBasics,
-  formData: FormData,
-): CalendarTodoInput | MaintenanceTodoActionState {
-  const weekdays = parseWeekdays(formData);
-  if (weekdays === null) return INVALID_CALENDAR_SCHEDULE;
-  if (weekdays.length === 0) return EMPTY_WEEKDAYS;
-  return {
-    ...basics,
-    recurrenceBasis: "calendar",
-    scheduleDaysOfWeek: weekdays,
-    scheduleKind: "weekly",
-    scheduleMonthEnd: false,
-  };
-}
-
-function parseMonthlyWeekPositions(
-  formData: FormData,
-): { last: boolean; weeks: number[] } | null {
-  const rawLast = formData.get(MONTHLY_WEEK_LAST_FIELD_NAME);
-  if (rawLast !== null && rawLast !== "0" && rawLast !== "1") return null;
-  const values = formData.getAll(MONTHLY_WEEKS_FIELD_NAME);
-  const parsed = values.map((value) => parseBoundedInteger(value, 1, 5));
-  if (parsed.some((week) => week === null)) return null;
-  return {
-    last: rawLast === "1",
-    weeks: [...new Set(parsed as number[])].sort((left, right) => left - right),
-  };
-}
-
-function parseMonthlyWeekdayCalendarTodo(
-  basics: TodoBasics,
-  formData: FormData,
-): CalendarTodoInput | MaintenanceTodoActionState {
-  const dayOfWeek = parseBoundedInteger(formData.get("scheduleDayOfWeek"), 1, 7);
-  const positions = parseMonthlyWeekPositions(formData);
-  if (dayOfWeek === null || positions === null) return INVALID_CALENDAR_SCHEDULE;
-  if (positions.weeks.length === 0 && !positions.last) {
-    return EMPTY_MONTHLY_WEEK_POSITIONS;
-  }
-  return {
-    ...basics,
-    recurrenceBasis: "calendar",
-    scheduleDaysOfWeek: [dayOfWeek],
-    scheduleKind: "monthly_nth_weekday",
-    scheduleMonthEnd: false,
-    scheduleWeekLast: positions.last,
-    scheduleWeekOfMonth: positions.weeks.at(0) ?? null,
-    scheduleWeeksOfMonth: positions.weeks,
-  };
-}
-
-function parseYearlyCalendarTodo(
-  basics: TodoBasics,
-  formData: FormData,
-): CalendarTodoInput | MaintenanceTodoActionState {
-  const day = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
-  const month = parseBoundedInteger(formData.get("scheduleMonth"), 1, 12);
-  if (day === null || month === null || !isValidYearlyDate(month, day)) {
-    return INVALID_CALENDAR_SCHEDULE;
-  }
-  return {
-    ...basics,
-    recurrenceBasis: "calendar",
-    scheduleDayOfMonth: day,
-    scheduleKind: "yearly",
-    scheduleMonth: month,
-    scheduleMonthEnd: false,
-  };
-}
-
-function parseCalendarTodo(
-  basics: TodoBasics,
-  formData: FormData,
-): CalendarTodoInput | MaintenanceTodoActionState {
-  const scheduleKind = formData.get("scheduleKind");
-  if (scheduleKind === "weekly") return parseWeeklyCalendarTodo(basics, formData);
-  if (scheduleKind === "monthly_day") {
-    const day = parseBoundedInteger(formData.get("scheduleDayOfMonth"), 1, 31);
-    return parseMonthlyDayCalendarTodo(basics, formData, day) ?? INVALID_CALENDAR_SCHEDULE;
-  }
-  if (scheduleKind === "monthly_nth_weekday") {
-    return parseMonthlyWeekdayCalendarTodo(basics, formData);
-  }
-  if (scheduleKind === "yearly") return parseYearlyCalendarTodo(basics, formData);
-  return INVALID_CALENDAR_SCHEDULE;
 }
 
 function parseIntervalTodo(

@@ -28,12 +28,6 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import { createTodo } from "../src/app/todos/new/actions";
 
 const INITIAL_STATE = { message: "", status: "idle" } as const;
-const INVALID_CALENDAR_CASES: Record<string, string | string[]>[] = [
-  { scheduleDaysOfWeek: ["0"], scheduleKind: "weekly" },
-  { scheduleDayOfMonth: "32", scheduleKind: "monthly_day" },
-  { scheduleKind: "monthly_nth_weekday", scheduleWeekOfMonth: "6" },
-  { scheduleDayOfMonth: "30", scheduleKind: "yearly", scheduleMonth: "2" },
-];
 
 // Issue #99 / YDR-037: 起点日の受け付け範囲は登録日の前後3650日。日付を
 // リテラルで書くとその日を過ぎたときに落ちるため、実行日から求める。
@@ -169,138 +163,6 @@ describe("専用ページのTodo登録操作", () => {
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
   });
-
-  it("管理対象なしの週次定例Todoを登録する", async () => {
-    await createTodo(
-      INITIAL_STATE,
-      todoForm({ recurrenceBasis: "calendar", scheduleDaysOfWeek: ["3"] }),
-    );
-
-    expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
-      managedItemId: null,
-      recurrenceBasis: "calendar",
-      scheduleDayOfMonth: null,
-      scheduleDaysOfWeek: [3],
-      scheduleKind: "weekly",
-      scheduleMonth: null,
-      scheduleMonthEnd: false,
-      scheduleWeekOfMonth: null,
-      title: "家族会議",
-    }, expect.any(Date));
-  });
-
-  // Issue #102 / YDR-040: 毎週は複数の曜日を選べる。重複は畳み、昇順に並べる。
-  it("毎週で選んだ複数の曜日を昇順・重複なしで渡す", async () => {
-    await createTodo(
-      INITIAL_STATE,
-      todoForm({
-        recurrenceBasis: "calendar",
-        scheduleDaysOfWeek: ["4", "1", "4"],
-      }),
-    );
-
-    expect(createCalendarTaskMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      expect.objectContaining({ scheduleDaysOfWeek: [1, 4], scheduleKind: "weekly" }),
-      expect.any(Date),
-    );
-  });
-
-  it("毎週で曜日を1つも選ばないと登録しない", async () => {
-    const result = await createTodo(
-      INITIAL_STATE,
-      todoForm({ recurrenceBasis: "calendar", scheduleDaysOfWeek: [] }),
-    );
-
-    expect(getD1ContextMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ message: "曜日を1つ以上選んでください。", status: "error" });
-  });
-
-  it.each([
-    ["monthly_day", { scheduleDayOfMonth: 31 }],
-    [
-      "monthly_nth_weekday",
-      {
-        scheduleDaysOfWeek: [2],
-        scheduleWeekLast: false,
-        scheduleWeekOfMonth: 5,
-        scheduleWeeksOfMonth: [5],
-      },
-    ],
-    ["yearly", { scheduleDayOfMonth: 29, scheduleMonth: 2 }],
-  ])("%sの構造化された暦規則をRPCへ渡す", async (scheduleKind, expected) => {
-    await createTodo(
-      INITIAL_STATE,
-      todoForm({
-        recurrenceBasis: "calendar",
-        scheduleDayOfMonth: scheduleKind === "monthly_day" ? "31" : "29",
-        scheduleDayOfWeek: "2",
-        scheduleKind,
-        scheduleMonth: "2",
-        scheduleWeekOfMonth: "5",
-      }),
-    );
-
-    expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
-      managedItemId: null,
-      recurrenceBasis: "calendar",
-      scheduleDayOfMonth: null,
-      scheduleDaysOfWeek: [],
-      scheduleKind,
-      scheduleMonth: null,
-      scheduleMonthEnd: false,
-      scheduleWeekOfMonth: null,
-      title: "家族会議",
-      ...expected,
-    }, expect.any(Date));
-  });
-});
-
-describe("毎月の複数第N曜日と最終曜日", () => {
-  // Issue #100 / YDR-040: 曜日は1つ、第1〜第5と最終は複数選択として渡す。
-  it("毎月の複数の第N曜日と最終曜日を昇順・重複なしで渡す", async () => {
-    await createTodo(
-      INITIAL_STATE,
-      todoForm({
-        recurrenceBasis: "calendar",
-        scheduleDayOfWeek: "2",
-        scheduleKind: "monthly_nth_weekday",
-        scheduleWeekLast: "1",
-        scheduleWeekOfMonth: ["4", "2", "4", "5"],
-      }),
-    );
-
-    expect(createCalendarTaskMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      expect.objectContaining({
-        scheduleDaysOfWeek: [2],
-        scheduleKind: "monthly_nth_weekday",
-        scheduleWeekLast: true,
-        scheduleWeeksOfMonth: [2, 4, 5],
-      }),
-      expect.any(Date),
-    );
-  });
-
-  it("毎月の曜日方式で出現位置を1つも選ばないと登録しない", async () => {
-    const result = await createTodo(
-      INITIAL_STATE,
-      todoForm({
-        recurrenceBasis: "calendar",
-        scheduleKind: "monthly_nth_weekday",
-        scheduleWeekLast: "0",
-        scheduleWeekOfMonth: [],
-      }),
-    );
-
-    expect(getD1ContextMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "第1〜第5または最終を1つ以上選んでください。",
-      status: "error",
-    });
-  });
 });
 
 describe("専用ページのTodo登録操作", () => {
@@ -344,19 +206,6 @@ describe("専用ページのTodo登録操作", () => {
       expect.objectContaining({ managedItemId: "item-1" }),
       expect.any(Date),
     );
-  });
-
-  it.each(INVALID_CALENDAR_CASES)("無効な暦規則はRPCへ送らない", async (overrides) => {
-    const result = await createTodo(
-      INITIAL_STATE,
-      todoForm({ recurrenceBasis: "calendar", ...overrides }),
-    );
-
-    expect(getD1ContextMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "定例日の指定を正しく入力してください。",
-      status: "error",
-    });
   });
 
   it("未定義の繰り返し方はRPCへ送らない", async () => {

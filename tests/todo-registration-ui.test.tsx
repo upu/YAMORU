@@ -106,6 +106,38 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("最長")).toHaveAttribute("max", "10");
   });
 
+  it("管理対象詳細から来た場合はその管理対象を選んだ状態にする", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId="item-1"
+        managedItems={ITEMS}
+      />,
+    );
+
+    expect(screen.getByLabelText("猫の浄水器")).toBeChecked();
+  });
+
+  it("家庭未所属なら登録フォームを出さず、家庭作成を案内する", () => {
+    render(
+      <TodoRegistrationContent
+        household={null}
+        initialManagedItemId={null}
+        managedItems={[]}
+      />,
+    );
+
+    expect(screen.queryByRole("form")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "家庭を作成する" })).toHaveAttribute(
+      "href",
+      "/account",
+    );
+  });
+});
+
+// Issue #101: 定例日の入力欄は毎週・毎月の2方式・毎年の2方式へ増えたため、
+// 他の繰り返し方の表示と分けて確かめる。
+describe("Todo登録ページの定例日入力", () => {
   it("定例日基準で毎月を一つの選択肢にまとめ、日付方式と曜日方式を切り替えられる", () => {
     render(
       <TodoRegistrationContent
@@ -165,7 +197,38 @@ describe("Todo登録ページ", () => {
       target: { value: "yearly" },
     });
     expect(screen.getByLabelText("月")).toHaveValue("1");
+    expect(screen.getByLabelText("日付で指定")).toBeChecked();
     expect(screen.getByLabelText("日付")).toHaveValue(1);
+  });
+
+  // Issue #101 / YDR-040の3・4
+  it("毎年で曜日を選ぶと、月と同じ出現位置の入力へ切り替える", () => {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
+    fireEvent.change(screen.getByLabelText("定例パターン"), {
+      target: { value: "yearly" },
+    });
+    fireEvent.click(screen.getByLabelText("曜日で指定"));
+
+    expect(screen.queryByLabelText("日付")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("月")).toBeInTheDocument();
+    expect(screen.getByLabelText("曜日")).toHaveValue("1");
+    expect(screen.getByRole("checkbox", { name: "第1" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "最終" })).not.toBeChecked();
+    expect(screen.getByText(
+      "第5曜日がない年はその年をスキップし、最終は指定した月の最後の曜日を選びます。",
+    )).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "第1" }));
+    expect(screen.getByText("第1〜第5または最終を1つ以上選んでください。"))
+      .toBeInTheDocument();
   });
 
   // Issue #227 / YDR-032
@@ -221,34 +284,6 @@ describe("Todo登録ページ", () => {
 
     expect(dayInput).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("管理対象詳細から来た場合はその管理対象を選んだ状態にする", () => {
-    render(
-      <TodoRegistrationContent
-        household={{ id: "household-1", name: "テスト家庭" }}
-        initialManagedItemId="item-1"
-        managedItems={ITEMS}
-      />,
-    );
-
-    expect(screen.getByLabelText("猫の浄水器")).toBeChecked();
-  });
-
-  it("家庭未所属なら登録フォームを出さず、家庭作成を案内する", () => {
-    render(
-      <TodoRegistrationContent
-        household={null}
-        initialManagedItemId={null}
-        managedItems={[]}
-      />,
-    );
-
-    expect(screen.queryByRole("form")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "家庭を作成する" })).toHaveAttribute(
-      "href",
-      "/account",
-    );
   });
 });
 

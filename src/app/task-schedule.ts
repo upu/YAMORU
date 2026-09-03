@@ -162,9 +162,9 @@ function describeMonthlyDaySchedule(specs: readonly StoredCalendarSpec[]): strin
   return `毎月${parts.join("・")}`;
 }
 
-function describeMonthlyNthWeekdaySchedule(
-  specs: readonly StoredCalendarSpec[],
-): string | null {
+// Issue #100 / #101 / YDR-040の10: 第N曜日・最終曜日の並びは、毎月・毎年で
+// 同じ「第2・第4・最終火曜日」の形にする。第5と最終は別の言葉のままにする。
+function weekdayPositionsLabel(specs: readonly StoredCalendarSpec[]): string | null {
   const sorted = [...specs].sort((left, right) =>
     left.weekOfMonth - right.weekOfMonth || Number(left.weekLast) - Number(right.weekLast)
   );
@@ -178,7 +178,25 @@ function describeMonthlyNthWeekdaySchedule(
   const positions = sorted.map((spec) =>
     spec.weekLast ? "最終" : `第${String(spec.weekOfMonth)}`
   );
-  return `毎月${positions.join("・")}${weekday}`;
+  return `${positions.join("・")}${weekday}`;
+}
+
+function describeMonthlyNthWeekdaySchedule(
+  specs: readonly StoredCalendarSpec[],
+): string | null {
+  const positions = weekdayPositionsLabel(specs);
+  return positions === null ? null : `毎月${positions}`;
+}
+
+// 毎年の第N曜日は、一つのルールがひとつの月だけを持つ(Issue #101)。
+// 月が食い違う候補指定が保存されている場合は、誤った月を見せずnullで落とす。
+function describeYearlyNthWeekdaySchedule(
+  specs: readonly StoredCalendarSpec[],
+): string | null {
+  const month = specs.at(0)?.month ?? 0;
+  if (month === 0 || specs.some((spec) => spec.month !== month)) return null;
+  const positions = weekdayPositionsLabel(specs);
+  return positions === null ? null : `毎年${String(month)}月${positions}`;
 }
 
 function describeYearlySchedule(specs: readonly StoredCalendarSpec[]): string | null {
@@ -205,6 +223,8 @@ export function describeCalendarSchedule(
       return describeMonthlyNthWeekdaySchedule(specs);
     case "yearly":
       return describeYearlySchedule(specs);
+    case "yearly_nth_weekday":
+      return describeYearlyNthWeekdaySchedule(specs);
     default:
       return null;
   }

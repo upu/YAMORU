@@ -14,8 +14,9 @@ type CalendarRuleUpdate = {
   managedItemId: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
-  // Issue #100 / #102 / YDR-040: 毎週は複数曜日、月次の曜日方式は複数の
-  // 出現位置を持てる。候補指定の正本はtask_rule_schedulesで、編集時は行ごと置き換える。
+  // Issue #100 / #101 / #102 / YDR-040: 毎週は複数曜日、月次・年次の曜日方式は
+  // 複数の出現位置を持てる。候補指定の正本はtask_rule_schedulesで、編集時は
+  // 行ごと置き換える。
   scheduleDaysOfWeek: number[];
   scheduleKind: string;
   scheduleMonth: number | null;
@@ -111,48 +112,83 @@ function recurringRuleUpdateStatement(
   );
 }
 
-// Issue #102 / YDR-040: 候補指定の置き換え。親のschedule_kindを更新した後に
-// 古い候補指定を消し、新しい候補指定を入れる順で1つのbatchへ並べる(0021の
-// 親子一致TRIGGERは新しい親の種類を見る)。どの文も現在回がpendingである間
-// だけ効くようにし、編集できない状態では候補指定を壊さない。
-function scheduleSpecStatements(
+// Issue #102 / #101 / YDR-040の8: 候補指定の置き換え。0023でtask_rule_schedules
+// が親の(id, schedule_kind)を複合外部キーで参照するようになったため、古い候補
+// 指定を消す→親のschedule_kindを更新する→新しい候補指定を入れる、の順に1つの
+// batchへ並べる。親を先に更新すると、古い子行が旧schedule_kindを参照したままに
+// なり外部キーが破れる。どの文も現在回がpendingである間だけ効くようにし、
+// 編集できない状態では候補指定を壊さない。
+function scheduleSpecDeleteStatement(
+  db: D1Database,
+  householdId: string,
+  occurrenceId: string,
+  taskRuleId: string,
+): D1PreparedStatement {
+  return db.prepare(
+    `DELETE FROM task_rule_schedules
+      WHERE household_id = ?1 AND task_rule_id = ?3 AND EXISTS (
+        SELECT 1 FROM task_occurrences
+         WHERE id = ?2 AND household_id = ?1 AND status = 'pending'
+      )`,
+  ).bind(householdId, occurrenceId, taskRuleId);
+}
+
+// 候補指定を持つのは定例日基準ルールだけ。それ以外は削除も挿入もしない。
+function scheduleSpecReplacement(
+  db: D1Database,
+  householdId: string,
+  occurrenceId: string,
+  taskRuleId: string,
+  input: RecurringTaskRuleUpdate,
+): { deleteStatements: D1PreparedStatement[]; insertStatements: D1PreparedStatement[] } {
+  if (input.recurrenceBasis !== "calendar") {
+    return { deleteStatements: [], insertStatements: [] };
+  }
+  return {
+    deleteStatements: [
+      scheduleSpecDeleteStatement(db, householdId, occurrenceId, taskRuleId),
+    ],
+    insertStatements: scheduleSpecInsertStatements(
+      db,
+      householdId,
+      occurrenceId,
+      taskRuleId,
+      calendarSpecsFromInput(input),
+    ),
+  };
+}
+
+function scheduleSpecInsertStatements(
   db: D1Database,
   householdId: string,
   occurrenceId: string,
   taskRuleId: string,
   specs: readonly StoredCalendarSpec[],
 ): D1PreparedStatement[] {
-  const pendingCondition = `EXISTS (
-    SELECT 1 FROM task_occurrences
-     WHERE id = ?2 AND household_id = ?1 AND status = 'pending'
-  )`;
-  return [
+  return specs.map((spec) =>
     db.prepare(
-      `DELETE FROM task_rule_schedules
-        WHERE household_id = ?1 AND task_rule_id = ?3 AND ${pendingCondition}`,
-    ).bind(householdId, occurrenceId, taskRuleId),
-    ...specs.map((spec) =>
-      db.prepare(
-        `INSERT INTO task_rule_schedules (
-          id, household_id, task_rule_id, schedule_kind,
-          day_of_week, week_of_month, week_last, day_of_month, month_end, month
-        ) SELECT ?4, ?1, ?3, ?5, ?6, ?7, ?8, ?9, ?10, ?11
-           WHERE ${pendingCondition}`,
-      ).bind(
-        householdId,
-        occurrenceId,
-        taskRuleId,
-        crypto.randomUUID(),
-        spec.kind,
-        spec.dayOfWeek,
-        spec.weekOfMonth,
-        spec.weekLast ? 1 : 0,
-        spec.dayOfMonth,
-        spec.monthEnd ? 1 : 0,
-        spec.month,
-      )
-    ),
-  ];
+      `INSERT INTO task_rule_schedules (
+        id, household_id, task_rule_id, schedule_kind,
+        day_of_week, week_of_month, week_last, day_of_month, month_end, month
+      ) SELECT ?4, ?1, ?3, ?5, ?6, ?7, ?8, ?9, ?10, ?11
+         WHERE EXISTS (
+           SELECT 1 FROM task_occurrences
+            WHERE id = ?2 AND household_id = ?1 AND status = 'pending'
+         )`,
+    ).bind(
+      householdId,
+      occurrenceId,
+      taskRuleId,
+      crypto.randomUUID(),
+      spec.kind,
+      spec.dayOfWeek,
+      spec.weekOfMonth,
+      spec.weekLast ? 1 : 0,
+      spec.dayOfMonth,
+      spec.monthEnd ? 1 : 0,
+      spec.month,
+    )
+  );
 }
 
 function assertRecurringOccurrence(
@@ -262,9 +298,9 @@ const PENDING_RECURRING_OCCURRENCE_SQL = `SELECT 1 FROM task_occurrences o
  WHERE o.id = ?1 AND o.household_id = ?2 AND o.status = 'pending'
    AND r.recurrence_basis = ?3`;
 
-// ルール更新・候補指定の置き換え・変更履歴・現在回のスナップショット更新を
-// 1つのbatchへ並べる。候補指定の置き換えはルール更新の後・変更履歴の作成の前に
-// 行い、履歴と現在回のスナップショットが置き換え後の候補指定を含むようにする。
+// 候補指定の削除・ルール更新・候補指定の挿入・変更履歴・現在回のスナップショット
+// 更新を1つのbatchへ並べる。候補指定の置き換えは変更履歴の作成より前に終え、
+// 履歴と現在回のスナップショットが置き換え後の候補指定を含むようにする。
 // 候補指定の件数で文の数が変わるため、結果を読む位置も一緒に返す。
 function recurringRuleStatements(
   db: D1Database,
@@ -279,20 +315,19 @@ function recurringRuleStatements(
 ): { changeIndex: number; statements: D1PreparedStatement[] } {
   const { changeId, householdId, occurrence, occurrenceId, userId } = input;
   const snapshot = taskRuleSnapshotExpression();
-  const specStatements = input.input.recurrenceBasis === "calendar"
-    ? scheduleSpecStatements(
-        db,
-        householdId,
-        occurrenceId,
-        occurrence.task_rule_id,
-        calendarSpecsFromInput(input.input),
-      )
-    : [];
+  const { deleteStatements, insertStatements } = scheduleSpecReplacement(
+    db,
+    householdId,
+    occurrenceId,
+    occurrence.task_rule_id,
+    input.input,
+  );
   return {
-    changeIndex: 1 + specStatements.length,
+    changeIndex: 1 + deleteStatements.length + insertStatements.length,
     statements: [
+      ...deleteStatements,
       recurringRuleUpdateStatement(db, householdId, occurrence, input.input),
-      ...specStatements,
+      ...insertStatements,
       db.prepare(
         `INSERT INTO task_rule_changes (
           id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
