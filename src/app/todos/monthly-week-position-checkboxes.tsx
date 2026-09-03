@@ -45,7 +45,6 @@ export function MonthlyWeekPositionCheckboxes({
                   ? [...current, week].sort((left, right) => left - right)
                   : current.filter((value) => value !== week));
               }}
-              required={isEmpty}
               type="checkbox"
               value={week}
             />
@@ -57,7 +56,6 @@ export function MonthlyWeekPositionCheckboxes({
             checked={last}
             name={MONTHLY_WEEK_LAST_FIELD_NAME}
             onChange={(event) => { setLast(event.currentTarget.checked); }}
-            required={isEmpty}
             type="checkbox"
             value="1"
           />

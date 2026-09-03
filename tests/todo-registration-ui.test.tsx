@@ -151,6 +151,16 @@ describe("Todo登録ページ", () => {
       screen.getByText("第5曜日がない月はその月をスキップし、最終は毎月の最後の曜日を選びます。"),
     ).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("checkbox", { name: "第1" }));
+    expect(screen.getByText("第1〜第5または最終を1つ以上選んでください。"))
+      .toBeInTheDocument();
+    for (const label of ["第1", "第2", "第3", "第4", "第5", "最終"]) {
+      expect(screen.getByRole("checkbox", { name: label })).not.toBeRequired();
+    }
+    fireEvent.click(screen.getByRole("checkbox", { name: "最終" }));
+    expect(screen.queryByText("第1〜第5または最終を1つ以上選んでください。"))
+      .not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText("定例パターン"), {
       target: { value: "yearly" },
     });
