@@ -25,20 +25,20 @@ stale_after: 2026-11-21
 
 前提はCloudflareアカウントとNode.js 24 LTSである。Workers Freeプランから開始できる。Wranglerの対話認証を行う。
 
-```powershell
+```
 npx wrangler login
 ```
 
 ログインしたアカウントがYAMORUの所有先であることをDashboardで確認してから、previewとproductionを別のD1として作る。日本の家庭利用を想定し、location hintはAsia Pacificにする。
 
-```powershell
+```
 npx wrangler d1 create yamoru-preview --location apac
 npx wrangler d1 create yamoru-production --location apac
 ```
 
 各コマンドが返した`database_id`を、`wrangler.jsonc`と`config/wrangler/auth-admin.jsonc`の対応するplaceholderへ設定する。IDは秘密情報ではないが、環境を識別する正本なので転記後に次を実行する。
 
-```powershell
+```
 npm run cf:config:check
 ```
 
@@ -48,7 +48,7 @@ OKの基準は、preview / productionのWorker名とD1 bindingを確認した旨
 
 `AUTH_SECRET`はpreviewとproductionで別の推測困難な値にする。値をIssue、設定ファイル、コマンドライン引数、ログへ書かず、パスワードマネージャー等で生成した値をWranglerの対話入力へ渡す。
 
-```powershell
+```
 npx wrangler secret put AUTH_SECRET --env preview
 npx wrangler secret put AUTH_SECRET --env production
 ```
@@ -61,7 +61,7 @@ Auth.jsのホスト信頼は`src/auth.config.ts`の`trustHost: true`で明示し
 
 まずpreview D1へマイグレーションを適用する。コマンドが求める確認には`yamoru-preview`を完全一致で入力する。
 
-```powershell
+```
 npm run d1:migrate:preview
 npm run cf:build
 npm run cf:deploy:preview
@@ -69,13 +69,13 @@ npm run cf:deploy:preview
 
 Wranglerが表示した公開HTTPS URLを使い、公開資産と認証境界を確認する。
 
-```powershell
+```
 npm run cf:smoke -- https://yamoru-preview.<workers-subdomain>.workers.dev
 ```
 
 OKの基準は、manifest、アイコン、招待入口、ログイン画面、保護されたアカウント画面の5項目がすべて`OK`になること。続けてpreviewの最初の利用者を作る。対象確認には`yamoru-preview`を入力し、メールアドレスとパスワードは対話入力する。
 
-```powershell
+```
 npm run auth:bootstrap:preview
 ```
 
@@ -134,8 +134,23 @@ v0.3.0では、家族2アカウントを使ったpreview通し確認を人手で
 
 Cloudflareへログイン済み(`npx wrangler login`)であれば、Release Draftを作る前にローカルから同じpreview URLに対して確認できる。
 
-```powershell
+```
 npm run test:e2e:install
+```
+
+続けて、対象previewを指す環境変数を設定してからE2Eを実行する。環境変数の設定方法だけがshellで異なる。
+
+bash / zshの場合。
+
+```bash
+export CLOUDFLARE_ACCOUNT_ID="<Cloudflare Dashboardに表示されるAccount ID>"
+export YAMORU_PREVIEW_URL="https://yamoru-preview.<workers-subdomain>.workers.dev"
+npm run test:e2e:preview
+```
+
+PowerShellの場合。
+
+```powershell
 $env:CLOUDFLARE_ACCOUNT_ID = "<Cloudflare Dashboardに表示されるAccount ID>"
 $env:YAMORU_PREVIEW_URL = "https://yamoru-preview.<workers-subdomain>.workers.dev"
 npm run test:e2e:preview
@@ -161,7 +176,7 @@ Draftとpre-releaseはproductionへ配備しない。不正なタグやmainに�
 
 初回デプロイ後、productionの最初の利用者を作る。対象確認には`yamoru-production`を入力する。
 
-```powershell
+```
 npm run auth:bootstrap:production
 ```
 
@@ -177,7 +192,7 @@ production URLでログイン画面まで到達し、作成した認証情報で
 
 `wrangler.jsonc`でWorkers Logsを有効にしている。Cloudflare DashboardのWorkers & Pagesから`yamoru-production`を選び、ObservabilityでInvocation、例外、HTTP statusを確認する。リアルタイム確認は次を使う。
 
-```powershell
+```
 npx wrangler tail --env production --format pretty
 ```
 
@@ -212,13 +227,13 @@ CloudflareのInvocationログとReal-time logsは、アプリ独自の除去処�
 
 まずproductionのdeployment履歴を確認する。
 
-```powershell
+```
 npx wrangler deployments list --env production
 ```
 
 戻すversionが現在のD1 schemaと互換であることを確認できる場合だけ、version IDを指定してWorkerを戻す。
 
-```powershell
+```
 npx wrangler rollback <version-id> --env production
 ```
 

@@ -31,7 +31,7 @@ D1移行前のSupabaseスキーマ、生成型、RLSポリシー一覧はリポ�
 5. 完了記録、次回Occurrence生成、取り消し、招待再発行など複数行を変える処理は`D1Database.batch()`で一括実行し、途中の制約違反で部分状態が残らないテストを追加する。
 6. 次の確認を実行する。
 
-   ```powershell
+   ```
    npm run d1:migrate
    npm run test:d1
    npm test

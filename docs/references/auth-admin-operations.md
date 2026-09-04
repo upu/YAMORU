@@ -16,7 +16,7 @@ Auth管理コマンドは、アプリ本体のbindingやSecretを含まない`co
 
 `.env.local`へ推測困難な`AUTH_SECRET`を設定し、D1マイグレーションを適用する。秘密値はコミットしない。
 
-```powershell
+```
 npm run d1:migrate
 ```
 
@@ -24,7 +24,7 @@ npm run d1:migrate
 
 利用者が一人もいないD1に対して一度だけ実行する。
 
-```powershell
+```
 npm run auth:bootstrap
 ```
 
@@ -36,7 +36,7 @@ OKの基準は、コマンドが「認証情報を更新しました」と表示
 
 Cloudflare上のpreview / productionを対象にする場合は、先に[Cloudflare productionの構築・デプロイ・復旧](cloudflare-production-operations.md)に従ってD1 migrationとWorkerの配備を済ませる。対象確認へそれぞれ`yamoru-preview` / `yamoru-production`を入力する。
 
-```powershell
+```
 npm run auth:bootstrap:preview
 npm run auth:bootstrap:production
 ```
@@ -45,7 +45,7 @@ npm run auth:bootstrap:production
 
 利用者がパスワードを忘れた場合だけ実行する。
 
-```powershell
+```
 npm run auth:reset-password
 ```
 
@@ -55,7 +55,7 @@ OKの基準は、古いパスワードでログインできず、新しいパス
 
 remote D1の再設定には環境名入りのコマンドを使い、対象確認へDB名を完全一致で入力する。
 
-```powershell
+```
 npm run auth:reset-password:preview
 npm run auth:reset-password:production
 ```

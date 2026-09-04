@@ -21,8 +21,21 @@ WindowsではChocolateyの`choco install mkcert`またはScoopの`scoop install 
 
 リポジトリのルートで依存関係をインストールし、環境変数ファイルを用意する。
 
-```powershell
+```
 npm install
+```
+
+`.env.example`を`.env.local`へ複製する。この一手順だけがshellで異なる。
+
+bash / zshの場合。
+
+```bash
+cp .env.example .env.local
+```
+
+PowerShellの場合。
+
+```powershell
 Copy-Item .env.example .env.local
 ```
 
@@ -30,7 +43,7 @@ Copy-Item .env.example .env.local
 
 ローカルD1へマイグレーションを適用し、最初のアカウントを作る。
 
-```powershell
+```
 npm run d1:migrate
 npm run auth:bootstrap
 ```
@@ -39,7 +52,7 @@ npm run auth:bootstrap
 
 ## 開発サーバーを起動する
 
-```powershell
+```
 npm run dev
 ```
 
@@ -61,7 +74,7 @@ HTTPでの起動が必要な場合に限り、明示的なフォールバック�
 
 通常の品質確認は次を実行する。
 
-```powershell
+```
 npm run lint
 npm run typecheck
 npm test
@@ -73,7 +86,7 @@ npm run build
 
 家族招待を含むブラウザ操作を確認する場合は、初回だけChromiumをインストールしてE2Eを実行する。
 
-```powershell
+```
 npm run test:e2e:install
 npm run test:e2e:local
 ```
