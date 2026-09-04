@@ -21,6 +21,15 @@ YAMORUのstable Releaseを、同一commitのPreview検証と利用者の公開�
 
 Previewでは固定の架空アカウントだけを使う。ProductionのSecret入力、最初の実利用者作成、家庭の実データ入力、実端末確認は利用者主導の別の受入確認として扱う。
 
+## 実行環境
+
+このスキルはWindows(PowerShell)でも、Linux/macOS(bashなど)でも同じ判断で使う。実行環境が利用者の常用作業ツリーではない使い捨てcloneであっても、後述のgateと確認項目はそのまま適用する。
+
+- コマンド例は表記であり、shellの指定ではない。示した`git`コマンドはどのshellでも同じ文字列で実行できる。終了codeの参照方法だけはshellに合わせる(PowerShellは`$LASTEXITCODE`、bashなどは`$?`)。
+- 正本の手順がPowerShellで書かれていても、確認する事実と順序が正本である。shellが違うことを理由に、手順や確認項目を省略・簡略化しない。
+- GitHubの読み取りと操作は、その環境で使える手段(`gh` CLI、GitHub MCPなどのAPI経由の道具、GitHubのWeb UI)のどれで行ってもよい。満たすべきはRelease、milestone、workflow runについて確認する事実であり、特定のコマンドの形ではない。
+- 必要な確認や操作をどの手段でも実行できない場合は、推測や既定値で補わず、不足している手段を明示して`NO_GO`とする。未実施の確認を成功と表現しない。
+
 ## 入力
 
 開始時に次を確定し、完全な値を利用者へ示す。
@@ -65,7 +74,7 @@ Previewでは固定の架空アカウントだけを使う。ProductionのSecret
 1. `git status --short`が空で、現在branchが`main`である。
 2. `git fetch origin main --tags --prune`後、次を実行してlocal `main`と`origin/main`の完全なSHA、ahead/behind件数、祖先関係を確認する。`git rev-list`の出力は左がlocalだけにあるcommit数、右が`origin/main`だけにあるcommit数である。
 
-   ```powershell
+   ```
    git rev-parse main
    git rev-parse origin/main
    git rev-list --left-right --count main...origin/main
@@ -95,7 +104,7 @@ workflowは最新の`.github/workflows/`を読み、runの`headSha`、event、st
 - targetが意図した40桁`target_sha`
 - tagとtitleが意図したversion
 
-一致しなければ`NO_GO`としてDraftを公開しない。一致した場合だけ、正本に記載された`Preview family sharing E2E`を`release_tag`、`target_sha`、`--ref main`付きで明示実行する。dispatch時刻を記録し、それより後に作成された同workflowのrunから、`workflow_dispatch`、main、`target_sha`が一致するrunを特定する。候補が複数あり特定できなければ停止する。
+一致しなければ`NO_GO`としてDraftを公開しない。一致した場合だけ、正本に記載された`Preview family sharing E2E`を`release_tag`、`target_sha`、および起動branchとして`main`を指定して明示実行する(`gh`なら`--ref main`、Web UIならActions画面のbranch選択、API経由の道具なら同等のref指定)。dispatch時刻を記録し、それより後に作成された同workflowのrunから、`workflow_dispatch`、main、`target_sha`が一致するrunを特定する。候補が複数あり特定できなければ停止する。
 
 runの完了を待ち、URL、run ID、tag、完全なSHA、conclusionを記録する。失敗時は`NO_GO`であり、Releaseを公開せずProductionへ進まない。失敗step、assertion、Playwright traceから秘密情報を除いた再現可能な問題は、既存Issueとの重複を確認してIssue化する。修正後はmainとPreview配備を再確認し、正本どおり新しいDraftでやり直す。
 
