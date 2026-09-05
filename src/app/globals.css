@@ -2061,6 +2061,51 @@ h1 {
   width: 100%;
 }
 
+/* Issue #332: 「詳しい種類」のすぐ下に置く、候補を考えてもらうボタンと
+   その結果。AI機能そのものを強調せず、入力のヒントとして見えるように
+   他の入力補助(#288の使用中の種類)と同じ見た目に揃える。 */
+.item-type-suggestion {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+.item-type-suggestion-trigger,
+.item-type-suggestion-close {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.item-type-suggestion-trigger:hover:not(:disabled),
+.item-type-suggestion-close:hover {
+  border-color: var(--green);
+}
+
+.item-type-suggestion-trigger:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.item-type-suggestion-close {
+  font-weight: 400;
+}
+
+.item-type-suggestion .custom-item-type-suggestions {
+  margin-bottom: 0;
+}
+
 .todo-fieldset {
   display: grid;
   gap: 8px;
