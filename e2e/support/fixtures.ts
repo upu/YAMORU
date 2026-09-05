@@ -34,6 +34,7 @@ export const E2E_HOUSEHOLD_NAME = "架空の家庭A";
 // 外部キー制約に沿って、参照する側から先に消す。テーブルを増やしたらここへ足す。
 export async function clearDatabase(db: D1Database): Promise<void> {
   await db.batch([
+    db.prepare("DELETE FROM managed_item_type_suggestions"),
     db.prepare("DELETE FROM task_rule_consumables"),
     db.prepare("DELETE FROM managed_item_consumables"),
     db.prepare("DELETE FROM consumables"),

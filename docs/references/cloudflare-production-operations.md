@@ -21,6 +21,8 @@ stale_after: 2026-11-21
 
 三環境は同じ`DB` binding名を使うが、`wrangler.jsonc`の環境ごとに異なるD1名と`database_id`を指定する。Auth管理コマンドは、本体Workerのbindingから分離した`config/wrangler/auth-admin.jsonc`でも同じD1を指定し、preview / productionの対象bindingだけをremote接続する。remote Auth管理では処理中だけ一回限りのtokenで保護した管理用Workerを起動し、認証情報をCLI引数、設定ファイル、ログへ渡さない。remote migrationと管理コマンドは対象名の完全一致を要求する。`wrangler`を直接使ってremote D1を変更せず、環境名入りのnpm scriptを使う。
 
+[YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)の「詳しい種類」のAI提案は、`wrangler.jsonc`のWorkers AI binding(`AI`)を使う。Secretsは要らず、`preview`と`production`にだけ同じbinding名を置く。Workers AIにはローカルエミュレーションが無く、`ai` bindingを既定(local)や`e2e` envへ置くと`next build` / `next dev`がCloudflareへのremote proxy接続とAPI tokenを要求してしまうため、この2環境に限る。local開発とローカルE2Eは、bindingが無い=AIを利用できない環境として動く。AI提案は入力補助であり、bindingが無ければ提案だけを止めて登録・編集はこれまでどおり動くため、AI利用の可否は配備のゲートにしない。
+
 ## 最初のCloudflareリソースを作る
 
 前提はCloudflareアカウントとNode.js 24 LTSである。Workers Freeプランから開始できる。Wranglerの対話認証を行う。

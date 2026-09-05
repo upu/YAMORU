@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { ItemTypeAiSuggestions } from "./item-type-ai-suggestions";
 import {
   type ManagedItemClassificationOptions,
   normalizeItemTypeText,
@@ -90,16 +91,20 @@ function describeCustomItemTypeSuggestions(
 // ManagedItemTypePickerは1文字以上の入力を前提にした絞り込み用(Issue #268)で、
 // 自由入力欄と二重の入力欄になる。件数が増えたときは、一覧の候補と同じ
 // スクロール領域(managed-item-results)に収める。
+//
+// Issue #332: AI提案から選んだ値もこの欄へ入れるため、入力値は
+// ManagedItemClassificationFieldsが持つ(controlled)。
 function CustomItemTypeField({
   idPrefix,
-  initialValue,
+  onChange,
   suggestions,
+  value,
 }: {
   idPrefix: string;
-  initialValue: string;
+  onChange: (value: string) => void;
   suggestions: ManagedItemCustomTypeSuggestion[];
+  value: string;
 }) {
-  const [value, setValue] = useState(initialValue);
   const inputId = `${idPrefix}-custom-item-type`;
   const statusId = `${inputId}-status`;
   const normalizedValue = normalizeItemTypeText(value);
@@ -122,7 +127,7 @@ function CustomItemTypeField({
         id={inputId}
         maxLength={50}
         name="customItemType"
-        onChange={(event) => { setValue(event.currentTarget.value); }}
+        onChange={(event) => { onChange(event.currentTarget.value); }}
         required
         type="text"
         value={value}
@@ -137,7 +142,7 @@ function CustomItemTypeField({
             <button
               className="custom-item-type-suggestion"
               key={suggestion.label}
-              onClick={() => { setValue(suggestion.label); }}
+              onClick={() => { onChange(suggestion.label); }}
               type="button"
             >
               {suggestion.label}
@@ -162,6 +167,51 @@ export function defaultKindCode(
     ?? "";
 }
 
+// Issue #332: AIの候補は既存フォームの保存形式へそのまま入れる(AI専用の分類値
+// を作らない)。同じ大分類のプリセットと同じ表記ならプリセットを選び、そうで
+// なければ「その他（自由入力）」の入力値にする。
+function findPresetItemType(
+  classificationOptions: ManagedItemClassificationOptions,
+  kindCode: string,
+  label: string,
+): { code: string } | undefined {
+  const normalized = normalizeItemTypeText(label);
+  return classificationOptions.itemTypes.find(
+    (itemType) => itemType.kindCode === kindCode
+      && normalizeItemTypeText(itemType.label) === normalized,
+  );
+}
+
+function adoptSuggestion(
+  { classificationOptions, kindCode, label }: {
+    classificationOptions: ManagedItemClassificationOptions;
+    kindCode: string;
+    label: string;
+  },
+  { setCustomItemType, setItemTypeValue }: {
+    setCustomItemType: (value: string) => void;
+    setItemTypeValue: (value: string) => void;
+  },
+): void {
+  const preset = findPresetItemType(classificationOptions, kindCode, label);
+  if (preset === undefined) {
+    setItemTypeValue(CUSTOM_ITEM_TYPE_VALUE);
+    setCustomItemType(label);
+    return;
+  }
+  setItemTypeValue(preset.code);
+}
+
+type ManagedItemClassificationFieldsProps = {
+  classificationOptions: ManagedItemClassificationOptions;
+  customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
+  idPrefix: string;
+  initialCustomItemType?: string | null;
+  initialItemTypeCode?: string | null;
+  kindCode: string;
+  onKindCodeChange: (value: string) => void;
+};
+
 export function ManagedItemClassificationFields({
   classificationOptions,
   customItemTypeOptions = [],
@@ -170,20 +220,14 @@ export function ManagedItemClassificationFields({
   initialItemTypeCode = null,
   kindCode,
   onKindCodeChange,
-}: {
-  classificationOptions: ManagedItemClassificationOptions;
-  customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
-  idPrefix: string;
-  initialCustomItemType?: string | null;
-  initialItemTypeCode?: string | null;
-  kindCode: string;
-  onKindCodeChange: (value: string) => void;
-}) {
+}: ManagedItemClassificationFieldsProps) {
   const [itemTypeValue, setItemTypeValue] = useState(
     initialCustomItemType === null
       ? (initialItemTypeCode ?? "")
       : CUSTOM_ITEM_TYPE_VALUE,
   );
+  const [customItemType, setCustomItemType] = useState(initialCustomItemType ?? "");
+
   return (
     <>
       <ClassificationSelects
@@ -195,16 +239,35 @@ export function ManagedItemClassificationFields({
         onKindChange={(value) => {
           onKindCodeChange(value);
           setItemTypeValue("");
+          // 自由入力の詳しい種類は大分類ごとの言葉なので、大分類を変えたら
+          // 空へ戻す。前の大分類で入力・保存していた値を、新しい大分類の
+          // 初期値として持ち越さない。
+          setCustomItemType("");
+        }}
+      />
+
+      <ItemTypeAiSuggestions
+        currentItemTypeText={
+          itemTypeValue === CUSTOM_ITEM_TYPE_VALUE ? customItemType : ""
+        }
+        idPrefix={idPrefix}
+        kindCode={kindCode}
+        onAdopt={(label) => {
+          adoptSuggestion(
+            { classificationOptions, kindCode, label },
+            { setCustomItemType, setItemTypeValue },
+          );
         }}
       />
 
       {itemTypeValue === CUSTOM_ITEM_TYPE_VALUE ? (
         <CustomItemTypeField
           idPrefix={idPrefix}
-          initialValue={initialCustomItemType ?? ""}
+          onChange={setCustomItemType}
           suggestions={customItemTypeOptions.filter(
             (option) => option.kindCode === kindCode,
           )}
+          value={customItemType}
         />
       ) : null}
     </>
