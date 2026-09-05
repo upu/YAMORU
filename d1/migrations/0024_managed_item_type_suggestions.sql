@@ -30,6 +30,11 @@ CREATE TABLE managed_item_type_suggestions (
   adoption_kind TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   adopted_at TEXT,
+  -- idだけで一意だが、他の家庭スコープのテーブル(task_rules、consumables、
+  -- task_rule_schedulesなど)と同じく複合UNIQUEを置く。子テーブルから
+  -- (id, household_id)への複合外部キーを張れる形を、後からのテーブル再作成
+  -- なしで保てるようにするためである(SQLiteの複合外部キーは参照先の
+  -- UNIQUE索引を要求する)。
   UNIQUE (id, household_id),
   CHECK (adoption_kind IS NULL OR adoption_kind IN ('ai_suggestion', 'corrected')),
   -- 採用結果は3列そろって入るか、3列とも入らないかのどちらかにする。

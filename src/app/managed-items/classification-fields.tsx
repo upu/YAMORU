@@ -239,7 +239,10 @@ export function ManagedItemClassificationFields({
         onKindChange={(value) => {
           onKindCodeChange(value);
           setItemTypeValue("");
-          setCustomItemType(initialCustomItemType ?? "");
+          // 自由入力の詳しい種類は大分類ごとの言葉なので、大分類を変えたら
+          // 空へ戻す。前の大分類で入力・保存していた値を、新しい大分類の
+          // 初期値として持ち越さない。
+          setCustomItemType("");
         }}
       />
 

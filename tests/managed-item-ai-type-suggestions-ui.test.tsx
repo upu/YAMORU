@@ -16,6 +16,7 @@ vi.mock("../src/app/managed-items/item-type-suggestion-actions", () => ({
   suggestItemTypes: suggestItemTypesMock,
 }));
 
+import { ManagedItemEditForm } from "../src/app/managed-items/[id]/edit/managed-item-edit-form";
 import { ManagedItemForm } from "../src/app/managed-items/managed-item-form";
 
 const CLASSIFICATION_OPTIONS = {
@@ -160,6 +161,33 @@ describe("詳しい種類のAI提案(Issue #332)", () => {
       target: { value: "コーヒーマシン" },
     });
     expect(screen.getByLabelText("詳しい種類を入力")).toHaveValue("コーヒーマシン");
+  });
+
+  it("大分類を変えると、前の大分類の自由入力を新しい大分類へ持ち越さない", () => {
+    render(
+      <ManagedItemEditForm
+        classificationOptions={CLASSIFICATION_OPTIONS}
+        customItemType="コーヒーマシン"
+        externalUrl={null}
+        id="item-1"
+        itemTypeCode={null}
+        kindCode="asset"
+        name="デロンギ マグニフィカS"
+        note={null}
+        productInfo={null}
+        startedOn={null}
+      />,
+    );
+    expect(screen.getByLabelText("詳しい種類を入力")).toHaveValue("コーヒーマシン");
+
+    fireEvent.change(screen.getByLabelText("大分類"), { target: { value: "service" } });
+    fireEvent.change(screen.getByLabelText("詳しい種類（任意）"), {
+      target: { value: "__custom__" },
+    });
+
+    // 備品として保存していた「コーヒーマシン」を、サービス・契約の初期値に
+    // しない(詳しい種類は大分類ごとの言葉であるため)。
+    expect(screen.getByLabelText("詳しい種類を入力")).toHaveValue("");
   });
 
   it("入力途中の自由入力も提案の手がかりとして送る", async () => {

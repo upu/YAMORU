@@ -77,20 +77,33 @@ export function buildItemTypePrompt(context: ItemTypeSuggestionContext): string 
   ].filter((line) => line !== "").join("\n");
 }
 
-// 返答からJSON配列を取り出す。指示に従わず前置きを付ける生成結果があるため、
-// 最初の配列リテラルだけを見る。取り出せなければ候補なしとして扱う
-// (推測で文章を候補に変えない)。
-function extractLabels(raw: string): string[] {
-  const start = raw.indexOf("[");
-  const end = raw.lastIndexOf("]");
-  if (start === -1 || end <= start) return [];
+function parseLabelArray(text: string): string[] | null {
   try {
-    const parsed: unknown = JSON.parse(raw.slice(start, end + 1));
-    if (!Array.isArray(parsed)) return [];
+    const parsed: unknown = JSON.parse(text);
+    if (!Array.isArray(parsed)) return null;
     return parsed.filter((label): label is string => typeof label === "string");
   } catch {
-    return [];
+    return null;
   }
+}
+
+// 返答からJSON配列を取り出す。指示に従わず前置きや後置きを付ける生成結果が
+// あるため、最初の`[`から始まり最初に成立する配列リテラルだけを見る。返答末尾の
+// `]`まで一息に切り出すと、配列の後ろに文章や別の角括弧が続くだけで解析に失敗し、
+// 正しい候補があるのに「候補なし」になってしまう。取り出せなければ候補なしとして
+// 扱う(推測で文章を候補に変えない)。
+function extractLabels(raw: string): string[] {
+  const start = raw.indexOf("[");
+  if (start === -1) return [];
+  for (
+    let end = raw.indexOf("]", start);
+    end !== -1;
+    end = raw.indexOf("]", end + 1)
+  ) {
+    const labels = parseLabelArray(raw.slice(start, end + 1));
+    if (labels !== null) return labels;
+  }
+  return [];
 }
 
 // 家庭内に同じ意味の表記があれば、AIの言い回しではなく家庭の表記へ寄せる

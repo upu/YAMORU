@@ -117,6 +117,12 @@ describe("AI返答からの候補の取り出し(Issue #332)", () => {
     ).toEqual(["IoT見守りサービス"]);
   });
 
+  it("配列の後ろに文章や別の角括弧が続いても、最初の配列から候補を取り出す", () => {
+    expect(
+      parseItemTypeSuggestions('["コーヒーマシン", "全自動コーヒーマシン"] はいかがでしょうか。[参考]'),
+    ).toEqual(["コーヒーマシン", "全自動コーヒーマシン"]);
+  });
+
   it("JSON配列を読み取れない返答は候補なしとして扱う", () => {
     expect(parseItemTypeSuggestions("コーヒーマシンはいかがでしょうか")).toEqual([]);
     expect(parseItemTypeSuggestions('["壊れたJSON')).toEqual([]);
