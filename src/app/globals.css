@@ -1327,7 +1327,8 @@ h1 {
 
 .auth-form input,
 .auth-form select,
-.auth-form textarea {
+.auth-form textarea,
+.relation-picker input[type="search"] {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid rgb(49 92 73 / 24%);
@@ -1344,6 +1345,7 @@ h1 {
 .auth-form input:focus-visible,
 .auth-form select:focus-visible,
 .auth-form textarea:focus-visible,
+.relation-picker input[type="search"]:focus-visible,
 .auth-submit:focus-visible {
   outline: 3px solid rgb(64 103 120 / 34%);
   outline-offset: 2px;
@@ -1618,6 +1620,11 @@ h1 {
 .relation-picker {
   display: grid;
   gap: 10px;
+}
+
+.relation-picker input[type="search"] {
+  min-width: 0;
+  font-size: 1rem;
 }
 
 .relation-picker .filter-option {
