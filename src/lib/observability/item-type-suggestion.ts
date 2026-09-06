@@ -41,7 +41,7 @@ export type TextGenerationErrorLog = {
   responseKeys: string[];
 };
 
-// 成功した呼び出しの所要時間。上限(TIMEOUT_MS)を実測に合わせて調整するために
+// 成功した呼び出しの所要時間。待ち時間の上限を実測に合わせて調整するために
 // 残す。候補の内容は含めない。
 export type TextGenerationCompletedLog = {
   durationMs: number;

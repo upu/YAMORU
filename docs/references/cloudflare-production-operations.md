@@ -217,7 +217,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 [YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)のAI提案は、失敗しても画面には一律で「いまは候補を出せません。これまでどおり自分で入力できます。」とだけ出し、登録・編集を続けさせる。そのままでは運用側も原因を切り分けられないため、失敗の種類を`console.error`へ1行のJSONで残す。Observabilityでは`yamoru.text_generation_failed`と`yamoru.item_type_suggestion_failed`で絞り込む。
 
 ```json
-{"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
+{"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
 ```
 
 `failure`の値はeventごとに異なる。どちらのeventで出た値かを先に確かめる。
@@ -247,7 +247,7 @@ eventは`responseKeys`を持たない。
 `failed`で最初に疑うのはモデルの提供終了である。Workers AIのモデルは予告のうえ廃止され、廃止後の呼び出しはエラー5028で失敗する。
 
 ```json
-{"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","name":"Error","responseKeys":[]}
+{"durationMs":320,"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","name":"Error","responseKeys":[]}
 ```
 
 実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。

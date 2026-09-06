@@ -19,7 +19,7 @@ import {
 //
 // glm-4.7-flashを選んだ理由は、この用途の出力が「短い日本語の種類名を1〜3件、
 // JSON配列で返す」だけであることによる。大きいモデルは同じ仕事でも消費する
-// Neuronsが増え、下のTIMEOUT_MSにも収まりにくい。多言語のinstruction-following
+// Neuronsが増え、下の待ち時間の上限にも収まりにくい。多言語のinstruction-following
 // が要件で、生成量は要らない。
 export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
