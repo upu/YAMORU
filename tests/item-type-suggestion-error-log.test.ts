@@ -35,10 +35,13 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
       error: new TypeError("boom"),
       model: "@cf/zai-org/glm-4.7-flash",
     })).toEqual({
+      choiceKeys: [],
       durationMs: 0,
       event: "yamoru.text_generation_failed",
       failure: "failed",
+      finishReason: "",
       message: "boom",
+      messageKeys: [],
       model: "@cf/zai-org/glm-4.7-flash",
       name: "TypeError",
       responseKeys: [],
@@ -58,6 +61,29 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
     });
 
     expect(log.responseKeys).toEqual(["choices", "usage"]);
+    expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
+  });
+
+  // responseKeysだけでは、choicesはあるのに本文を取り出せない場合にどこで
+  // 止まっているのかが分からなかった。三段の形とfinish_reasonを残す。
+  it("choicesの中まで形を残し、生成文は残さない", () => {
+    const log = buildTextGenerationErrorLog("unreadable", {
+      output: {
+        choices: [{
+          finish_reason: "length",
+          index: 0,
+          message: { content: null, reasoning_content: "コーヒーマシン", role: "assistant" },
+        }],
+        usage: { completion_tokens: 200 },
+      },
+    });
+
+    expect(log).toMatchObject({
+      choiceKeys: ["finish_reason", "index", "message"],
+      finishReason: "length",
+      messageKeys: ["content", "reasoning_content", "role"],
+      responseKeys: ["choices", "usage"],
+    });
     expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
   });
 
@@ -268,6 +294,29 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
             model: "@cf/zai-org/glm-4.7-flash",
             object: "chat.completion",
             usage: { total_tokens: 42 },
+          }),
+        },
+      },
+    });
+
+    await expect(generateText("prompt")).resolves.toEqual({
+      status: "ok",
+      text: '["コーヒーマシン"]',
+    });
+    expect(errorLines).toEqual([]);
+  });
+
+  it("contentがブロックの配列でも本文を取り出す", async () => {
+    getCloudflareContextMock.mockResolvedValue({
+      env: {
+        AI: {
+          run: vi.fn().mockResolvedValue({
+            choices: [{
+              message: {
+                content: [{ text: '["コーヒーマシン"]', type: "text" }],
+                role: "assistant",
+              },
+            }],
           }),
         },
       },
