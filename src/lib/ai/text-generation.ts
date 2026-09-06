@@ -39,10 +39,27 @@ function fail(
   return { failure, status: "error" };
 }
 
+// OpenAI互換のchat completions形式(choices[0].message.content)から本文を取る。
+// glm-4.7-flashはこの形で返す(previewのunreadableログのresponseKeysで確認した)。
+function readChatCompletionText(choices: unknown): string | null {
+  if (!Array.isArray(choices)) return null;
+  const first: unknown = (choices as unknown[])[0];
+  if (typeof first !== "object" || first === null) return null;
+  const message: unknown = (first as { message?: unknown }).message;
+  if (typeof message !== "object" || message === null) return null;
+  const content: unknown = (message as { content?: unknown }).content;
+  return typeof content === "string" ? content : null;
+}
+
+// Workers AIの返答はモデルによって形が違う。単純な{ response: string }を返す
+// ものと、OpenAI互換のchat completions形式を返すものがあるため、両方から
+// 本文を取れるようにする。どちらでもなければunreadableとして扱い、
+// responseKeysをログへ残して実際の形を確かめられるようにする。
 function readGeneratedText(output: unknown): string | null {
   if (typeof output !== "object" || output === null) return null;
   const response: unknown = (output as { response?: unknown }).response;
-  return typeof response === "string" ? response : null;
+  if (typeof response === "string") return response;
+  return readChatCompletionText((output as { choices?: unknown }).choices);
 }
 
 // env.AI.runは中断できないため、時間切れは待つのをやめるだけで、走っている

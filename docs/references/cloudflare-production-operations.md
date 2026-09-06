@@ -229,7 +229,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
 | `failed` | 呼び出しが例外を投げた | `message`を読む。モデルの提供終了、プラン制限、レート制限などが該当する |
 | `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
-| `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。`response`が無ければ形式変更を疑う |
+| `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。下の「返答形式」を読む |
 
 `yamoru.item_type_suggestion_failed`(呼び出しの前後、アプリ側での失敗)。この
 eventは`responseKeys`を持たない。
@@ -253,6 +253,15 @@ eventは`responseKeys`を持たない。
 実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。
 
 差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。`src/lib/ai/text-generation.ts`の`ITEM_TYPE_SUGGESTION_MODEL`を変えてmainへ入れれば、previewへ自動配備される。差し替え後は登録画面で💡を押し、このログが出なくなることを確認する。
+
+#### 返答形式
+
+Workers AIの返答の形はモデルによって違う。`readGeneratedText`は次の2つに対応している。
+
+- `{ response: string }` … Workers AI従来のテキスト生成形式
+- `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。`@cf/zai-org/glm-4.7-flash`はこちらで返す
+
+モデルを差し替えたあとに`unreadable`が出た場合は、そのモデルがどちらでもない形で返している。`responseKeys`に実際のキー名が並ぶので、それを見てから`readGeneratedText`へ読み取り方を足す。推測で対応する形を増やさない。
 
 ### URLに秘密情報を含めない確認方法
 

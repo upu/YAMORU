@@ -145,4 +145,47 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
     expect(errorLines).toEqual([]);
   });
+
+  // glm-4.7-flashはOpenAI互換のchat completions形式で返す。previewで
+  // unreadableになったときのresponseKeysから形を確かめて対応した。
+  it("OpenAI互換のchat completions形式からも本文を取り出す", async () => {
+    getCloudflareContextMock.mockResolvedValue({
+      env: {
+        AI: {
+          run: vi.fn().mockResolvedValue({
+            choices: [{
+              finish_reason: "stop",
+              index: 0,
+              message: { content: '["コーヒーマシン"]', role: "assistant" },
+            }],
+            created: 1757000000,
+            id: "chatcmpl-1",
+            model: "@cf/zai-org/glm-4.7-flash",
+            object: "chat.completion",
+            usage: { total_tokens: 42 },
+          }),
+        },
+      },
+    });
+
+    await expect(generateText("prompt")).resolves.toEqual({
+      status: "ok",
+      text: '["コーヒーマシン"]',
+    });
+    expect(errorLines).toEqual([]);
+  });
+
+  it("choicesはあるが本文を取り出せない形はunreadableとして扱う", async () => {
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run: vi.fn().mockResolvedValue({ choices: [], usage: {} }) } },
+    });
+
+    await expect(generateText("prompt")).resolves.toEqual({
+      failure: "unreadable",
+      status: "error",
+    });
+    expect(loggedFailures()).toEqual([
+      expect.objectContaining({ failure: "unreadable", responseKeys: ["choices", "usage"] }),
+    ]);
+  });
 });
