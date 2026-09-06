@@ -87,12 +87,31 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
     expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
   });
 
-  it("成功した呼び出しは所要時間と使ったモデルだけを残す", () => {
-    expect(JSON.parse(formatTextGenerationCompletedLog(12345, "@cf/a/b"))).toEqual({
+  it("成功した呼び出しは所要時間・モデル・消費トークンだけを残す", () => {
+    expect(JSON.parse(formatTextGenerationCompletedLog({
+      durationMs: 12345,
+      model: "@cf/a/b",
+      output: {
+        choices: [{ message: { content: "コーヒーマシン" } }],
+        usage: { completion_tokens: 42 },
+      },
+    }))).toEqual({
+      completionTokens: 42,
       durationMs: 12345,
       event: "yamoru.text_generation_completed",
       model: "@cf/a/b",
     });
+  });
+
+  it("usageを読めなければ消費トークンは0にし、生成文は残さない", () => {
+    const line = formatTextGenerationCompletedLog({
+      durationMs: 1,
+      model: "@cf/a/b",
+      output: { choices: [{ message: { content: "コーヒーマシン" } }] },
+    });
+
+    expect(JSON.parse(line)).toMatchObject({ completionTokens: 0 });
+    expect(line).not.toContain("コーヒーマシン");
   });
 
   it("長すぎるエラーメッセージは切り詰める", () => {
@@ -105,7 +124,9 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
   });
 });
 
-describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
+// console.error/logを溜め、擬似タイマーとspyを毎回元へ戻す。戻さないと、この
+// ファイルの他のテストや実行順の変更で失敗の出方が変わりうる。
+function useGenerateTextLogs(): void {
   beforeEach(() => {
     vi.clearAllMocks();
     errorLines.length = 0;
@@ -118,12 +139,14 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
   });
 
-  // console.errorのspyと擬似タイマーを毎回元へ戻す。戻さないと、この
-  // ファイルの他のテストや実行順の変更で失敗の出方が変わりうる。
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+}
+
+describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
+  useGenerateTextLogs();
 
   it("バインディングが無い環境はunavailableとして記録する", async () => {
     getCloudflareContextMock.mockResolvedValue({ env: {} });
@@ -182,6 +205,11 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
       expect.objectContaining({ durationMs: 20000, failure: "timeout", responseKeys: [] }),
     ]);
   });
+
+});
+
+describe("AI提案の調整値(Issue #332)", () => {
+  useGenerateTextLogs();
 
   it("YAMORU_AI_TIMEOUT_MSで上限を調整できる", async () => {
     vi.useFakeTimers();
@@ -259,6 +287,37 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
 
     expect(loggedFailures()).toEqual([
       expect.objectContaining({ model: "@cf/zai-org/glm-4.7-flash" }),
+    ]);
+  });
+
+  it("YAMORU_AI_MAX_TOKENSで出力上限を調整できる", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MAX_TOKENS: "500" },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    expect(run).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ max_tokens: 500 }),
+    );
+  });
+
+  it("出力上限の設定が範囲外なら既定値へ落とし、打ち間違いを記録する", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MAX_TOKENS: "0" },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    expect(run).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ max_tokens: 2000 }),
+    );
+    expect(loggedFailures()).toEqual([
+      { event: "yamoru.ai_config_invalid", value: "0", variable: "YAMORU_AI_MAX_TOKENS" },
     ]);
   });
 

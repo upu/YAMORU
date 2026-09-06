@@ -274,16 +274,27 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 | `responseKeys` | 返答の最上位。`response`も`choices`も無ければ、まったく別の形式 |
 | `choiceKeys` | `choices[0]`の中身。空なら`choices`が空配列で、モデルが何も返していない |
 | `messageKeys` | `choices[0].message`の中身。`content`以外の名前(`reasoning_content`など)があれば、そこに本文が入っている可能性がある |
-| `finishReason` | `length`なら出力上限に当たっている。`MAX_TOKENS`を上げる |
+| `finishReason` | `length`なら出力上限に当たっている。下の「出力トークン数」を読む |
 
 いずれも構造の情報だけで、生成された文は含めない。
+
+#### 出力トークン数
+
+1回の生成で許す出力トークン数は、runtime変数`YAMORU_AI_MAX_TOKENS`で調整する。待ち時間の上限やモデルと同じ理由で`wrangler.jsonc`へは書かない。1〜8000の整数だけを受け付け、範囲外は既定値(`DEFAULT_MAX_TOKENS`)へ落として`yamoru.ai_config_invalid`として記録する。
+
+`finishReason`が`length`のときは、ここが足りていない。思考過程を出すモデル(`messageKeys`に`reasoning_content`が並ぶもの)は、候補を出す前に思考でトークンを使い切る。実際に`@cf/zai-org/glm-4.7-flash`で200では足りず、`content`へ到達する前に打ち切られていた。
+
+適正値は成功時の`completionTokens`で決める。候補そのものは数十トークンで足りるため、それを超える分は思考の取り分である。
+
+- `completionTokens`が上限に張り付いている → 上限を上げる
+- 上限に対して十分小さい → 上限を下げてよい。待ち時間と費用が減る
 
 #### 所要時間
 
 成功した呼び出しは`yamoru.text_generation_completed`として、所要時間と実際に使ったモデルだけを残す。候補の内容は含めない。
 
 ```json
-{"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}
+{"completionTokens":180,"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}
 ```
 
 `durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。

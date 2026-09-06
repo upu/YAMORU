@@ -77,7 +77,36 @@ function resolveTimeoutMs(raw: string | undefined): number {
   }
   return parsed;
 }
-const MAX_TOKENS = 200;
+// 1回の生成で許す出力トークン数。
+//
+// 当初の200では足りなかった。glm-4.7-flashは思考過程(reasoning_content)を
+// 出すモデルで、200を思考だけで使い切り、contentへ到達する前にfinish_reason
+// がlengthで打ち切られていた。思考にどれだけ要るかはモデルと入力で変わり、
+// 実測しないと決まらないため、待ち時間の上限やモデルと同じくruntime変数
+// YAMORU_AI_MAX_TOKENSで調整できるようにする。
+//
+// 成功時のyamoru.text_generation_completedがcompletionTokensを残すので、
+// 実測が集まったら過不足を見て決め直す。候補そのものは数十トークンで足りる
+// ため、余りは思考の取り分である。
+const DEFAULT_MAX_TOKENS = 2000;
+// 1未満は生成できず、8000を超えると待ち時間と費用に見合わない。
+const MIN_MAX_TOKENS = 1;
+const MAX_MAX_TOKENS = 8000;
+const MAX_TOKENS_VARIABLE = "YAMORU_AI_MAX_TOKENS";
+
+function resolveMaxTokens(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_MAX_TOKENS;
+  const parsed = Number(raw);
+  if (
+    !Number.isInteger(parsed)
+    || parsed < MIN_MAX_TOKENS
+    || parsed > MAX_MAX_TOKENS
+  ) {
+    console.error(formatConfigErrorLog(MAX_TOKENS_VARIABLE, raw));
+    return DEFAULT_MAX_TOKENS;
+  }
+  return parsed;
+}
 
 // 呼び出し元(画面)にとっては「候補を出せなかった」の一種類で足りるが、
 // 運用では原因の切り分けが要る。失敗の種類はログにだけ残し、画面の文言は
@@ -165,6 +194,7 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
   if (ai === undefined) return fail("unavailable");
   const timeoutMs = resolveTimeoutMs(env.YAMORU_AI_TIMEOUT_MS);
   const model = resolveModel(env.YAMORU_AI_MODEL);
+  const maxTokens = resolveMaxTokens(env.YAMORU_AI_MAX_TOKENS);
 
   const startedAt = Date.now();
   const elapsed = (): number => Date.now() - startedAt;
@@ -172,7 +202,7 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
   let output: unknown;
   try {
     output = await withTimeout(ai.run(model, {
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       messages: [{ content: prompt, role: "user" }],
     }), timeoutMs);
   } catch (error) {
@@ -187,6 +217,10 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
     return fail("unreadable", { durationMs: elapsed(), model, output });
   }
 
-  console.log(formatTextGenerationCompletedLog(elapsed(), model));
+  console.log(formatTextGenerationCompletedLog({
+    durationMs: elapsed(),
+    model,
+    output,
+  }));
   return { status: "ok", text };
 }

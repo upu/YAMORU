@@ -47,6 +47,8 @@ declare global {
     // Issue #332: AI提案の調整値。いずれもCloudflare Dashboardのruntime変数で
     // 変えられるようにするため、wrangler.jsoncには書かず、未設定なら実装側の
     // 既定値を使う(vars=文字列)。
+    // 1回の生成で許す出力トークン数。思考過程を出すモデルはここを使い切る。
+    YAMORU_AI_MAX_TOKENS?: string;
     // 使うWorkers AIのモデルID。提供終了に配備なしで対応できるようにする。
     YAMORU_AI_MODEL?: string;
     // 待ち時間の上限(ミリ秒)。
