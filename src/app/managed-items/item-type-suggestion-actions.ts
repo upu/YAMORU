@@ -11,6 +11,7 @@ import {
   listManagedItemClassificationOptions,
 } from "../../lib/d1/managed-items";
 import { findItemTypeKnowledge } from "../../lib/managed-items/item-type-knowledge";
+import { formatSuggestionErrorLog } from "../../lib/observability/item-type-suggestion";
 import {
   buildItemTypePrompt,
   type ItemTypeSuggestionContext,
@@ -112,6 +113,7 @@ export async function suggestItemTypes(
     const { db, session } = await getD1Context();
     const context = await loadContext(db, session, input);
     if (context === null) {
+      console.error(formatSuggestionErrorLog("unknown_kind"));
       return { message: UNAVAILABLE_MESSAGE, status: "error" };
     }
 
@@ -125,6 +127,9 @@ export async function suggestItemTypes(
       context.householdItemTypes,
     );
     if (suggestions.length === 0) {
+      // 返答は読めたが候補が残らなかった場合。generateText側の失敗とは別に
+      // 数えられるようにする(プロンプトの見直しが要るのはこちらだけ)。
+      console.error(formatSuggestionErrorLog("no_candidates"));
       return { message: EMPTY_MESSAGE, status: "error" };
     }
 
@@ -137,7 +142,10 @@ export async function suggestItemTypes(
       }),
       suggestions,
     };
-  } catch {
+  } catch (error) {
+    // 家庭データの読み出しや提案の記録で落ちた場合。AI側の失敗と同じ文言を
+    // 返すが、原因は別なので分けて記録する。
+    console.error(formatSuggestionErrorLog("household", error));
     return { message: UNAVAILABLE_MESSAGE, status: "error" };
   }
 }
