@@ -128,13 +128,13 @@ describe("詳しい種類のAI提案(Issue #332)", () => {
   });
 
   it("AIを使えない・失敗したときは、候補なしとして手入力を続けられる案内を返す", async () => {
-    generateTextMock.mockResolvedValue({ status: "unavailable" });
+    generateTextMock.mockResolvedValue({ failure: "unavailable", status: "error" });
     await expect(suggestItemTypes(input())).resolves.toEqual({
       message: UNAVAILABLE_MESSAGE,
       status: "error",
     });
 
-    generateTextMock.mockResolvedValue({ status: "error" });
+    generateTextMock.mockResolvedValue({ failure: "failed", status: "error" });
     await expect(suggestItemTypes(input())).resolves.toEqual({
       message: UNAVAILABLE_MESSAGE,
       status: "error",

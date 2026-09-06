@@ -1,5 +1,10 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+import {
+  formatTextGenerationErrorLog,
+  type TextGenerationFailure,
+} from "../observability/item-type-suggestion";
+
 // Issue #332: 「詳しい種類」のAI提案に使うテキスト生成。YAMORUはCloudflare
 // Workers上で動く(YDR-022)ため、追加の秘密情報を持たずに使えるWorkers AIの
 // バインディングをそのまま呼ぶ。ベンダーやRAG基盤を先に抽象化せず、必要に
@@ -10,13 +15,20 @@ export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const TIMEOUT_MS = 8000;
 const MAX_TOKENS = 200;
 
-// unavailable: この環境ではAIを使えない(バインディング未設定)。
-// error: 呼び出しに失敗した、時間内に返らなかった、返答を読めなかった。
-// いずれの場合も画面は既存の手動入力と#288の候補選択を続けられる。
+// 呼び出し元(画面)にとっては「候補を出せなかった」の一種類で足りるが、
+// 運用では原因の切り分けが要る。失敗の種類はログにだけ残し、画面の文言は
+// 変えない(YDR-041の6)。
 export type TextGenerationResult =
-  | { status: "error" }
-  | { status: "ok"; text: string }
-  | { status: "unavailable" };
+  | { failure: TextGenerationFailure; status: "error" }
+  | { status: "ok"; text: string };
+
+function fail(
+  failure: TextGenerationFailure,
+  details?: { error?: unknown; output?: unknown },
+): TextGenerationResult {
+  console.error(formatTextGenerationErrorLog(failure, details));
+  return { failure, status: "error" };
+}
 
 function readGeneratedText(output: unknown): string | null {
   if (typeof output !== "object" || output === null) return null;
@@ -26,10 +38,14 @@ function readGeneratedText(output: unknown): string | null {
 
 // env.AI.runは中断できないため、時間切れは待つのをやめるだけで、走っている
 // 要求そのものは止めない。画面へは「候補を出せなかった」として返す。
-async function withTimeout<T>(work: Promise<T>): Promise<T | null> {
+// 時間切れと「返答は来たが読めなかった」を区別するため、時間切れは専用の
+// 目印を返す(nullは正当な返答値ではないので取り違えない)。
+const TIMED_OUT = Symbol("timed-out");
+
+async function withTimeout<T>(work: Promise<T>): Promise<T | typeof TIMED_OUT> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => { resolve(null); }, TIMEOUT_MS);
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => { resolve(TIMED_OUT); }, TIMEOUT_MS);
   });
   try {
     return await Promise.race([work, timeout]);
@@ -42,10 +58,10 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
   let ai: CloudflareEnv["AI"];
   try {
     ({ AI: ai } = (await getCloudflareContext({ async: true })).env);
-  } catch {
-    return { status: "unavailable" };
+  } catch (error) {
+    return fail("unavailable", { error });
   }
-  if (ai === undefined) return { status: "unavailable" };
+  if (ai === undefined) return fail("unavailable");
 
   let output: unknown;
   try {
@@ -53,9 +69,13 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
       max_tokens: MAX_TOKENS,
       messages: [{ content: prompt, role: "user" }],
     }));
-  } catch {
-    return { status: "error" };
+  } catch (error) {
+    return fail("failed", { error });
   }
+  if (output === TIMED_OUT) return fail("timeout");
+
   const text = readGeneratedText(output);
-  return text === null ? { status: "error" } : { status: "ok", text };
+  return text === null
+    ? fail("unreadable", { output })
+    : { status: "ok", text };
 }

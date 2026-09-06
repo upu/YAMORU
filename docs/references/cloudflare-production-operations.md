@@ -212,6 +212,27 @@ npx wrangler tail --env production --format pretty
 
 server actionのように例外を`catch`して利用者向けメッセージへ変換している箇所は、この記録の対象にならない。そこでの失敗を追う必要が出た場合は、同じ方針で記録を足す。
 
+### 「詳しい種類」のAI提案が候補を出せない原因を特定する
+
+[YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)のAI提案は、失敗しても画面には一律で「いまは候補を出せません。これまでどおり自分で入力できます。」とだけ出し、登録・編集を続けさせる。そのままでは運用側も原因を切り分けられないため、失敗の種類を`console.error`へ1行のJSONで残す。Observabilityでは`yamoru.text_generation_failed`と`yamoru.item_type_suggestion_failed`で絞り込む。
+
+```json
+{"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
+```
+
+`failure`の読み方は次のとおり。
+
+| 値 | 意味 | 主な対処 |
+|---|---|---|
+| `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
+| `failed` | 呼び出しが例外を投げた | `message`を読む。プラン制限、モデル未提供、レート制限などが該当する |
+| `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
+| `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。`response`が無ければ形式変更を疑う |
+| `no_candidates` | 返答は読めたが候補が残らなかった | プロンプトか候補の整形を見直す |
+| `unknown_kind` / `household` | 大分類の解決や家庭データの読み書きで失敗 | AIではなくアプリ側の問題として追う |
+
+記録するのは失敗の種類とエラーの要約だけで、プロンプト、管理対象名、メモなど家庭のデータは含めない。`unreadable`でも残すのは返答オブジェクトのキー名だけで、生成された本文は残さない。
+
 ### URLに秘密情報を含めない確認方法
 
 CloudflareのInvocationログとReal-time logsは、アプリ独自の除去処理より前にrequestのmethodと完全なrequest URL(query string含む)を記録する。招待受諾など秘密値をURLで扱う経路を変更した場合は、実tokenを使わず次の手順で確認する([YDR-024](../decisions/ydr-024-invitation-token-in-url-fragment.md)、Issue #140)。
