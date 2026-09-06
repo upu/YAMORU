@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildSuggestionErrorLog,
@@ -70,6 +70,13 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
   });
 
+  // console.errorのspyと擬似タイマーを毎回元へ戻す。戻さないと、この
+  // ファイルの他のテストや実行順の変更で失敗の出方が変わりうる。
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
   it("バインディングが無い環境はunavailableとして記録する", async () => {
     getCloudflareContextMock.mockResolvedValue({ env: {} });
 
@@ -107,6 +114,23 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
     expect(loggedFailures()).toEqual([
       expect.objectContaining({ failure: "unreadable", responseKeys: ["choices"] }),
+    ]);
+  });
+
+  // TIMED_OUTの分岐。時間切れと「返答を読めなかった」は以前どちらもnullへ
+  // 潰れていたため、別の失敗として出続けることをテストで固定する。
+  it("時間内に返らない呼び出しはtimeoutとして記録する", async () => {
+    vi.useFakeTimers();
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run: vi.fn().mockReturnValue(new Promise(() => undefined)) } },
+    });
+
+    const pending = generateText("prompt");
+    await vi.advanceTimersByTimeAsync(8000);
+
+    await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
+    expect(loggedFailures()).toEqual([
+      expect.objectContaining({ failure: "timeout", responseKeys: [] }),
     ]);
   });
 

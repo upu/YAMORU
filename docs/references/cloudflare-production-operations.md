@@ -220,16 +220,25 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 {"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
 ```
 
-`failure`の読み方は次のとおり。
+`failure`の値はeventごとに異なる。どちらのeventで出た値かを先に確かめる。
 
-| 値 | 意味 | 主な対処 |
+`yamoru.text_generation_failed`(Workers AIの呼び出し自体の失敗)。
+
+| `failure` | 意味 | 主な対処 |
 |---|---|---|
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
 | `failed` | 呼び出しが例外を投げた | `message`を読む。プラン制限、モデル未提供、レート制限などが該当する |
 | `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
 | `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。`response`が無ければ形式変更を疑う |
-| `no_candidates` | 返答は読めたが候補が残らなかった | プロンプトか候補の整形を見直す |
-| `unknown_kind` / `household` | 大分類の解決や家庭データの読み書きで失敗 | AIではなくアプリ側の問題として追う |
+
+`yamoru.item_type_suggestion_failed`(呼び出しの前後、アプリ側での失敗)。この
+eventは`responseKeys`を持たない。
+
+| `failure` | 意味 | 主な対処 |
+|---|---|---|
+| `no_candidates` | 返答は読めたが候補が残らなかった | プロンプトか候補の整形を見直す。AI側は正常である |
+| `unknown_kind` | 画面から来た大分類が保存済みの分類定義に無い | 分類定義と画面の選択肢のずれを追う |
+| `household` | 家庭データの読み出しや提案の記録で例外が出た | `message`を読む。AIではなくD1側の問題として追う |
 
 記録するのは失敗の種類とエラーの要約だけで、プロンプト、管理対象名、メモなど家庭のデータは含めない。`unreadable`でも残すのは返答オブジェクトのキー名だけで、生成された本文は残さない。
 
