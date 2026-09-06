@@ -228,7 +228,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 |---|---|---|
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
 | `failed` | 呼び出しが例外を投げた | `message`を読む。モデルの提供終了、プラン制限、レート制限などが該当する |
-| `timeout` | 時間内に返らなかった | `durationMs`が打ち切りまでの時間(上限)。下の「所要時間」を読む |
+| `timeout` | 時間内に返らなかった | `durationMs`は打ち切るまでに実際に待った時間。下の「所要時間」を読む |
 | `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。下の「返答形式」を読む |
 
 `yamoru.item_type_suggestion_failed`(呼び出しの前後、アプリ側での失敗)。この
@@ -270,6 +270,8 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 ```json
 {"durationMs":4200,"event":"yamoru.text_generation_completed"}
 ```
+
+`durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。
 
 `src/lib/ai/text-generation.ts`の`TIMEOUT_MS`はこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
 

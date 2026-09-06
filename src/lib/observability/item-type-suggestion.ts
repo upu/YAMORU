@@ -27,7 +27,8 @@ export type TextGenerationFailure =
 export type SuggestionFailure = "household" | "no_candidates" | "unknown_kind";
 
 export type TextGenerationErrorLog = {
-  // 呼び出しに要した時間。timeoutでは打ち切りまでの時間(=上限)になる。
+  // 実際に待った時間。timeoutでは打ち切るまでに待った時間であり、タイマーの
+  // 遅れの分だけ上限をわずかに超えることがある(上限そのものではない)。
   // 上限をいくつにすべきかは実測しないと決まらないため、成功時と揃えて残す。
   durationMs: number;
   event: "yamoru.text_generation_failed";
