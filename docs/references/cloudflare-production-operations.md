@@ -273,7 +273,15 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 
 `durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。
 
-`src/lib/ai/text-generation.ts`の`TIMEOUT_MS`はこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
+待ち時間の上限は、Cloudflare Dashboardのruntime変数`YAMORU_AI_TIMEOUT_MS`(ミリ秒)で調整する。配備し直さずに変えられるようにするため、この変数は`wrangler.jsonc`へ書かない。配備は`--keep-vars`で行うため、設定ファイルに書いた値は毎回の配備で上書きされ、Dashboardでの調整が効かなくなるからである。未設定なら`src/lib/ai/text-generation.ts`の`DEFAULT_TIMEOUT_MS`を使う。
+
+1000〜60000の整数だけを受け付ける。範囲外や数でない値は既定値へ落とし、`yamoru.ai_config_invalid`として記録する。上限を変えても候補が出ない場合は、まずこのログで打ち間違いがないかを見る。
+
+```json
+{"event":"yamoru.ai_config_invalid","value":"20秒","variable":"YAMORU_AI_TIMEOUT_MS"}
+```
+
+上限をいくつにするかはこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
 
 判断の目安は次のとおり。
 

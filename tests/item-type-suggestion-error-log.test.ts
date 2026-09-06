@@ -153,6 +153,44 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     ]);
   });
 
+  it("YAMORU_AI_TIMEOUT_MSで上限を調整できる", async () => {
+    vi.useFakeTimers();
+    getCloudflareContextMock.mockResolvedValue({
+      env: {
+        AI: { run: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+        YAMORU_AI_TIMEOUT_MS: "3000",
+      },
+    });
+
+    const pending = generateText("prompt");
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
+    expect(loggedFailures()).toEqual([
+      expect.objectContaining({ durationMs: 3000, failure: "timeout" }),
+    ]);
+  });
+
+  it("設定値が数でない・範囲外なら既定値へ落とし、打ち間違いを記録する", async () => {
+    vi.useFakeTimers();
+    getCloudflareContextMock.mockResolvedValue({
+      env: {
+        AI: { run: vi.fn().mockReturnValue(new Promise(() => undefined)) },
+        YAMORU_AI_TIMEOUT_MS: "20秒",
+      },
+    });
+
+    const pending = generateText("prompt");
+    // 既定値(20000)まで進めないと打ち切られない。
+    await vi.advanceTimersByTimeAsync(20000);
+
+    await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
+    expect(loggedFailures()).toEqual([
+      { event: "yamoru.ai_config_invalid", value: "20秒", variable: "YAMORU_AI_TIMEOUT_MS" },
+      expect.objectContaining({ durationMs: 20000, failure: "timeout" }),
+    ]);
+  });
+
   it("返答を読めた場合は成功として本文を返し、何も記録しない", async () => {
     getCloudflareContextMock.mockResolvedValue({
       env: { AI: { run: vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' }) } },

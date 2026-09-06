@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import {
+  formatConfigErrorLog,
   formatTextGenerationCompletedLog,
   formatTextGenerationErrorLog,
   type TextGenerationFailure,
@@ -23,12 +24,35 @@ import {
 export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
 //
-// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。ただし実際に何秒
-// かかるのかを記録していなかったため、伸ばして足りるのかモデルを変えるべきかを
-// 判断できなかった。暫定的に上限を広げ、あわせて成功時の所要時間
-// (yamoru.text_generation_completedのdurationMs)を残す。実測が集まったら、
-// 利用者を待たせない範囲へ切り下げる。
-const TIMEOUT_MS = 20000;
+// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。何秒が妥当かは実測
+// しないと決まらず、そのたびにコードを変えて配備し直すのは回り道になるため、
+// 上限はCloudflare Dashboardのruntime変数YAMORU_AI_TIMEOUT_MSで調整できる
+// ようにする。ここに置くのは変数が無いときの既定値である。
+//
+// wrangler.jsoncへは書かない。配備は--keep-varsで行うため、設定ファイルに
+// 書いた値は毎回の配備で上書きされ、Dashboardでの調整が効かなくなる。
+const DEFAULT_TIMEOUT_MS = 20000;
+// 1秒未満は補助として意味がなく、60秒を超えると利用者はとうに待つのをやめて
+// いる。打ち間違いでこの範囲を外れた値が入ったら既定値へ落とす。
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 60000;
+const TIMEOUT_VARIABLE = "YAMORU_AI_TIMEOUT_MS";
+
+// 設定を読めなくても提案そのものは続けられるよう、既定値へ落として動かす。
+// ただし黙って無視すると打ち間違いに気づけないため記録する。
+function resolveTimeoutMs(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (
+    !Number.isInteger(parsed)
+    || parsed < MIN_TIMEOUT_MS
+    || parsed > MAX_TIMEOUT_MS
+  ) {
+    console.error(formatConfigErrorLog(TIMEOUT_VARIABLE, raw));
+    return DEFAULT_TIMEOUT_MS;
+  }
+  return parsed;
+}
 const MAX_TOKENS = 200;
 
 // 呼び出し元(画面)にとっては「候補を出せなかった」の一種類で足りるが、
@@ -75,10 +99,13 @@ function readGeneratedText(output: unknown): string | null {
 // 目印を返す(nullは正当な返答値ではないので取り違えない)。
 const TIMED_OUT = Symbol("timed-out");
 
-async function withTimeout<T>(work: Promise<T>): Promise<T | typeof TIMED_OUT> {
+async function withTimeout<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+): Promise<T | typeof TIMED_OUT> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
-    timer = setTimeout(() => { resolve(TIMED_OUT); }, TIMEOUT_MS);
+    timer = setTimeout(() => { resolve(TIMED_OUT); }, timeoutMs);
   });
   try {
     return await Promise.race([work, timeout]);
@@ -88,13 +115,15 @@ async function withTimeout<T>(work: Promise<T>): Promise<T | typeof TIMED_OUT> {
 }
 
 export async function generateText(prompt: string): Promise<TextGenerationResult> {
-  let ai: CloudflareEnv["AI"];
+  let env: CloudflareEnv;
   try {
-    ({ AI: ai } = (await getCloudflareContext({ async: true })).env);
+    ({ env } = await getCloudflareContext({ async: true }));
   } catch (error) {
     return fail("unavailable", { error });
   }
+  const ai = env.AI;
   if (ai === undefined) return fail("unavailable");
+  const timeoutMs = resolveTimeoutMs(env.YAMORU_AI_TIMEOUT_MS);
 
   const startedAt = Date.now();
   const elapsed = (): number => Date.now() - startedAt;
@@ -104,7 +133,7 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
     output = await withTimeout(ai.run(ITEM_TYPE_SUGGESTION_MODEL, {
       max_tokens: MAX_TOKENS,
       messages: [{ content: prompt, role: "user" }],
-    }));
+    }), timeoutMs);
   } catch (error) {
     return fail("failed", { durationMs: elapsed(), error });
   }

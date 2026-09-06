@@ -44,6 +44,10 @@ declare global {
     // その場合でも登録・編集は動き続ける必要があるため、任意とする。
     AI?: WorkersAi;
     AUTH_SECRET: string;
+    // Issue #332: AI提案の待ち時間の上限(ミリ秒)。Cloudflare Dashboardの
+    // runtime変数で調整できるようにするため、wrangler.jsoncには書かず、
+    // 未設定なら実装側の既定値を使う(vars=文字列)。
+    YAMORU_AI_TIMEOUT_MS?: string;
     DB: D1Database;
     YAMORU_ENVIRONMENT?: "preview" | "production";
   }

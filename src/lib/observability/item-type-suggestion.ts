@@ -48,6 +48,15 @@ export type TextGenerationCompletedLog = {
   event: "yamoru.text_generation_completed";
 };
 
+// 調整用の設定値が読めなかったとき。既定値へ落として動き続けるが、設定の
+// 打ち間違いに気づけるよう記録する。記録するのは変数名と設定された値だけで、
+// 家庭のデータは含まない(設定値は運用者が入れた値である)。
+export type ConfigErrorLog = {
+  event: "yamoru.ai_config_invalid";
+  value: string;
+  variable: string;
+};
+
 export type SuggestionErrorLog = {
   event: "yamoru.item_type_suggestion_failed";
   failure: SuggestionFailure;
@@ -114,6 +123,15 @@ export function formatTextGenerationErrorLog(
   details?: { durationMs?: number; error?: unknown; output?: unknown },
 ): string {
   return JSON.stringify(buildTextGenerationErrorLog(failure, details));
+}
+
+export function formatConfigErrorLog(variable: string, value: string): string {
+  const log: ConfigErrorLog = {
+    event: "yamoru.ai_config_invalid",
+    value: truncate(value),
+    variable,
+  };
+  return JSON.stringify(log);
 }
 
 export function formatTextGenerationCompletedLog(durationMs: number): string {
