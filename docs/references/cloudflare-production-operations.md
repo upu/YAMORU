@@ -227,7 +227,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 | `failure` | 意味 | 主な対処 |
 |---|---|---|
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
-| `failed` | 呼び出しが例外を投げた | `message`を読む。プラン制限、モデル未提供、レート制限などが該当する |
+| `failed` | 呼び出しが例外を投げた | `message`を読む。モデルの提供終了、プラン制限、レート制限などが該当する |
 | `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
 | `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。`response`が無ければ形式変更を疑う |
 
@@ -241,6 +241,18 @@ eventは`responseKeys`を持たない。
 | `household` | 家庭データの読み出しや提案の記録で例外が出た | `message`を読む。AIではなくD1側の問題として追う |
 
 記録するのは失敗の種類とエラーの要約だけで、プロンプト、管理対象名、メモなど家庭のデータは含めない。`unreadable`でも残すのは返答オブジェクトのキー名だけで、生成された本文は残さない。
+
+#### モデルの提供終了
+
+`failed`で最初に疑うのはモデルの提供終了である。Workers AIのモデルは予告のうえ廃止され、廃止後の呼び出しはエラー5028で失敗する。
+
+```json
+{"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","name":"Error","responseKeys":[]}
+```
+
+実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。
+
+差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。`src/lib/ai/text-generation.ts`の`ITEM_TYPE_SUGGESTION_MODEL`を変えてmainへ入れれば、previewへ自動配備される。差し替え後は登録画面で💡を押し、このログが出なくなることを確認する。
 
 ### URLに秘密情報を含めない確認方法
 
