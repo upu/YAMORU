@@ -34,6 +34,9 @@ export type TextGenerationErrorLog = {
   event: "yamoru.text_generation_failed";
   failure: TextGenerationFailure;
   message: string;
+  // 実際に呼んだモデルID。設定で変えられるため、どのモデルで起きた失敗なのか
+  // をログだけで特定できるようにする。
+  model: string;
   name: string;
   // unreadableのとき、返答オブジェクトが持っていたキー名だけを残す。
   // 値(生成文)は家庭の入力を映しうるため入れない。キー名が分かれば、
@@ -46,6 +49,8 @@ export type TextGenerationErrorLog = {
 export type TextGenerationCompletedLog = {
   durationMs: number;
   event: "yamoru.text_generation_completed";
+  // 設定で変えたモデルが実際に使われているかを、このログで確かめられる。
+  model: string;
 };
 
 // 調整用の設定値が読めなかったとき。既定値へ落として動き続けるが、設定の
@@ -88,9 +93,10 @@ function responseKeysOf(output: unknown): string[] {
 
 export function buildTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  { durationMs = 0, error, output }: {
+  { durationMs = 0, error, model = "", output }: {
     durationMs?: number;
     error?: unknown;
+    model?: string;
     output?: unknown;
   } = {},
 ): TextGenerationErrorLog {
@@ -100,6 +106,7 @@ export function buildTextGenerationErrorLog(
     event: "yamoru.text_generation_failed",
     failure,
     message: summary.message,
+    model,
     name: summary.name,
     responseKeys: responseKeysOf(output),
   };
@@ -120,7 +127,12 @@ export function buildSuggestionErrorLog(
 
 export function formatTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  details?: { durationMs?: number; error?: unknown; output?: unknown },
+  details?: {
+    durationMs?: number;
+    error?: unknown;
+    model?: string;
+    output?: unknown;
+  },
 ): string {
   return JSON.stringify(buildTextGenerationErrorLog(failure, details));
 }
@@ -134,10 +146,14 @@ export function formatConfigErrorLog(variable: string, value: string): string {
   return JSON.stringify(log);
 }
 
-export function formatTextGenerationCompletedLog(durationMs: number): string {
+export function formatTextGenerationCompletedLog(
+  durationMs: number,
+  model: string,
+): string {
   const log: TextGenerationCompletedLog = {
     durationMs,
     event: "yamoru.text_generation_completed",
+    model,
   };
   return JSON.stringify(log);
 }

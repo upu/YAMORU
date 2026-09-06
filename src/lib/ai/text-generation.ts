@@ -21,7 +21,31 @@ import {
 // JSON配列で返す」だけであることによる。大きいモデルは同じ仕事でも消費する
 // Neuronsが増え、下の待ち時間の上限にも収まりにくい。多言語のinstruction-following
 // が要件で、生成量は要らない。
-export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
+//
+// モデルは提供終了する。実際に一度当たっており、そのたびにコードを変えて
+// 配備し直すのは復旧を遅らせるだけなので、待ち時間の上限と同じくCloudflare
+// Dashboardのruntime変数YAMORU_AI_MODELで差し替えられるようにする。ここに
+// 置くのは変数が無いときの既定値である。恒久的に別のモデルにする場合は、
+// 変数だけで済ませずこの既定値も直す(catalogで現行のIDを確認してから)。
+const DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash";
+// Workers AIのモデルIDはこの接頭辞を持つ。前後の空白は打ち間違いとして落とす
+// が、接頭辞が違う値や長すぎる値は既定値へ落とす。
+const MODEL_PREFIX = "@cf/";
+const MAX_MODEL_LENGTH = 200;
+const MODEL_VARIABLE = "YAMORU_AI_MODEL";
+
+function resolveModel(raw: string | undefined): string {
+  if (raw === undefined) return DEFAULT_MODEL;
+  const model = raw.trim();
+  if (
+    !model.startsWith(MODEL_PREFIX)
+    || model.length > MAX_MODEL_LENGTH
+  ) {
+    console.error(formatConfigErrorLog(MODEL_VARIABLE, raw));
+    return DEFAULT_MODEL;
+  }
+  return model;
+}
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
 //
 // 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。何秒が妥当かは実測
@@ -64,7 +88,12 @@ export type TextGenerationResult =
 
 function fail(
   failure: TextGenerationFailure,
-  details?: { durationMs?: number; error?: unknown; output?: unknown },
+  details?: {
+    durationMs?: number;
+    error?: unknown;
+    model?: string;
+    output?: unknown;
+  },
 ): TextGenerationResult {
   console.error(formatTextGenerationErrorLog(failure, details));
   return { failure, status: "error" };
@@ -124,24 +153,29 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
   const ai = env.AI;
   if (ai === undefined) return fail("unavailable");
   const timeoutMs = resolveTimeoutMs(env.YAMORU_AI_TIMEOUT_MS);
+  const model = resolveModel(env.YAMORU_AI_MODEL);
 
   const startedAt = Date.now();
   const elapsed = (): number => Date.now() - startedAt;
 
   let output: unknown;
   try {
-    output = await withTimeout(ai.run(ITEM_TYPE_SUGGESTION_MODEL, {
+    output = await withTimeout(ai.run(model, {
       max_tokens: MAX_TOKENS,
       messages: [{ content: prompt, role: "user" }],
     }), timeoutMs);
   } catch (error) {
-    return fail("failed", { durationMs: elapsed(), error });
+    return fail("failed", { durationMs: elapsed(), error, model });
   }
-  if (output === TIMED_OUT) return fail("timeout", { durationMs: elapsed() });
+  if (output === TIMED_OUT) {
+    return fail("timeout", { durationMs: elapsed(), model });
+  }
 
   const text = readGeneratedText(output);
-  if (text === null) return fail("unreadable", { durationMs: elapsed(), output });
+  if (text === null) {
+    return fail("unreadable", { durationMs: elapsed(), model, output });
+  }
 
-  console.log(formatTextGenerationCompletedLog(elapsed()));
+  console.log(formatTextGenerationCompletedLog(elapsed(), model));
   return { status: "ok", text };
 }

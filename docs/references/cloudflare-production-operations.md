@@ -217,7 +217,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 [YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)のAI提案は、失敗しても画面には一律で「いまは候補を出せません。これまでどおり自分で入力できます。」とだけ出し、登録・編集を続けさせる。そのままでは運用側も原因を切り分けられないため、失敗の種類を`console.error`へ1行のJSONで残す。Observabilityでは`yamoru.text_generation_failed`と`yamoru.item_type_suggestion_failed`で絞り込む。
 
 ```json
-{"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
+{"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","message":"...","model":"@cf/...","name":"Error","responseKeys":[]}
 ```
 
 `failure`の値はeventごとに異なる。どちらのeventで出た値かを先に確かめる。
@@ -247,12 +247,16 @@ eventは`responseKeys`を持たない。
 `failed`で最初に疑うのはモデルの提供終了である。Workers AIのモデルは予告のうえ廃止され、廃止後の呼び出しはエラー5028で失敗する。
 
 ```json
-{"durationMs":320,"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","name":"Error","responseKeys":[]}
+{"durationMs":320,"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","model":"@cf/...","name":"Error","responseKeys":[]}
 ```
 
 実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。
 
-差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。`src/lib/ai/text-generation.ts`の`ITEM_TYPE_SUGGESTION_MODEL`を変えてmainへ入れれば、previewへ自動配備される。差し替え後は登録画面で💡を押し、このログが出なくなることを確認する。
+差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。
+
+差し替えはCloudflare Dashboardのruntime変数`YAMORU_AI_MODEL`で行う。復旧に配備を待たなくて済むよう、待ち時間の上限と同じ理由で`wrangler.jsonc`へは書かない。`@cf/`で始まる200文字以内の値だけを受け付け、それ以外は既定値へ落として`yamoru.ai_config_invalid`として記録する。前後の空白は落とすため、catalogからの貼り付けでそのまま設定してよい。
+
+差し替え後は登録画面で💡を押し、`yamoru.text_generation_completed`の`model`が設定した値になっていること、提供終了のログが出なくなることを確認する。恒久的に別のモデルへ移す場合は、変数だけで済ませず`src/lib/ai/text-generation.ts`の`DEFAULT_MODEL`も直す。変数はDashboardにしか無く、リポジトリを読んだだけでは現在のモデルが分からなくなるためである。
 
 #### 返答形式
 
@@ -268,7 +272,7 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 成功した呼び出しは`yamoru.text_generation_completed`として所要時間だけを残す。候補の内容は含めない。
 
 ```json
-{"durationMs":4200,"event":"yamoru.text_generation_completed"}
+{"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}
 ```
 
 `durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。

@@ -31,15 +31,18 @@ function loggedInfo(): unknown[] {
 
 describe("AI提案の失敗ログ(Issue #332)", () => {
   it("失敗の種類とエラーの要約だけを構造化して残す", () => {
-    expect(buildTextGenerationErrorLog("failed", { error: new TypeError("boom") }))
-      .toEqual({
-        durationMs: 0,
-        event: "yamoru.text_generation_failed",
-        failure: "failed",
-        message: "boom",
-        name: "TypeError",
-        responseKeys: [],
-      });
+    expect(buildTextGenerationErrorLog("failed", {
+      error: new TypeError("boom"),
+      model: "@cf/zai-org/glm-4.7-flash",
+    })).toEqual({
+      durationMs: 0,
+      event: "yamoru.text_generation_failed",
+      failure: "failed",
+      message: "boom",
+      model: "@cf/zai-org/glm-4.7-flash",
+      name: "TypeError",
+      responseKeys: [],
+    });
 
     expect(buildSuggestionErrorLog("unknown_kind")).toEqual({
       event: "yamoru.item_type_suggestion_failed",
@@ -58,10 +61,11 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
     expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
   });
 
-  it("成功した呼び出しは所要時間だけを残す", () => {
-    expect(JSON.parse(formatTextGenerationCompletedLog(12345))).toEqual({
+  it("成功した呼び出しは所要時間と使ったモデルだけを残す", () => {
+    expect(JSON.parse(formatTextGenerationCompletedLog(12345, "@cf/a/b"))).toEqual({
       durationMs: 12345,
       event: "yamoru.text_generation_completed",
+      model: "@cf/a/b",
     });
   });
 
@@ -188,6 +192,47 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     expect(loggedFailures()).toEqual([
       { event: "yamoru.ai_config_invalid", value: "20秒", variable: "YAMORU_AI_TIMEOUT_MS" },
       expect.objectContaining({ durationMs: 20000, failure: "timeout" }),
+    ]);
+  });
+
+  it("YAMORU_AI_MODELで使うモデルを差し替えられる", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MODEL: "  @cf/other/model  " },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    // 前後の空白は打ち間違いとして落とす。
+    expect(run).toHaveBeenCalledWith("@cf/other/model", expect.anything());
+    expect(loggedInfo()).toEqual([
+      expect.objectContaining({ model: "@cf/other/model" }),
+    ]);
+  });
+
+  it("モデルIDの体裁を満たさない設定は既定値へ落とし、打ち間違いを記録する", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MODEL: "glm-4.7-flash" },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    expect(run).toHaveBeenCalledWith("@cf/zai-org/glm-4.7-flash", expect.anything());
+    expect(loggedFailures()).toEqual([
+      { event: "yamoru.ai_config_invalid", value: "glm-4.7-flash", variable: "YAMORU_AI_MODEL" },
+    ]);
+  });
+
+  it("失敗のログにも使ったモデルを残す", async () => {
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run: vi.fn().mockRejectedValue(new Error("5028: deprecated")) } },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ failure: "failed" });
+
+    expect(loggedFailures()).toEqual([
+      expect.objectContaining({ model: "@cf/zai-org/glm-4.7-flash" }),
     ]);
   });
 
