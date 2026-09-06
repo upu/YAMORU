@@ -27,14 +27,39 @@ export type TextGenerationFailure =
 export type SuggestionFailure = "household" | "no_candidates" | "unknown_kind";
 
 export type TextGenerationErrorLog = {
+  // 実際に待った時間。timeoutでは打ち切るまでに待った時間であり、タイマーの
+  // 遅れの分だけ上限をわずかに超えることがある(上限そのものではない)。
+  // 上限をいくつにすべきかは実測しないと決まらないため、成功時と揃えて残す。
+  durationMs: number;
   event: "yamoru.text_generation_failed";
   failure: TextGenerationFailure;
   message: string;
+  // 実際に呼んだモデルID。設定で変えられるため、どのモデルで起きた失敗なのか
+  // をログだけで特定できるようにする。
+  model: string;
   name: string;
   // unreadableのとき、返答オブジェクトが持っていたキー名だけを残す。
   // 値(生成文)は家庭の入力を映しうるため入れない。キー名が分かれば、
   // モデル側の返答形式が変わったのかどうかを切り分けられる。
   responseKeys: string[];
+};
+
+// 成功した呼び出しの所要時間。待ち時間の上限を実測に合わせて調整するために
+// 残す。候補の内容は含めない。
+export type TextGenerationCompletedLog = {
+  durationMs: number;
+  event: "yamoru.text_generation_completed";
+  // 設定で変えたモデルが実際に使われているかを、このログで確かめられる。
+  model: string;
+};
+
+// 調整用の設定値が読めなかったとき。既定値へ落として動き続けるが、設定の
+// 打ち間違いに気づけるよう記録する。記録するのは変数名と設定された値だけで、
+// 家庭のデータは含まない(設定値は運用者が入れた値である)。
+export type ConfigErrorLog = {
+  event: "yamoru.ai_config_invalid";
+  value: string;
+  variable: string;
 };
 
 export type SuggestionErrorLog = {
@@ -68,13 +93,20 @@ function responseKeysOf(output: unknown): string[] {
 
 export function buildTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  { error, output }: { error?: unknown; output?: unknown } = {},
+  { durationMs = 0, error, model = "", output }: {
+    durationMs?: number;
+    error?: unknown;
+    model?: string;
+    output?: unknown;
+  } = {},
 ): TextGenerationErrorLog {
   const summary = describeError(error);
   return {
+    durationMs,
     event: "yamoru.text_generation_failed",
     failure,
     message: summary.message,
+    model,
     name: summary.name,
     responseKeys: responseKeysOf(output),
   };
@@ -95,9 +127,35 @@ export function buildSuggestionErrorLog(
 
 export function formatTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  details?: { error?: unknown; output?: unknown },
+  details?: {
+    durationMs?: number;
+    error?: unknown;
+    model?: string;
+    output?: unknown;
+  },
 ): string {
   return JSON.stringify(buildTextGenerationErrorLog(failure, details));
+}
+
+export function formatConfigErrorLog(variable: string, value: string): string {
+  const log: ConfigErrorLog = {
+    event: "yamoru.ai_config_invalid",
+    value: truncate(value),
+    variable,
+  };
+  return JSON.stringify(log);
+}
+
+export function formatTextGenerationCompletedLog(
+  durationMs: number,
+  model: string,
+): string {
+  const log: TextGenerationCompletedLog = {
+    durationMs,
+    event: "yamoru.text_generation_completed",
+    model,
+  };
+  return JSON.stringify(log);
 }
 
 export function formatSuggestionErrorLog(

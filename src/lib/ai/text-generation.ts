@@ -1,6 +1,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import {
+  formatConfigErrorLog,
+  formatTextGenerationCompletedLog,
   formatTextGenerationErrorLog,
   type TextGenerationFailure,
 } from "../observability/item-type-suggestion";
@@ -17,11 +19,64 @@ import {
 //
 // glm-4.7-flashを選んだ理由は、この用途の出力が「短い日本語の種類名を1〜3件、
 // JSON配列で返す」だけであることによる。大きいモデルは同じ仕事でも消費する
-// Neuronsが増え、下のTIMEOUT_MSにも収まりにくい。多言語のinstruction-following
+// Neuronsが増え、下の待ち時間の上限にも収まりにくい。多言語のinstruction-following
 // が要件で、生成量は要らない。
-export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
+//
+// モデルは提供終了する。実際に一度当たっており、そのたびにコードを変えて
+// 配備し直すのは復旧を遅らせるだけなので、待ち時間の上限と同じくCloudflare
+// Dashboardのruntime変数YAMORU_AI_MODELで差し替えられるようにする。ここに
+// 置くのは変数が無いときの既定値である。恒久的に別のモデルにする場合は、
+// 変数だけで済ませずこの既定値も直す(catalogで現行のIDを確認してから)。
+const DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash";
+// Workers AIのモデルIDはこの接頭辞を持つ。前後の空白は打ち間違いとして落とす
+// が、接頭辞が違う値や長すぎる値は既定値へ落とす。
+const MODEL_PREFIX = "@cf/";
+const MAX_MODEL_LENGTH = 200;
+const MODEL_VARIABLE = "YAMORU_AI_MODEL";
+
+function resolveModel(raw: string | undefined): string {
+  if (raw === undefined) return DEFAULT_MODEL;
+  const model = raw.trim();
+  if (
+    !model.startsWith(MODEL_PREFIX)
+    || model.length > MAX_MODEL_LENGTH
+  ) {
+    console.error(formatConfigErrorLog(MODEL_VARIABLE, raw));
+    return DEFAULT_MODEL;
+  }
+  return model;
+}
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
-const TIMEOUT_MS = 8000;
+//
+// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。何秒が妥当かは実測
+// しないと決まらず、そのたびにコードを変えて配備し直すのは回り道になるため、
+// 上限はCloudflare Dashboardのruntime変数YAMORU_AI_TIMEOUT_MSで調整できる
+// ようにする。ここに置くのは変数が無いときの既定値である。
+//
+// wrangler.jsoncへは書かない。配備は--keep-varsで行うため、設定ファイルに
+// 書いた値は毎回の配備で上書きされ、Dashboardでの調整が効かなくなる。
+const DEFAULT_TIMEOUT_MS = 20000;
+// 1秒未満は補助として意味がなく、60秒を超えると利用者はとうに待つのをやめて
+// いる。打ち間違いでこの範囲を外れた値が入ったら既定値へ落とす。
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 60000;
+const TIMEOUT_VARIABLE = "YAMORU_AI_TIMEOUT_MS";
+
+// 設定を読めなくても提案そのものは続けられるよう、既定値へ落として動かす。
+// ただし黙って無視すると打ち間違いに気づけないため記録する。
+function resolveTimeoutMs(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_TIMEOUT_MS;
+  const parsed = Number(raw);
+  if (
+    !Number.isInteger(parsed)
+    || parsed < MIN_TIMEOUT_MS
+    || parsed > MAX_TIMEOUT_MS
+  ) {
+    console.error(formatConfigErrorLog(TIMEOUT_VARIABLE, raw));
+    return DEFAULT_TIMEOUT_MS;
+  }
+  return parsed;
+}
 const MAX_TOKENS = 200;
 
 // 呼び出し元(画面)にとっては「候補を出せなかった」の一種類で足りるが、
@@ -33,7 +88,12 @@ export type TextGenerationResult =
 
 function fail(
   failure: TextGenerationFailure,
-  details?: { error?: unknown; output?: unknown },
+  details?: {
+    durationMs?: number;
+    error?: unknown;
+    model?: string;
+    output?: unknown;
+  },
 ): TextGenerationResult {
   console.error(formatTextGenerationErrorLog(failure, details));
   return { failure, status: "error" };
@@ -68,10 +128,13 @@ function readGeneratedText(output: unknown): string | null {
 // 目印を返す(nullは正当な返答値ではないので取り違えない)。
 const TIMED_OUT = Symbol("timed-out");
 
-async function withTimeout<T>(work: Promise<T>): Promise<T | typeof TIMED_OUT> {
+async function withTimeout<T>(
+  work: Promise<T>,
+  timeoutMs: number,
+): Promise<T | typeof TIMED_OUT> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
-    timer = setTimeout(() => { resolve(TIMED_OUT); }, TIMEOUT_MS);
+    timer = setTimeout(() => { resolve(TIMED_OUT); }, timeoutMs);
   });
   try {
     return await Promise.race([work, timeout]);
@@ -81,27 +144,38 @@ async function withTimeout<T>(work: Promise<T>): Promise<T | typeof TIMED_OUT> {
 }
 
 export async function generateText(prompt: string): Promise<TextGenerationResult> {
-  let ai: CloudflareEnv["AI"];
+  let env: CloudflareEnv;
   try {
-    ({ AI: ai } = (await getCloudflareContext({ async: true })).env);
+    ({ env } = await getCloudflareContext({ async: true }));
   } catch (error) {
     return fail("unavailable", { error });
   }
+  const ai = env.AI;
   if (ai === undefined) return fail("unavailable");
+  const timeoutMs = resolveTimeoutMs(env.YAMORU_AI_TIMEOUT_MS);
+  const model = resolveModel(env.YAMORU_AI_MODEL);
+
+  const startedAt = Date.now();
+  const elapsed = (): number => Date.now() - startedAt;
 
   let output: unknown;
   try {
-    output = await withTimeout(ai.run(ITEM_TYPE_SUGGESTION_MODEL, {
+    output = await withTimeout(ai.run(model, {
       max_tokens: MAX_TOKENS,
       messages: [{ content: prompt, role: "user" }],
-    }));
+    }), timeoutMs);
   } catch (error) {
-    return fail("failed", { error });
+    return fail("failed", { durationMs: elapsed(), error, model });
   }
-  if (output === TIMED_OUT) return fail("timeout");
+  if (output === TIMED_OUT) {
+    return fail("timeout", { durationMs: elapsed(), model });
+  }
 
   const text = readGeneratedText(output);
-  return text === null
-    ? fail("unreadable", { output })
-    : { status: "ok", text };
+  if (text === null) {
+    return fail("unreadable", { durationMs: elapsed(), model, output });
+  }
+
+  console.log(formatTextGenerationCompletedLog(elapsed(), model));
+  return { status: "ok", text };
 }

@@ -217,7 +217,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 [YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)のAI提案は、失敗しても画面には一律で「いまは候補を出せません。これまでどおり自分で入力できます。」とだけ出し、登録・編集を続けさせる。そのままでは運用側も原因を切り分けられないため、失敗の種類を`console.error`へ1行のJSONで残す。Observabilityでは`yamoru.text_generation_failed`と`yamoru.item_type_suggestion_failed`で絞り込む。
 
 ```json
-{"event":"yamoru.text_generation_failed","failure":"failed","message":"...","name":"Error","responseKeys":[]}
+{"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","message":"...","model":"@cf/...","name":"Error","responseKeys":[]}
 ```
 
 `failure`の値はeventごとに異なる。どちらのeventで出た値かを先に確かめる。
@@ -228,7 +228,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 |---|---|---|
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
 | `failed` | 呼び出しが例外を投げた | `message`を読む。モデルの提供終了、プラン制限、レート制限などが該当する |
-| `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
+| `timeout` | 時間内に返らなかった | `durationMs`は打ち切るまでに実際に待った時間。下の「所要時間」を読む |
 | `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。下の「返答形式」を読む |
 
 `yamoru.item_type_suggestion_failed`(呼び出しの前後、アプリ側での失敗)。この
@@ -247,12 +247,16 @@ eventは`responseKeys`を持たない。
 `failed`で最初に疑うのはモデルの提供終了である。Workers AIのモデルは予告のうえ廃止され、廃止後の呼び出しはエラー5028で失敗する。
 
 ```json
-{"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","name":"Error","responseKeys":[]}
+{"durationMs":320,"event":"yamoru.text_generation_failed","failure":"failed","message":"5028: @cf/... was deprecated on YYYY-MM-DD. See the model catalog for alternatives: ...","model":"@cf/...","name":"Error","responseKeys":[]}
 ```
 
 実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。
 
-差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。`src/lib/ai/text-generation.ts`の`ITEM_TYPE_SUGGESTION_MODEL`を変えてmainへ入れれば、previewへ自動配備される。差し替え後は登録画面で💡を押し、このログが出なくなることを確認する。
+差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。
+
+差し替えはCloudflare Dashboardのruntime変数`YAMORU_AI_MODEL`で行う。復旧に配備を待たなくて済むよう、待ち時間の上限と同じ理由で`wrangler.jsonc`へは書かない。`@cf/`で始まる200文字以内の値だけを受け付け、それ以外は既定値へ落として`yamoru.ai_config_invalid`として記録する。前後の空白は落とすため、catalogからの貼り付けでそのまま設定してよい。
+
+差し替え後は登録画面で💡を押し、`yamoru.text_generation_completed`の`model`が設定した値になっていること、提供終了のログが出なくなることを確認する。恒久的に別のモデルへ移す場合は、変数だけで済ませず`src/lib/ai/text-generation.ts`の`DEFAULT_MODEL`も直す。変数はDashboardにしか無く、リポジトリを読んだだけでは現在のモデルが分からなくなるためである。
 
 #### 返答形式
 
@@ -262,6 +266,32 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 - `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。`@cf/zai-org/glm-4.7-flash`はこちらで返す
 
 モデルを差し替えたあとに`unreadable`が出た場合は、そのモデルがどちらでもない形で返している。`responseKeys`に実際のキー名が並ぶので、それを見てから`readGeneratedText`へ読み取り方を足す。推測で対応する形を増やさない。
+
+#### 所要時間
+
+成功した呼び出しは`yamoru.text_generation_completed`として、所要時間と実際に使ったモデルだけを残す。候補の内容は含めない。
+
+```json
+{"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}
+```
+
+`durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。
+
+待ち時間の上限は、Cloudflare Dashboardのruntime変数`YAMORU_AI_TIMEOUT_MS`(ミリ秒)で調整する。配備し直さずに変えられるようにするため、この変数は`wrangler.jsonc`へ書かない。配備は`--keep-vars`で行うため、設定ファイルに書いた値は毎回の配備で上書きされ、Dashboardでの調整が効かなくなるからである。未設定なら`src/lib/ai/text-generation.ts`の`DEFAULT_TIMEOUT_MS`を使う。
+
+1000〜60000の整数だけを受け付ける。範囲外や数でない値は既定値へ落とし、`yamoru.ai_config_invalid`として記録する。上限を変えても候補が出ない場合は、まずこのログで打ち間違いがないかを見る。
+
+```json
+{"event":"yamoru.ai_config_invalid","value":"20秒","variable":"YAMORU_AI_TIMEOUT_MS"}
+```
+
+上限をいくつにするかはこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
+
+判断の目安は次のとおり。
+
+- 成功時の`durationMs`が安定して短い → 上限を切り下げる。利用者を待たせない
+- 成功するが毎回上限近く → より速いモデルへ差し替える。💡を押してから十数秒待たせる価値はない
+- 上限を広げても`timeout`が続く → モデル側が返していない。差し替えを検討する
 
 ### URLに秘密情報を含めない確認方法
 
