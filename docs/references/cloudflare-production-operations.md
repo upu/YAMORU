@@ -217,7 +217,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 [YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)のAI提案は、失敗しても画面には一律で「いまは候補を出せません。これまでどおり自分で入力できます。」とだけ出し、登録・編集を続けさせる。そのままでは運用側も原因を切り分けられないため、失敗の種類を`console.error`へ1行のJSONで残す。Observabilityでは`yamoru.text_generation_failed`と`yamoru.item_type_suggestion_failed`で絞り込む。
 
 ```json
-{"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","message":"...","model":"@cf/...","name":"Error","responseKeys":[]}
+{"choiceKeys":[],"durationMs":1200,"event":"yamoru.text_generation_failed","failure":"failed","finishReason":"","message":"...","messageKeys":[],"model":"@cf/...","name":"Error","responseKeys":[]}
 ```
 
 `failure`の値はeventごとに異なる。どちらのeventで出た値かを先に確かめる。
@@ -265,7 +265,18 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 - `{ response: string }` … Workers AI従来のテキスト生成形式
 - `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。`@cf/zai-org/glm-4.7-flash`はこちらで返す
 
-モデルを差し替えたあとに`unreadable`が出た場合は、そのモデルがどちらでもない形で返している。`responseKeys`に実際のキー名が並ぶので、それを見てから`readGeneratedText`へ読み取り方を足す。推測で対応する形を増やさない。
+`content`は文字列とは限らず、`[{ type: "text", text: "..." }]`のようなブロックの配列で返す実装もあるため、その形からも本文を取れるようにしてある。
+
+`unreadable`が出た場合は、そのモデルがどれでもない形で返している。ログには返答の形が三段で並ぶので、どこで止まっているかを見てから`readGeneratedText`へ読み取り方を足す。推測で対応する形を増やさない。
+
+| フィールド | 読み方 |
+|---|---|
+| `responseKeys` | 返答の最上位。`response`も`choices`も無ければ、まったく別の形式 |
+| `choiceKeys` | `choices[0]`の中身。空なら`choices`が空配列で、モデルが何も返していない |
+| `messageKeys` | `choices[0].message`の中身。`content`以外の名前(`reasoning_content`など)があれば、そこに本文が入っている可能性がある |
+| `finishReason` | `length`なら出力上限に当たっている。`MAX_TOKENS`を上げる |
+
+いずれも構造の情報だけで、生成された文は含めない。
 
 #### 所要時間
 

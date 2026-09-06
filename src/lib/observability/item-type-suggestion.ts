@@ -38,9 +38,18 @@ export type TextGenerationErrorLog = {
   // をログだけで特定できるようにする。
   model: string;
   name: string;
-  // unreadableのとき、返答オブジェクトが持っていたキー名だけを残す。
-  // 値(生成文)は家庭の入力を映しうるため入れない。キー名が分かれば、
-  // モデル側の返答形式が変わったのかどうかを切り分けられる。
+  // unreadableのとき、返答の形だけを残す。値(生成文)は家庭の入力を映しうる
+  // ため入れない。キー名が分かれば、モデル側の返答形式が変わったのかどうかを
+  // 切り分けられる。
+  //
+  // responseKeysだけでは足りない場面が実際にあった。choicesはあるのに本文を
+  // 取り出せない(chat completions形式だがcontentが文字列でない)ときに、
+  // どこで止まっているのかが分からなかったため、一段深い形も残す。
+  choiceKeys: string[];
+  // 生成が途中で打ち切られたか("length"なら出力上限に当たっている)。
+  // 列挙値であり生成文ではない。
+  finishReason: string;
+  messageKeys: string[];
   responseKeys: string[];
 };
 
@@ -87,8 +96,36 @@ function describeError(error: unknown): { message: string; name: string } {
   return { message: "", name: typeof error };
 }
 
-function responseKeysOf(output: unknown): string[] {
-  return typeof output === "object" && output !== null ? Object.keys(output).sort() : [];
+function keysOf(value: unknown): string[] {
+  return typeof value === "object" && value !== null ? Object.keys(value).sort() : [];
+}
+
+function propertyOf(value: unknown, key: string): unknown {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+}
+
+type ResponseShape = {
+  choiceKeys: string[];
+  finishReason: string;
+  messageKeys: string[];
+  responseKeys: string[];
+};
+
+// OpenAI互換の返答は choices[0].message.content の三段になっている。どの段まで
+// 届いていたのかが分かるよう、各段のキー名とfinish_reasonを取り出す。
+// いずれも構造の情報だけで、生成された文は含めない。
+function describeResponseShape(output: unknown): ResponseShape {
+  const choices: unknown = propertyOf(output, "choices");
+  const first: unknown = Array.isArray(choices) ? (choices as unknown[])[0] : undefined;
+  const finishReason: unknown = propertyOf(first, "finish_reason");
+  return {
+    choiceKeys: keysOf(first),
+    finishReason: typeof finishReason === "string" ? truncate(finishReason) : "",
+    messageKeys: keysOf(propertyOf(first, "message")),
+    responseKeys: keysOf(output),
+  };
 }
 
 export function buildTextGenerationErrorLog(
@@ -108,7 +145,7 @@ export function buildTextGenerationErrorLog(
     message: summary.message,
     model,
     name: summary.name,
-    responseKeys: responseKeysOf(output),
+    ...describeResponseShape(output),
   };
 }
 

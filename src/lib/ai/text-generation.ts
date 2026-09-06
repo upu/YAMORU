@@ -99,6 +99,16 @@ function fail(
   return { failure, status: "error" };
 }
 
+// contentは文字列とは限らず、[{ type: "text", text: "..." }]のようなブロックの
+// 配列で返す実装もある。文字列のtextだけを順につないで本文とする。
+function readContentBlocks(content: unknown): string | null {
+  if (!Array.isArray(content)) return null;
+  const texts = (content as unknown[])
+    .map((block) => (block as { text?: unknown } | null)?.text)
+    .filter((text): text is string => typeof text === "string");
+  return texts.length === 0 ? null : texts.join("");
+}
+
 // OpenAI互換のchat completions形式(choices[0].message.content)から本文を取る。
 // glm-4.7-flashはこの形で返す(previewのunreadableログのresponseKeysで確認した)。
 function readChatCompletionText(choices: unknown): string | null {
@@ -108,7 +118,8 @@ function readChatCompletionText(choices: unknown): string | null {
   const message: unknown = (first as { message?: unknown }).message;
   if (typeof message !== "object" || message === null) return null;
   const content: unknown = (message as { content?: unknown }).content;
-  return typeof content === "string" ? content : null;
+  if (typeof content === "string") return content;
+  return readContentBlocks(content);
 }
 
 // Workers AIの返答はモデルによって形が違う。単純な{ response: string }を返す
