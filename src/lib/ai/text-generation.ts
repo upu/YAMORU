@@ -10,7 +10,16 @@ import {
 // バインディングをそのまま呼ぶ。ベンダーやRAG基盤を先に抽象化せず、必要に
 // なった時点で差し替える(issue本文の「AIベンダー、モデル、RAG基盤などを
 // 先に抽象化しすぎない」)。
-export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// モデルはWorkers AIのcatalogで現行のものを確認してから選ぶ。当初指定していた
+// @cf/meta/llama-3.1-8b-instructは2026-05-30に提供終了しており(内部では
+// infire-付きの名前へ解決され、呼び出しはエラー5028で失敗していた)、記憶や
+// 過去の記事を頼りにIDを決めると同じことが起きる。
+//
+// glm-4.7-flashを選んだ理由は、この用途の出力が「短い日本語の種類名を1〜3件、
+// JSON配列で返す」だけであることによる。大きいモデルは同じ仕事でも消費する
+// Neuronsが増え、下のTIMEOUT_MSにも収まりにくい。多言語のinstruction-following
+// が要件で、生成量は要らない。
+export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
 const TIMEOUT_MS = 8000;
 const MAX_TOKENS = 200;
