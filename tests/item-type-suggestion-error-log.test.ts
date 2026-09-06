@@ -33,7 +33,7 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
   it("失敗の種類とエラーの要約だけを構造化して残す", () => {
     expect(buildTextGenerationErrorLog("failed", {
       error: new TypeError("boom"),
-      model: "@cf/zai-org/glm-4.7-flash",
+      model: "@cf/meta/llama-4-scout-17b-16e-instruct",
     })).toEqual({
       choiceKeys: [],
       durationMs: 0,
@@ -42,7 +42,7 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
       finishReason: "",
       message: "boom",
       messageKeys: [],
-      model: "@cf/zai-org/glm-4.7-flash",
+      model: "@cf/meta/llama-4-scout-17b-16e-instruct",
       name: "TypeError",
       responseKeys: [],
     });
@@ -87,12 +87,31 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
     expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
   });
 
-  it("成功した呼び出しは所要時間と使ったモデルだけを残す", () => {
-    expect(JSON.parse(formatTextGenerationCompletedLog(12345, "@cf/a/b"))).toEqual({
+  it("成功した呼び出しは所要時間・モデル・消費トークンだけを残す", () => {
+    expect(JSON.parse(formatTextGenerationCompletedLog({
+      durationMs: 12345,
+      model: "@cf/a/b",
+      output: {
+        choices: [{ message: { content: "コーヒーマシン" } }],
+        usage: { completion_tokens: 42 },
+      },
+    }))).toEqual({
+      completionTokens: 42,
       durationMs: 12345,
       event: "yamoru.text_generation_completed",
       model: "@cf/a/b",
     });
+  });
+
+  it("usageを読めなければ消費トークンは0にし、生成文は残さない", () => {
+    const line = formatTextGenerationCompletedLog({
+      durationMs: 1,
+      model: "@cf/a/b",
+      output: { choices: [{ message: { content: "コーヒーマシン" } }] },
+    });
+
+    expect(JSON.parse(line)).toMatchObject({ completionTokens: 0 });
+    expect(line).not.toContain("コーヒーマシン");
   });
 
   it("長すぎるエラーメッセージは切り詰める", () => {
@@ -105,7 +124,9 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
   });
 });
 
-describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
+// console.error/logを溜め、擬似タイマーとspyを毎回元へ戻す。戻さないと、この
+// ファイルの他のテストや実行順の変更で失敗の出方が変わりうる。
+function useGenerateTextLogs(): void {
   beforeEach(() => {
     vi.clearAllMocks();
     errorLines.length = 0;
@@ -118,12 +139,14 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
   });
 
-  // console.errorのspyと擬似タイマーを毎回元へ戻す。戻さないと、この
-  // ファイルの他のテストや実行順の変更で失敗の出方が変わりうる。
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
+}
+
+describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
+  useGenerateTextLogs();
 
   it("バインディングが無い環境はunavailableとして記録する", async () => {
     getCloudflareContextMock.mockResolvedValue({ env: {} });
@@ -174,14 +197,19 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
 
     const pending = generateText("prompt");
-    await vi.advanceTimersByTimeAsync(20000);
+    await vi.advanceTimersByTimeAsync(10000);
 
     await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
     // 打ち切りまでの時間も残す。上限を実測に合わせて調整する材料にする。
     expect(loggedFailures()).toEqual([
-      expect.objectContaining({ durationMs: 20000, failure: "timeout", responseKeys: [] }),
+      expect.objectContaining({ durationMs: 10000, failure: "timeout", responseKeys: [] }),
     ]);
   });
+
+});
+
+describe("AI提案の調整値(Issue #332)", () => {
+  useGenerateTextLogs();
 
   it("YAMORU_AI_TIMEOUT_MSで上限を調整できる", async () => {
     vi.useFakeTimers();
@@ -206,18 +234,18 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     getCloudflareContextMock.mockResolvedValue({
       env: {
         AI: { run: vi.fn().mockReturnValue(new Promise(() => undefined)) },
-        YAMORU_AI_TIMEOUT_MS: "20秒",
+        YAMORU_AI_TIMEOUT_MS: "10秒",
       },
     });
 
     const pending = generateText("prompt");
-    // 既定値(20000)まで進めないと打ち切られない。
-    await vi.advanceTimersByTimeAsync(20000);
+    // 既定値(10000)まで進めないと打ち切られない。
+    await vi.advanceTimersByTimeAsync(10000);
 
     await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
     expect(loggedFailures()).toEqual([
-      { event: "yamoru.ai_config_invalid", value: "20秒", variable: "YAMORU_AI_TIMEOUT_MS" },
-      expect.objectContaining({ durationMs: 20000, failure: "timeout" }),
+      { event: "yamoru.ai_config_invalid", value: "10秒", variable: "YAMORU_AI_TIMEOUT_MS" },
+      expect.objectContaining({ durationMs: 10000, failure: "timeout" }),
     ]);
   });
 
@@ -239,14 +267,14 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
   it("モデルIDの体裁を満たさない設定は既定値へ落とし、打ち間違いを記録する", async () => {
     const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
     getCloudflareContextMock.mockResolvedValue({
-      env: { AI: { run }, YAMORU_AI_MODEL: "glm-4.7-flash" },
+      env: { AI: { run }, YAMORU_AI_MODEL: "llama-4-scout-17b-16e-instruct" },
     });
 
     await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
 
-    expect(run).toHaveBeenCalledWith("@cf/zai-org/glm-4.7-flash", expect.anything());
+    expect(run).toHaveBeenCalledWith("@cf/meta/llama-4-scout-17b-16e-instruct", expect.anything());
     expect(loggedFailures()).toEqual([
-      { event: "yamoru.ai_config_invalid", value: "glm-4.7-flash", variable: "YAMORU_AI_MODEL" },
+      { event: "yamoru.ai_config_invalid", value: "llama-4-scout-17b-16e-instruct", variable: "YAMORU_AI_MODEL" },
     ]);
   });
 
@@ -258,7 +286,38 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     await expect(generateText("prompt")).resolves.toMatchObject({ failure: "failed" });
 
     expect(loggedFailures()).toEqual([
-      expect.objectContaining({ model: "@cf/zai-org/glm-4.7-flash" }),
+      expect.objectContaining({ model: "@cf/meta/llama-4-scout-17b-16e-instruct" }),
+    ]);
+  });
+
+  it("YAMORU_AI_MAX_TOKENSで出力上限を調整できる", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MAX_TOKENS: "500" },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    expect(run).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ max_tokens: 500 }),
+    );
+  });
+
+  it("出力上限の設定が範囲外なら既定値へ落とし、打ち間違いを記録する", async () => {
+    const run = vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' });
+    getCloudflareContextMock.mockResolvedValue({
+      env: { AI: { run }, YAMORU_AI_MAX_TOKENS: "0" },
+    });
+
+    await expect(generateText("prompt")).resolves.toMatchObject({ status: "ok" });
+
+    expect(run).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ max_tokens: 500 }),
+    );
+    expect(loggedFailures()).toEqual([
+      { event: "yamoru.ai_config_invalid", value: "0", variable: "YAMORU_AI_MAX_TOKENS" },
     ]);
   });
 
@@ -277,7 +336,7 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     ]);
   });
 
-  // glm-4.7-flashはOpenAI互換のchat completions形式で返す。previewで
+  // 一部のモデルはOpenAI互換のchat completions形式で返す。previewで
   // unreadableになったときのresponseKeysから形を確かめて対応した。
   it("OpenAI互換のchat completions形式からも本文を取り出す", async () => {
     getCloudflareContextMock.mockResolvedValue({
@@ -291,7 +350,7 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
             }],
             created: 1757000000,
             id: "chatcmpl-1",
-            model: "@cf/zai-org/glm-4.7-flash",
+            model: "@cf/meta/llama-4-scout-17b-16e-instruct",
             object: "chat.completion",
             usage: { total_tokens: 42 },
           }),

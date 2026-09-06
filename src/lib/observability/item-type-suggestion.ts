@@ -56,6 +56,9 @@ export type TextGenerationErrorLog = {
 // 成功した呼び出しの所要時間。待ち時間の上限を実測に合わせて調整するために
 // 残す。候補の内容は含めない。
 export type TextGenerationCompletedLog = {
+  // 実際に使った出力トークン数。出力上限をいくつにすべきかは、待ち時間の上限と
+  // 同じく実測しないと決まらないため残す。読み取れなければ0。
+  completionTokens: number;
   durationMs: number;
   event: "yamoru.text_generation_completed";
   // 設定で変えたモデルが実際に使われているかを、このログで確かめられる。
@@ -183,11 +186,20 @@ export function formatConfigErrorLog(variable: string, value: string): string {
   return JSON.stringify(log);
 }
 
+function completionTokensOf(output: unknown): number {
+  const tokens: unknown = propertyOf(propertyOf(output, "usage"), "completion_tokens");
+  return typeof tokens === "number" && Number.isFinite(tokens) ? tokens : 0;
+}
+
 export function formatTextGenerationCompletedLog(
-  durationMs: number,
-  model: string,
+  { durationMs, model, output }: {
+    durationMs: number;
+    model: string;
+    output: unknown;
+  },
 ): string {
   const log: TextGenerationCompletedLog = {
+    completionTokens: completionTokensOf(output),
     durationMs,
     event: "yamoru.text_generation_completed",
     model,

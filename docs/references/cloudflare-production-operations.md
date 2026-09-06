@@ -252,7 +252,26 @@ eventは`responseKeys`を持たない。
 
 実際に`@cf/meta/llama-3.1-8b-instruct`が2026-05-30に廃止され、この形で失敗した。指定したIDと`message`に出るIDが一致しないことがある(内部で別名へ解決される)ため、`message`のIDをそのまま読む。
 
-差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。
+差し替えるモデルは[Workers AIのモデルcatalog](https://developers.cloudflare.com/workers-ai/models/)で現行のものを確認して選ぶ。記憶や過去の記事のIDを使わない。catalogはAPIでも引ける。
+
+```
+GET https://api.cloudflare.com/client/v4/accounts/<account_id>/ai/models/search?task=Text%20Generation&per_page=200
+```
+
+この用途で選ぶ基準は次のとおり。求めているのは「短い日本語の種類名を1〜3件、JSON配列で返す」だけで、生成量も推論の深さも要らない。
+
+- **思考しないモデルにする。** 思考過程を出すモデルは候補に着く前に出力トークンを使い切り、`content`が空のまま返ることがある(下の「出力トークン数」)。差し替え候補は本番へ入れる前に1度呼び、`messageKeys`に`reasoning_content`が出ないことを見る
+- 日本語のinstruction-followingができること。指示どおりJSON配列だけを返すか
+- 小さいモデルを選ぶ。同じ仕事でも大きいモデルはNeuronsを多く消費し、待ち時間も伸びる
+
+実測で比べた例(同じ入力、2026-09)。
+
+| モデル | 所要時間 | Neurons | 結果 |
+|---|---|---|---|
+| `@cf/meta/llama-4-scout-17b-16e-instruct` | 1秒未満 | 6〜7 | 常にJSON配列を返した(現在の既定値) |
+| `@cf/meta/llama-3.3-70b-instruct-fp8-fast` | 約1秒 | 12 | 返すが、家庭で使用中の表記を無視しがち |
+| `@cf/zai-org/glm-4.7-flash` | 2〜6秒 | 59〜74 | 思考で使い切り、`content`が空になることがある |
+| `@cf/google/gemma-4-26b-a4b-it` | 約3秒 | 10 | 300トークンでは`content`に届かなかった |
 
 差し替えはCloudflare Dashboardのruntime変数`YAMORU_AI_MODEL`で行う。復旧に配備を待たなくて済むよう、待ち時間の上限と同じ理由で`wrangler.jsonc`へは書かない。`@cf/`で始まる200文字以内の値だけを受け付け、それ以外は既定値へ落として`yamoru.ai_config_invalid`として記録する。前後の空白は落とすため、catalogからの貼り付けでそのまま設定してよい。
 
@@ -263,7 +282,7 @@ eventは`responseKeys`を持たない。
 Workers AIの返答の形はモデルによって違う。`readGeneratedText`は次の2つに対応している。
 
 - `{ response: string }` … Workers AI従来のテキスト生成形式
-- `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。`@cf/zai-org/glm-4.7-flash`はこちらで返す
+- `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。既定の`@cf/meta/llama-4-scout-17b-16e-instruct`を含む多くのモデルはこちらで返す
 
 `content`は文字列とは限らず、`[{ type: "text", text: "..." }]`のようなブロックの配列で返す実装もあるため、その形からも本文を取れるようにしてある。
 
@@ -274,16 +293,29 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 | `responseKeys` | 返答の最上位。`response`も`choices`も無ければ、まったく別の形式 |
 | `choiceKeys` | `choices[0]`の中身。空なら`choices`が空配列で、モデルが何も返していない |
 | `messageKeys` | `choices[0].message`の中身。`content`以外の名前(`reasoning_content`など)があれば、そこに本文が入っている可能性がある |
-| `finishReason` | `length`なら出力上限に当たっている。`MAX_TOKENS`を上げる |
+| `finishReason` | `length`なら出力上限に当たっている。下の「出力トークン数」を読む |
 
 いずれも構造の情報だけで、生成された文は含めない。
+
+#### 出力トークン数
+
+1回の生成で許す出力トークン数は、runtime変数`YAMORU_AI_MAX_TOKENS`で調整する。待ち時間の上限やモデルと同じ理由で`wrangler.jsonc`へは書かない。1〜8000の整数だけを受け付け、範囲外は既定値(`DEFAULT_MAX_TOKENS`)へ落として`yamoru.ai_config_invalid`として記録する。
+
+`finishReason`が`length`のときは、ここが足りていない。特に**思考過程を出すモデル**(`messageKeys`に`reasoning_content`が並ぶもの)は、候補を出す前に思考でトークンを使い切る。
+
+このプロジェクトは実際にそれで詰まった。当初使っていた`@cf/zai-org/glm-4.7-flash`は、候補そのものが数十トークンで済むのに思考だけで1400〜2000超を消費し、上限に届くと`content`が空のまま返ってきた。思考は`thinking`パラメータでは止められない(REST APIで実測して確認済み)。上限を上げれば通ることもあるが、消費量が入力ごとに揺れるため「上げれば直る」とは言い切れない。**思考しないモデルを選ぶ方が確実である。**
+
+適正値は成功時の`completionTokens`で決める。
+
+- `completionTokens`が上限に張り付いている → 上限を上げる。ただし`reasoning_content`が出ているなら、上げる前に思考しないモデルへの差し替えを検討する
+- 上限に対して十分小さい → 上限を下げてよい。待ち時間と費用が減る
 
 #### 所要時間
 
 成功した呼び出しは`yamoru.text_generation_completed`として、所要時間と実際に使ったモデルだけを残す。候補の内容は含めない。
 
 ```json
-{"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}
+{"completionTokens":29,"durationMs":680,"event":"yamoru.text_generation_completed","model":"@cf/meta/llama-4-scout-17b-16e-instruct"}
 ```
 
 `durationMs`はどのログでも「実際に待った時間」であり、`timeout`でも上限そのものではない。タイマーの遅れの分だけ上限を超えることがあり、大きく超えている場合はWorker側が詰まっていた合図になる。
@@ -293,10 +325,10 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 1000〜60000の整数だけを受け付ける。範囲外や数でない値は既定値へ落とし、`yamoru.ai_config_invalid`として記録する。上限を変えても候補が出ない場合は、まずこのログで打ち間違いがないかを見る。
 
 ```json
-{"event":"yamoru.ai_config_invalid","value":"20秒","variable":"YAMORU_AI_TIMEOUT_MS"}
+{"event":"yamoru.ai_config_invalid","value":"10秒","variable":"YAMORU_AI_TIMEOUT_MS"}
 ```
 
-上限をいくつにするかはこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
+上限をいくつにするかはこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。その後モデルを差し替え、実測が1秒未満に収まったため既定値は10秒へ戻した。
 
 判断の目安は次のとおり。
 
