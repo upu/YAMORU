@@ -65,6 +65,7 @@ function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
     recurrenceBasis: "once",
     recurrenceLabel: "繰り返しなし",
     scheduledFor: "2026-09-01T15:00:00.000Z",
+    taskRuleId: "rule-1",
     title: "フィルターの申請",
     ...overrides,
   };
@@ -129,19 +130,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("未完了Todoの詳細(TodoDetailContent)", () => {
-  it("関連する消耗品を参照でき、追加操作は表示しない", () => {
+  it("メンテナンスTodoでは関連する消耗品を参照し、追加操作へ進める", () => {
     renderDetail(todo({
       consumables: [{
         id: "consumable-1",
         name: "交換フィルター",
         stockStatus: "available",
       }],
+      isMaintenance: true,
     }));
 
     const section = screen.getByRole("region", { name: "関連する消耗品" });
     expect(within(section).getByRole("link", { name: "交換フィルター" }))
       .toHaveAttribute("href", "/consumables/consumable-1");
-    expect(within(section).queryByRole("link", { name: "消耗品を追加" }))
+    expect(within(section).getByRole("button", { name: "消耗品を追加" }))
+      .toBeInTheDocument();
+  });
+
+  it("期限のあるTodoでは関連付け編集を表示しない", () => {
+    renderDetail(todo());
+
+    const section = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(section).queryByRole("button", { name: "消耗品を追加" }))
       .not.toBeInTheDocument();
   });
 

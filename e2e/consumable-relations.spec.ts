@@ -15,6 +15,7 @@ const OWNER_SESSION = { userId: "owner" };
 const MANY_ITEM_COUNT = 22;
 
 let consumableId: string;
+let maintenanceOccurrenceId: string;
 
 async function createItem(db: D1Database, name: string): Promise<string> {
   return createManagedItem(db, OWNER_SESSION, {
@@ -33,8 +34,8 @@ async function createMaintenanceTodo(
   db: D1Database,
   managedItemId: string | null,
   title: string,
-): Promise<void> {
-  await createMaintenanceTask(db, OWNER_SESSION, {
+): Promise<string> {
+  return createMaintenanceTask(db, OWNER_SESSION, {
     firstDueAt: "2026-09-10T15:00:00.000Z",
     firstScheduledFor: "2026-09-01T15:00:00.000Z",
     managedItemId,
@@ -52,7 +53,16 @@ test.beforeEach(async ({ db }) => {
   for (let index = 0; index < MANY_ITEM_COUNT; index += 1) {
     await createItem(db, `収納棚${String(index)}`);
   }
-  await createMaintenanceTodo(db, waterServerId, "給水機のフィルターを交換する");
+  const maintenanceTaskRuleId = await createMaintenanceTodo(
+    db,
+    waterServerId,
+    "給水機のフィルターを交換する",
+  );
+  const occurrence = await db.prepare(
+    "SELECT id FROM task_occurrences WHERE task_rule_id = ?1",
+  ).bind(maintenanceTaskRuleId).first<{ id: string }>();
+  if (occurrence === null) throw new Error("メンテナンスTodoの初回Occurrenceがありません。");
+  maintenanceOccurrenceId = occurrence.id;
   await createMaintenanceTodo(db, bathId, "浴槽を掃除する");
   await createMaintenanceTodo(db, null, "防災用品を点検する");
   consumableId = await createConsumable(db, OWNER_SESSION, {
@@ -163,4 +173,35 @@ test("消耗品詳細の関連表示から管理対象・Todoを追加し、解�
   await expect(page.getByRole("heading", { level: 1, name: "詰め替え用洗剤" })).toBeVisible();
   await expect(page.getByRole("region", { name: "関連するTodo" })
     .getByText("給水機のフィルターを交換する")).toBeVisible();
+});
+
+// Issue #328: 逆方向のTodo詳細でも、関連を見ている場所から同じ検索・追加・
+// 解除ができる。再読み込み後の永続化と、解除後もConsumable本体が残ることまで
+// モバイル幅の実画面で確認する。
+test("Todo詳細の関連する消耗品から検索して追加し、解除できる", async ({ page }) => {
+  await login(page);
+  await page.goto(`/todos/${maintenanceOccurrenceId}`);
+
+  const consumables = page.getByRole("region", { name: "関連する消耗品" });
+  await consumables.getByRole("button", { name: "消耗品を追加" }).click();
+  const dialog = page.getByRole("dialog", { name: "消耗品を追加" });
+  await dialog.getByLabel("消耗品を検索").fill("詰め替え");
+  await dialog.getByRole("checkbox", { name: "詰め替え用洗剤" }).click();
+  await expect(dialog.getByRole("checkbox", { name: "詰め替え用洗剤" })).toBeChecked();
+  await dialog.getByRole("button", { name: "選択を終える" }).click();
+
+  await expect(consumables.getByRole("link", { name: "詰め替え用洗剤" })).toBeVisible();
+  await expect(consumables.getByText("ある")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("region", { name: "関連する消耗品" })
+    .getByRole("link", { name: "詰め替え用洗剤" })).toBeVisible();
+
+  await page.getByRole("button", { name: "詰め替え用洗剤を関連から外す" }).click();
+  await expect(page.getByText("関連する消耗品はありません。")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("関連する消耗品はありません。")).toBeVisible();
+  await page.goto(`/consumables/${consumableId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "詰め替え用洗剤" })).toBeVisible();
 });

@@ -1,5 +1,9 @@
 import { requireCurrentHouseholdId, type D1Session } from "./authorization";
-import type { ConsumableRelationOption, ConsumableTaskRuleOption } from "./consumables";
+import type {
+  ConsumableRelationOption,
+  ConsumableSummary,
+  ConsumableTaskRuleOption,
+} from "./consumables";
 import { likeSearchPattern } from "./text-search";
 
 // Issue #292: 消耗品フォームの関連付けを、全件チェックリストから「選択済みを
@@ -26,6 +30,27 @@ function toPage<T>(results: T[]): ConsumableCandidatePage<T> {
     hasMore: results.length > CONSUMABLE_CANDIDATE_LIMIT,
     items: results.slice(0, CONSUMABLE_CANDIDATE_LIMIT),
   };
+}
+
+// Issue #328: Todo詳細から関連付けるConsumableも、#292と同じ上限・検索規則で
+// 取得する。候補と件数は認証済み利用者の家庭内でだけ決まり、在庫状態は
+// 関連付け後の表示へそのまま引き継ぐ。
+export async function searchConsumableCandidates(
+  db: D1Database,
+  session: D1Session,
+  search: string,
+): Promise<ConsumableCandidatePage<ConsumableSummary>> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  const { results } = await db.prepare(
+    `SELECT id, name, stock_status AS stockStatus
+       FROM consumables
+      WHERE household_id = ?1
+        AND (?2 IS NULL OR LOWER(name) LIKE ?2 ESCAPE '\\')
+      ORDER BY name COLLATE NOCASE, id
+      LIMIT ?3`,
+  ).bind(householdId, likeSearchPattern(search), CONSUMABLE_CANDIDATE_LIMIT + 1)
+    .all<ConsumableSummary>();
+  return toPage(results);
 }
 
 export async function searchConsumableManagedItemCandidates(
