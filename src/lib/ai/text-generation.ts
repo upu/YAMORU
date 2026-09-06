@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 import {
+  formatTextGenerationCompletedLog,
   formatTextGenerationErrorLog,
   type TextGenerationFailure,
 } from "../observability/item-type-suggestion";
@@ -21,7 +22,13 @@ import {
 // が要件で、生成量は要らない。
 export const ITEM_TYPE_SUGGESTION_MODEL = "@cf/zai-org/glm-4.7-flash";
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
-const TIMEOUT_MS = 8000;
+//
+// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。ただし実際に何秒
+// かかるのかを記録していなかったため、伸ばして足りるのかモデルを変えるべきかを
+// 判断できなかった。暫定的に上限を広げ、あわせて成功時の所要時間
+// (yamoru.text_generation_completedのdurationMs)を残す。実測が集まったら、
+// 利用者を待たせない範囲へ切り下げる。
+const TIMEOUT_MS = 20000;
 const MAX_TOKENS = 200;
 
 // 呼び出し元(画面)にとっては「候補を出せなかった」の一種類で足りるが、
@@ -33,7 +40,7 @@ export type TextGenerationResult =
 
 function fail(
   failure: TextGenerationFailure,
-  details?: { error?: unknown; output?: unknown },
+  details?: { durationMs?: number; error?: unknown; output?: unknown },
 ): TextGenerationResult {
   console.error(formatTextGenerationErrorLog(failure, details));
   return { failure, status: "error" };
@@ -89,6 +96,9 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
   }
   if (ai === undefined) return fail("unavailable");
 
+  const startedAt = Date.now();
+  const elapsed = (): number => Date.now() - startedAt;
+
   let output: unknown;
   try {
     output = await withTimeout(ai.run(ITEM_TYPE_SUGGESTION_MODEL, {
@@ -96,12 +106,13 @@ export async function generateText(prompt: string): Promise<TextGenerationResult
       messages: [{ content: prompt, role: "user" }],
     }));
   } catch (error) {
-    return fail("failed", { error });
+    return fail("failed", { durationMs: elapsed(), error });
   }
-  if (output === TIMED_OUT) return fail("timeout");
+  if (output === TIMED_OUT) return fail("timeout", { durationMs: elapsed() });
 
   const text = readGeneratedText(output);
-  return text === null
-    ? fail("unreadable", { output })
-    : { status: "ok", text };
+  if (text === null) return fail("unreadable", { durationMs: elapsed(), output });
+
+  console.log(formatTextGenerationCompletedLog(elapsed()));
+  return { status: "ok", text };
 }

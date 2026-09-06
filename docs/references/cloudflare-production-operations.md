@@ -228,7 +228,7 @@ server actionのように例外を`catch`して利用者向けメッセージへ
 |---|---|---|
 | `unavailable` | Workers AIバインディングが無い | local / e2eでは正常。preview / productionで出る場合は`wrangler.jsonc`と配備ログのbinding一覧を確認する |
 | `failed` | 呼び出しが例外を投げた | `message`を読む。モデルの提供終了、プラン制限、レート制限などが該当する |
-| `timeout` | 時間内に返らなかった | 断続的なら上限時間、常時なら別モデルを検討する |
+| `timeout` | 時間内に返らなかった | `durationMs`が打ち切りまでの時間(上限)。下の「所要時間」を読む |
 | `unreadable` | 返答は来たが本文を取り出せなかった | `responseKeys`がモデル側の返答形式を示す。下の「返答形式」を読む |
 
 `yamoru.item_type_suggestion_failed`(呼び出しの前後、アプリ側での失敗)。この
@@ -262,6 +262,22 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 - `{ choices: [{ message: { content: string } }], ... }` … OpenAI互換のchat completions形式。`@cf/zai-org/glm-4.7-flash`はこちらで返す
 
 モデルを差し替えたあとに`unreadable`が出た場合は、そのモデルがどちらでもない形で返している。`responseKeys`に実際のキー名が並ぶので、それを見てから`readGeneratedText`へ読み取り方を足す。推測で対応する形を増やさない。
+
+#### 所要時間
+
+成功した呼び出しは`yamoru.text_generation_completed`として所要時間だけを残す。候補の内容は含めない。
+
+```json
+{"durationMs":4200,"event":"yamoru.text_generation_completed"}
+```
+
+`src/lib/ai/text-generation.ts`の`TIMEOUT_MS`はこの実測に合わせて決める。当初の8秒は`@cf/zai-org/glm-4.7-flash`に対して短く、`timeout`が出た。何秒かかっているのかを記録していなかったため、上限を伸ばせば足りるのか別のモデルにすべきかを判断できず、暫定的に20秒へ広げたうえでこのログを足した経緯がある。
+
+判断の目安は次のとおり。
+
+- 成功時の`durationMs`が安定して短い → 上限を切り下げる。利用者を待たせない
+- 成功するが毎回上限近く → より速いモデルへ差し替える。💡を押してから十数秒待たせる価値はない
+- 上限を広げても`timeout`が続く → モデル側が返していない。差し替えを検討する
 
 ### URLに秘密情報を含めない確認方法
 

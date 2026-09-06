@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildSuggestionErrorLog,
   buildTextGenerationErrorLog,
+  formatTextGenerationCompletedLog,
 } from "../src/lib/observability/item-type-suggestion";
 
 const { getCloudflareContextMock } = vi.hoisted(() => ({
@@ -18,15 +19,21 @@ import { generateText } from "../src/lib/ai/text-generation";
 // console.errorへ渡った行を文字列で溜め、JSONとして読み直す。spyのmock.calls
 // はanyになりmax-warnings=0のlintを通せないため、記録側で型を閉じる。
 const errorLines: string[] = [];
+const infoLines: string[] = [];
 
 function loggedFailures(): unknown[] {
   return errorLines.map((line) => JSON.parse(line) as unknown);
+}
+
+function loggedInfo(): unknown[] {
+  return infoLines.map((line) => JSON.parse(line) as unknown);
 }
 
 describe("AI提案の失敗ログ(Issue #332)", () => {
   it("失敗の種類とエラーの要約だけを構造化して残す", () => {
     expect(buildTextGenerationErrorLog("failed", { error: new TypeError("boom") }))
       .toEqual({
+        durationMs: 0,
         event: "yamoru.text_generation_failed",
         failure: "failed",
         message: "boom",
@@ -51,6 +58,13 @@ describe("AI提案の失敗ログ(Issue #332)", () => {
     expect(JSON.stringify(log)).not.toContain("コーヒーマシン");
   });
 
+  it("成功した呼び出しは所要時間だけを残す", () => {
+    expect(JSON.parse(formatTextGenerationCompletedLog(12345))).toEqual({
+      durationMs: 12345,
+      event: "yamoru.text_generation_completed",
+    });
+  });
+
   it("長すぎるエラーメッセージは切り詰める", () => {
     const log = buildTextGenerationErrorLog("failed", {
       error: new Error("あ".repeat(600)),
@@ -67,6 +81,10 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     errorLines.length = 0;
     vi.spyOn(console, "error").mockImplementation((line: unknown) => {
       errorLines.push(String(line));
+    });
+    infoLines.length = 0;
+    vi.spyOn(console, "log").mockImplementation((line: unknown) => {
+      infoLines.push(String(line));
     });
   });
 
@@ -126,11 +144,12 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     });
 
     const pending = generateText("prompt");
-    await vi.advanceTimersByTimeAsync(8000);
+    await vi.advanceTimersByTimeAsync(20000);
 
     await expect(pending).resolves.toEqual({ failure: "timeout", status: "error" });
+    // 打ち切りまでの時間も残す。上限を実測に合わせて調整する材料にする。
     expect(loggedFailures()).toEqual([
-      expect.objectContaining({ failure: "timeout", responseKeys: [] }),
+      expect.objectContaining({ durationMs: 20000, failure: "timeout", responseKeys: [] }),
     ]);
   });
 
@@ -144,6 +163,9 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
       text: '["コーヒーマシン"]',
     });
     expect(errorLines).toEqual([]);
+    expect(loggedInfo()).toEqual([
+      expect.objectContaining({ event: "yamoru.text_generation_completed" }),
+    ]);
   });
 
   // glm-4.7-flashはOpenAI互換のchat completions形式で返す。previewで

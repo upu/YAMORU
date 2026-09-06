@@ -27,6 +27,9 @@ export type TextGenerationFailure =
 export type SuggestionFailure = "household" | "no_candidates" | "unknown_kind";
 
 export type TextGenerationErrorLog = {
+  // 呼び出しに要した時間。timeoutでは打ち切りまでの時間(=上限)になる。
+  // 上限をいくつにすべきかは実測しないと決まらないため、成功時と揃えて残す。
+  durationMs: number;
   event: "yamoru.text_generation_failed";
   failure: TextGenerationFailure;
   message: string;
@@ -35,6 +38,13 @@ export type TextGenerationErrorLog = {
   // 値(生成文)は家庭の入力を映しうるため入れない。キー名が分かれば、
   // モデル側の返答形式が変わったのかどうかを切り分けられる。
   responseKeys: string[];
+};
+
+// 成功した呼び出しの所要時間。上限(TIMEOUT_MS)を実測に合わせて調整するために
+// 残す。候補の内容は含めない。
+export type TextGenerationCompletedLog = {
+  durationMs: number;
+  event: "yamoru.text_generation_completed";
 };
 
 export type SuggestionErrorLog = {
@@ -68,10 +78,15 @@ function responseKeysOf(output: unknown): string[] {
 
 export function buildTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  { error, output }: { error?: unknown; output?: unknown } = {},
+  { durationMs = 0, error, output }: {
+    durationMs?: number;
+    error?: unknown;
+    output?: unknown;
+  } = {},
 ): TextGenerationErrorLog {
   const summary = describeError(error);
   return {
+    durationMs,
     event: "yamoru.text_generation_failed",
     failure,
     message: summary.message,
@@ -95,9 +110,17 @@ export function buildSuggestionErrorLog(
 
 export function formatTextGenerationErrorLog(
   failure: TextGenerationFailure,
-  details?: { error?: unknown; output?: unknown },
+  details?: { durationMs?: number; error?: unknown; output?: unknown },
 ): string {
   return JSON.stringify(buildTextGenerationErrorLog(failure, details));
+}
+
+export function formatTextGenerationCompletedLog(durationMs: number): string {
+  const log: TextGenerationCompletedLog = {
+    durationMs,
+    event: "yamoru.text_generation_completed",
+  };
+  return JSON.stringify(log);
 }
 
 export function formatSuggestionErrorLog(
