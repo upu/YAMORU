@@ -17,17 +17,28 @@ import {
 // infire-付きの名前へ解決され、呼び出しはエラー5028で失敗していた)、記憶や
 // 過去の記事を頼りにIDを決めると同じことが起きる。
 //
-// glm-4.7-flashを選んだ理由は、この用途の出力が「短い日本語の種類名を1〜3件、
-// JSON配列で返す」だけであることによる。大きいモデルは同じ仕事でも消費する
-// Neuronsが増え、下の待ち時間の上限にも収まりにくい。多言語のinstruction-following
-// が要件で、生成量は要らない。
+// llama-4-scoutを選んだ理由は、この用途の出力が「短い日本語の種類名を1〜3件、
+// JSON配列で返す」だけであることによる。多言語のinstruction-followingが要件で、
+// 生成量は要らない。
+//
+// 当初はglm-4.7-flashを使ったが、これは思考を出力トークンとして消費する推論
+// モデルで、候補そのものは数十トークンなのに思考だけで1400〜2000超を使い、
+// 上限に届くと本文が空のまま返ってくる(finish_reason: "length")。思考は
+// thinkingパラメータでは止められないことを実測で確認した。同じ問いを実測で
+// 比べた結果は次のとおり。
+//
+//   glm-4.7-flash          2〜6秒  59〜74 Neurons  本文が空になることがある
+//   llama-4-scout          1秒未満  6〜7 Neurons   常にJSON配列を返した
+//
+// 思考しないモデルへ替えることで、失敗の原因そのものが無くなり、費用は約10分の
+// 1、待ち時間は数分の1になる。
 //
 // モデルは提供終了する。実際に一度当たっており、そのたびにコードを変えて
 // 配備し直すのは復旧を遅らせるだけなので、待ち時間の上限と同じくCloudflare
 // Dashboardのruntime変数YAMORU_AI_MODELで差し替えられるようにする。ここに
 // 置くのは変数が無いときの既定値である。恒久的に別のモデルにする場合は、
 // 変数だけで済ませずこの既定値も直す(catalogで現行のIDを確認してから)。
-const DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash";
+const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 // Workers AIのモデルIDはこの接頭辞を持つ。前後の空白は打ち間違いとして落とす
 // が、接頭辞が違う値や長すぎる値は既定値へ落とす。
 const MODEL_PREFIX = "@cf/";
@@ -48,14 +59,15 @@ function resolveModel(raw: string | undefined): string {
 }
 // 入力補助であり、待たされるくらいなら手入力を続けられた方がよい。
 //
-// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。何秒が妥当かは実測
-// しないと決まらず、そのたびにコードを変えて配備し直すのは回り道になるため、
-// 上限はCloudflare Dashboardのruntime変数YAMORU_AI_TIMEOUT_MSで調整できる
-// ようにする。ここに置くのは変数が無いときの既定値である。
+// 当初の8秒ではglm-4.7-flashが間に合わずtimeoutになった。llama-4-scoutでの
+// 実測は1秒未満で、10秒はその十倍の余裕である。何秒が妥当かはモデルを替える
+// たびに変わり、そのつどコードを変えて配備し直すのは回り道になるため、上限は
+// Cloudflare Dashboardのruntime変数YAMORU_AI_TIMEOUT_MSで調整できるように
+// する。ここに置くのは変数が無いときの既定値である。
 //
 // wrangler.jsoncへは書かない。配備は--keep-varsで行うため、設定ファイルに
 // 書いた値は毎回の配備で上書きされ、Dashboardでの調整が効かなくなる。
-const DEFAULT_TIMEOUT_MS = 20000;
+const DEFAULT_TIMEOUT_MS = 10000;
 // 1秒未満は補助として意味がなく、60秒を超えると利用者はとうに待つのをやめて
 // いる。打ち間違いでこの範囲を外れた値が入ったら既定値へ落とす。
 const MIN_TIMEOUT_MS = 1000;
@@ -82,13 +94,15 @@ function resolveTimeoutMs(raw: string | undefined): number {
 // 当初の200では足りなかった。glm-4.7-flashは思考過程(reasoning_content)を
 // 出すモデルで、200を思考だけで使い切り、contentへ到達する前にfinish_reason
 // がlengthで打ち切られていた。思考にどれだけ要るかはモデルと入力で変わり、
-// 実測しないと決まらないため、待ち時間の上限やモデルと同じくruntime変数
-// YAMORU_AI_MAX_TOKENSで調整できるようにする。
+// 候補そのものは実測で13〜29トークンに収まる。500はその十数倍で、返答が
+// 途中で切れないための余裕である。
 //
-// 成功時のyamoru.text_generation_completedがcompletionTokensを残すので、
-// 実測が集まったら過不足を見て決め直す。候補そのものは数十トークンで足りる
-// ため、余りは思考の取り分である。
-const DEFAULT_MAX_TOKENS = 2000;
+// 思考するモデルへ差し替えるとこの余裕では足りなくなる(思考も出力トークンを
+// 消費するため)ので、待ち時間の上限やモデルと同じくruntime変数
+// YAMORU_AI_MAX_TOKENSで調整できるようにしておく。成功時の
+// yamoru.text_generation_completedがcompletionTokensを残すので、実測を見て
+// 決め直せる。
+const DEFAULT_MAX_TOKENS = 500;
 // 1未満は生成できず、8000を超えると待ち時間と費用に見合わない。
 const MIN_MAX_TOKENS = 1;
 const MAX_MAX_TOKENS = 8000;
