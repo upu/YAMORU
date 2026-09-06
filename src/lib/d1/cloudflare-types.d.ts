@@ -26,7 +26,23 @@ declare global {
     exec(query: string): Promise<{ count: number; duration: number }>;
   }
 
+  // Issue #332: 「詳しい種類」のAI提案に使うWorkers AIバインディング。
+  // アプリが呼ぶrun()の形だけを宣言する(D1と同じく、Workers全体の生成型は
+  // DOM型と衝突するため取り込まない)。
+  interface WorkersAi {
+    run(
+      model: string,
+      input: {
+        max_tokens?: number;
+        messages: { content: string; role: string }[];
+      },
+    ): Promise<unknown>;
+  }
+
   interface CloudflareEnv {
+    // ローカル開発やAIを設定していない環境ではバインディングが無い。
+    // その場合でも登録・編集は動き続ける必要があるため、任意とする。
+    AI?: WorkersAi;
     AUTH_SECRET: string;
     DB: D1Database;
     YAMORU_ENVIRONMENT?: "preview" | "production";

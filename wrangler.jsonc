@@ -51,6 +51,9 @@
       "secrets": {
         "required": ["AUTH_SECRET"]
       },
+      "ai": {
+        "binding": "AI"
+      },
       "services": [
         {
           "binding": "WORKER_SELF_REFERENCE",
@@ -74,6 +77,9 @@
       },
       "secrets": {
         "required": ["AUTH_SECRET"]
+      },
+      "ai": {
+        "binding": "AI"
       },
       "services": [
         {

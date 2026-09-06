@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { D1Session } from "../../lib/d1/authorization";
 import { getD1Context } from "../../lib/d1/context";
+import { recordItemTypeAdoption } from "../../lib/d1/item-type-suggestions";
 import {
   createManagedItem as createManagedItemInD1,
   updateManagedItem as updateManagedItemInD1,
@@ -213,6 +215,32 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   };
 }
 
+// Issue #332: AI提案が画面に出ている状態で登録・編集を完了したときだけ、その
+// 提案IDと最終的に採用された種類を突き合わせて記録する。隠しフィールドは
+// 候補を閉じると送られなくなるため、「候補を閉じただけ」「AIを使わず登録」は
+// ここへ来ない(誤った否定フィードバックにしない)。
+//
+// 記録は入力補助の履歴であって台帳の正本ではないため、失敗しても登録・編集は
+// 成功として扱う(YDR-008: AIを正しさの基盤にしない)。
+async function recordItemTypeSuggestionAdoption(
+  db: D1Database,
+  session: NonNullable<D1Session>,
+  formData: FormData,
+  classification: { customItemType: string | null; itemTypeCode: string | null },
+): Promise<void> {
+  const rawSuggestionId = formData.get("itemTypeSuggestionId");
+  if (typeof rawSuggestionId !== "string" || rawSuggestionId.length === 0) return;
+  try {
+    await recordItemTypeAdoption(db, session, {
+      customItemType: classification.customItemType,
+      itemTypeCode: classification.itemTypeCode,
+      suggestionId: rawSuggestionId,
+    });
+  } catch {
+    // 提案履歴を残せなくても、登録・編集そのものは完了している。
+  }
+}
+
 export async function createManagedItem(
   _previousState: ManagedItemActionState,
   formData: FormData,
@@ -220,10 +248,14 @@ export async function createManagedItem(
   const parsed = parseManagedItemForm(formData);
   if (parsed.status !== "ok") return parsed;
 
-  let itemId: string;
+  let created: {
+    db: D1Database;
+    itemId: string;
+    session: NonNullable<D1Session>;
+  };
   try {
     const { db, session } = await getD1Context();
-    itemId = await createManagedItemInD1(db, session, {
+    const itemId = await createManagedItemInD1(db, session, {
       customItemType: parsed.customItemType,
       externalUrl: parsed.externalUrl,
       itemTypeCode: parsed.itemTypeCode,
@@ -233,6 +265,7 @@ export async function createManagedItem(
       productInfo: parsed.productInfo,
       startedOn: parsed.startedOn,
     });
+    created = { db, itemId, session };
   } catch {
     return {
       message: "管理対象を登録できませんでした。時間をおいて再度お試しください。",
@@ -240,8 +273,15 @@ export async function createManagedItem(
     };
   }
 
+  await recordItemTypeSuggestionAdoption(
+    created.db,
+    created.session,
+    formData,
+    parsed,
+  );
+
   revalidatePath("/managed-items");
-  redirect(`/managed-items/${encodeURIComponent(itemId)}`);
+  redirect(`/managed-items/${encodeURIComponent(created.itemId)}`);
 }
 
 // Issue #40: 自家庭のManagedItemの名前・種類・外部リンクを編集する。対象IDは
@@ -261,6 +301,7 @@ export async function updateManagedItem(
   const parsed = parseManagedItemForm(formData);
   if (parsed.status !== "ok") return parsed;
 
+  let updated: { db: D1Database; session: NonNullable<D1Session> };
   try {
     const { db, session } = await getD1Context();
     await updateManagedItemInD1(db, session, rawId, {
@@ -273,12 +314,20 @@ export async function updateManagedItem(
       productInfo: parsed.productInfo,
       startedOn: parsed.startedOn,
     });
+    updated = { db, session };
   } catch {
     return {
       message: "管理対象を更新できませんでした。時間をおいて再度お試しください。",
       status: "error",
     };
   }
+
+  await recordItemTypeSuggestionAdoption(
+    updated.db,
+    updated.session,
+    formData,
+    parsed,
+  );
 
   revalidatePath("/managed-items");
   revalidatePath(`/managed-items/${encodeURIComponent(rawId)}`);
