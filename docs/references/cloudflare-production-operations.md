@@ -269,7 +269,7 @@ Workers AIの返答の形はモデルによって違う。`readGeneratedText`は
 
 #### 所要時間
 
-成功した呼び出しは`yamoru.text_generation_completed`として所要時間だけを残す。候補の内容は含めない。
+成功した呼び出しは`yamoru.text_generation_completed`として、所要時間と実際に使ったモデルだけを残す。候補の内容は含めない。
 
 ```json
 {"durationMs":4200,"event":"yamoru.text_generation_completed","model":"@cf/zai-org/glm-4.7-flash"}

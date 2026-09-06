@@ -236,7 +236,7 @@ describe("Workers AI呼び出しの失敗の切り分け(Issue #332)", () => {
     ]);
   });
 
-  it("返答を読めた場合は成功として本文を返し、何も記録しない", async () => {
+  it("返答を読めた場合は本文を返し、失敗としては記録せず所要時間だけを残す", async () => {
     getCloudflareContextMock.mockResolvedValue({
       env: { AI: { run: vi.fn().mockResolvedValue({ response: '["コーヒーマシン"]' }) } },
     });
