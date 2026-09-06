@@ -185,7 +185,12 @@ test("Todo詳細の関連する消耗品から検索して追加し、解除で�
   const consumables = page.getByRole("region", { name: "関連する消耗品" });
   await consumables.getByRole("button", { name: "消耗品を追加" }).click();
   const dialog = page.getByRole("dialog", { name: "消耗品を追加" });
-  await dialog.getByLabel("消耗品を検索").fill("詰め替え");
+  const searchInput = dialog.getByLabel("消耗品を検索");
+  // Issue #346: iOSは16px未満の入力欄へフォーカスすると画面を自動拡大する。
+  // 自動フォーカスを保ったまま、その拡大条件に入らないことを実ブラウザで確認する。
+  await expect(searchInput).toBeFocused();
+  await expect(searchInput).toHaveCSS("font-size", "16px");
+  await searchInput.fill("詰め替え");
   await dialog.getByRole("checkbox", { name: "詰め替え用洗剤" }).click();
   await expect(dialog.getByRole("checkbox", { name: "詰め替え用洗剤" })).toBeChecked();
   await dialog.getByRole("button", { name: "選択を終える" }).click();
