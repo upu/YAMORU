@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   getD1ContextMock,
   revalidatePathMock,
+  searchConsumableCandidatesMock,
   setManagedItemRelationInD1Mock,
   setTaskRuleRelationInD1Mock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
   revalidatePathMock: vi.fn(),
+  searchConsumableCandidatesMock: vi.fn(),
   setManagedItemRelationInD1Mock: vi.fn(),
   setTaskRuleRelationInD1Mock: vi.fn(),
 }));
@@ -19,11 +21,13 @@ vi.mock("../src/lib/d1/consumables", () => ({
   setConsumableTaskRuleRelation: setTaskRuleRelationInD1Mock,
 }));
 vi.mock("../src/lib/d1/consumable-relations", () => ({
+  searchConsumableCandidates: searchConsumableCandidatesMock,
   searchConsumableManagedItemCandidates: vi.fn(),
   searchConsumableTaskRuleCandidates: vi.fn(),
 }));
 
 import {
+  searchConsumables,
   setConsumableManagedItemRelation,
   setConsumableTaskRuleRelation,
 } from "../src/app/consumables/relation-actions";
@@ -36,6 +40,21 @@ describe("消耗品の関連付けの追加・解除操作 (Issue #311)", () => 
     getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
     setManagedItemRelationInD1Mock.mockResolvedValue(undefined);
     setTaskRuleRelationInD1Mock.mockResolvedValue(undefined);
+  });
+
+  it("Consumable候補を家庭IDなしでD1へ委ねる", async () => {
+    searchConsumableCandidatesMock.mockResolvedValue({
+      hasMore: false,
+      items: [{ id: "consumable-1", name: "交換フィルター", stockStatus: "available" }],
+    });
+
+    await expect(searchConsumables(" フィルター ")).resolves.toEqual({
+      hasMore: false,
+      items: [{ id: "consumable-1", name: "交換フィルター", stockStatus: "available" }],
+      status: "ok",
+    });
+    expect(searchConsumableCandidatesMock)
+      .toHaveBeenCalledWith("db", "session", " フィルター ");
   });
 
   it("管理対象の追加を家庭IDなしでD1へ委ね、関連が見える画面を作り直す", async () => {

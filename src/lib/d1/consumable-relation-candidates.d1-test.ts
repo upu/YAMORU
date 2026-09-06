@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
   CONSUMABLE_CANDIDATE_LIMIT,
+  searchConsumableCandidates,
   searchConsumableManagedItemCandidates,
   searchConsumableTaskRuleCandidates,
 } from "./consumable-relations";
@@ -21,6 +22,18 @@ async function insertManagedItem(id: string, householdId: string, name: string):
   await db.prepare(
     "INSERT INTO managed_items (id, household_id, name, kind) VALUES (?1, ?2, ?3, 'other')",
   ).bind(id, householdId, name).run();
+}
+
+async function insertConsumable(
+  id: string,
+  householdId: string,
+  name: string,
+  stockStatus = "available",
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO consumables (id, household_id, name, stock_status)
+     VALUES (?1, ?2, ?3, ?4)`,
+  ).bind(id, householdId, name, stockStatus).run();
 }
 
 async function maintenanceTask(
@@ -55,6 +68,18 @@ beforeEach(async () => {
 });
 
 describe("消耗品の関連付け候補の検索 (Issue #292)", () => {
+  it("Issue #328: 家庭内のConsumableだけを名前で検索し、在庫状態を返す", async () => {
+    await insertConsumable("consumable-a1", "household-a", "交換フィルター");
+    await insertConsumable("consumable-a2", "household-a", "浄水フィルター", "low");
+    await insertConsumable("consumable-b1", "household-b", "Bのフィルター", "out");
+
+    await expect(searchConsumableCandidates(db, householdAMember, "フィルター"))
+      .resolves.toEqual({ hasMore: false, items: [
+        { id: "consumable-a1", name: "交換フィルター", stockStatus: "available" },
+        { id: "consumable-a2", name: "浄水フィルター", stockStatus: "low" },
+      ] });
+  });
+
   it("家庭内の管理対象だけを名前で絞り込み、他家庭の候補は返さない", async () => {
     await insertManagedItem("item-a2", "household-a", "猫の給水機");
     await insertManagedItem("item-b2", "household-b", "猫のトイレ");
@@ -148,6 +173,8 @@ describe("消耗品の関連付け候補の検索 (Issue #292)", () => {
   });
 
   it("未認証・家庭未所属の利用者は候補を取得できない", async () => {
+    await expect(searchConsumableCandidates(db, null, ""))
+      .rejects.toThrow("認証が必要です。");
     await expect(searchConsumableManagedItemCandidates(db, null, ""))
       .rejects.toThrow("認証が必要です。");
     await expect(searchConsumableTaskRuleCandidates(db, nonMember, "", []))

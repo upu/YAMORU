@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  searchConsumableCandidates,
   searchConsumableManagedItemCandidates,
   searchConsumableTaskRuleCandidates,
 } from "../../lib/d1/consumable-relations";
@@ -10,6 +11,7 @@ import {
   setConsumableManagedItemRelation as setConsumableManagedItemRelationInD1,
   setConsumableTaskRuleRelation as setConsumableTaskRuleRelationInD1,
   type ConsumableRelationOption,
+  type ConsumableSummary,
   type ConsumableTaskRuleOption,
 } from "../../lib/d1/consumables";
 import { getD1Context } from "../../lib/d1/context";
@@ -33,6 +35,18 @@ function textArgument(value: unknown): string {
 function idListArgument(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+export async function searchConsumables(
+  search: string,
+): Promise<ConsumableCandidateResult<ConsumableSummary>> {
+  try {
+    const { db, session } = await getD1Context();
+    const page = await searchConsumableCandidates(db, session, textArgument(search));
+    return { hasMore: page.hasMore, items: page.items, status: "ok" };
+  } catch {
+    return { message: CANDIDATE_ERROR_MESSAGE, status: "error" };
+  }
 }
 
 export async function searchConsumableManagedItems(

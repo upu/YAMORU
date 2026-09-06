@@ -52,6 +52,7 @@ export type TodoDetailData = {
   // 「繰り返しなし」「完了から4〜8週間後」「毎週月曜日」など。
   recurrenceLabel: string;
   scheduledFor: string | null;
+  taskRuleId: string;
   title: string;
 };
 
@@ -210,7 +211,12 @@ export function TodoDetailContent({
 
       <div className="ledger-grid">
         <TodoContentSection todo={todo} />
-        <RelatedConsumablesSection consumables={todo.consumables} />
+        {/* 関連はTaskRule単位で、DBもメンテナンスTodoだけを許す。期限のある
+            Todoへ形だけの編集入口を出して失敗させない。 */}
+        <RelatedConsumablesSection
+          consumables={todo.consumables}
+          taskRuleId={todo.isMaintenance ? todo.taskRuleId : undefined}
+        />
         <TodoCompletionSection
           currentUserId={currentUserId}
           members={members}
@@ -308,6 +314,7 @@ export default async function TodoDetailPage({
         recurrenceBasis: toRecurrenceBasis(row.recurrence_basis),
         recurrenceLabel: buildRecurrenceLabel(row),
         scheduledFor: row.scheduled_for,
+        taskRuleId: row.task_rule_id,
         title: row.title,
       }}
     />
