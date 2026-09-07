@@ -127,11 +127,9 @@ function buildMaintenanceEntry(
     item: {
       ...pendingTodoItemBase(row),
       badge: copy.badge,
-      // Issue #243 / #281: 推奨期間前は開始日(from)、開始後・上限超過は上限日
-      // (until)を短く示す。4状態の違いはバッジとトーンが伝える。
-      listSchedule: state === "before-window"
-        ? { iso: scheduledFor, kind: "from" }
-        : { iso: dueAt, kind: "until" },
+      // Issue #348: 現在状態はバッジとトーンが伝えるため、リストの日付は
+      // 推奨期間の開始日と上限日を常に同じ形で示す。
+      listSchedule: { fromIso: scheduledFor, kind: "range", untilIso: dueAt },
       meta: describeMaintenanceWindowFromIso(state, window),
       tone: copy.tone,
     },

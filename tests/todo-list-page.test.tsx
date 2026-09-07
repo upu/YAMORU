@@ -514,13 +514,13 @@ describe("Todo一覧画面のカード/リスト表示切り替え(TodoListPage�
     expect(rowLink.querySelector(".sr-only")).toHaveTextContent("担当予定者:");
   });
 
-  it("担当未定のTodoはリスト表示で「未定」と表示する", async () => {
+  it("担当未定のTodoはリスト表示で「誰でも可」と表示する", async () => {
     listPendingOccurrencesMock.mockResolvedValue([pendingRow()]);
 
     render(await TodoListPage({ searchParams: Promise.resolve({ view: "list" }) }));
 
     const rowLink = screen.getByRole("link", { name: /家族会議/ });
-    expect(rowLink).toHaveTextContent("未定");
+    expect(rowLink).toHaveTextContent("誰でも可");
     expect(rowLink).not.toHaveTextContent("担当未定");
   });
 
