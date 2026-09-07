@@ -1,6 +1,4 @@
-import { E2E_OWNER, expect, seedOwnerHousehold, test } from "./support/fixtures";
-
-import { createManagedItem } from "../src/lib/d1/managed-items";
+import { E2E_OWNER, expect, seedManagedItem, seedOwnerHousehold, test } from "./support/fixtures";
 import { createOneTimeTask } from "../src/lib/d1/todos";
 import { formatDateInput } from "../src/app/time-zone";
 
@@ -18,16 +16,10 @@ test.use({ viewport: { width: 390, height: 844 } });
 async function seedOwnerWithPendingTodo(db: D1Database): Promise<void> {
   await seedOwnerHousehold(db);
   const session = { userId: "owner" };
-  managedItemId = await createManagedItem(db, session, {
-    customItemType: null,
-    externalUrl: null,
-    itemTypeCode: "other",
-    kindCode: "other",
-    name: TASK_TITLE,
-    note: null,
-    productInfo: null,
-    startedOn: null,
-  });
+  // Issue #357: このspecは分類そのものを確かめないため、有効な分類を
+  // fixturesが決めるseedManagedItemで作る(以前は廃止済みのotherを直接
+  // 指定しており、createManagedItemが受け付けず落ちていた)。
+  managedItemId = await seedManagedItem(db, TASK_TITLE);
   const today = formatDateInput(new Date());
   await createOneTimeTask(db, session, {
     managedItemId,

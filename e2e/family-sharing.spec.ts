@@ -75,7 +75,8 @@ async function changeInviteePassword(
   currentPassword: string,
 ): Promise<void> {
   await page.goto("/account");
-  await page.getByRole("button", { name: "アカウントメニュー" }).click();
+  // Issue #357: 共通ヘッダーのメニューボタンのラベルは「設定メニュー」。
+  await page.getByRole("button", { name: "設定メニュー" }).click();
   await page.getByRole("button", { name: "ログアウト" }).click();
   await login(page, email, currentPassword);
   await page.goto("/account");
