@@ -53,6 +53,7 @@
 | YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Accepted | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
 | YDR-040 | 複数候補を持つ定例日ルールを候補指定の和集合として定義する | Accepted | [ydr-040-multi-candidate-calendar-rules.md](ydr-040-multi-candidate-calendar-rules.md) |
 | YDR-041 | 詳しい種類のAI提案を明示操作の入力補助に限定し、提案と採用結果を家庭内へ記録する | Accepted | [ydr-041-ai-item-type-suggestion.md](ydr-041-ai-item-type-suggestion.md) |
+| YDR-042 | 横断検索を名前一致で対象へ到達する常設機能として定義し、下部ナビゲーションの4項目目に置く | Accepted | [ydr-042-cross-cutting-search.md](ydr-042-cross-cutting-search.md) |
 
 ## 新しい意思決定の追加
 
