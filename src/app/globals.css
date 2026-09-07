@@ -1937,6 +1937,41 @@ h1 {
   min-width: 0;
 }
 
+/* Issue #350 / YDR-042: 横断検索の結果。行そのものは台帳一覧(.ledger-list)を
+   そのまま使い、種類ごとのセクション見出しと件数、補助情報だけを足す。 */
+.search-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.search-section-heading h2 {
+  margin: 0;
+}
+
+.search-result-meta {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+/* 上限に達した種類へ出す案内。セクションの外に置くため、間隔だけ詰める。 */
+.search-more-note {
+  margin: -8px 0 0;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.search-page .ledger-search-form {
+  margin: 0 0 18px;
+}
+
 .ledger-search-form select {
   flex: 1 1 140px;
   min-width: 0;
@@ -2391,9 +2426,12 @@ h1 {
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
+    /* Issue #350 / YDR-042: 「ホーム」「Todo」「台帳」「検索」の4項目。
+       320px相当でも各項目のラベルが折り返さないよう、3項目のときより
+       左右の余白と間隔を詰める(320 - 20 - 6*3 = 282px を4等分)。 */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
     border-top: 1px solid rgb(49 92 73 / 18%);
     background: rgb(255 254 250 / 94%);
     box-shadow: 0 -5px 22px rgb(37 54 45 / 9%);
@@ -2403,7 +2441,7 @@ h1 {
   .mobile-bottom-navigation a {
     display: grid;
     min-height: 52px;
-    padding: 5px 8px;
+    padding: 5px 4px;
     place-items: center;
     align-content: center;
     gap: 1px;
@@ -2413,6 +2451,10 @@ h1 {
     font-weight: 800;
     line-height: 1.2;
     text-decoration: none;
+  }
+
+  .mobile-bottom-navigation a span {
+    white-space: nowrap;
   }
 
   .mobile-bottom-navigation a[aria-current="page"] {
