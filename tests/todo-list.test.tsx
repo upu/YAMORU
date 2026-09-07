@@ -77,6 +77,7 @@ function maintenanceRow(id: string, scheduledFor: string, dueAt: string): Pendin
 function renderTodoList(
   items: ReturnType<typeof buildTodoListItems>,
   household: typeof HOUSEHOLD | null = HOUSEHOLD,
+  viewParam: "card" | "list" = "card",
 ) {
   return render(
     <TodoListContent
@@ -85,6 +86,7 @@ function renderTodoList(
       household={household}
       items={items}
       members={MEMBERS}
+      viewParam={viewParam}
     />,
   );
 }
@@ -133,6 +135,28 @@ describe("未完了Todoの並び(buildTodoListItems)", () => {
       title: "家族会議",
     });
     expect(items[0].detailHref).toBeUndefined();
+  });
+
+  it.each([
+    ["推奨期間前", "2026-09-10T00:00:00.000Z", "予定"],
+    ["推奨期間中", "2026-09-13T00:00:00.000Z", "推奨期間"],
+    ["後半", "2026-09-15T00:00:00.000Z", "そろそろ"],
+    ["上限超過後", "2026-09-16T00:00:00.000Z", "推奨期間超過"],
+  ])("%sでもリスト用の推奨期間は開始日と上限日の両方を保持する", (_label, nowIso, badge) => {
+    const [item] = buildTodoListItems([
+      maintenanceRow(
+        "maintenance",
+        "2026-09-12T00:00:00.000Z",
+        "2026-09-15T00:00:00.000Z",
+      ),
+    ], nowIso);
+
+    expect(item.listSchedule).toEqual({
+      fromIso: "2026-09-12T00:00:00.000Z",
+      kind: "range",
+      untilIso: "2026-09-15T00:00:00.000Z",
+    });
+    expect(item.badge).toBe(badge);
   });
 });
 
@@ -253,6 +277,32 @@ describe("Todo一覧画面(TodoListContent)", () => {
     );
     expect(screen.queryByRole("link", { name: "Todoを追加" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "未完了のTodo" })).not.toBeInTheDocument();
+  });
+
+  it("リスト表示では推奨期間全体と担当者未設定を区別して表示する", () => {
+    const items = buildTodoListItems([
+      maintenanceRow(
+        "maintenance",
+        "2026-09-12T00:00:00.000Z",
+        "2026-09-15T00:00:00.000Z",
+      ),
+    ], "2026-09-13T00:00:00.000Z");
+    renderTodoList(items, HOUSEHOLD, "list");
+
+    const rowLink = screen.getByRole("link", { name: /フィルター交換/ });
+    const meta = rowLink.querySelector(".todo-list-row-meta");
+    expect(meta).toHaveTextContent("9/12〜9/15");
+    expect(meta).toHaveTextContent("誰でも可");
+    expect(rowLink).toHaveTextContent("推奨期間");
+  });
+
+  it("予定日未定のリスト表示では日付の未定と担当者未設定を混同させない", () => {
+    renderTodoList(buildTodoListItems([onceRow("undated", null)], NOW), HOUSEHOLD, "list");
+
+    const rowLink = screen.getByRole("link", { name: /今回だけ点検/ });
+    expect(rowLink.querySelector(".todo-list-row-meta")).toHaveTextContent("誰でも可");
+    expect(rowLink.querySelector(".todo-list-row-meta")).not.toHaveTextContent("未定");
+    expect(rowLink.querySelector(".tone-label")).toHaveTextContent("未定");
   });
 
   it("一覧から担当変更・完了を利用できる", () => {

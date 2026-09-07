@@ -46,11 +46,17 @@ export type RegisteredTodoSummary = {
   schedule: string;
 };
 
-function describeSchedule(schedule: TodoListSchedule | undefined): string {
+function describeSchedule(entry: PendingTodoEntry): string {
+  const schedule: TodoListSchedule | undefined = entry.item.listSchedule;
   if (schedule === undefined || schedule.kind === "undated") return "予定日: 未定";
+  if (schedule.kind === "range") {
+    // Issue #348は一覧の期間表記だけを変える。登録直後の案内は従来どおり、
+    // ホームへ出る前は開始日、それ以外は上限日を案内する。
+    return entry.category === "before-window"
+      ? `推奨期間: ${formatTokyoMonthDay(schedule.fromIso)}から`
+      : `推奨期間: ${formatTokyoMonthDay(schedule.untilIso)}まで`;
+  }
   const date = formatTokyoMonthDay(schedule.iso);
-  if (schedule.kind === "from") return `推奨期間: ${date}から`;
-  if (schedule.kind === "until") return `推奨期間: ${date}まで`;
   return `次回: ${date}`;
 }
 
@@ -135,6 +141,6 @@ export function summarizeRegisteredTodo(
   }
   return {
     homeNotice: describeHomeNotice(entry, saved),
-    schedule: describeSchedule(entry.item.listSchedule),
+    schedule: describeSchedule(entry),
   };
 }

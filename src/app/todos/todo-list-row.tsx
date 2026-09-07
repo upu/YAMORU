@@ -11,9 +11,9 @@ import { formatTokyoShortMonthDay } from "../time-zone";
 // Todo詳細への導線にし、変更操作は詳細画面へ集約する。カード表示(todo-card.tsx)
 // は現在の操作性のまま維持する(受け入れ基準)。
 
-// Issue #243: pending Todoの担当予定者を家族に見せる言葉にする。カードや
-// 絞り込みナビの「担当未定」と違い、行では「担当:」を視覚上出さないぶん
-// 単語の重複を避けるため「未定」とする(受け入れ基準)。
+// Issue #243 / #348: pending Todoの担当予定者を家族に見せる言葉にする。
+// 行では「担当:」を視覚上出さないが、予定日未定の「未定」と混ざらないよう、
+// YDR-006で定義した「誰でも可」にそろえる。
 // TodoListSectionのdescribeAssigneeFilter(絞り込み条件の説明)とは異なり、
 // こちらは行ごとの実際の値を説明する。既存メンバーで解決できない場合は、
 // 他の一覧行と同じフォールバック名(FALLBACK_OTHER_MEMBER_NAME)を使う。
@@ -22,7 +22,7 @@ function describeItemAssignee(
   currentUserId: string,
   members: HouseholdMemberOption[],
 ): string {
-  if (assigneeUserId === null) return "未定";
+  if (assigneeUserId === null) return "誰でも可";
   if (assigneeUserId === currentUserId) return "自分";
   return members.find((member) => member.userId === assigneeUserId)?.nickname
     ?? FALLBACK_OTHER_MEMBER_NAME;
@@ -31,13 +31,16 @@ function describeItemAssignee(
 // Issue #243: カード向けの表示済み日本語文(item.meta、例:「8月28日から
 // 推奨期間です」)を解析せず、pending-todo.tsが組み立てた構造化データ
 // (TodoListSchedule)から直接短い表記を作る。バッジ(今日/予定/期限切れ/
-// そろそろ/要確認/未定)がすでに状態語を示すため、ここでは日付だけを
-// 最小限に示し、重複する語は足さない(期待する挙動「8/28〜」)。
+// 推奨期間/そろそろ/推奨期間超過/未定)が状態語を示すため、ここでは
+// 日付だけを示す。Issue #348: 推奨期間は状態にかかわらず全体を表示する。
 function describeListSchedule(schedule: TodoListSchedule | undefined): string {
   if (schedule === undefined || schedule.kind === "undated") return "";
+  if (schedule.kind === "range") {
+    return `${formatTokyoShortMonthDay(schedule.fromIso)}〜${
+      formatTokyoShortMonthDay(schedule.untilIso)
+    }`;
+  }
   const date = formatTokyoShortMonthDay(schedule.iso);
-  if (schedule.kind === "from") return `${date}〜`;
-  if (schedule.kind === "until") return `〜${date}`;
   return date;
 }
 
