@@ -33,6 +33,19 @@ function LedgerIcon() {
   );
 }
 
+// Issue #350 / YDR-042: 横断検索は「画面を選ばず名前から対象へ到達する」
+// 日常操作なので、補助メニューの奥ではなく主要ナビゲーションへ常設する
+// (Issue #242の案1)。共通ヘッダーへ虫眼鏡を置く案は、Todo一覧の画面内検索の
+// 虫眼鏡(#241)と意味が重なるため採らない。
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m15.8 15.8 4.2 4.2" />
+    </svg>
+  );
+}
+
 export function MobileBottomNavigation() {
   const pathname = usePathname();
   if (isPublicPath(pathname)) return null;
@@ -44,6 +57,7 @@ export function MobileBottomNavigation() {
     pathname.startsWith("/managed-items/") ||
     pathname === "/consumables" ||
     pathname.startsWith("/consumables/");
+  const isSearch = pathname === "/search";
 
   return (
     <>
@@ -63,6 +77,10 @@ export function MobileBottomNavigation() {
         >
           <LedgerIcon />
           <span>台帳</span>
+        </Link>
+        <Link aria-current={isSearch ? "page" : undefined} href="/search">
+          <SearchIcon />
+          <span>検索</span>
         </Link>
       </nav>
     </>
