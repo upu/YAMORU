@@ -1,4 +1,8 @@
-import { requireCurrentHouseholdId, type D1Session } from "./authorization";
+import {
+  requireCurrentHouseholdId,
+  requireD1Session,
+  type D1Session,
+} from "./authorization";
 import { D1NotFoundError } from "./errors";
 
 export type ConsumableStockStatus = "available" | "low" | "out";
@@ -53,6 +57,7 @@ export type ConsumableWriteInput = ConsumableAttributesInput & {
 export type ConsumableDetail = {
   externalUrl: string | null;
   id: string;
+  isFavorite: boolean;
   managedItems: ConsumableRelationOption[];
   name: string;
   note: string | null;
@@ -200,16 +205,23 @@ export async function getConsumable(
   id: string,
 ): Promise<ConsumableDetail | null> {
   const householdId = await requireCurrentHouseholdId(db, session);
+  const user = requireD1Session(session);
   const row = await loadConsumableRow(db, householdId, id);
   if (row === null) return null;
-  const [managedItems, taskRules, refills] = await Promise.all([
+  const [managedItems, taskRules, refills, favorite] = await Promise.all([
     loadConsumableManagedItems(db, householdId, id),
     loadConsumableTaskRules(db, householdId, id),
     loadConsumableRefills(db, householdId, id),
+    db.prepare(
+      `SELECT 1
+         FROM user_consumable_favorites
+        WHERE user_id = ?1 AND household_id = ?2 AND consumable_id = ?3`,
+    ).bind(user.userId, householdId, id).first(),
   ]);
   return {
     externalUrl: row.external_url,
     id: row.id,
+    isFavorite: favorite !== null,
     managedItems: managedItems.results,
     name: row.name,
     note: row.note,

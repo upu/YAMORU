@@ -18,10 +18,16 @@ const STATUS_OPTIONS: { label: string; value: ConsumableStockStatus }[] = [
   { label: "ない", value: "out" },
 ];
 
-function StatusButtons({ stockStatus }: { stockStatus: ConsumableStockStatus }) {
+function StatusButtons({
+  label = "在庫状態を変更",
+  stockStatus,
+}: {
+  label?: string;
+  stockStatus: ConsumableStockStatus;
+}) {
   const { pending } = useFormStatus();
   return (
-    <div aria-label="在庫状態を変更" className="stock-status-options" role="group">
+    <div aria-label={label} className="stock-status-options" role="group">
       {STATUS_OPTIONS.map((option) => (
         <button
           aria-pressed={option.value === stockStatus}
@@ -39,6 +45,49 @@ function StatusButtons({ stockStatus }: { stockStatus: ConsumableStockStatus }) 
   );
 }
 
+function StockStatusForm({
+  consumableId,
+  label,
+  stockStatus,
+}: {
+  consumableId: string;
+  label?: string;
+  stockStatus: ConsumableStockStatus;
+}) {
+  const [state, formAction] = useActionState(updateConsumableStockStatus, INITIAL_STATE);
+  return (
+    <>
+      <form action={formAction}>
+        <input name="id" type="hidden" value={consumableId} />
+        <StatusButtons label={label} stockStatus={stockStatus} />
+      </form>
+      {state.status === "idle" ? null : (
+        <p className="auth-feedback" role={state.status === "error" ? "alert" : "status"}>
+          {state.message}
+        </p>
+      )}
+    </>
+  );
+}
+
+export function QuickStockStatusControl({
+  consumableId,
+  label,
+  stockStatus,
+}: {
+  consumableId: string;
+  label: string;
+  stockStatus: ConsumableStockStatus;
+}) {
+  return (
+    <StockStatusForm
+      consumableId={consumableId}
+      label={label}
+      stockStatus={stockStatus}
+    />
+  );
+}
+
 export function StockStatusControl({
   consumableId,
   stockStatus,
@@ -46,21 +95,12 @@ export function StockStatusControl({
   consumableId: string;
   stockStatus: ConsumableStockStatus;
 }) {
-  const [state, formAction] = useActionState(updateConsumableStockStatus, INITIAL_STATE);
   return (
     <section aria-labelledby="consumable-stock-title" className="detail-card">
       <p className="detail-kicker">STOCK</p>
       <h2 id="consumable-stock-title">在庫</h2>
       <p className="stock-status-current">現在: {stockStatusLabel(stockStatus)}</p>
-      <form action={formAction}>
-        <input name="id" type="hidden" value={consumableId} />
-        <StatusButtons stockStatus={stockStatus} />
-      </form>
-      {state.status === "idle" ? null : (
-        <p className="auth-feedback" role={state.status === "error" ? "alert" : "status"}>
-          {state.message}
-        </p>
-      )}
+      <StockStatusForm consumableId={consumableId} stockStatus={stockStatus} />
     </section>
   );
 }

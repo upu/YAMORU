@@ -410,6 +410,54 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.favorite-consumable-list {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-consumable {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.favorite-consumable-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.favorite-consumable-heading a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
+.favorite-consumable .stock-status-options {
+  max-width: none;
+  margin-top: 0;
+}
+
+.favorite-disclosure {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  color: var(--green);
+  background: var(--green-pale);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 /* Issue #222: Todo一覧の未完了/実施済み切り替え。押しやすさを優先し、
    選択中はaria-current="page"で示す(モバイル下部ナビと同じ考え方)。 */
 .status-switch {
@@ -1125,6 +1173,49 @@ h1 {
 
 .detail-hero {
   padding: 0 4px 24px;
+}
+
+.detail-hero-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.detail-hero-with-action h1 {
+  overflow-wrap: anywhere;
+}
+
+.favorite-control {
+  flex: none;
+  text-align: right;
+}
+
+.favorite-toggle {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border: 1px solid rgb(49 92 73 / 28%);
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--paper);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.favorite-toggle[aria-pressed="true"] {
+  border-color: #d59b16;
+  color: #6f4b00;
+  background: #fff3c9;
+}
+
+.favorite-toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .detail-kicker {
@@ -2491,6 +2582,14 @@ h1 {
 
   .detail-hero {
     padding-inline: 2px;
+  }
+
+  .detail-hero-with-action {
+    display: grid;
+  }
+
+  .favorite-control {
+    text-align: left;
   }
 
   .detail-title-row {

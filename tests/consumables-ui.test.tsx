@@ -124,6 +124,7 @@ describe("消耗品詳細", () => {
     const consumable: ConsumableDetailData = {
       externalUrl: "https://example.com/toilet-paper",
       id: "consumable-1",
+      isFavorite: false,
       managedItems: [],
       name: "トイレットペーパー",
       note: "収納棚の上段",
@@ -154,6 +155,7 @@ describe("消耗品詳細", () => {
     const consumable: ConsumableDetailData = {
       externalUrl: null,
       id: "consumable-1",
+      isFavorite: false,
       managedItems: [],
       name: "交換フィルター",
       note: null,

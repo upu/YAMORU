@@ -7,6 +7,7 @@ import { getD1Context } from "../../../lib/d1/context";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
 import { ConsumableRelations } from "../detail-relations";
+import { FavoriteToggle } from "../favorite-toggle";
 import { StockStatusControl } from "../stock-status-control";
 import { ConsumableRefillControl } from "../refill-control";
 
@@ -68,9 +69,15 @@ export function ConsumableDetailContent({
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/consumables">← 消耗品一覧へ戻る</Link>
       </nav>
-      <header className="detail-hero">
-        <p className="detail-kicker">CONSUMABLE</p>
-        <h1>{consumable.name}</h1>
+      <header className="detail-hero detail-hero-with-action">
+        <div>
+          <p className="detail-kicker">CONSUMABLE</p>
+          <h1>{consumable.name}</h1>
+        </div>
+        <FavoriteToggle
+          consumableId={consumable.id}
+          isFavorite={consumable.isFavorite}
+        />
       </header>
 
       <div className="ledger-grid">

@@ -1,0 +1,110 @@
+import { env } from "cloudflare:workers";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import {
+  createConsumable,
+  getConsumable,
+} from "./consumables";
+import {
+  listFavoriteConsumables,
+  setConsumableFavorite,
+} from "./consumable-favorites";
+import {
+  householdAMember,
+  householdBMember,
+  nonMember,
+  resetHouseholdFixtures,
+} from "./test-support/households";
+import { applyAllMigrations } from "./test-support/migrations";
+
+const db = env.DB;
+
+beforeAll(async () => {
+  await applyAllMigrations(db);
+});
+
+beforeEach(async () => {
+  await resetHouseholdFixtures(db);
+});
+
+async function createConsumableFor(
+  session: { userId: string },
+  name: string,
+): Promise<string> {
+  return createConsumable(db, session, {
+    externalUrl: null,
+    managedItemIds: [],
+    name,
+    note: null,
+    productCode: null,
+    taskRuleIds: [],
+  });
+}
+
+describe("個人別のConsumableお気に入り (Issue #345)", () => {
+  it("同じ家庭でも利用者ごとに独立して登録・解除できる", async () => {
+    await db.batch([
+      db.prepare("INSERT INTO users (id, email) VALUES ('user-a2', 'a2@example.com')"),
+      db.prepare(
+        "INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'user-a2')",
+      ),
+    ]);
+    const secondMember = { userId: "user-a2" };
+    const eggsId = await createConsumableFor(householdAMember, "卵");
+    const paperId = await createConsumableFor(householdAMember, "トイレットペーパー");
+
+    await setConsumableFavorite(db, householdAMember, eggsId, true);
+    await setConsumableFavorite(db, secondMember, paperId, true);
+
+    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([
+      expect.objectContaining({ id: eggsId, name: "卵" }),
+    ]);
+    await expect(listFavoriteConsumables(db, secondMember)).resolves.toEqual([
+      expect.objectContaining({ id: paperId, name: "トイレットペーパー" }),
+    ]);
+    await expect(getConsumable(db, householdAMember, eggsId)).resolves.toMatchObject({
+      isFavorite: true,
+    });
+    await expect(getConsumable(db, secondMember, eggsId)).resolves.toMatchObject({
+      isFavorite: false,
+    });
+
+    await setConsumableFavorite(db, householdAMember, eggsId, false);
+    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([]);
+    await expect(getConsumable(db, householdAMember, eggsId)).resolves.toMatchObject({
+      isFavorite: false,
+    });
+  });
+
+  it("登録件数を5件に制限せず、最近登録した順で全件を返す", async () => {
+    const ids: string[] = [];
+    for (let index = 1; index <= 6; index += 1) {
+      const id = await createConsumableFor(householdAMember, `消耗品${String(index)}`);
+      ids.push(id);
+      await setConsumableFavorite(db, householdAMember, id, true);
+    }
+
+    const favorites = await listFavoriteConsumables(db, householdAMember);
+    expect(favorites).toHaveLength(6);
+    expect(favorites.map((favorite) => favorite.id)).toEqual(ids.toReversed());
+  });
+
+  it("他家庭のConsumableはお気に入り登録・表示できない", async () => {
+    const otherHouseholdId = await createConsumableFor(householdBMember, "別家庭の卵");
+
+    await expect(
+      setConsumableFavorite(db, householdAMember, otherHouseholdId, true),
+    ).rejects.toThrow("消耗品が見つかりません。");
+    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([]);
+    await expect(listFavoriteConsumables(db, householdBMember)).resolves.toEqual([]);
+  });
+
+  it("未認証・家庭未所属の利用者はお気に入りを読み書きできない", async () => {
+    const id = await createConsumableFor(householdAMember, "卵");
+
+    await expect(listFavoriteConsumables(db, null)).rejects.toThrow("認証が必要です。");
+    await expect(
+      setConsumableFavorite(db, nonMember, id, true),
+    ).rejects.toThrow("家庭への所属が必要です。");
+  });
+});
