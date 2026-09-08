@@ -5,19 +5,20 @@ import { useState } from "react";
 
 import type { ConsumableSummary } from "../lib/d1/consumables";
 import { QuickStockStatusControl } from "./consumables/stock-status-control";
-import { StockStatusBadge } from "./consumables/stock-status";
 
 const COLLAPSED_FAVORITES_COUNT = 5;
 
+/* Issue #359: ホームのお気に入りは素早く確認・操作する領域なので表示密度を優先する。
+   現在の在庫状態は状態変更ボタンのaria-pressedと配色が示すため、独立したバッジは置かない。 */
 function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
   return (
     <article aria-label={favorite.name} className="favorite-consumable">
-      <div className="favorite-consumable-heading">
-        <Link href={`/consumables/${encodeURIComponent(favorite.id)}`}>
-          {favorite.name}
-        </Link>
-        <StockStatusBadge stockStatus={favorite.stockStatus} />
-      </div>
+      <Link
+        className="favorite-consumable-name"
+        href={`/consumables/${encodeURIComponent(favorite.id)}`}
+      >
+        {favorite.name}
+      </Link>
       <QuickStockStatusControl
         consumableId={favorite.id}
         label={`${favorite.name}の在庫状態を変更`}
@@ -41,10 +42,7 @@ export function FavoriteConsumablesSection({
   return (
     <section aria-labelledby="favorite-consumables-title" className="home-section favorites">
       <div className="section-heading">
-        <div>
-          <h2 id="favorite-consumables-title">お気に入り</h2>
-          <p>あなたがよく使う消耗品です。在庫状態の変更は家族全員に反映されます</p>
-        </div>
+        <h2 id="favorite-consumables-title">お気に入り</h2>
         <span aria-label={`${String(favorites.length)}件`} className="count">
           {favorites.length}
         </span>

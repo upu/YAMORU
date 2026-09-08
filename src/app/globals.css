@@ -412,35 +412,54 @@ h1 {
 
 .favorite-consumable-list {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
+/* Issue #359: 1件あたりの縦幅を詰め、名前と状態変更ボタンを同じ行に置く。
+   名前が長いときはflex-wrapでボタンを次の行へ送り、省略せず折り返す。 */
 .favorite-consumable {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--paper);
 }
 
-.favorite-consumable-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.favorite-consumable-heading a {
+.favorite-consumable-name {
   min-width: 0;
+  flex: 1 1 auto;
   overflow-wrap: anywhere;
   color: var(--green);
   font-weight: 800;
   text-underline-offset: 4px;
 }
 
+/* 名前が折り返して次の行へ送られたときも、状態変更ボタンは行の右端へ寄せる。 */
+.favorite-consumable > form {
+  flex: none;
+  margin-left: auto;
+}
+
 .favorite-consumable .stock-status-options {
   max-width: none;
+  margin-top: 0;
+  grid-template-columns: repeat(3, auto);
+  gap: 6px;
+}
+
+/* 見た目は詰めるが、スマホで押しづらくならない大きさは確保する。 */
+.favorite-consumable .stock-status-option {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+}
+
+.favorite-consumable .auth-feedback {
+  flex-basis: 100%;
   margin-top: 0;
 }
 
