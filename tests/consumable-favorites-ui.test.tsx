@@ -58,6 +58,29 @@ describe("ホームのお気に入り消耗品", () => {
     expect(within(item).getByRole("button", { name: "ある" }))
       .toHaveAttribute("aria-pressed", "true");
   });
+
+  it("現在の在庫状態を状態変更ボタンだけで示し、独立したバッジを重ねない", () => {
+    render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
+
+    const item = screen.getByRole("article", { name: "お気に入り2" });
+    expect(item.querySelector(".stock-status-badge")).not.toBeInTheDocument();
+    expect(within(item).getAllByText("少ない")).toHaveLength(1);
+    expect(within(item).getByRole("button", { name: "少ない" }))
+      .toHaveAttribute("aria-pressed", "true");
+    expect(within(item).getByRole("button", { name: "ある" }))
+      .toHaveAttribute("aria-pressed", "false");
+    expect(within(item).getByRole("button", { name: "ない" }))
+      .toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("表示密度を優先し、セクションに説明文を置かない", () => {
+    render(<FavoriteConsumablesSection favorites={FAVORITES.slice(0, 1)} />);
+
+    const region = screen.getByRole("region", { name: "お気に入り" });
+    expect(within(region).getByRole("heading", { name: "お気に入り" }))
+      .toBeInTheDocument();
+    expect(region.querySelector(".section-heading p")).not.toBeInTheDocument();
+  });
 });
 
 describe("消耗品詳細のお気に入り操作", () => {
