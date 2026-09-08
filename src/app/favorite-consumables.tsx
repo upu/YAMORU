@@ -9,7 +9,8 @@ import { QuickStockStatusControl } from "./consumables/stock-status-control";
 const COLLAPSED_FAVORITES_COUNT = 5;
 
 /* Issue #359: ホームのお気に入りは素早く確認・操作する領域なので表示密度を優先する。
-   現在の在庫状態は状態変更ボタンのaria-pressedと配色が示すため、独立したバッジは置かない。 */
+   現在の在庫状態は状態変更ボタンのaria-pressedと配色が示すため、独立したバッジは置かない。
+   状態変更は○△×で出し、名前が少し長くても1行に収まる幅にする。 */
 function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
   return (
     <article aria-label={favorite.name} className="favorite-consumable">
@@ -20,6 +21,7 @@ function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
         {favorite.name}
       </Link>
       <QuickStockStatusControl
+        appearance="symbol"
         consumableId={favorite.id}
         label={`${favorite.name}の在庫状態を変更`}
         stockStatus={favorite.stockStatus}
