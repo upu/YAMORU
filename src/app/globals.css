@@ -412,26 +412,29 @@ h1 {
 
 .favorite-consumable-list {
   display: grid;
-  gap: 6px;
 }
 
 /* Issue #359: 1件あたりの縦幅を詰め、名前と状態変更ボタンを同じ行に置く。
-   名前が長いときはflex-wrapでボタンを次の行へ送り、省略せず折り返す。 */
+   1件ずつ枠で囲まず、項目の間を細い線で区切るリスト形式にして余白を減らす。
+   flex-wrapは、状態変更に失敗したときの文言を行全体へ送るために残す。 */
 .favorite-consumable {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 6px 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--paper);
+  gap: 4px 8px;
+  padding: 4px 0;
 }
 
+.favorite-consumable + .favorite-consumable {
+  border-top: 1px solid var(--line);
+}
+
+/* flex-basis: 0にして、名前が長くても状態変更ボタンを次の行へ送らず、
+   名前の側だけを折り返す。 */
 .favorite-consumable-name {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   overflow-wrap: anywhere;
   color: var(--green);
   font-weight: 800;
@@ -448,14 +451,7 @@ h1 {
   max-width: none;
   margin-top: 0;
   grid-template-columns: repeat(3, auto);
-  gap: 6px;
-}
-
-/* 見た目は詰めるが、スマホで押しづらくならない大きさは確保する。 */
-.favorite-consumable .stock-status-option {
-  min-height: 40px;
-  padding: 0 12px;
-  font-size: 0.78rem;
+  gap: 4px;
 }
 
 .favorite-consumable .auth-feedback {
@@ -1923,6 +1919,38 @@ h1 {
 .stock-status-option:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+/* Issue #359: 記号表示は語より幅を取らない。見た目は詰めるが、スマホで
+   押しづらくならないよう36×40pxのタップ領域は確保する。 */
+.stock-status-option-symbol {
+  display: grid;
+  min-width: 36px;
+  min-height: 40px;
+  padding: 0 6px;
+  place-items: center;
+}
+
+.stock-status-option-symbol svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* Issue #359: 選択中の色を状態ごとに変え、一覧をひと目で見渡せるようにする。
+   台帳の在庫バッジ(.stock-status-low / .stock-status-out)と同じ系統の色を使う。 */
+.stock-status-option-low[aria-pressed="true"] {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.stock-status-option-out[aria-pressed="true"] {
+  border-color: var(--orange);
+  background: var(--orange);
 }
 
 .stock-status-current {
