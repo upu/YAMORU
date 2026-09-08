@@ -16,7 +16,7 @@ YAMORUのプロダクト知識を、人間とAIが同じMarkdownから段階的�
 
 ## Components
 
-- [Component knowledge](components/index.md) - プロダクトとソフトウェアの責務境界。実装開始に合わせて追加する
+- [Component knowledge](components/index.md) - 機能ごとの修正箇所マップ。変更したいことから、最初に読む実装・テスト・詳細文書へたどる
 
 ## Development
 

@@ -6,6 +6,7 @@
 - 現在の作業に関係するプロダクト、コンポーネント、意思決定の文書だけを追加で読む。
 - 現在のプロダクト計画は`docs/product/yamoru-project-plan.md`を正本とする。
 - 現在の意思決定の索引は`docs/decisions/index.md`を正本とする。個別のYDRは`docs/decisions/`配下の各`type: Decision`文書を読む。
+- 変更対象のコードとテストを探すときは、先に`docs/components/index.md`の対応表から入口を選ぶ。
 
 ## 意思決定の扱い
 

@@ -2,6 +2,7 @@
 
 YAMORUを開発・検証するときに使う資料の入口です。
 
+- [機能ごとの修正箇所マップ](../components/index.md) - 変更したいことから、最初に読む実装・テスト・詳細文書へたどる
 - [開発テスト用ローカル環境の構築](local-development-environment.md) - Auth.js + ローカルD1で起動し、自動テストを実行する
 - [実端末・PWAの確認](local-device-pwa-verification.md) - LAN内のスマートフォンやタブレットから接続し、主要導線とホーム画面追加を確認する
 - [データベースに影響する変更の手順](../references/database-change-playbook.md) - D1スキーマ、データアクセス層、家庭間分離を変更する
