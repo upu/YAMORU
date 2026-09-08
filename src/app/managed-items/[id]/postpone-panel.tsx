@@ -10,17 +10,25 @@ import {
 
 import { DialogShell } from "../../dialog-shell";
 import { OperationFeedback } from "../../operation-feedback";
-import { formatDateInput } from "../../time-zone";
+import { addDaysToTokyoDateUtcIso, formatTokyoDateInput } from "../../time-zone";
 import { useDialogAction } from "../../use-dialog-action";
 import { postponeTaskOccurrence } from "./actions";
 
 // 完了記録の「実施日」(今日以前)とは逆に、翌日以降だけを選べるようにする。
 // クライアント表示専用の既定値であり、サーバー側はnow()より後であることを
 // 権威として検証する(CompletionPanelのtodayコメントと同じ理由)。
+//
+// Issue #357: 端末のローカル暦日で「明日」を出すと、端末のタイムゾーンが
+// Asia/Tokyoより後ろ(UTCなど)のとき、JSTの00:00〜09:00の間は既定値が
+// すでに過去の日になり、そのまま送ると「未来の日を指定してください」で
+// 失敗した。YAMORUは暦日をAsia/Tokyoで扱う(#203のformatTokyoDateInputと
+// 同じ方針)ので、Tokyoの暦日を1日進めて既定値にする。
 function tomorrowDateInput(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return formatDateInput(tomorrow);
+  const todayInTokyo = formatTokyoDateInput(new Date().toISOString());
+  const tomorrowIso = addDaysToTokyoDateUtcIso(todayInTokyo, 1);
+  // 引数はいまTokyoの暦日から作った値なのでnullにはならない。到達した場合は
+  // 今日を返し、min属性とサーバー側の検証で未来の日だけを通す。
+  return tomorrowIso === null ? todayInTokyo : formatTokyoDateInput(tomorrowIso);
 }
 
 // 「延期する日」の送信内容を取り出す。空文字の場合(ブラウザのバリデーションを

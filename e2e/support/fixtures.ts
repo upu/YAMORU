@@ -17,6 +17,7 @@ import {
   E2E_WRANGLER_ENVIRONMENT,
 } from "../../scripts/e2e-environment";
 import { hashPassword } from "../../src/lib/auth/password";
+import { createManagedItem } from "../../src/lib/d1/managed-items";
 
 export type E2ECredentials = { email: string; password: string };
 
@@ -67,6 +68,31 @@ export async function seedOwnerHousehold(db: D1Database): Promise<void> {
     db.prepare("INSERT INTO household_members (household_id, user_id) VALUES (?1, ?2)")
       .bind(E2E_HOUSEHOLD_ID, E2E_OWNER_USER_ID),
   ]);
+}
+
+// Issue #357: 大分類と詳しい種類は廃止されうる(YDR-035でother、YDR-036で
+// obligationが選択候補から外れ、createManagedItemが受け付けなくなった)。
+// specごとにコードを直接書くと、廃止のたびに分類と関係のないspecまで
+// 「管理対象の分類を選択し直してください。」で落ちる。分類そのものを
+// 確かめないspecはこのヘルパーを使い、有効な既定値を1か所で決める。
+// 分類の表示・絞り込みを確かめるspec(managed-item-classification-badges、
+// managed-items-filtersなど)は、意図した分類を明示するためcreateManagedItemを
+// 直接呼ぶ。
+export async function seedManagedItem(
+  db: D1Database,
+  name: string,
+  userId: string = E2E_OWNER_USER_ID,
+): Promise<string> {
+  return createManagedItem(db, { userId }, {
+    customItemType: null,
+    externalUrl: null,
+    itemTypeCode: "appliance",
+    kindCode: "asset",
+    name,
+    note: null,
+    productInfo: null,
+    startedOn: null,
+  });
 }
 
 // ログイン画面から実際にフォームを送り、ホームへ到達したことまで確認する。

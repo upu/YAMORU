@@ -1855,8 +1855,12 @@ h1 {
   text-underline-offset: 4px;
 }
 
+/* Issue #357: flex: none(= 0 0 auto)だと、自由入力の長い詳しい種類でバッジ列が
+   縮まず、モバイル幅で横スクロールが出た(#195で禁じた状態)。縮小を許して
+   .classification-badgesのflex-wrapが効くようにする。 */
 .ledger-list .classification-badges {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   justify-content: flex-end;
 }
 

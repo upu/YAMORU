@@ -71,6 +71,41 @@ jobs:
       - name: Test
         run: npm test
 
+  # Issue #357: E2Eをどのjobでも回していなかったため、画面のラベル変更や
+  # 廃止した大分類にspecが追従できず、6件が壊れたまま誰も気づけなかった。
+  # 気づける場所をCIへ戻す(issue本文の案1)。mainへのpushだけで回す案2は、
+  # 壊れたPRがmainへ入ってから赤くなるため、1人で開発しているこのリポジトリ
+  # では手戻りが大きい。
+  # 全件成功する状態での実測は約1.8分(ローカル、25件、workers: 1)。壊れた
+  # まま放置すると失敗テストのtimeoutで7分近くまで伸びるので、緑を保つこと
+  # 自体がこのjobを短く保つ。他jobと並列に置くため、PRの実時間への上乗せは
+  # このjobの長さで収まる。遅すぎると分かった場合は、pull_requestから外して
+  # push(main)だけへ移す。
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      # playwright.config.tsのprojectsはchromiumだけなので、他のブラウザは入れない。
+      - name: Install Playwright browser
+        run: npm run test:e2e:install
+
+      # test:e2e:localがe2e用のローカルD1へmigrationを当ててからplaywrightを走らせる。
+      - name: Run end-to-end tests
+        run: npm run test:e2e:local
+
   d1:
     name: D1 migration and authorization tests
     runs-on: ubuntu-latest

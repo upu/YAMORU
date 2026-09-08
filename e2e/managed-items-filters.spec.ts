@@ -18,6 +18,7 @@ async function seedOwnerWithItems(db: D1Database): Promise<void> {
   });
 }
 
+// Issue #291: /managed-itemsは既定で備品カテゴリを表示する。
 async function loginAndOpenLedger(page: Page): Promise<void> {
   await login(page);
   await page.goto("/managed-items");
@@ -27,20 +28,23 @@ test.beforeEach(async ({ db }) => {
   await seedOwnerWithItems(db);
 });
 
-test("PC幅: 分類は選択時に即時反映し、詳しい種類は入力後にキーボードで選べる", async ({
+test("PC幅: 台帳のカテゴリは即時反映し、詳しい種類は入力後にキーボードで選べる", async ({
   page,
 }) => {
   await loginAndOpenLedger(page);
-  await expect(page.getByLabel("3件")).toBeVisible();
+  // Issue #291以降、台帳は「すべて」ではなく最初の入口である備品を表示し、
+  // 大分類の切り替えはselectではなくカテゴリの入口(台帳の種類)で行う。
+  await expect(page.getByLabel("2件")).toBeVisible();
   await expect(page.getByRole("radio", { name: "家電" })).toHaveCount(0);
 
-  await page.getByLabel("大分類で絞り込み").selectOption("service");
+  const ledgerCategories = page.getByRole("navigation", { name: "台帳の種類" });
+  await ledgerCategories.getByRole("link", { name: "サービス・契約" }).click();
   await expect(page).toHaveURL(/[?&]kind=service\b/u);
   await expect(page.getByLabel("1件")).toBeVisible();
   await expect(page.getByRole("link", { name: "動画配信契約" })).toBeVisible();
 
-  await page.getByLabel("大分類で絞り込み").selectOption("");
-  await expect(page).not.toHaveURL(/[?&]kind=/u);
+  await ledgerCategories.getByRole("link", { name: "備品" }).click();
+  await expect(page).toHaveURL(/[?&]kind=asset\b/u);
   const itemTypeSearch = page.getByRole("searchbox", { name: "詳しい種類の一部を入力" });
   await itemTypeSearch.fill("虫");
   await expect(page.getByText("1件見つかりました。")).toBeVisible();

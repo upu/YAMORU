@@ -1,7 +1,6 @@
-import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+import { expect, login, seedManagedItem, seedOwnerHousehold, test } from "./support/fixtures";
 
 import { createConsumable } from "../src/lib/d1/consumables";
-import { createManagedItem } from "../src/lib/d1/managed-items";
 import { createMaintenanceTask } from "../src/lib/d1/todos";
 
 // Issue #292: 消耗品の関連付けを、全件チェックリストから「選択済みを表示し、
@@ -17,17 +16,9 @@ const MANY_ITEM_COUNT = 22;
 let consumableId: string;
 let maintenanceOccurrenceId: string;
 
+// Issue #357: 分類そのものは確かめないため、有効な分類はfixturesへ任せる。
 async function createItem(db: D1Database, name: string): Promise<string> {
-  return createManagedItem(db, OWNER_SESSION, {
-    customItemType: null,
-    externalUrl: null,
-    itemTypeCode: "appliance",
-    kindCode: "asset",
-    name,
-    note: null,
-    productInfo: null,
-    startedOn: null,
-  });
+  return seedManagedItem(db, name, OWNER_SESSION.userId);
 }
 
 async function createMaintenanceTodo(

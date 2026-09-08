@@ -59,7 +59,9 @@ test("登録画面で家庭内の自由入力の詳しい種類を候補から�
   await expect(page.getByText("放課後デイサービス").first()).toBeVisible();
 
   // 表記が揃っているため、一覧の詳しい種類の絞り込みで2件ともまとめて見つかる。
-  await page.goto("/managed-items?itemType=custom%3A%E6%94%BE%E8%AA%B2%E5%BE%8C%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9");
+  // Issue #291以降、台帳は既定で備品を表示するため、サービス・契約の
+  // カテゴリを明示して開く。
+  await page.goto("/managed-items?kind=service&itemType=custom%3A%E6%94%BE%E8%AA%B2%E5%BE%8C%E3%83%87%E3%82%A4%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9");
   await expect(page.getByLabel("2件")).toBeVisible();
 });
 

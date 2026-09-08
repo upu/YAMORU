@@ -1,6 +1,4 @@
-import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
-
-import { createManagedItem } from "../src/lib/d1/managed-items";
+import { expect, login, seedManagedItem, seedOwnerHousehold, test } from "./support/fixtures";
 import { createOneTimeTask } from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
 
@@ -29,16 +27,8 @@ function tokyoDateStringAfter(days: number): string {
 
 async function seedUndatedTodo(db: D1Database): Promise<void> {
   await seedOwnerHousehold(db);
-  managedItemId = await createManagedItem(db, { userId: "owner" }, {
-    customItemType: null,
-    externalUrl: null,
-    itemTypeCode: null,
-    kindCode: "asset",
-    name: MANAGED_ITEM_NAME,
-    note: null,
-    productInfo: null,
-    startedOn: null,
-  });
+  // Issue #357: 分類そのものは確かめないため、有効な分類はfixturesへ任せる。
+  managedItemId = await seedManagedItem(db, MANAGED_ITEM_NAME);
   // 予定日未定・管理対象なし・担当なしのTodoから編集を始める(YDR-030)。
   await createOneTimeTask(db, { userId: "owner" }, {
     managedItemId: null,

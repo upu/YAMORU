@@ -15,17 +15,22 @@ import { PostponePanel } from "../src/app/managed-items/[id]/postpone-panel";
 
 afterEach(cleanup);
 
-// PostponePanelのtomorrowDateInput()と同じ計算(ローカル日付+1日)。日付を
-// リテラルで書くと、その日を過ぎた時点で入力のmin(翌日以降)を下回り、
-// ブラウザのフォーム検証で送信自体が止まってテストが落ちるため、
-// 送信値も期待値も常にここから求める。
+// PostponePanelのtomorrowDateInput()と同じ計算。日付をリテラルで書くと、
+// その日を過ぎた時点で入力のmin(翌日以降)を下回り、ブラウザのフォーム検証で
+// 送信自体が止まってテストが落ちるため、送信値も期待値も常にここから求める。
+// Issue #357: 実行環境のローカル日付ではなくAsia/Tokyoの暦日を1日進める
+// (以前はローカル日付+1日で、UTCのCIランナーではJSTの00:00〜09:00にあたる
+// 時間帯に本体と1日ずれていた)。
 function tomorrowDateInput(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = String(tomorrow.getFullYear());
-  const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
-  const day = String(tomorrow.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const todayInTokyo = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  }).format(new Date());
+  const [year, month, day] = todayInTokyo.split("-").map(Number);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1));
+  return tomorrow.toISOString().slice(0, 10);
 }
 
 function openDialog() {
@@ -62,6 +67,33 @@ describe("PostponePanel", () => {
     const dateInput = screen.getByLabelText("実施する予定の新しい期限");
     expect(dateInput).toHaveAttribute("min", expectedMin);
     expect(dateInput).toHaveValue(expectedMin);
+  });
+
+  // Issue #357: 端末のタイムゾーンがAsia/Tokyoより後ろ(UTCなど)のとき、
+  // JSTの00:00〜09:00にあたる時間帯はローカル暦日とTokyo暦日が1日ずれる。
+  // ローカル暦日で既定値を出すと、すでに過去の日が入ったまま送信され
+  // 「未来の日を指定してください」で失敗していた。
+  it("端末がUTCでも、Asia/Tokyoの暦日で翌日を既定値にする", () => {
+    // 2026-09-07T23:10Z = JSTでは2026-09-08 08:10。Tokyoの翌日は09-09。
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T23:10:00.000Z"));
+    try {
+      render(
+        <PostponePanel
+          managedItemId="item-1"
+          occurrenceId="occurrence-1"
+          taskTitle="フィルター交換"
+        />,
+      );
+
+      openDialog();
+
+      const dateInput = screen.getByLabelText("実施する予定の新しい期限");
+      expect(dateInput).toHaveAttribute("min", "2026-09-09");
+      expect(dateInput).toHaveValue("2026-09-09");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Escapeで閉じて元の位置へ焦点を戻す", () => {

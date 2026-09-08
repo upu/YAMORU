@@ -4,7 +4,10 @@ import { createManagedItem } from "../src/lib/d1/managed-items";
 
 // 大分類は中黒を含む実際のラベル、詳しい種類は自由入力の上限に近い長さを使い、
 // 連結表示に戻っていないことと、狭い画面でも折り返せることを同時に確かめる。
-const KIND_LABEL = "支払い・手続き";
+// Issue #357: YDR-035・YDR-036で大分類は「備品」「サービス・契約」の2択になった。
+// 廃止済みのobligationはcreateManagedItemが受け付けないため、現在有効な
+// サービス・契約で同じことを確かめる(中黒を含むラベルという条件は変わらない)。
+const KIND_LABEL = "サービス・契約";
 const LONG_ITEM_TYPE = "とても長い名前の詳しい種類サンプル文字列";
 const ITEM_NAME = "2026年度 固定資産税";
 
@@ -19,7 +22,7 @@ async function seedOwnerWithClassifiedItem(db: D1Database): Promise<void> {
     customItemType: LONG_ITEM_TYPE,
     externalUrl: null,
     itemTypeCode: null,
-    kindCode: "obligation",
+    kindCode: "service",
     name: ITEM_NAME,
     note: null,
     productInfo: null,
@@ -36,7 +39,12 @@ test("モバイル幅の台帳一覧と詳細で大分類と詳しい種類が�
 }) => {
   await login(page);
 
-  for (const path of ["/managed-items", `/managed-items/${managedItemId}`]) {
+  // Issue #291以降、/managed-itemsは既定で備品を表示する。サービス・契約の
+  // 管理対象を一覧で見るにはカテゴリを指定して開く。
+  for (const path of [
+    "/managed-items?kind=service",
+    `/managed-items/${managedItemId}`,
+  ]) {
     await page.goto(path);
 
     const badges = page.getByRole("list", { name: "分類" });
