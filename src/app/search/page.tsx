@@ -2,6 +2,12 @@ import { requireUser } from "../../lib/auth/current-user";
 import { getD1Context } from "../../lib/d1/context";
 import { loadAccountState } from "../../lib/d1/households";
 import { searchAcrossHousehold, type CrossSearchResults } from "../../lib/d1/cross-search";
+import {
+  FALLBACK_SELF_ACTOR_NAME,
+  loadActorName,
+  loadHouseholdMembers,
+  type HouseholdMemberOption,
+} from "../../lib/d1/profiles";
 import { LedgerHouseholdRequiredNotice } from "../ledger-page-shell";
 import { SearchForm } from "./search-form";
 import { SearchResults } from "./results";
@@ -31,11 +37,17 @@ function SearchGuide() {
 }
 
 export function SearchContent({
+  actorName,
+  currentUserId,
   hasHousehold,
+  members,
   q,
   results,
 }: {
+  actorName: string;
+  currentUserId: string;
   hasHousehold: boolean;
+  members: HouseholdMemberOption[];
   q: string | undefined;
   results: CrossSearchResults | null;
 }) {
@@ -55,7 +67,13 @@ export function SearchContent({
         ) : q === undefined || results === null ? (
           <SearchGuide />
         ) : (
-          <SearchResults q={q} results={results} />
+          <SearchResults
+            actorName={actorName}
+            currentUserId={currentUserId}
+            members={members}
+            q={q}
+            results={results}
+          />
         )}
       </div>
     </main>
@@ -73,10 +91,32 @@ export default async function SearchPage({
 
   const accountState = await loadAccountState(db, session);
   if (accountState.household === null) {
-    return <SearchContent hasHousehold={false} q={q} results={null} />;
+    return (
+      <SearchContent
+        actorName={FALLBACK_SELF_ACTOR_NAME}
+        currentUserId={user.id}
+        hasHousehold={false}
+        members={[]}
+        q={q}
+        results={null}
+      />
+    );
   }
 
   // 検索語が無いときは問い合わせない(searchAcrossHouseholdも全件は返さない)。
-  const results = q === undefined ? null : await searchAcrossHousehold(db, session, q);
-  return <SearchContent hasHousehold q={q} results={results} />;
+  const [actorName, members, results] = await Promise.all([
+    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
+    loadHouseholdMembers(db, session),
+    q === undefined ? Promise.resolve(null) : searchAcrossHousehold(db, session, q),
+  ]);
+  return (
+    <SearchContent
+      actorName={actorName}
+      currentUserId={user.id}
+      hasHousehold
+      members={members}
+      q={q}
+      results={results}
+    />
+  );
 }

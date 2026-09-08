@@ -88,6 +88,44 @@ test("在庫状態を変えると検索結果の表示も変わる", async ({ db
   await expect(consumableSection.getByText("少ない")).toBeVisible();
 });
 
+test("検索結果から在庫変更とTodo完了を直接行い、詳細リンクも維持する", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 640, width: 320 });
+  await login(page);
+  await page.goto("/search?q=%E5%8D%B5");
+
+  const consumableSection = page.getByRole("region", { name: "消耗品" });
+  const consumableLink = consumableSection.getByRole("link", { name: "卵" });
+  await expect(consumableLink).toHaveAttribute("href", /\/consumables\//u);
+  const lowStockButton = consumableSection.getByRole("button", { name: "少ない" });
+  await lowStockButton.focus();
+  await expect(lowStockButton).toBeFocused();
+  await expect(lowStockButton).toHaveCSS("outline-style", "solid");
+  await lowStockButton.press("Enter");
+  await expect(lowStockButton)
+    .toHaveAttribute("aria-pressed", "true");
+
+  const todoSection = page.getByRole("region", { name: "Todo" });
+  const todoLink = todoSection.getByRole("link", { name: "卵を買う" });
+  await expect(todoLink).toHaveAttribute("href", /\/todos\//u);
+  const completionButton = todoSection.getByRole("button", { name: "卵を買うを記録" });
+  await completionButton.focus();
+  await expect(completionButton).toHaveCSS("outline-style", "solid");
+  await completionButton.press("Enter");
+  await page.getByRole("button", { name: "今、自分がやった" }).click();
+
+  await expect(page.getByRole("link", { name: "卵を買う" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Todo" })).toHaveCount(0);
+  await expect(consumableLink).toBeVisible();
+
+  const assetSection = page.getByRole("region", { name: "備品" });
+  await expect(assetSection.getByRole("link", { name: "卵焼き器" })).toBeVisible();
+  await expect(assetSection.getByRole("button")).toHaveCount(0);
+  await expect(page.evaluate(() => document.documentElement.scrollWidth))
+    .resolves.toBeLessThanOrEqual(320);
+});
+
 test("一致しない検索語では0件と各一覧の入口を示す", async ({ page }) => {
   await login(page);
   await page.goto("/search?q=%E3%81%82%E3%82%8A%E5%BE%97%E3%81%AA%E3%81%84%E5%90%8D%E5%89%8D");

@@ -49,6 +49,7 @@ describe("Consumable在庫状態の変更操作", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(revalidatePathMock).toHaveBeenCalledWith("/consumables");
     expect(revalidatePathMock).toHaveBeenCalledWith("/consumables/consumable-1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/search");
   });
 
   it("定義外の状態をD1へ送らない", async () => {
