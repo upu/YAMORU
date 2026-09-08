@@ -23,6 +23,8 @@ export type CrossSearchTodo = {
   dueAt: string | null;
   // Todo詳細(/todos/[id])はTaskOccurrenceのIDで開くため、到達先もOccurrenceを指す。
   id: string;
+  // 完了後に関連する管理対象の表示も更新するため、現在回のsnapshotに残る関連先を返す。
+  managedItemId: string | null;
   scheduledFor: string | null;
   title: string;
 };
@@ -69,6 +71,9 @@ function emptyResults(): CrossSearchResults {
 // 一致した名前をそのまま返すため、絞り込みと選択の双方で同じ式を使う。
 const EFFECTIVE_TODO_TITLE = `CASE WHEN json_type(o.rule_snapshot, '$.title') IS NULL
         THEN r.title ELSE json_extract(o.rule_snapshot, '$.title') END`;
+const EFFECTIVE_TODO_MANAGED_ITEM_ID = `CASE
+        WHEN json_type(o.rule_snapshot, '$.managedItemId') IS NULL THEN r.managed_item_id
+        ELSE json_extract(o.rule_snapshot, '$.managedItemId') END`;
 
 // 未完了のOccurrenceだけを対象にする。実施済みは件数が増え続け、「探して到達
 // する」操作ではなく「履歴を探す」操作になるため、初期対象へ含めない(YDR-042)。
@@ -76,6 +81,7 @@ const EFFECTIVE_TODO_TITLE = `CASE WHEN json_type(o.rule_snapshot, '$.title') IS
 // 並びでは日付のあるものの後ろへ置く。
 const TODO_SEARCH_SQL = `SELECT o.id,
             ${EFFECTIVE_TODO_TITLE} AS title,
+            ${EFFECTIVE_TODO_MANAGED_ITEM_ID} AS managedItemId,
             o.scheduled_for AS scheduledFor,
             o.due_at AS dueAt
        FROM task_occurrences o

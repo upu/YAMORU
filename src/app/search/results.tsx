@@ -8,7 +8,9 @@ import type {
   CrossSearchTodo,
 } from "../../lib/d1/cross-search";
 import { CROSS_SEARCH_LIMIT } from "../../lib/d1/cross-search";
-import { StockStatusBadge } from "../consumables/stock-status";
+import type { HouseholdMemberOption } from "../../lib/d1/profiles";
+import { QuickStockStatusControl } from "../consumables/stock-status-control";
+import { CompleteTodoPanel } from "../managed-items/[id]/complete-todo-panel";
 import { formatTokyoShortMonthDay } from "../time-zone";
 
 // Issue #350 / YDR-042: 結果は種類ごとのセクションへ分け、順序を「Todo」
@@ -58,18 +60,40 @@ function describeTodoSchedule(todo: CrossSearchTodo): string {
   return `${from}〜${formatTokyoShortMonthDay(todo.dueAt)}`;
 }
 
-function TodoResults({ todos }: { todos: CrossSearchResults["todos"] }) {
+function TodoResults({
+  actorName,
+  currentUserId,
+  members,
+  todos,
+}: {
+  actorName: string;
+  currentUserId: string;
+  members: HouseholdMemberOption[];
+  todos: CrossSearchResults["todos"];
+}) {
   if (todos.items.length === 0) return null;
   return (
     <>
       <SearchResultSection count={todos.items.length} id="search-todos-title" title="Todo">
         {todos.items.map((todo) => (
-          <li key={todo.id}>
-            <Link href={`/todos/${encodeURIComponent(todo.id)}`}>{todo.title}</Link>
-            <span className="search-result-meta">
-              <span className="sr-only">予定: </span>
-              {describeTodoSchedule(todo)}
-            </span>
+          <li className="search-result-row" key={todo.id}>
+            <div className="search-result-main">
+              <Link href={`/todos/${encodeURIComponent(todo.id)}`}>{todo.title}</Link>
+              <span className="search-result-meta">
+                <span className="sr-only">予定: </span>
+                {describeTodoSchedule(todo)}
+              </span>
+            </div>
+            <div className="search-result-actions">
+              <CompleteTodoPanel
+                actorName={actorName}
+                currentUserId={currentUserId}
+                managedItemId={todo.managedItemId}
+                members={members}
+                occurrenceId={todo.id}
+                taskTitle={todo.title}
+              />
+            </div>
           </li>
         ))}
       </SearchResultSection>
@@ -137,8 +161,8 @@ function ManagedItemResults({
   );
 }
 
-// 在庫状態は検索条件ではなく結果の補助情報として出す(YDR-042)。「卵」を
-// 探した利用者が、詳細へ入る前に「ある/少ない/ない」を把握できる。
+// Issue #362 / YDR-043: 在庫状態は検索条件にせず、ホームのお気に入りと同じ
+// 3状態のクイック操作を出す。選択状態が現在の在庫も兼ねるためバッジは重ねない。
 function ConsumableResults({
   consumables,
 }: {
@@ -153,14 +177,19 @@ function ConsumableResults({
         title="消耗品"
       >
         {consumables.items.map((consumable: CrossSearchConsumable) => (
-          <li key={consumable.id}>
-            <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
-              {consumable.name}
-            </Link>
-            <span className="search-result-meta">
-              <span className="sr-only">在庫: </span>
-              <StockStatusBadge stockStatus={consumable.stockStatus} />
-            </span>
+          <li className="search-result-row" key={consumable.id}>
+            <div className="search-result-main">
+              <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
+                {consumable.name}
+              </Link>
+            </div>
+            <div className="search-result-actions">
+              <QuickStockStatusControl
+                consumableId={consumable.id}
+                label={`${consumable.name}の在庫状態を変更`}
+                stockStatus={consumable.stockStatus}
+              />
+            </div>
           </li>
         ))}
       </SearchResultSection>
@@ -193,16 +222,27 @@ function SearchEmptyState({ q }: { q: string }) {
 }
 
 export function SearchResults({
+  actorName,
+  currentUserId,
+  members,
   q,
   results,
 }: {
+  actorName: string;
+  currentUserId: string;
+  members: HouseholdMemberOption[];
   q: string;
   results: CrossSearchResults;
 }) {
   if (searchResultCount(results) === 0) return <SearchEmptyState q={q} />;
   return (
     <>
-      <TodoResults todos={results.todos} />
+      <TodoResults
+        actorName={actorName}
+        currentUserId={currentUserId}
+        members={members}
+        todos={results.todos}
+      />
       <ManagedItemResults managedItems={results.managedItems} />
       <ConsumableResults consumables={results.consumables} />
     </>

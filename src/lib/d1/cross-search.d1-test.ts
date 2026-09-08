@@ -93,6 +93,7 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
       items: [{
         dueAt: "2026-09-10T15:00:00.000Z",
         id: await occurrenceIdForRule(ruleId),
+        managedItemId: null,
         scheduledFor: "2026-09-10T15:00:00.000Z",
         title: "卵を買う",
       }],
@@ -117,6 +118,7 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
     const { todos } = await searchAcrossHousehold(db, householdAMember, "フィルター");
 
     expect(todos.items).toHaveLength(1);
+    expect(todos.items[0].managedItemId).toBe("item-a");
     await expect(loadTodoDetail(db, householdAMember, todos.items[0].id))
       .resolves.toMatchObject({ task_rule_id: ruleId, title: "浄水フィルター交換" });
   });
@@ -156,17 +158,21 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
   // TaskRuleのtitleだけを検索すると、画面に出る名前と一致しない行が結果へ出る。
   it("現在回に残る名前(rule_snapshot)で一致を判定する", async () => {
     const ruleId = await createOneTimeTask(db, householdAMember, {
-      managedItemId: null,
+      managedItemId: "item-a",
       scheduledFor: "2026-09-10T15:00:00.000Z",
       title: "浄水フィルター交換",
     });
-    await db.prepare("UPDATE task_rules SET title = '給水機の掃除' WHERE id = ?1")
+    await db.prepare(
+      "UPDATE task_rules SET title = '給水機の掃除', managed_item_id = NULL WHERE id = ?1",
+    )
       .bind(ruleId).run();
 
     await expect(searchAcrossHousehold(db, householdAMember, "掃除"))
       .resolves.toMatchObject({ todos: { items: [] } });
     await expect(searchAcrossHousehold(db, householdAMember, "フィルター"))
-      .resolves.toMatchObject({ todos: { items: [{ title: "浄水フィルター交換" }] } });
+      .resolves.toMatchObject({
+        todos: { items: [{ managedItemId: "item-a", title: "浄水フィルター交換" }] },
+      });
   });
 
   it("空文字・空白だけの検索語で全件を返さない", async () => {

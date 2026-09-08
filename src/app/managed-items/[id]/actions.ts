@@ -60,6 +60,7 @@ function revalidateTodoViews(
   revalidatePath("/");
   revalidatePath("/todos");
   revalidatePath(`/todos/${encodeURIComponent(occurrenceId)}`);
+  revalidatePath("/search");
 }
 
 const CONFLICT_MESSAGE_FRAGMENT = "is not pending";

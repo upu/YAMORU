@@ -2074,6 +2074,50 @@ h1 {
   font-weight: 700;
 }
 
+/* Issue #362 / YDR-043: 検索結果は詳細リンクを主役に保ちながら、短い操作だけを
+   右側へ置く。名前が長い場合は操作を次の行へ送り、320pxでも横へはみ出さない。 */
+.search-result-main {
+  display: grid;
+  flex: 1 1 150px;
+  min-width: 0;
+  gap: 4px;
+}
+
+.search-result-actions {
+  flex: none;
+  margin-left: auto;
+}
+
+.search-result-actions .completion-trigger {
+  width: auto;
+  min-height: 40px;
+  margin-top: 0;
+  padding: 8px 14px;
+}
+
+.search-result-actions .stock-status-options {
+  grid-template-columns: repeat(3, auto);
+  max-width: none;
+  margin-top: 0;
+  gap: 6px;
+}
+
+.search-result-actions .stock-status-option {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+}
+
+.search-result-actions .stock-status-option:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.search-result-actions .auth-feedback {
+  max-width: 250px;
+  margin-top: 6px;
+}
+
 /* 上限に達した種類へ出す案内。セクションの外に置くため、間隔だけ詰める。 */
 .search-more-note {
   margin: -8px 0 0;

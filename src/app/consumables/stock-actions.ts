@@ -43,5 +43,6 @@ export async function updateConsumableStockStatus(
   revalidatePath("/");
   revalidatePath("/consumables");
   revalidatePath(`/consumables/${encodeURIComponent(id)}`);
+  revalidatePath("/search");
   return { message: "在庫状態を更新しました。", status: "success" };
 }

@@ -5,13 +5,14 @@ title: 横断検索を名前一致で対象へ到達する常設機能として�
 description: YAMORU全体をまたぐ横断検索の役割を画面内検索と分け、入口をモバイル下部ナビゲーションの4項目目とし、初期の検索対象をTodo・ManagedItem・Consumableの名前に限り、結果の分類・件数上限・家庭単位の認可を定める
 tags: [yamoru, decisions, ydr, search, navigation]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-09-07
+superseded_by: YDR-043
 ---
 
 # YDR-042: 横断検索を名前一致で対象へ到達する常設機能として定義し、下部ナビゲーションの4項目目に置く
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-043](ydr-043-cross-search-quick-actions.md)(検索結果の続きの操作を「詳細画面への移動だけ」から、既存の在庫変更・Todo完了も行える形へ置き換える。検索対象、入口、一致規則、件数上限、家庭単位の認可は維持する)
 - 決定日: 2026-09-07
 
 ## 背景

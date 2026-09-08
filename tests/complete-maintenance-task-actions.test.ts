@@ -30,6 +30,7 @@ describe("メンテナンスTodoの完了操作", () => {
       performedByUserId: null,
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/managed-item-id");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/search");
     expect(result).toEqual({ message: "完了を記録しました。", status: "success" });
   });
 
