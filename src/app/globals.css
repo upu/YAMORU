@@ -1924,11 +1924,33 @@ h1 {
 /* Issue #359: 記号表示は語より幅を取らない。見た目は詰めるが、スマホで
    押しづらくならないよう36×40pxのタップ領域は確保する。 */
 .stock-status-option-symbol {
+  display: grid;
   min-width: 36px;
   min-height: 40px;
   padding: 0 6px;
-  font-size: 1rem;
-  line-height: 1;
+  place-items: center;
+}
+
+.stock-status-option-symbol svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* Issue #359: 選択中の色を状態ごとに変え、一覧をひと目で見渡せるようにする。
+   台帳の在庫バッジ(.stock-status-low / .stock-status-out)と同じ系統の色を使う。 */
+.stock-status-option-low[aria-pressed="true"] {
+  border-color: var(--amber);
+  background: var(--amber);
+}
+
+.stock-status-option-out[aria-pressed="true"] {
+  border-color: var(--orange);
+  background: var(--orange);
 }
 
 .stock-status-current {

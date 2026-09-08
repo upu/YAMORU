@@ -73,15 +73,26 @@ describe("ホームのお気に入り消耗品", () => {
       .toHaveAttribute("aria-pressed", "false");
   });
 
-  it("状態変更ボタンを○△×で表示し、読み上げ用の語は残す", () => {
+  it("状態変更ボタンを○△×のアイコンで表示し、読み上げ用の語は残す", () => {
     render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
 
     const item = screen.getByRole("article", { name: "お気に入り2" });
-    expect(within(item).getByRole("button", { name: "ある" })).toHaveTextContent("○");
-    expect(within(item).getByRole("button", { name: "少ない" })).toHaveTextContent("△");
-    expect(within(item).getByRole("button", { name: "ない" })).toHaveTextContent("×");
+    const low = within(item).getByRole("button", { name: "少ない" });
+    expect(low.querySelector("svg")).toBeInTheDocument();
+    expect(low).toHaveTextContent(/^少ない$/u);
+    expect(low).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("選択中の色を状態ごとに変えられるよう、状態別のクラスを付ける", () => {
+    render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
+
+    const item = screen.getByRole("article", { name: "お気に入り2" });
+    expect(within(item).getByRole("button", { name: "ある" }))
+      .toHaveClass("stock-status-option-available");
     expect(within(item).getByRole("button", { name: "少ない" }))
-      .toHaveAttribute("aria-pressed", "true");
+      .toHaveClass("stock-status-option-low");
+    expect(within(item).getByRole("button", { name: "ない" }))
+      .toHaveClass("stock-status-option-out");
   });
 
   it("表示密度を優先し、セクションに説明文を置かない", () => {
