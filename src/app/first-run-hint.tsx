@@ -34,7 +34,13 @@ function canPersistHints() {
   return canPersist;
 }
 
+// probeが通っても本番の書き込みが失敗することはある(別タブが容量を使い切る、
+// 権限が変わる)。そのときも閉じたヒントがその場で戻らないよう、この読み込みの
+// あいだは既読として覚えておく。
+const seenInSession = new Set<FirstRunHintId>();
+
 function hasSeenHint(hintId: FirstRunHintId) {
+  if (seenInSession.has(hintId)) return true;
   if (!canPersistHints()) return true;
   try {
     return window.localStorage.getItem(storageKey(hintId)) !== null;
@@ -44,10 +50,11 @@ function hasSeenHint(hintId: FirstRunHintId) {
 }
 
 function markHintSeen(hintId: FirstRunHintId) {
+  seenInSession.add(hintId);
   try {
     window.localStorage.setItem(storageKey(hintId), "seen");
   } catch {
-    // 記録できなくても操作自体は続けられるので、失敗は無視する。
+    // 次回以降は残せないが、この読み込みのあいだは既読として扱う。
   }
 }
 

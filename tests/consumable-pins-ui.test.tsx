@@ -177,6 +177,34 @@ describe("消耗品詳細のピン留め操作(Issue #361)", () => {
     }
   });
 
+  it("既読の書き込みに失敗しても、閉じたヒントがその場で戻らない", async () => {
+    // 判定の書き込み試行は通るが、既読の記録だけが失敗する状況を再現する。
+    vi.resetModules();
+    // 書き込み可否の判定に使うprobeだけ通し、既読の記録は失敗させる。
+    const setItem = vi.spyOn(Storage.prototype, "setItem")
+      .mockImplementation((key: string) => {
+        if (key === "yamoru.hint-seen.consumable-pin") {
+          throw new Error("書き込みできません");
+        }
+      });
+    try {
+      const { PinToggle: FreshPinToggle } = await import(
+        "../src/app/consumables/pin-toggle"
+      );
+      render(<FreshPinToggle consumableId="consumable-1" isPinned={false} />);
+
+      expect(screen.getByText(/よく使う消耗品をピン留めすると/u))
+        .toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "ヒントを閉じる" }));
+      expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+        .not.toBeInTheDocument();
+    } finally {
+      setItem.mockRestore();
+      vi.resetModules();
+    }
+  });
+
   it("ピン留めを実際に操作したときも、ヒントを既読にする", () => {
     render(<PinToggle consumableId="consumable-1" isPinned={false} />);
 
