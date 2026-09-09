@@ -126,5 +126,8 @@ jobs:
       - name: Apply D1 migrations to a clean local database
         run: npm run d1:migrate
 
+      - name: Check generated D1 schema
+        run: npm run d1:schema:check
+
       - name: Test household isolation and atomic operations on D1
         run: npm run test:d1
