@@ -28,8 +28,9 @@
 | 消耗品の登録・補充記録・関連・お気に入り | `src/app/consumables/actions.ts`、`src/app/consumables/refill-actions.ts`、`src/app/consumables/relation-actions.ts`、`src/app/consumables/favorite-actions.ts` | `tests/consumable-actions.test.ts`、`tests/consumable-refill-actions.test.ts`、`src/lib/d1/consumable-favorites.d1-test.ts` | [消耗品](consumables.md) |
 | 横断検索(下部ナビの「検索」) | `src/app/search/page.tsx` → `src/lib/d1/cross-search.ts` | `tests/search-ui.test.tsx`、`src/lib/d1/cross-search.d1-test.ts`、`e2e/cross-search.spec.ts` | [検索](search.md) |
 | 画面内検索(Todo一覧・台帳の絞り込み) | `src/lib/d1/text-search.ts`、`src/lib/d1/home.ts`、`src/app/managed-items/search-href.ts` | `tests/managed-items-search-ui.test.tsx`、`src/lib/d1/todo-filters.d1-test.ts` | [検索](search.md) |
-| ログイン・パスワード | `src/auth.ts`、`src/app/login/actions.ts` → `src/lib/d1/authentication.ts` | `tests/auth-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts` | [認証・家庭・招待](household-access.md) |
-| 家庭の作成・招待の発行と受諾 | `src/app/household/invitation-actions.ts`、`src/app/invitations/accept/` → `src/lib/d1/invitations.ts` | `tests/invitation-actions.test.ts`、`tests/invite-accept-actions.test.ts`、`e2e/family-sharing.spec.ts` | [認証・家庭・招待](household-access.md) |
+| ログイン・パスワード | `src/auth.ts`、`src/app/login/actions.ts`、`src/app/account/password-actions.ts` → `src/lib/d1/authentication.ts` | `tests/auth-actions.test.ts`、`tests/password-change-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts` | [認証・家庭・招待](household-access.md) |
+| 家庭の作成 | `src/app/household/actions.ts` → `src/lib/d1/households.ts` | `tests/household-actions.test.ts`、`tests/household-ui.test.tsx` | [認証・家庭・招待](household-access.md) |
+| 招待の発行・取消・受諾 | `src/app/household/invitation-actions.ts`、`src/app/invitations/accept/` → `src/lib/d1/invitations.ts` | `tests/invitation-actions.test.ts`、`tests/invite-accept-actions.test.ts`、`e2e/family-sharing.spec.ts` | [認証・家庭・招待](household-access.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 
 ## まだ実装していない領域

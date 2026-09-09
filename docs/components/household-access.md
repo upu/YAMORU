@@ -27,8 +27,9 @@ Auth.js Credentialsによるログイン、家庭(household)の作成と所属�
 
 ## 重要な不変条件
 
-- D1にRLSはないため、家庭間分離はアプリ層で行う([YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md))。データアクセス関数はセッションからmembershipを導出し(`requireCurrentHouseholdId`)、フォームやURLから受け取った家庭IDを認可根拠にしない。
-- 読み書きのSQLに`household_id`条件を含める。家庭Aの正規セッションに家庭Bの行IDを組み合わせても0件またはNot Foundになることをテストする(詳細は[データベースに影響する変更の手順](../references/database-change-playbook.md))。
+- D1にRLSはないため、家庭間分離はアプリ層で行う([YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md))。家庭に属するデータ(Todo、ManagedItem、Consumable、Member、招待の一覧など)を読み書きする関数は、セッションからmembershipを導出し(`requireCurrentHouseholdId`)、フォームやURLから受け取った家庭IDを認可根拠にしない。
+- 家庭を確定した後の読み書きのSQLには`household_id`条件を含める。家庭Aの正規セッションに家庭Bの行IDを組み合わせても0件またはNot Foundになることをテストする(詳細は[データベースに影響する変更の手順](../references/database-change-playbook.md))。
+- 所属が決まる前の経路はこの条件を適用できないため、別の根拠で守る。`authenticateCredentials`は`users`をメール一致で引いてパスワードを検証する。`openInvitationClaim`と`getInvitationClaimState`は、生tokenやclaim secretのハッシュ一致に加えて`status = 'pending'`と有効期限で判定する。招待の受諾で家庭が決まった後は、通常のmembership導出へ戻る。
 - 公開登録は行わず、アカウント作成は招待経由に限る。招待は7日間・一回限り・メール一致の契約を持つ([YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md))。
 - 招待の生tokenはquery stringではなくURL fragmentで搬送する([YDR-024](../decisions/ydr-024-invitation-token-in-url-fragment.md))。
 - パスワードハッシュのPBKDF2反復回数はCloudflare Workersの実行上限に合わせる([YDR-025](../decisions/ydr-025-pbkdf2-iterations-within-workers-limit.md))。変更時は`src/lib/auth/password.ts`と`tests/password.test.ts`を一組で見る。
