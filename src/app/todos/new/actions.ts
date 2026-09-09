@@ -7,6 +7,14 @@ import {
   type CompletionIntervalUnit,
 } from "../../../lib/d1/calendar";
 import type { MaintenanceTodoActionState } from "../../../features/todos/state";
+import {
+  COMPLETION_UNIT_DAYS,
+  INVALID_TASK_TITLE_MESSAGE,
+  MAX_COMPLETION_VALUE,
+  MAX_INTERVAL_ANCHOR_DISTANCE_DAYS,
+  MAX_INTERVAL_COUNT,
+  parseTodoTitle,
+} from "../todo-input-limits";
 import { parseCalendarTodo } from "./calendar-todo-input";
 import {
   type RegisteredTodoSchedule,
@@ -26,14 +34,6 @@ import {
   tokyoDateToUtcIso,
 } from "../../time-zone";
 
-const TASK_TITLE_MAX_LENGTH = 100;
-const INTERVAL_UNIT_DAYS = { day: 1, week: 7 } as const;
-const MAX_RECOMMENDED_VALUE: Record<CompletionIntervalUnit, number> = {
-  day: 3650,
-  month: 120,
-  week: 520,
-  year: 10,
-};
 const INVALID_OFFSETS: MaintenanceTodoActionState = {
   message: "次回の目安は0以上の整数で、短い方を長い方以下にしてください。",
   status: "error",
@@ -42,10 +42,6 @@ const INVALID_WINDOW: MaintenanceTodoActionState = {
   message: "初回の計算に使う有効な日付を入力してください。",
   status: "error",
 };
-// Issue #99 / YDR-037の7: 上限はDBのCHECK制約と同じ値にそろえる。起点日は
-// 登録日の前後3650日(約10年)までを受け付ける。
-const MAX_INTERVAL_COUNT = { day: 3650, week: 520 } as const;
-const MAX_INTERVAL_ANCHOR_DISTANCE_DAYS = 3650;
 const INVALID_INTERVAL: MaintenanceTodoActionState = {
   message: "繰り返す間隔と起点日を正しく入力してください。",
   status: "error",
@@ -58,22 +54,13 @@ type RecommendedOffsets = {
   recommendedUntilOffset: number;
   recommendedUntilValue: number;
 };
-function invalidTitle(): MaintenanceTodoActionState {
-  return {
-    message: "Todo名は1文字以上100文字以内で入力してください。",
-    status: "error",
-  };
-}
-
 function parseTodoBasics(
   formData: FormData,
 ): TodoBasics | MaintenanceTodoActionState {
-  const rawTitle = formData.get("title");
-  if (typeof rawTitle !== "string") return invalidTitle();
-
-  const title = rawTitle.trim();
-  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) {
-    return invalidTitle();
+  // 名前の長さは編集と同じ規則(../todo-input-limits.ts)。
+  const title = parseTodoTitle(formData);
+  if (title === null) {
+    return { message: INVALID_TASK_TITLE_MESSAGE, status: "error" };
   }
 
   const recurrenceBasis = formData.get("recurrenceBasis");
@@ -172,7 +159,7 @@ function parseRecommendedOffsets(
     return INVALID_OFFSETS;
   }
 
-  const maximum = MAX_RECOMMENDED_VALUE[rawUnit];
+  const maximum = MAX_COMPLETION_VALUE[rawUnit];
   if (
     intervalMin > intervalMax ||
     intervalMax > maximum
@@ -182,7 +169,7 @@ function parseRecommendedOffsets(
   // 旧日数列は既存Workerとの互換性のため残す。日・週は従来値を保存できるが、
   // 月・年は固定日数へ換算しないため0を互換用の番兵値とし、新しい値・単位列を正にする。
   const multiplier = rawUnit === "day" || rawUnit === "week"
-    ? INTERVAL_UNIT_DAYS[rawUnit]
+    ? COMPLETION_UNIT_DAYS[rawUnit]
     : 0;
   return {
     recommendedStartOffset: intervalMin * multiplier,

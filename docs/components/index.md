@@ -18,6 +18,7 @@
 |---|---|---|---|
 | ホームに出す内容・並び・状態表示 | `src/app/page.tsx`、`src/app/pending-todo.ts`、`src/lib/d1/home.ts` | `tests/home.test.tsx`、`tests/home-sections.test.ts` | [ホーム](home.md) |
 | Todoの登録 | `src/app/todos/new/actions.ts` → `src/lib/d1/todos/creation.ts` | `tests/todo-registration-actions.test.ts`、`tests/todo-registration-calendar-actions.test.ts` | [Todo](todos.md) |
+| 繰り返し条件の入力解釈・制約値(登録・編集で共通) | `src/app/todos/calendar-schedule-input.ts`、`src/app/todos/todo-input-limits.ts` | `tests/todo-calendar-schedule-input.test.ts`、`tests/todo-recurrence-shared-input.test.ts` | [Todo](todos.md) |
 | Todoの編集(1回だけ / 現在回 / 次回以降) | `src/app/todos/[id]/actions.ts` → `src/lib/d1/todos/edit.ts`、`src/lib/d1/todos/recurring-edit.ts` | `tests/todo-edit-actions.test.ts`、`src/lib/d1/recurring-todo-edit.d1-test.ts` | [Todo](todos.md) |
 | Todoの完了・完了取消・実施記録の訂正 | `src/features/todos/actions/completion.ts`、`src/features/todos/actions/correction.ts` → `src/lib/d1/todos/completion.ts`、`src/lib/d1/todos/corrections.ts` | `tests/complete-maintenance-task-actions.test.ts`、`tests/undo-maintenance-task-completion-actions.test.ts`、`tests/correct-completion-actions.test.ts` | [Todo](todos.md) |
 | Todoの担当・延期・予定日の変更(画面共通の操作) | `src/features/todos/actions/assignee.ts`、`src/features/todos/actions/schedule.ts`、UIは`src/features/todos/components/` | `tests/task-occurrence-assignee-actions.test.ts`、`tests/postpone-task-occurrence-actions.test.ts`、`tests/schedule-task-occurrence-actions.test.ts`、`tests/assignee-panel.test.tsx` | [Todo](todos.md) |

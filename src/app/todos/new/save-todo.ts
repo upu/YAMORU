@@ -12,6 +12,7 @@ import {
   createMaintenanceTask,
   createOneTimeTask,
 } from "../../../lib/d1/todos";
+import { calendarScheduleWithNulls } from "../calendar-schedule-input";
 import type { RegisteredTodoSchedule } from "./registration-feedback";
 
 // 登録フォームの入力を検証し終えた形(actions.tsのparseTodoの結果)と、その
@@ -82,13 +83,8 @@ async function saveCalendarTodo(
   input: CalendarTodoInput,
   now: Date,
 ): Promise<{ dueAt: string; scheduledFor: string }> {
-  const schedule = {
-    ...input,
-    scheduleDayOfMonth: input.scheduleDayOfMonth ?? null,
-    scheduleDaysOfWeek: input.scheduleDaysOfWeek ?? [],
-    scheduleMonth: input.scheduleMonth ?? null,
-    scheduleWeekOfMonth: input.scheduleWeekOfMonth ?? null,
-  };
+  // 使わない項目のNULL埋めは編集側と同じ関数を使う(#367)。
+  const schedule = calendarScheduleWithNulls(input);
   await createCalendarTask(db, session, schedule, now);
   const first = calendarFirstScheduledFor(calendarScheduleFromInput(schedule), now);
   return { dueAt: first, scheduledFor: first };
