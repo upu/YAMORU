@@ -7,11 +7,11 @@ const { completeMaintenanceTaskMock } = vi.hoisted(() => ({
   completeMaintenanceTaskMock: vi.fn(),
 }));
 
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
+vi.mock("../src/features/todos/actions/completion", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
 }));
 
-import { CompleteTodoPanel } from "../src/app/managed-items/[id]/complete-todo-panel";
+import { CompleteTodoPanel } from "../src/features/todos/components/complete-todo-panel";
 
 afterEach(cleanup);
 

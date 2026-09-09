@@ -17,12 +17,16 @@ const {
   undoMaintenanceTaskCompletionMock: vi.fn(),
 }));
 
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
+vi.mock("../src/features/todos/actions/assignee", () => ({
+  setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
+}));
+vi.mock("../src/features/todos/actions/completion", () => ({
   completeMaintenanceTask: completeMaintenanceTaskMock,
+  undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
+}));
+vi.mock("../src/features/todos/actions/correction", () => ({
   correctCompletionOccurredAt: correctCompletionOccurredAtMock,
   correctCompletionPerformer: correctCompletionPerformerMock,
-  setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
-  undoMaintenanceTaskCompletion: undoMaintenanceTaskCompletionMock,
 }));
 
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));

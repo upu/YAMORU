@@ -1,4 +1,4 @@
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import type { CalendarTodoInput, TodoBasics } from "./save-todo";
 import {
   type CalendarScheduleInputError,

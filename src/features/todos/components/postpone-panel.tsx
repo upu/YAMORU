@@ -8,11 +8,11 @@ import {
   useRef,
 } from "react";
 
-import { DialogShell } from "../../dialog-shell";
-import { OperationFeedback } from "../../operation-feedback";
-import { addDaysToTokyoDateUtcIso, formatTokyoDateInput } from "../../time-zone";
-import { useDialogAction } from "../../use-dialog-action";
-import { postponeTaskOccurrence } from "./actions";
+import { DialogShell } from "../../../app/dialog-shell";
+import { OperationFeedback } from "../../../app/operation-feedback";
+import { addDaysToTokyoDateUtcIso, formatTokyoDateInput } from "../../../app/time-zone";
+import { useDialogAction } from "../../../app/use-dialog-action";
+import { postponeTaskOccurrence } from "../actions/schedule";
 
 // 完了記録の「実施日」(今日以前)とは逆に、翌日以降だけを選べるようにする。
 // クライアント表示専用の既定値であり、サーバー側はnow()より後であることを

@@ -22,7 +22,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import {
   correctCompletionOccurredAt,
   correctCompletionPerformer,
-} from "../src/app/managed-items/[id]/actions";
+} from "../src/features/todos/actions/correction";
 
 describe("実施日時の訂正操作(Issue #148)", () => {
   beforeEach(() => {

@@ -33,7 +33,7 @@ vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
 import { updateRecurringRule } from "../src/app/todos/[id]/actions";
 import { createTodo } from "../src/app/todos/new/actions";
-import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/app/managed-items/[id]/state";
+import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/features/todos/state";
 
 // Issue #367: 登録(createTodo)と編集(updateRecurringRule)は、繰り返し条件の
 // 解釈と制約値を共通の処理から受け取る。ここでは同じ入力に対して同じ受理・

@@ -9,7 +9,7 @@ vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 vi.mock("../src/app/consumables/stock-actions", () => ({
   updateConsumableStockStatus: vi.fn(),
 }));
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
+vi.mock("../src/features/todos/actions/completion", () => ({
   completeMaintenanceTask: vi.fn(),
 }));
 

@@ -10,7 +10,7 @@ import {
   updateRecurringOccurrence as updateRecurringOccurrenceInD1,
   updateRecurringTaskRule,
 } from "../../../lib/d1/todos";
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import { getTokyoDayDistance, tokyoDateToUtcIso } from "../../time-zone";
 import {
   COMPLETION_UNIT_DAYS,

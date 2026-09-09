@@ -6,7 +6,7 @@ import {
   addTokyoCalendarDate,
   type CompletionIntervalUnit,
 } from "../../../lib/d1/calendar";
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import {
   COMPLETION_UNIT_DAYS,
   INVALID_TASK_TITLE_MESSAGE,

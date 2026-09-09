@@ -1,5 +1,5 @@
 import type { PendingOccurrenceRow } from "../../../lib/d1/home";
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import {
   buildPendingTodoEntries,
   HOME_UPCOMING_DAYS,

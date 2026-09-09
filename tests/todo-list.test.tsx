@@ -13,9 +13,13 @@ const {
   setTaskOccurrenceScheduleMock: vi.fn(),
 }));
 
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
-  completeMaintenanceTask: completeMaintenanceTaskMock,
+vi.mock("../src/features/todos/actions/assignee", () => ({
   setTaskOccurrenceAssignee: setTaskOccurrenceAssigneeMock,
+}));
+vi.mock("../src/features/todos/actions/completion", () => ({
+  completeMaintenanceTask: completeMaintenanceTaskMock,
+}));
+vi.mock("../src/features/todos/actions/schedule", () => ({
   setTaskOccurrenceSchedule: setTaskOccurrenceScheduleMock,
   unsetTaskOccurrenceSchedule: vi.fn(),
 }));

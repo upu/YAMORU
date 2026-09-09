@@ -11,15 +11,15 @@ import {
 } from "react";
 
 import type { HouseholdMemberOption } from "../../../lib/d1/profiles";
-import { DialogShell } from "../../dialog-shell";
-import { OperationFeedback } from "../../operation-feedback";
-import { formatDateInput, formatTokyoDate } from "../../time-zone";
+import { DialogShell } from "../../../app/dialog-shell";
+import { OperationFeedback } from "../../../app/operation-feedback";
+import { formatDateInput, formatTokyoDate } from "../../../app/time-zone";
+import { undoMaintenanceTaskCompletion } from "../actions/completion";
 import {
   correctCompletionOccurredAt,
   correctCompletionPerformer,
-  undoMaintenanceTaskCompletion,
-} from "./actions";
-import type { MaintenanceTodoActionState } from "./state";
+} from "../actions/correction";
+import type { MaintenanceTodoActionState } from "../state";
 
 type PanelView = "choice" | "closed" | "occurredAt" | "performer" | "undo";
 

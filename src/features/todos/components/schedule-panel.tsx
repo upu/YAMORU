@@ -8,14 +8,14 @@ import {
   useRef,
 } from "react";
 
-import { DialogShell } from "../../dialog-shell";
-import { OperationFeedback } from "../../operation-feedback";
-import { formatDateInput } from "../../time-zone";
-import { useDialogAction } from "../../use-dialog-action";
+import { DialogShell } from "../../../app/dialog-shell";
+import { OperationFeedback } from "../../../app/operation-feedback";
+import { formatDateInput } from "../../../app/time-zone";
+import { useDialogAction } from "../../../app/use-dialog-action";
 import {
   setTaskOccurrenceSchedule,
   unsetTaskOccurrenceSchedule,
-} from "./actions";
+} from "../actions/schedule";
 
 function ScheduleTrigger({
   onOpen,

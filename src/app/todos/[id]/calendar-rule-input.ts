@@ -1,5 +1,5 @@
 import { type RecurringTaskRuleUpdate } from "../../../lib/d1/todos";
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import {
   type CalendarScheduleInputError,
   EMPTY_WEEK_POSITIONS_MESSAGE,

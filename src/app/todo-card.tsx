@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import type { HouseholdMemberOption } from "../lib/d1/profiles";
-import { AssigneePanel } from "./managed-items/[id]/assignee-panel";
-import { CompleteTodoPanel } from "./managed-items/[id]/complete-todo-panel";
+import { AssigneePanel } from "../features/todos/components/assignee-panel";
+import { CompleteTodoPanel } from "../features/todos/components/complete-todo-panel";
 import type { TodoListSchedule, TodoTone } from "./task-schedule";
 
 // ホーム(app/page.tsx)とTodo一覧(app/todos/page.tsx)は、同じTodoを
