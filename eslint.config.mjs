@@ -72,6 +72,7 @@ export default defineConfig([
     "out/**",
     "coverage/**",
     ".claude/worktrees/**",
+    ".worktrees/**",
     // opennextjs-cloudflare buildとwrangler devが出力する
     // バンドル済みWorkerスクリプト・ローカルD1状態(生成物)。
     ".open-next/**",

@@ -34,6 +34,17 @@ describe("Auth.js認証境界", () => {
     }))).resolves.toBe(true);
   });
 
+  it.each([
+    "/login-help",
+    "/invitations/acceptance",
+    "/invitations/accepted",
+  ])("公開経路に似た保護経路 %s は未認証で通さない", async (pathname) => {
+    await expect(Promise.resolve(authConfig.callbacks.authorized({
+      auth: null,
+      request: new NextRequest(`http://localhost${pathname}`),
+    }))).resolves.toBe(false);
+  });
+
   it("保護経路は署名済みJWT sessionがない要求を拒否する", async () => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
       auth: null,
