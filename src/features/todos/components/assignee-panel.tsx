@@ -2,9 +2,9 @@
 
 import { type ChangeEvent, useState, useTransition } from "react";
 
-import { claimTaskOccurrenceAssignee, setTaskOccurrenceAssignee } from "./actions";
-import { type AssigneeOption, UNASSIGNED_LABEL } from "../../assignee";
-import { OperationFeedback } from "../../operation-feedback";
+import { claimTaskOccurrenceAssignee, setTaskOccurrenceAssignee } from "../actions/assignee";
+import { type AssigneeOption, UNASSIGNED_LABEL } from "../../../app/assignee";
+import { OperationFeedback } from "../../../app/operation-feedback";
 
 const UNASSIGNED_VALUE = "";
 

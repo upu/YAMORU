@@ -10,7 +10,7 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ setTaskOccurrenceAssignee: setAssigneeMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { setTaskOccurrenceAssignee } from "../src/app/managed-items/[id]/actions";
+import { setTaskOccurrenceAssignee } from "../src/features/todos/actions/assignee";
 
 describe("Todoの担当変更操作(Issue #72)", () => {
   beforeEach(() => {

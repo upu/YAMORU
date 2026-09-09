@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { INITIAL_MAINTENANCE_TODO_STATE } from "../../managed-items/[id]/state";
+import { INITIAL_MAINTENANCE_TODO_STATE } from "../../../features/todos/state";
 import type {
   RegisteredTodoSummary,
   TodoRegistrationState,

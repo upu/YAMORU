@@ -8,12 +8,12 @@ const { setTaskOccurrenceScheduleMock, unsetTaskOccurrenceScheduleMock } = vi.ho
   unsetTaskOccurrenceScheduleMock: vi.fn(),
 }));
 
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
+vi.mock("../src/features/todos/actions/schedule", () => ({
   setTaskOccurrenceSchedule: setTaskOccurrenceScheduleMock,
   unsetTaskOccurrenceSchedule: unsetTaskOccurrenceScheduleMock,
 }));
 
-import { SchedulePanel } from "../src/app/managed-items/[id]/schedule-panel";
+import { SchedulePanel } from "../src/features/todos/components/schedule-panel";
 
 afterEach(cleanup);
 

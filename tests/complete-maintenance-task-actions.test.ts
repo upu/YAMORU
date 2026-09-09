@@ -10,7 +10,7 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ completeTask: completeTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { completeMaintenanceTask } from "../src/app/managed-items/[id]/actions";
+import { completeMaintenanceTask } from "../src/features/todos/actions/completion";
 
 describe("メンテナンスTodoの完了操作", () => {
   beforeEach(() => {

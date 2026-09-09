@@ -1,4 +1,4 @@
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import type { CalendarTodoInput, TodoBasics } from "./save-todo";
 import { EMPTY_WEEKDAYS_MESSAGE, WEEKDAYS_FIELD_NAME } from "../weekday-checkboxes";
 import {

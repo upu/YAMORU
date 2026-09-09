@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 
 import type { HouseholdMemberOption } from "../../../lib/d1/profiles";
-import { CompletionPanel } from "../../completion-panel";
-import { OperationFeedback } from "../../operation-feedback";
-import { completeMaintenanceTask } from "./actions";
+import { CompletionPanel } from "../../../app/completion-panel";
+import { OperationFeedback } from "../../../app/operation-feedback";
+import { completeMaintenanceTask } from "../actions/completion";
 
 export function CompleteTodoPanel({
   actorName,

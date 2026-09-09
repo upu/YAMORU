@@ -30,7 +30,7 @@ import {
   updateRecurringRule,
   updateTodo,
 } from "../src/app/todos/[id]/actions";
-import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/app/managed-items/[id]/state";
+import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/features/todos/state";
 
 function editForm(overrides: Record<string, string> = {}): FormData {
   const formData = new FormData();

@@ -5,15 +5,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import type { HouseholdMemberOption } from "../../../lib/d1/profiles";
+import { AssigneePanel } from "../../../features/todos/components/assignee-panel";
+import { CompleteTodoPanel } from "../../../features/todos/components/complete-todo-panel";
+import { PostponePanel } from "../../../features/todos/components/postpone-panel";
+import { SchedulePanel } from "../../../features/todos/components/schedule-panel";
 import { ClassificationBadges } from "../classification-badges";
 import { EditIcon } from "../../edit-icon";
 import { startedOnLabel } from "../model";
 import { formatStartedOn } from "../started-on";
 import { formatTokyoDate } from "../../time-zone";
-import { AssigneePanel } from "./assignee-panel";
-import { CompleteTodoPanel } from "./complete-todo-panel";
-import { PostponePanel } from "./postpone-panel";
-import { SchedulePanel } from "./schedule-panel";
 import {
   RECURRENCE_LABELS,
   type ExternalLinkData,
