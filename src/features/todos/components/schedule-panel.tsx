@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { DialogShell } from "../../../app/dialog-shell";
+import dialogStyles from "../../../app/dialog.module.css";
 import { OperationFeedback } from "../../../app/operation-feedback";
 import { formatDateInput } from "../../../app/time-zone";
 import { useDialogAction } from "../../../app/use-dialog-action";
@@ -67,7 +68,7 @@ function ScheduleDialog({
   return (
     <DialogShell kicker="SCHEDULE" onClose={onCancel} title={title} titleId={titleId}>
       {isUndated ? (
-        <form className="completion-detail-form" onSubmit={onSubmit}>
+        <form className={dialogStyles.detailForm} onSubmit={onSubmit}>
           <label htmlFor={inputId}>予定日</label>
           <input
             defaultValue={formatDateInput(new Date())}
@@ -80,18 +81,18 @@ function ScheduleDialog({
           <p className="input-help">
             予定日を設定すると、ホームの期限切れ・今日・近日へ日付に応じて表示されます。
           </p>
-          <button className="dialog-primary-button" type="submit">
+          <button className={dialogStyles.primaryButton} type="submit">
             この日を予定日にする
           </button>
         </form>
       ) : (
-        <div className="completion-detail-form">
+        <div className={dialogStyles.detailForm}>
           {/* Issue #202: 予定日未定Todoはホームに表示しない。戻した後の
               確認場所を「Todo一覧」と明示する。 */}
           <p>
             具体日を外し、予定日未定へ戻します。ホームには表示されなくなり、「Todo一覧」から確認できます。Todoや担当は削除されません。
           </p>
-          <button className="dialog-primary-button" onClick={onUnset} type="button">
+          <button className={dialogStyles.primaryButton} onClick={onUnset} type="button">
             予定日を未定に戻す
           </button>
         </div>

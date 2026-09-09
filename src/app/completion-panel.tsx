@@ -11,6 +11,7 @@ import {
 
 import type { HouseholdMemberOption } from "../lib/d1/profiles";
 import { DialogShell } from "./dialog-shell";
+import styles from "./dialog.module.css";
 import { formatDateInput } from "./time-zone";
 
 type PanelView = "closed" | "choice" | "details";
@@ -43,11 +44,11 @@ function CompletionChoice({
   quickCompleteRef: RefObject<HTMLButtonElement | null>;
 }) {
   return (
-    <div className="completion-choice-list">
+    <div className={styles.choiceList}>
       <p>どのように記録しますか？</p>
       <button
         aria-label="今、自分がやった"
-        className="dialog-primary-button"
+        className={styles.primaryButton}
         onClick={onComplete}
         ref={quickCompleteRef}
         type="button"
@@ -57,7 +58,7 @@ function CompletionChoice({
       </button>
       <button
         aria-label="詳しく記録する"
-        className="dialog-secondary-button"
+        className={styles.secondaryButton}
         onClick={onShowDetails}
         type="button"
       >
@@ -88,8 +89,8 @@ function CompletionDetails({
   today: string;
 }) {
   return (
-    <form className="completion-detail-form" onSubmit={onSubmit}>
-      <button className="dialog-back-button" onClick={onBack} type="button">
+    <form className={styles.detailForm} onSubmit={onSubmit}>
+      <button className={styles.backButton} onClick={onBack} type="button">
         ← 選び方に戻る
       </button>
       <label htmlFor={inputId}>実施日</label>
@@ -119,7 +120,7 @@ function CompletionDetails({
         ))}
       </select>
       <p className="input-help">実際に作業した家庭のメンバーを選びます（既定は自分）</p>
-      <button className="dialog-primary-button" type="submit">
+      <button className={styles.primaryButton} type="submit">
         この内容で記録する
       </button>
     </form>

@@ -1,0 +1,82 @@
+/* 横断検索の結果(Issue #350 / #362、YDR-042・YDR-043)。行そのものは台帳一覧
+   (.ledger-list)と同じ見た目を使い、ここでは検索結果に固有の見出し・操作列
+   だけを持つ。行内に置く共通部品(完了記録・在庫変更・操作結果)は、他の画面と
+   共有するためglobals.css側に残し、:global()で配置だけを調整する。 */
+/* Issue #350 / YDR-042: 横断検索の結果。行そのものは台帳一覧(.ledger-list)を
+   そのまま使い、種類ごとのセクション見出しと件数、補助情報だけを足す。 */
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+}
+
+.resultMeta {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+/* Issue #362 / YDR-043: 検索結果は詳細リンクを主役に保ちながら、短い操作だけを
+   右側へ置く。名前が長い場合は操作を次の行へ送り、320pxでも横へはみ出さない。 */
+.resultMain {
+  display: grid;
+  flex: 1 1 150px;
+  min-width: 0;
+  gap: 4px;
+}
+
+.resultActions {
+  flex: none;
+  margin-left: auto;
+}
+
+.resultActions :global(.completion-trigger) {
+  width: auto;
+  min-height: 40px;
+  margin-top: 0;
+  padding: 8px 14px;
+}
+
+.resultActions :global(.stock-status-options) {
+  grid-template-columns: repeat(3, auto);
+  max-width: none;
+  margin-top: 0;
+  gap: 6px;
+}
+
+.resultActions :global(.stock-status-option) {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+}
+
+.resultActions :global(.stock-status-option):focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.resultActions :global(.auth-feedback) {
+  max-width: 250px;
+  margin-top: 6px;
+}
+
+/* 上限に達した種類へ出す案内。セクションの外に置くため、間隔だけ詰める。 */
+.moreNote {
+  margin: -8px 0 0;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.page :global(.ledger-search-form) {
+  margin: 0 0 18px;
+}

@@ -1,0 +1,170 @@
+/* 記録・訂正・延期などで共通に使うダイアログ(dialog-shell.tsxと、その中身を
+   渡す各パネル)。モバイル幅では下部ナビゲーションと重ならないよう、
+   globals.cssの--mobile-nav-heightぶん下端を空ける(Issue #156)。
+   ダイアログを開く入口のボタン(.completion-trigger)は、検索結果など
+   呼び出し側の一覧からも配置を調整されるためglobals.css側に残す。 */
+.primaryButton:hover {
+  background: #244a39;
+}
+
+.dialog button:focus-visible,
+.detailForm input:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(24 34 29 / 52%);
+}
+
+.dialog {
+  width: min(100%, 440px);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid rgb(49 92 73 / 20%);
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: 0 24px 70px rgb(24 34 29 / 30%);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* .detail-card h2など、ダイアログを開く画面側の見出し指定と詳細度が並ぶと、
+   ダイアログの中の見出しが画面ごとに変わってしまう。ダイアログ自身の指定が
+   必ず勝つよう、.dialogを重ねて詳細度を上げる。 */
+.dialog .heading h2 {
+  margin: 0;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: clamp(1.25rem, 5vw, 1.55rem);
+  line-height: 1.35;
+}
+
+.close {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: white;
+  font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.choiceList,
+.detailForm {
+  display: grid;
+  gap: 12px;
+}
+
+.choiceList > p {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: grid;
+  gap: 4px;
+  min-height: 62px;
+  padding: 12px 15px;
+  border-radius: 13px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--green);
+  color: white;
+  background: var(--green);
+}
+
+.secondaryButton {
+  border: 1px solid rgb(49 92 73 / 30%);
+  color: var(--green);
+  background: white;
+}
+
+.secondaryButton:hover {
+  background: var(--green-pale);
+}
+
+.dialog .primaryButton strong,
+.dialog .secondaryButton strong {
+  font-size: 0.84rem;
+}
+
+/* 説明文も見出しと同じ理由で、開いた画面側のspan指定(.maintenance-todo-list
+   spanなど)に負けないよう詳細度を上げる。 */
+.dialog .primaryButton span,
+.dialog .secondaryButton span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  opacity: 0.78;
+}
+
+.detailForm label {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.detailForm input {
+  width: 100%;
+  min-height: 46px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: white;
+  font: inherit;
+}
+
+.backButton {
+  justify-self: start;
+  padding: 8px 0;
+  border: 0;
+  color: var(--green);
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .backdrop {
+    /* 下部ナビゲーション(z-index: 20)より手前に出し、かつ下部ナビゲーション
+       の高さぶん下に余白を確保して、ダイアログの選択肢が下部ナビゲーションと
+       重ならないようにする(#156)。 */
+    z-index: 25;
+    align-items: end;
+    padding: 0 0 var(--mobile-nav-height);
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: calc(90vh - var(--mobile-nav-height));
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0;
+  }
+}

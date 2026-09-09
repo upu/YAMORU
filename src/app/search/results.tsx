@@ -12,6 +12,7 @@ import type { HouseholdMemberOption } from "../../lib/d1/profiles";
 import { CompleteTodoPanel } from "../../features/todos/components/complete-todo-panel";
 import { QuickStockStatusControl } from "../consumables/stock-status-control";
 import { formatTokyoShortMonthDay } from "../time-zone";
+import styles from "./search-results.module.css";
 
 // Issue #350 / YDR-042: 結果は種類ごとのセクションへ分け、順序を「Todo」
 // 「備品」「サービス・契約」「消耗品」とする(台帳の入口の並び #291 と揃える)。
@@ -30,7 +31,7 @@ function SearchResultSection({
 }) {
   return (
     <section aria-labelledby={id} className="detail-card">
-      <div className="search-section-heading">
+      <div className={styles.sectionHeading}>
         <h2 id={id}>{title}</h2>
         <span aria-label={`${String(count)}件`} className="count">{count}</span>
       </div>
@@ -44,7 +45,7 @@ function SearchResultSection({
 function MoreResultsNote({ hasMore, unit }: { hasMore: boolean; unit: string }) {
   if (!hasMore) return null;
   return (
-    <p className="search-more-note">
+    <p className={styles.moreNote}>
       {unit}の一致が多いため、先頭{CROSS_SEARCH_LIMIT}件を表示しています。語を足すと絞り込めます。
     </p>
   );
@@ -77,14 +78,14 @@ function TodoResults({
       <SearchResultSection count={todos.items.length} id="search-todos-title" title="Todo">
         {todos.items.map((todo) => (
           <li className="search-result-row" key={todo.id}>
-            <div className="search-result-main">
+            <div className={styles.resultMain}>
               <Link href={`/todos/${encodeURIComponent(todo.id)}`}>{todo.title}</Link>
-              <span className="search-result-meta">
+              <span className={styles.resultMeta}>
                 <span className="sr-only">予定: </span>
                 {describeTodoSchedule(todo)}
               </span>
             </div>
-            <div className="search-result-actions">
+            <div className={styles.resultActions}>
               <CompleteTodoPanel
                 actorName={actorName}
                 currentUserId={currentUserId}
@@ -145,7 +146,7 @@ function ManagedItemResults({
             <li key={item.id}>
               <Link href={`/managed-items/${encodeURIComponent(item.id)}`}>{item.name}</Link>
               {item.itemTypeLabel === null ? null : (
-                <span className="search-result-meta">
+                <span className={styles.resultMeta}>
                   <span className="sr-only">詳しい種類: </span>
                   {item.itemTypeLabel}
                 </span>
@@ -178,12 +179,12 @@ function ConsumableResults({
       >
         {consumables.items.map((consumable: CrossSearchConsumable) => (
           <li className="search-result-row" key={consumable.id}>
-            <div className="search-result-main">
+            <div className={styles.resultMain}>
               <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
                 {consumable.name}
               </Link>
             </div>
-            <div className="search-result-actions">
+            <div className={styles.resultActions}>
               <QuickStockStatusControl
                 consumableId={consumable.id}
                 label={`${consumable.name}の在庫状態を変更`}

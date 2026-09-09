@@ -15,6 +15,8 @@ import {
   useState,
 } from "react";
 
+import styles from "./refresh-coordinator.module.css";
+
 const REFRESH_COOLDOWN_MS = 2000;
 const MINIMUM_PENDING_MS = 400;
 const SUCCESS_VISIBLE_MS = 1600;
@@ -209,10 +211,10 @@ export function ManualRefreshButton() {
   const isRefreshing = status === "refreshing";
 
   return (
-    <div className="refresh-control">
+    <div className={styles.control}>
       <button
         aria-label="最新状態に更新"
-        className="refresh-button"
+        className={styles.button}
         disabled={isRefreshing}
         onClick={() => {
           requestRefresh("manual");
@@ -225,12 +227,12 @@ export function ManualRefreshButton() {
         <span aria-live="polite" className="sr-only">更新中…</span>
       ) : null}
       {status === "success" ? (
-        <p aria-live="polite" className="refresh-feedback" role="status">
+        <p aria-live="polite" className={styles.feedback} role="status">
           更新しました
         </p>
       ) : null}
       {status === "error" ? (
-        <div className="refresh-feedback refresh-feedback-error" role="alert">
+        <div className={`${styles.feedback} ${styles.feedbackError}`} role="alert">
           <span>更新できませんでした。現在の表示はそのままです。</span>
           <button
             onClick={() => {

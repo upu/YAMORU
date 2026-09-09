@@ -18,6 +18,17 @@ import {
   toInvitationStatus,
   type InvitationStatus,
 } from "./model";
+import styles from "./invitations.module.css";
+
+// 招待の状態ごとの色分けは、状態名から組み立てず対応表で持つ(CSS Moduleの
+// クラス名は生成時に変わるため)。
+const INVITATION_STATUS_CLASSES: Record<InvitationStatus, string> = {
+  accepted: styles.statusAccepted,
+  cancelled: styles.statusCancelled,
+  expired: styles.statusExpired,
+  pending: styles.statusPending,
+  replaced: styles.statusReplaced,
+};
 
 type Household = { id: string; name: string };
 
@@ -31,18 +42,18 @@ export type InvitationSummary = {
 
 function InvitationRow({ invitation }: { invitation: InvitationSummary }) {
   return (
-    <li className="invitation-row">
-      <div className="invitation-row-summary">
-        <span className="invitation-email">{invitation.invitedEmail}</span>
-        <span className={`invitation-status invitation-status-${invitation.status}`}>
+    <li className={styles.row}>
+      <div className={styles.rowSummary}>
+        <span className={styles.email}>{invitation.invitedEmail}</span>
+        <span className={`${styles.status} ${INVITATION_STATUS_CLASSES[invitation.status]}`}>
           {INVITATION_STATUS_LABELS[invitation.status]}
         </span>
       </div>
       {isInvitationActionable(invitation.status) ? (
-        <div className="invitation-row-actions">
+        <div className={styles.rowActions}>
           <CancelInvitationButton invitationId={invitation.id} />
           <Link
-            className="invitation-reissue-link"
+            className={styles.reissueLink}
             href={`/household?reissue=${encodeURIComponent(invitation.invitedEmail)}#issue-invitation-title`}
           >
             再発行する
@@ -61,7 +72,7 @@ function InvitationListSection({ invitations }: { invitations: InvitationSummary
       {invitations.length === 0 ? (
         <p className="ledger-empty">まだ招待はありません。</p>
       ) : (
-        <ul className="invitation-list">
+        <ul className={styles.list}>
           {invitations.map((invitation) => (
             <InvitationRow invitation={invitation} key={invitation.id} />
           ))}

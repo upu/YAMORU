@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import type { ConsumableSummary } from "../lib/d1/consumables";
 import { QuickStockStatusControl } from "./consumables/stock-status-control";
+import styles from "./pinned-consumables.module.css";
 
 const COLLAPSED_PINS_COUNT = 5;
 
@@ -13,9 +14,9 @@ const COLLAPSED_PINS_COUNT = 5;
    状態変更は○△×で出し、名前が少し長くても1行に収まる幅にする。 */
 function PinnedConsumable({ pin }: { pin: ConsumableSummary }) {
   return (
-    <article aria-label={pin.name} className="pinned-consumable">
+    <article aria-label={pin.name} className={styles.item}>
       <Link
-        className="pinned-consumable-name"
+        className={styles.name}
         href={`/consumables/${encodeURIComponent(pin.id)}`}
       >
         {pin.name}
@@ -49,7 +50,7 @@ export function PinnedConsumablesSection({
           {pins.length}
         </span>
       </div>
-      <div className="pinned-consumable-list" id="pinned-consumable-list">
+      <div className={styles.list} id="pinned-consumable-list">
         {visiblePins.map((pin) => (
           <PinnedConsumable key={pin.id} pin={pin} />
         ))}
@@ -58,7 +59,7 @@ export function PinnedConsumablesSection({
         <button
           aria-controls="pinned-consumable-list"
           aria-expanded={expanded}
-          className="pinned-disclosure"
+          className={styles.disclosure}
           onClick={() => {
             setExpanded((current) => !current);
           }}

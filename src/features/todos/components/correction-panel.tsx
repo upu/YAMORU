@@ -12,6 +12,7 @@ import {
 
 import type { HouseholdMemberOption } from "../../../lib/d1/profiles";
 import { DialogShell } from "../../../app/dialog-shell";
+import dialogStyles from "../../../app/dialog.module.css";
 import { OperationFeedback } from "../../../app/operation-feedback";
 import { formatDateInput, formatTokyoDate } from "../../../app/time-zone";
 import { undoMaintenanceTaskCompletion } from "../actions/completion";
@@ -59,11 +60,11 @@ function CorrectionChoice({
   onSelectUndo: () => void;
 }) {
   return (
-    <div className="completion-choice-list">
+    <div className={dialogStyles.choiceList}>
       <p>何を修正しますか？</p>
       <button
         aria-label="実施日時を訂正する"
-        className="dialog-primary-button"
+        className={dialogStyles.primaryButton}
         onClick={onSelectOccurredAt}
         type="button"
       >
@@ -72,7 +73,7 @@ function CorrectionChoice({
       </button>
       <button
         aria-label="実施者を訂正する"
-        className="dialog-secondary-button"
+        className={dialogStyles.secondaryButton}
         onClick={onSelectPerformer}
         type="button"
       >
@@ -81,7 +82,7 @@ function CorrectionChoice({
       </button>
       <button
         aria-label="完了を取り消す"
-        className="dialog-secondary-button"
+        className={dialogStyles.secondaryButton}
         onClick={onSelectUndo}
         type="button"
       >
@@ -107,8 +108,8 @@ function OccurredAtForm({
 }) {
   const today = formatDateInput(new Date());
   return (
-    <form className="completion-detail-form" onSubmit={onSubmit}>
-      <button className="dialog-back-button" onClick={onBack} type="button">
+    <form className={dialogStyles.detailForm} onSubmit={onSubmit}>
+      <button className={dialogStyles.backButton} onClick={onBack} type="button">
         ← 選び方に戻る
       </button>
       <label htmlFor={inputId}>実施日</label>
@@ -122,7 +123,7 @@ function OccurredAtForm({
         type="date"
       />
       <p className="input-help">正しい実施日を選びます（今日以前）</p>
-      <button className="dialog-primary-button" type="submit">
+      <button className={dialogStyles.primaryButton} type="submit">
         この日付で訂正する
       </button>
     </form>
@@ -145,8 +146,8 @@ function PerformerForm({
   onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form className="completion-detail-form" onSubmit={onSubmit}>
-      <button className="dialog-back-button" onClick={onBack} type="button">
+    <form className={dialogStyles.detailForm} onSubmit={onSubmit}>
+      <button className={dialogStyles.backButton} onClick={onBack} type="button">
         ← 選び方に戻る
       </button>
       <label htmlFor={inputId}>実施した人</label>
@@ -158,7 +159,7 @@ function PerformerForm({
         ))}
       </select>
       <p className="input-help">正しく実施した家庭のメンバーを選びます</p>
-      <button className="dialog-primary-button" type="submit">
+      <button className={dialogStyles.primaryButton} type="submit">
         この人で訂正する
       </button>
     </form>
@@ -179,11 +180,11 @@ function UndoConfirm({
       <p>
         {formatTokyoDate(occurredAt)}の完了を取り消します。未完了のTodoに戻り、次回の予定が作られている場合は未変更のものだけ削除されます。
       </p>
-      <div className="completion-choice-list">
-        <button className="dialog-primary-button" onClick={onConfirm} type="button">
+      <div className={dialogStyles.choiceList}>
+        <button className={dialogStyles.primaryButton} onClick={onConfirm} type="button">
           <strong>この完了を取り消す</strong>
         </button>
-        <button className="dialog-secondary-button" onClick={onBack} type="button">
+        <button className={dialogStyles.secondaryButton} onClick={onBack} type="button">
           <strong>選び方に戻る</strong>
         </button>
       </div>

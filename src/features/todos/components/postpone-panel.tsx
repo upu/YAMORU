@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { DialogShell } from "../../../app/dialog-shell";
+import dialogStyles from "../../../app/dialog.module.css";
 import { OperationFeedback } from "../../../app/operation-feedback";
 import { addDaysToTokyoDateUtcIso, formatTokyoDateInput } from "../../../app/time-zone";
 import { useDialogAction } from "../../../app/use-dialog-action";
@@ -84,7 +85,7 @@ function PostponeDialog({
           まだ実施していない未完了Todoの現在期限だけを未来へ動かす操作である
           ことが分かる文言にする(YDR-020「UIでの区別」、Issue #19)。本来の
           予定(scheduled_for)は変えない。 */}
-      <form className="completion-detail-form" onSubmit={onSubmit}>
+      <form className={dialogStyles.detailForm} onSubmit={onSubmit}>
         <label htmlFor={inputId}>実施する予定の新しい期限</label>
         <input
           defaultValue={min}
@@ -98,7 +99,7 @@ function PostponeDialog({
         <p className="input-help">
           まだ実施していないTodoの期限を、これから実施する未来の日へ動かします（明日以降）。本来の予定日は変わりません。
         </p>
-        <button className="dialog-primary-button" type="submit">
+        <button className={dialogStyles.primaryButton} type="submit">
           この日まで延期する
         </button>
       </form>

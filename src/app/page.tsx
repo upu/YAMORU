@@ -32,6 +32,7 @@ import {
 import { listPinnedConsumables } from "../lib/d1/consumable-pins";
 import { PinnedConsumablesSection } from "./pinned-consumables";
 import { ShoppingCandidatesSection } from "./shopping-candidates";
+import styles from "./home.module.css";
 
 export type { PendingOccurrenceRow, RecentCompletionRow } from "../lib/d1/home";
 
@@ -231,19 +232,19 @@ function HomeHero({
   return (
     <header className="hero">
       <h1 className="sr-only">ホーム</h1>
-      <nav aria-label="ホームの操作" className="hero-actions">
+      <nav aria-label="ホームの操作" className={styles.heroActions}>
         {hasHousehold ? (
           /* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */
-          <Link className="account-link home-todo-list-link" href="/todos">
+          <Link className={`${styles.accountLink} ${styles.todoListLink}`} href="/todos">
             Todo一覧
           </Link>
         ) : null}
-        <Link className="account-link home-ledger-link" href="/managed-items">
+        <Link className={`${styles.accountLink} ${styles.ledgerLink}`} href="/managed-items">
           家の台帳
         </Link>
       </nav>
 
-      <div className="summary" aria-label="対応状況">
+      <div className={styles.summary} aria-label="対応状況">
         <div>
           <strong>{openItemCount}</strong>
           <span>件の予定</span>
@@ -279,7 +280,7 @@ function HomeEmptyState({ householdName }: { householdName: string }) {
         {householdName}
         には、期限切れ・今日・メンテナンス・近日のTodoも、最近の完了記録もありません。予定日が決まっていないTodoはTodo一覧で確認できます。新しいTodoは右下の「＋」ボタンから追加できます。
       </p>
-      <Link className="ledger-primary-link home-todo-list-link" href="/todos">
+      <Link className={`ledger-primary-link ${styles.todoListLink}`} href="/todos">
         Todo一覧を見る
       </Link>
       <Link className="ledger-primary-link" href="/managed-items">
@@ -301,7 +302,7 @@ function HomeSectionList({
   sections: HomeSection[];
 }) {
   return (
-    <div className="section-list">
+    <div className={styles.sectionList}>
       {sections.map((section) => (
         <HomeSectionView
           actorName={actorName}
@@ -337,10 +338,10 @@ function HouseholdHomeFlow({
     && pinnedConsumables.length === 0
     && shoppingCandidates.length === 0
   ) {
-    return <div className="home-flow"><HomeEmptyState householdName={householdName} /></div>;
+    return <div className={styles.flow}><HomeEmptyState householdName={householdName} /></div>;
   }
   return (
-    <div className="home-flow">
+    <div className={styles.flow}>
       {pinnedConsumables.length === 0 ? null : (
         <PinnedConsumablesSection pins={pinnedConsumables} />
       )}

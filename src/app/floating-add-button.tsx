@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import styles from "./floating-add-button.module.css";
+
 type AddDestination = "consumable" | "managed-item" | "todo";
 
 // Issue #309: 台帳のどのカテゴリを見ていても、右下の追加操作は同じ位置・同じ
@@ -20,10 +22,10 @@ export function FloatingAddButton({
 
   return (
     <>
-      <div aria-hidden="true" className="floating-add-button-space" />
+      <div aria-hidden="true" className={styles.space} />
       <Link
         aria-label={label}
-        className="floating-add-button"
+        className={styles.button}
         href={href}
         title={label}
       >

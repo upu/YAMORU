@@ -31,6 +31,8 @@ vi.mock("../src/features/todos/actions/correction", () => ({
 
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
+import floatingAddButtonStyles from "../src/app/floating-add-button.module.css";
+import homeStyles from "../src/app/home.module.css";
 import { buildRecentItems, HomeContent, type HomeSection } from "../src/app/page";
 
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
@@ -78,7 +80,7 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.queryByText("暮らしの「いつだっけ？」をなくす。"))
       .not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveClass(
-      "floating-add-button",
+      floatingAddButtonStyles.button,
     );
     expect(screen.getByRole("link", { name: "家の台帳" })).toHaveAttribute(
       "href",
@@ -129,7 +131,7 @@ describe("ホーム画面(HomeContent)", () => {
       "/todos",
     );
     expect(screen.getByRole("link", { name: "Todo一覧" })).toHaveClass(
-      "home-todo-list-link",
+      homeStyles.todoListLink,
     );
   });
 
@@ -152,7 +154,7 @@ describe("ホーム画面(HomeContent)", () => {
       "/todos",
     );
     expect(screen.getByRole("link", { name: "Todo一覧を見る" })).toHaveClass(
-      "home-todo-list-link",
+      homeStyles.todoListLink,
     );
     expect(screen.getByText(/予定日が決まっていないTodoはTodo一覧で確認できます。/u))
       .toBeInTheDocument();

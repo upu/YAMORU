@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { isPublicPath } from "./public-paths";
+import styles from "./app-header.module.css";
 import { ManualRefreshButton } from "./refresh-coordinator";
 
 function SettingsIcon() {
@@ -30,7 +31,7 @@ function AccountMenuPanel({
   return (
     <nav
       aria-label="設定メニュー"
-      className="account-menu-panel"
+      className={styles.menuPanel}
       id="account-menu-panel"
     >
       <Link
@@ -96,12 +97,12 @@ function AccountMenu({ pathname }: { pathname: string }) {
   }, [isOpen]);
 
   return (
-    <div className="account-menu-root" ref={menuRootRef}>
+    <div className={styles.menuRoot} ref={menuRootRef}>
       <button
         aria-controls="account-menu-panel"
         aria-expanded={isOpen}
         aria-label="設定メニュー"
-        className="account-menu-trigger"
+        className={styles.menuTrigger}
         onClick={() => {
           setIsOpen((current) => !current);
         }}
@@ -131,10 +132,10 @@ export function AppHeader() {
   if (isPublicPath(pathname)) return null;
 
   return (
-    <header aria-label="共通ヘッダー" className="app-header">
-      <div className="app-header-inner">
-        <Link className="app-header-brand" href="/">YAMORU</Link>
-        <div className="app-header-actions">
+    <header aria-label="共通ヘッダー" className={styles.header}>
+      <div className={styles.inner}>
+        <Link className={styles.brand} href="/">YAMORU</Link>
+        <div className={styles.actions}>
           <ManualRefreshButton />
           <AccountMenu key={pathname} pathname={pathname} />
         </div>

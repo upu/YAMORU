@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import styles from "./ledger-category-navigation.module.css";
+
 export type LedgerCategory = "asset" | "consumables" | "service";
 
 // Issue #309: 新規登録ボタンの文言(「備品を登録」など)もこのラベルから作る。
@@ -30,7 +32,7 @@ export function LedgerCategoryNavigation({
   current: LedgerCategory | undefined;
 }) {
   return (
-    <nav aria-label="台帳の種類" className="ledger-category-navigation">
+    <nav aria-label="台帳の種類" className={styles.navigation}>
       {LEDGER_CATEGORIES.map((category) => (
         <Link
           aria-current={current === category.code ? "page" : undefined}

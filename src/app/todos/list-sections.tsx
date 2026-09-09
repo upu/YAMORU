@@ -12,6 +12,7 @@ import {
   type TodoStatusFilter,
 } from "./list-params";
 import { TodoListRow } from "./todo-list-row";
+import styles from "./todo-list.module.css";
 
 export function HouseholdRequiredNotice() {
   return (
@@ -87,7 +88,7 @@ export function TodoListLoadMore({
   if (searchParam !== undefined) params.set("q", searchParam);
   if (viewParam === "list") params.set("view", "list");
   return (
-    <Link className="ledger-primary-link todo-list-load-more" href={`/todos?${params.toString()}`}>
+    <Link className={`ledger-primary-link ${styles.loadMore}`} href={`/todos?${params.toString()}`}>
       もっと見る
     </Link>
   );
@@ -133,7 +134,7 @@ export function TodoListItems({
 }) {
   if (viewParam === "list") {
     return (
-      <ul className="todo-list-rows">
+      <ul className={styles.rows}>
         {items.map((item) => (
           <TodoListRow currentUserId={currentUserId} item={item} key={item.id} members={members} />
         ))}

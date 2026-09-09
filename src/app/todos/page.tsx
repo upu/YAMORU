@@ -41,6 +41,7 @@ import {
   TodoListEmptyState,
   TodoListSection,
 } from "./list-sections";
+import styles from "./todo-list.module.css";
 
 export type TodoListHouseholdSummary = { id: string; name: string };
 
@@ -134,10 +135,10 @@ export function TodoListContent({
       まとめる(案1)。状態によって変わる説明文や「ALL TODOS」のような
       キッカーは、画面を見れば用途が分かるため出さない(受け入れ基準)。
       見出し自体は文書構造として残しつつ、見た目は小さくする。 */}
-      <div className="todo-toolbar">
-        <h1 className="todo-toolbar-title">Todo一覧</h1>
+      <div className={styles.toolbar}>
+        <h1 className={styles.toolbarTitle}>Todo一覧</h1>
         {rest.household === null ? null : (
-          <div className="todo-toolbar-actions">
+          <div className={styles.toolbarActions}>
             <TodoStatusSwitch
               assigneeParam={rest.assigneeParam}
               searchParam={rest.searchParam}
