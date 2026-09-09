@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 
+import { EMPTY_WEEKDAYS_MESSAGE, WEEKDAYS_FIELD_NAME } from "./calendar-schedule-input";
+
 // Issue #102 / YDR-040: 「毎週」は複数の曜日を候補指定として持てる。登録
 // フォームと編集フォームが同じ入力を使うため、ここに一つだけ置く。
+// 入力欄の名前と未選択メッセージは、サーバー側の解釈と共有するため
+// calendar-schedule-input.tsに置く(#367)。
 // 一般的な複数選択selectを使わず、選択済みの曜日が常に見えるチェックボックスに
 // する(#102の設計メモ)。
 
@@ -16,10 +20,6 @@ export const WEEKDAY_OPTIONS = [
   [6, "土曜日"],
   [7, "日曜日"],
 ] as const;
-
-export const WEEKDAYS_FIELD_NAME = "scheduleDaysOfWeek";
-
-export const EMPTY_WEEKDAYS_MESSAGE = "曜日を1つ以上選んでください。";
 
 export function WeekdayCheckboxes(
   { defaultSelected }: { defaultSelected: readonly number[] },

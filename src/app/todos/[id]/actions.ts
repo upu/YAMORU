@@ -12,12 +12,15 @@ import {
 } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
 import { getTokyoDayDistance, tokyoDateToUtcIso } from "../../time-zone";
+import {
+  COMPLETION_UNIT_DAYS,
+  INVALID_TASK_TITLE_MESSAGE,
+  MAX_COMPLETION_VALUE,
+  MAX_INTERVAL_ANCHOR_DISTANCE_DAYS,
+  MAX_INTERVAL_COUNT,
+  parseTodoTitle,
+} from "../todo-input-limits";
 import { parseCalendarRuleSchedule } from "./calendar-rule-input";
-
-const TASK_TITLE_MAX_LENGTH = 100;
-const COMPLETION_UNIT_DAYS = { day: 1, week: 7 } as const;
-const MAX_COMPLETION_VALUE = { day: 3650, month: 120, week: 520, year: 10 } as const;
-const MAX_INTERVAL_COUNT = { day: 3650, week: 520 } as const;
 
 type ParsedTodoEditForm =
   | {
@@ -60,13 +63,10 @@ function parseTodoEditForm(formData: FormData): ParsedTodoEditForm {
     return { message: "対象のTodoを特定できませんでした。", status: "error" };
   }
 
-  const rawTitle = formData.get("title");
-  const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
-  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) {
-    return {
-      message: "Todo名は1文字以上100文字以内で入力してください。",
-      status: "error",
-    };
+  // 名前の長さは登録と同じ規則(../todo-input-limits.ts)。
+  const title = parseTodoTitle(formData);
+  if (title === null) {
+    return { message: INVALID_TASK_TITLE_MESSAGE, status: "error" };
   }
 
   const schedule = parseSchedule(formData);
@@ -206,10 +206,9 @@ function recurringBasics(
   if (occurrenceId === null) {
     return { message: "対象のTodoを特定できませんでした。", status: "error" };
   }
-  const rawTitle = formData.get("title");
-  const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
-  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) {
-    return { message: "Todo名は1文字以上100文字以内で入力してください。", status: "error" };
+  const title = parseTodoTitle(formData);
+  if (title === null) {
+    return { message: INVALID_TASK_TITLE_MESSAGE, status: "error" };
   }
   const recurrenceBasis = formData.get("recurrenceBasis");
   if (
@@ -230,13 +229,7 @@ function calendarRuleInput(
   formData: FormData,
   basics: Exclude<ReturnType<typeof recurringBasics>, MaintenanceTodoActionState>,
 ): RecurringTaskRuleUpdate | MaintenanceTodoActionState {
-  const rawKind = formData.get("scheduleKind");
-  const schedule = typeof rawKind === "string"
-    ? parseCalendarRuleSchedule(formData, rawKind)
-    : null;
-  if (schedule === null) {
-    return { message: "定例パターンを正しく入力してください。", status: "error" };
-  }
+  const schedule = parseCalendarRuleSchedule(formData);
   if ("status" in schedule) return schedule;
   return {
     managedItemId: basics.managedItemId,
@@ -285,7 +278,8 @@ function intervalRuleInput(
   const anchorIso = typeof anchor === "string" ? tokyoDateToUtcIso(anchor) : null;
   if (
     count === null || anchorIso === null ||
-    Math.abs(getTokyoDayDistance(new Date().toISOString(), anchorIso)) > 3650
+    Math.abs(getTokyoDayDistance(new Date().toISOString(), anchorIso)) >
+      MAX_INTERVAL_ANCHOR_DISTANCE_DAYS
   ) {
     return { message: "繰り返す間隔と起点日を正しく入力してください。", status: "error" };
   }

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 
-export const WEEK_POSITIONS_FIELD_NAME = "scheduleWeekOfMonth";
-export const WEEK_LAST_FIELD_NAME = "scheduleWeekLast";
-export const EMPTY_WEEK_POSITIONS_MESSAGE =
-  "第1〜第5または最終を1つ以上選んでください。";
+import {
+  EMPTY_WEEK_POSITIONS_MESSAGE,
+  WEEK_LAST_FIELD_NAME,
+  WEEK_POSITIONS_FIELD_NAME,
+} from "./calendar-schedule-input";
 
 const WEEK_OPTIONS = [1, 2, 3, 4, 5] as const;
 

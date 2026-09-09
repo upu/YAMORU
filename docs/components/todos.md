@@ -17,6 +17,7 @@ status: stable
 | 変更したいこと | 画面・action | データアクセス |
 |---|---|---|
 | 登録 | `src/app/todos/new/actions.ts`(`createTodo`)、入力の正規化は`src/app/todos/new/calendar-todo-input.ts`、`src/app/todos/new/save-todo.ts` | `src/lib/d1/todos/creation.ts` |
+| 繰り返し条件の入力解釈・制約値(登録と編集で共通) | `src/app/todos/calendar-schedule-input.ts`(定例日条件とエラー識別子)、`src/app/todos/todo-input-limits.ts`(Todo名の長さ、完了日基準・固定間隔の上限) | - |
 | 1回だけのTodoの編集 | `src/app/todos/[id]/actions.ts`(`updateTodo`) | `src/lib/d1/todos/edit.ts` |
 | 繰り返しTodoの現在回・次回以降の編集 | `src/app/todos/[id]/actions.ts`(`updateRecurringOccurrence`、`updateRecurringRule`)、`src/app/todos/[id]/edit/recurring-todo-edit-values.ts` | `src/lib/d1/todos/recurring-edit.ts`、`src/lib/d1/todos/rule-snapshot.ts` |
 | 完了・完了取消 | `src/app/managed-items/[id]/actions.ts`(`completeMaintenanceTask`、`undoMaintenanceTaskCompletion`)、UIは`src/app/managed-items/[id]/complete-todo-panel.tsx` | `src/lib/d1/todos/completion.ts` |
@@ -54,4 +55,4 @@ npm run lint
 npm run typecheck
 ```
 
-暦計算だけを変える場合は`tests/d1-calendar.test.ts`と`tests/task-schedule.test.ts`、保存や家庭間分離を変える場合は`src/lib/d1/`配下の`*.d1-test.ts`(`todos-authorization`、`recurring-todo-edit`、`interval-recurrence`、`completion-calendar-interval`など)を先に確認する。画面操作の回帰は`e2e/todo-list.spec.ts`、`e2e/todo-edit.spec.ts`、`e2e/todo-completed-detail.spec.ts`で確認する。
+登録・編集で共通の入力解釈を変える場合は`tests/todo-calendar-schedule-input.test.ts`(境界値)と`tests/todo-recurrence-shared-input.test.ts`(両actionの受理・拒否と維持した文言の差)を先に確認する。暦計算だけを変える場合は`tests/d1-calendar.test.ts`と`tests/task-schedule.test.ts`、保存や家庭間分離を変える場合は`src/lib/d1/`配下の`*.d1-test.ts`(`todos-authorization`、`recurring-todo-edit`、`interval-recurrence`、`completion-calendar-interval`など)を先に確認する。画面操作の回帰は`e2e/todo-list.spec.ts`、`e2e/todo-edit.spec.ts`、`e2e/todo-completed-detail.spec.ts`で確認する。
