@@ -44,6 +44,7 @@ OKF v0.2で`type`のみが必須。他は推奨または任意だが、YAMORUで
 | `Decision` | 1件の意思決定を記録する文書(YDR) | `docs/decisions/ydr-001-family-first.md` |
 | `Product Plan` | プロダクト構想・計画文書 | `docs/product/yamoru-project-plan.md` |
 | `Playbook` | 手順・テンプレート集 | `docs/references/review-prompts.md`、本ガイド |
+| `Component Map` | 1つの機能について、責務・主要入口・不変条件・関連YDR・検証方法をまとめた修正箇所マップ | `docs/components/todos.md` |
 
 ### 最小テンプレート: `type: Decision` (YDR)
 
