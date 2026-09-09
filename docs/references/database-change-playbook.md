@@ -15,6 +15,7 @@ status: stable
 | 知りたいこと | 正本 |
 |---|---|
 | テーブル、カラム、制約、索引 | `d1/migrations/` |
+| 現在のスキーマを一覧する | `d1/schema.generated.sql`（`d1/migrations/`からの生成物。直接編集しない） |
 | household所属チェックと行単位の絞り込み | `src/lib/d1/` |
 | 家庭A/B、非メンバー、未認証、IDOR、原子性 | `src/lib/d1/**/*.d1-test.ts` |
 | 純粋な暦計算や画面actionの契約 | `tests/` |
@@ -25,14 +26,16 @@ D1移行前のSupabaseスキーマ、生成型、RLSポリシー一覧はリポ�
 ## スキーマまたはデータアクセスを変更する
 
 1. 適用済みファイルを書き換えず、`d1/migrations/`へ連番のマイグレーションを追加する。
-2. すべての家庭データに`household_id`を持たせ、可能な箇所は複合外部キーで親子の家庭一致も制約する。
-3. データアクセス関数はセッションからmembershipを導出する。フォームやURLから受け取ったhousehold IDを認可根拠にしない。
-4. 読み書きのSQLへ`household_id`条件を含める。更新・削除では、家庭Aの正規セッションに家庭Bの行IDを組み合わせても0件またはNot Foundになることをテストする。
-5. 完了記録、次回Occurrence生成、取り消し、招待再発行など複数行を変える処理は`D1Database.batch()`で一括実行し、途中の制約違反で部分状態が残らないテストを追加する。
-6. 次の確認を実行する。
+2. `npm run d1:schema:generate`で、全migrationを空の使い捨てlocal D1へ適用した現在のスキーマを`d1/schema.generated.sql`へ再生成する。生成物は参照用であり、直接編集しない。
+3. すべての家庭データに`household_id`を持たせ、可能な箇所は複合外部キーで親子の家庭一致も制約する。
+4. データアクセス関数はセッションからmembershipを導出する。フォームやURLから受け取ったhousehold IDを認可根拠にしない。
+5. 読み書きのSQLへ`household_id`条件を含める。更新・削除では、家庭Aの正規セッションに家庭Bの行IDを組み合わせても0件またはNot Foundになることをテストする。
+6. 完了記録、次回Occurrence生成、取り消し、招待再発行など複数行を変える処理は`D1Database.batch()`で一括実行し、途中の制約違反で部分状態が残らないテストを追加する。
+7. 次の確認を実行する。
 
    ```
    npm run d1:migrate
+   npm run d1:schema:check
    npm run test:d1
    npm test
    npm run lint
@@ -40,7 +43,7 @@ D1移行前のSupabaseスキーマ、生成型、RLSポリシー一覧はリポ�
    npm run typecheck
    ```
 
-GitHub Actionsの`D1 migration and authorization tests`も、空のローカルD1へのマイグレーション適用とWorkersランタイム上のD1テストを実行する。
+GitHub Actionsの`D1 migration and authorization tests`も、空のローカルD1へのマイグレーション適用、生成スキーマの差分検査、Workersランタイム上のD1テストを実行する。
 
 ## remote D1へ適用する
 

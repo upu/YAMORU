@@ -26,6 +26,8 @@
     "d1:migrate:e2e": "node --env-file=scripts/d1-test.env ./node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local --env e2e",
     "d1:migrate:preview": "node scripts/cloudflare.ts migrate preview",
     "d1:migrate:production": "node scripts/cloudflare.ts migrate production",
+    "d1:schema:generate": "node --env-file=scripts/d1-test.env scripts/d1-schema.ts generate",
+    "d1:schema:check": "node --env-file=scripts/d1-test.env scripts/d1-schema.ts check",
     "test:d1": "node --env-file=scripts/d1-test.env ./node_modules/vitest/vitest.mjs run --config config/vitest.d1.config.ts",
     "auth:bootstrap": "node scripts/auth-admin.ts bootstrap",
     "auth:bootstrap:preview": "node scripts/auth-admin.ts bootstrap --environment preview",
