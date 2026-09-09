@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { INITIAL_MAINTENANCE_TODO_STATE } from "../../../../features/todos/state";
 import { type AssigneeOption, UNASSIGNED_LABEL } from "../../../assignee";
-import { INITIAL_MAINTENANCE_TODO_STATE } from "../../../managed-items/[id]/state";
 import {
   ManagedItemSearch,
   type TodoManagedItemOption,

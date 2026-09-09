@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 
+import { INITIAL_MAINTENANCE_TODO_STATE } from "../../../../features/todos/state";
 import { type AssigneeOption } from "../../../assignee";
-import { INITIAL_MAINTENANCE_TODO_STATE } from "../../../managed-items/[id]/state";
 import {
   ManagedItemSearch,
   type TodoManagedItemOption,

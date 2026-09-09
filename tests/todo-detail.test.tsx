@@ -35,10 +35,12 @@ vi.mock("../src/lib/d1/profiles", () => ({
   loadHouseholdMembers: loadHouseholdMembersMock,
 }));
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
-vi.mock("../src/app/managed-items/[id]/actions", () => ({
+vi.mock("../src/features/todos/actions/completion", () => ({
+  undoMaintenanceTaskCompletion: vi.fn(),
+}));
+vi.mock("../src/features/todos/actions/correction", () => ({
   correctCompletionOccurredAt: vi.fn(),
   correctCompletionPerformer: vi.fn(),
-  undoMaintenanceTaskCompletion: vi.fn(),
 }));
 
 import TodoDetailPage, {

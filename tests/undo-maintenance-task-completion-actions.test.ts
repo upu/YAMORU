@@ -10,7 +10,7 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ undoTaskCompletion: undoTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { undoMaintenanceTaskCompletion } from "../src/app/managed-items/[id]/actions";
+import { undoMaintenanceTaskCompletion } from "../src/features/todos/actions/completion";
 
 describe("メンテナンスTodo完了の取消操作", () => {
   beforeEach(() => {

@@ -15,7 +15,7 @@ vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 import {
   setTaskOccurrenceSchedule,
   unsetTaskOccurrenceSchedule,
-} from "../src/app/managed-items/[id]/actions";
+} from "../src/features/todos/actions/schedule";
 
 describe("一回限りTodoの予定日変更", () => {
   beforeEach(() => {

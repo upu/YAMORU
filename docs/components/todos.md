@@ -19,12 +19,15 @@ status: stable
 | 登録 | `src/app/todos/new/actions.ts`(`createTodo`)、入力の正規化は`src/app/todos/new/calendar-todo-input.ts`、`src/app/todos/new/save-todo.ts` | `src/lib/d1/todos/creation.ts` |
 | 1回だけのTodoの編集 | `src/app/todos/[id]/actions.ts`(`updateTodo`) | `src/lib/d1/todos/edit.ts` |
 | 繰り返しTodoの現在回・次回以降の編集 | `src/app/todos/[id]/actions.ts`(`updateRecurringOccurrence`、`updateRecurringRule`)、`src/app/todos/[id]/edit/recurring-todo-edit-values.ts` | `src/lib/d1/todos/recurring-edit.ts`、`src/lib/d1/todos/rule-snapshot.ts` |
-| 完了・完了取消 | `src/app/managed-items/[id]/actions.ts`(`completeMaintenanceTask`、`undoMaintenanceTaskCompletion`)、UIは`src/app/managed-items/[id]/complete-todo-panel.tsx` | `src/lib/d1/todos/completion.ts` |
-| 実施日時・実施者の訂正 | `src/app/managed-items/[id]/actions.ts`(`correctCompletionOccurredAt`、`correctCompletionPerformer`)、UIは`src/app/managed-items/[id]/correction-panel.tsx` | `src/lib/d1/todos/corrections.ts` |
-| 担当者・延期・予定日の設定 | `src/app/managed-items/[id]/actions.ts`(`setTaskOccurrenceAssignee`ほか) | `src/lib/d1/todos/assignment.ts` |
+| 完了・完了取消 | `src/features/todos/actions/completion.ts`(`completeMaintenanceTask`、`undoMaintenanceTaskCompletion`)、UIは`src/features/todos/components/complete-todo-panel.tsx` | `src/lib/d1/todos/completion.ts` |
+| 実施日時・実施者の訂正 | `src/features/todos/actions/correction.ts`(`correctCompletionOccurredAt`、`correctCompletionPerformer`)、UIは`src/features/todos/components/correction-panel.tsx` | `src/lib/d1/todos/corrections.ts` |
+| 担当者の設定・引き受け | `src/features/todos/actions/assignee.ts`(`setTaskOccurrenceAssignee`、`claimTaskOccurrenceAssignee`)、UIは`src/features/todos/components/assignee-panel.tsx` | `src/lib/d1/todos/assignment.ts` |
+| 延期・予定日の設定 | `src/features/todos/actions/schedule.ts`(`postponeTaskOccurrence`、`setTaskOccurrenceSchedule`、`unsetTaskOccurrenceSchedule`)、UIは`src/features/todos/components/postpone-panel.tsx`、`schedule-panel.tsx` | `src/lib/d1/todos/assignment.ts` |
 | 繰り返し条件と次回予定の計算 | 表示側の言い回しは`src/app/task-schedule.ts` | `src/lib/d1/calendar.ts`、`src/lib/d1/calendar-schedule-specs.ts` |
 
 公開する名前は`src/lib/d1/todos/index.ts`に集約している。呼び出し側は`../lib/d1/todos`をimportし、分割後のファイルを直接importしない。
+
+画面をまたいで使うTodo操作(action・パネル・action状態型)は`src/features/todos/`に置き、画面(`src/app/`)から参照する。ホーム・Todo一覧・Todo詳細・管理対象詳細・横断検索はいずれも同じ実装を共有し、画面ごとの保存処理を持たない。action同士が共有するRPCエラーの読み替えは`src/features/todos/actions/rpc-error.ts`、更新後の再検証先は`src/features/todos/actions/revalidation.ts`にまとめる。
 
 ## 重要な不変条件
 

@@ -9,8 +9,8 @@ import type {
 } from "../../lib/d1/cross-search";
 import { CROSS_SEARCH_LIMIT } from "../../lib/d1/cross-search";
 import type { HouseholdMemberOption } from "../../lib/d1/profiles";
+import { CompleteTodoPanel } from "../../features/todos/components/complete-todo-panel";
 import { QuickStockStatusControl } from "../consumables/stock-status-control";
-import { CompleteTodoPanel } from "../managed-items/[id]/complete-todo-panel";
 import { formatTokyoShortMonthDay } from "../time-zone";
 
 // Issue #350 / YDR-042: 結果は種類ごとのセクションへ分け、順序を「Todo」

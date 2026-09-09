@@ -10,7 +10,7 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ claimTaskOccurrenceAssignee: claimAssigneeMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-import { claimTaskOccurrenceAssignee } from "../src/app/managed-items/[id]/actions";
+import { claimTaskOccurrenceAssignee } from "../src/features/todos/actions/assignee";
 
 describe("未担当Todoを「やるよ」で引き受ける操作(Issue #77)", () => {
   beforeEach(() => {

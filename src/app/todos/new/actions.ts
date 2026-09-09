@@ -6,7 +6,7 @@ import {
   addTokyoCalendarDate,
   type CompletionIntervalUnit,
 } from "../../../lib/d1/calendar";
-import type { MaintenanceTodoActionState } from "../../managed-items/[id]/state";
+import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import { parseCalendarTodo } from "./calendar-todo-input";
 import {
   type RegisteredTodoSchedule,

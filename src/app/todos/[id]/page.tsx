@@ -15,9 +15,9 @@ import {
   loadActorName,
   loadHouseholdMembers,
 } from "../../../lib/d1/profiles";
+import { CorrectionPanel } from "../../../features/todos/components/correction-panel";
 import { UNASSIGNED_LABEL } from "../../assignee";
 import { EditIcon } from "../../edit-icon";
-import { CorrectionPanel } from "../../managed-items/[id]/correction-panel";
 import {
   describeCalendarSchedule,
   describeCompletionRecurrence,
