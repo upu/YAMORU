@@ -1,0 +1,4 @@
+interface:
+  display_name: "YAMORU D1 Migration Checklist"
+  short_description: "YAMORUのD1変更を安全な段階移行として設計・検証する"
+  default_prompt: "Use $yamoru-d1-migration-checklist to plan and validate this YAMORU D1 schema or data migration safely."
