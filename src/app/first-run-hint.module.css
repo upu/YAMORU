@@ -21,12 +21,14 @@
   line-height: 1.5;
 }
 
+/* 記号は小さいままで、タップ領域は44pxを保つ(YDR-045)。負のmarginで、
+   ヒントの枠が押しやすさのために大きくならないようにする。 */
 .dismiss {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   flex: none;
-  margin: -4px -4px -4px 0;
+  margin: -8px -8px -8px 0;
   place-items: center;
   border: 0;
   border-radius: 50%;

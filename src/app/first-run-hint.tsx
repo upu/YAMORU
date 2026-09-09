@@ -15,9 +15,27 @@ function storageKey(hintId: FirstRunHintId) {
   return `${STORAGE_KEY_PREFIX}${hintId}`;
 }
 
-// localStorageを読めない環境(プライベートモード等)では既読扱いにする。
-// 記録できないまま表示すると、同じヒントを毎回出してしまうため。
+// 読めても書けない環境(容量制限やプライバシー設定)がある。書き込みを実際に
+// 試し、既読を記録できないと分かったらヒント自体を出さない。記録できないまま
+// 出すと、同じヒントを毎回繰り返してしまうため。
+let canPersist: boolean | undefined;
+
+function canPersistHints() {
+  if (canPersist === undefined) {
+    try {
+      const probeKey = `${STORAGE_KEY_PREFIX}probe`;
+      window.localStorage.setItem(probeKey, "1");
+      window.localStorage.removeItem(probeKey);
+      canPersist = true;
+    } catch {
+      canPersist = false;
+    }
+  }
+  return canPersist;
+}
+
 function hasSeenHint(hintId: FirstRunHintId) {
+  if (!canPersistHints()) return true;
   try {
     return window.localStorage.getItem(storageKey(hintId)) !== null;
   } catch {

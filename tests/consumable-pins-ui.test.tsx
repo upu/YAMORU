@@ -154,6 +154,29 @@ describe("消耗品詳細のピン留め操作(Issue #361)", () => {
       .not.toBeInTheDocument();
   });
 
+  it("既読を記録できない環境では、繰り返さないためヒントを出さない", async () => {
+    // localStorageを読めても書けない環境(容量制限・プライバシー設定)を再現する。
+    vi.resetModules();
+    const setItem = vi.spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("書き込みできません");
+      });
+    try {
+      const { PinToggle: FreshPinToggle } = await import(
+        "../src/app/consumables/pin-toggle"
+      );
+      render(<FreshPinToggle consumableId="consumable-1" isPinned={false} />);
+
+      expect(screen.getByRole("button", { name: "ホームにピン留め" }))
+        .toBeInTheDocument();
+      expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+        .not.toBeInTheDocument();
+    } finally {
+      setItem.mockRestore();
+      vi.resetModules();
+    }
+  });
+
   it("ピン留めを実際に操作したときも、ヒントを既読にする", () => {
     render(<PinToggle consumableId="consumable-1" isPinned={false} />);
 
