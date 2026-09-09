@@ -10,7 +10,15 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ claimTaskOccurrenceAssignee: claimAssigneeMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import { claimTaskOccurrenceAssignee } from "../src/features/todos/actions/assignee";
+
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
 
 describe("未担当Todoを「やるよ」で引き受ける操作(Issue #77)", () => {
   beforeEach(() => {
@@ -28,11 +36,11 @@ describe("未担当Todoを「やるよ」で引き受ける操作(Issue #77)", (
     expect(result).toEqual({ message: "担当にしました。", status: "success" });
   });
 
-  it.each([
-    ["Occurrence already has an assignee", "すでに他の家族が担当しています。最新の状態を確認してください。"],
-    ["Occurrence is not pending", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    claimAssigneeMock.mockRejectedValue(new Error(message));
+  it.each<[D1ErrorCode, string]>([
+    ["OCCURRENCE_ALREADY_ASSIGNED", "すでに他の家族が担当しています。最新の状態を確認してください。"],
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    claimAssigneeMock.mockRejectedValue(d1Error(code));
     const result = await claimTaskOccurrenceAssignee("managed-item-id", "occurrence-id");
     expect(result).toEqual({ message: expected, status: "error" });
     expect(revalidatePathMock).not.toHaveBeenCalled();

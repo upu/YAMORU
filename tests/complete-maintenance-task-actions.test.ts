@@ -10,7 +10,15 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ completeTask: completeTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import { completeMaintenanceTask } from "../src/features/todos/actions/completion";
+
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
 
 describe("メンテナンスTodoの完了操作", () => {
   beforeEach(() => {
@@ -60,17 +68,30 @@ describe("メンテナンスTodoの完了操作", () => {
     );
   });
 
-  it.each([
-    ["Occurrence is not pending", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-    ["Next occurrence already exists for the computed schedule", "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。"],
-    ["Performer not found", "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    completeTaskMock.mockRejectedValue(new Error(message));
+  it.each<[D1ErrorCode, string]>([
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+    ["NEXT_OCCURRENCE_SCHEDULE_TAKEN", "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。"],
+    ["PERFORMER_NOT_FOUND", "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    completeTaskMock.mockRejectedValue(d1Error(code));
     const result = await completeMaintenanceTask(
       "managed-item-id", "occurrence-id", "idempotency-key-3", null, null,
     );
     expect(result).toEqual({ message: expected, status: "error" });
     expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
+
+  // Issue #369: 以前は英文メッセージの部分一致で案内を選んでいた。識別コードを
+  // 持たないエラーは、同じ英文でも既知エラーとして扱わない。
+  it("識別コードのない英文メッセージは既知エラーとして扱わない", async () => {
+    completeTaskMock.mockRejectedValue(new Error("Occurrence is not pending"));
+    const result = await completeMaintenanceTask(
+      "managed-item-id", "occurrence-id", "idempotency-key-3b", null, null,
+    );
+    expect(result).toEqual({
+      message: "完了を記録できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
   });
 
   it("それ以外の失敗では内部詳細を表示しない", async () => {

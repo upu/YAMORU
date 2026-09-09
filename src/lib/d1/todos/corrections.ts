@@ -25,7 +25,10 @@ function isCorrectionReplay(
 ): boolean {
   if (replay === null) return false;
   if (replay.task_occurrence_id !== occurrenceId) {
-    throw new D1ConflictError("Idempotency key was already used for a different occurrence");
+    throw new D1ConflictError(
+      "Idempotency key was already used for a different occurrence",
+      "IDEMPOTENCY_KEY_REUSED",
+    );
   }
   return true;
 }
@@ -127,10 +130,10 @@ export async function correctCompletionOccurredAt(
     return;
   }
   if (newOccurredAt > new Date().toISOString()) {
-    throw new D1ConflictError("occurred_at must not be in the future");
+    throw new D1ConflictError("occurred_at must not be in the future", "OCCURRED_AT_IN_FUTURE");
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed");
+  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   const completion = await loadActiveCompletion(db, householdId, occurrenceId);
   const effective = await resolveEffectiveCompletion(db, householdId, completion.id);
 
@@ -153,7 +156,7 @@ export async function correctCompletionOccurredAt(
     }),
   );
   if ((results[0]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Next occurrence has been modified");
+    throw new D1ConflictError("Next occurrence has been modified", "NEXT_OCCURRENCE_MODIFIED");
   }
 }
 
@@ -172,8 +175,8 @@ export async function correctCompletionPerformer(
     return;
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed");
-  await requireHouseholdUser(db, householdId, newPerformerId, "Performer not found");
+  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
+  await requireHouseholdUser(db, householdId, newPerformerId, "PERFORMER_NOT_FOUND");
   const completion = await loadActiveCompletion(db, householdId, occurrenceId);
   const effective = await resolveEffectiveCompletion(db, householdId, completion.id);
 
@@ -200,6 +203,6 @@ export async function correctCompletionPerformer(
     ),
   ]);
   if ((results[0]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Occurrence is not completed");
+    throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   }
 }

@@ -13,7 +13,7 @@ export async function setTaskOccurrenceAssignee(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   if (assigneeUserId !== null) {
-    await requireHouseholdUser(db, householdId, assigneeUserId, "Assignee not found");
+    await requireHouseholdUser(db, householdId, assigneeUserId, "ASSIGNEE_NOT_FOUND");
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   const logId = crypto.randomUUID();
@@ -45,7 +45,7 @@ export async function setTaskOccurrenceAssignee(
           )`,
     ).bind(assigneeUserId, occurrenceId, householdId, logId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending");
+  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 
 // Issue #77: 未担当のOccurrenceを、操作主体自身の担当として一操作で引き受け
@@ -87,7 +87,7 @@ export async function claimTaskOccurrenceAssignee(
     ).bind(user.userId, occurrenceId, householdId, logId),
   ]);
   if ((results[0]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Occurrence already has an assignee");
+    throw new D1ConflictError("Occurrence already has an assignee", "OCCURRENCE_ALREADY_ASSIGNED");
   }
 }
 
@@ -101,10 +101,10 @@ export async function postponeTaskOccurrence(
   const householdId = await requireCurrentHouseholdId(db, session);
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   if (occurrence.scheduled_for === null || occurrence.due_at === null) {
-    throw new D1ConflictError("Cannot postpone an undated occurrence");
+    throw new D1ConflictError("Cannot postpone an undated occurrence", "UNDATED_OCCURRENCE_NOT_POSTPONABLE");
   }
-  if (dueAt <= new Date().toISOString()) throw new D1ConflictError("new_due_at must be in the future");
-  if (dueAt < occurrence.scheduled_for) throw new D1ConflictError("new_due_at must not be before scheduled_for");
+  if (dueAt <= new Date().toISOString()) throw new D1ConflictError("new_due_at must be in the future", "DUE_AT_NOT_IN_FUTURE");
+  if (dueAt < occurrence.scheduled_for) throw new D1ConflictError("new_due_at must not be before scheduled_for", "DUE_AT_BEFORE_SCHEDULED_FOR");
   const logId = crypto.randomUUID();
   const results = await db.batch([
     db.prepare(
@@ -133,7 +133,7 @@ export async function postponeTaskOccurrence(
           )`,
     ).bind(dueAt, occurrenceId, householdId, logId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending");
+  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 
 // YDR-030: 一回限りのpending Occurrenceだけ、具体日と予定日未定を往復
@@ -148,7 +148,10 @@ export async function setOneTimeTaskSchedule(
   const householdId = await requireCurrentHouseholdId(db, session);
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   if (occurrence.recurrence_basis !== "once") {
-    throw new D1ConflictError("Only one-time tasks can have an undated schedule");
+    throw new D1ConflictError(
+      "Only one-time tasks can have an undated schedule",
+      "UNDATED_SCHEDULE_REQUIRES_ONE_TIME",
+    );
   }
   const result = await db.prepare(
     `UPDATE task_occurrences
@@ -156,6 +159,6 @@ export async function setOneTimeTaskSchedule(
       WHERE id = ?2 AND household_id = ?3 AND status = 'pending'`,
   ).bind(scheduledFor, occurrenceId, householdId).run();
   if (result.meta.changes !== 1) {
-    throw new D1ConflictError("Occurrence is not pending");
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
 }

@@ -50,7 +50,7 @@ export async function requireManagedItem(
     .prepare("SELECT 1 FROM managed_items WHERE id = ?1 AND household_id = ?2")
     .bind(managedItemId, householdId)
     .first();
-  if (item === null) throw new D1NotFoundError("Managed item not found");
+  if (item === null) throw new D1NotFoundError("Managed item not found", "MANAGED_ITEM_NOT_FOUND");
 }
 
 export async function loadOccurrence(
@@ -71,20 +71,29 @@ export async function loadOccurrence(
      JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
      WHERE o.id = ?1 AND o.household_id = ?2`,
   ).bind(occurrenceId, householdId).first<OccurrenceWithRule>();
-  if (row === null) throw new D1NotFoundError("Occurrence not found");
+  if (row === null) throw new D1NotFoundError("Occurrence not found", "OCCURRENCE_NOT_FOUND");
   return row;
 }
+
+// 同じ家庭のメンバーであることを求める。担当者と実施者は別概念で案内文も
+// 異なる(YDR-020)ため、どちらの確認かを識別コードで受け取る。
+const HOUSEHOLD_USER_NOT_FOUND_MESSAGES = {
+  ASSIGNEE_NOT_FOUND: "Assignee not found",
+  PERFORMER_NOT_FOUND: "Performer not found",
+} as const;
 
 export async function requireHouseholdUser(
   db: D1Database,
   householdId: string,
   userId: string,
-  message: string,
+  code: keyof typeof HOUSEHOLD_USER_NOT_FOUND_MESSAGES,
 ): Promise<void> {
   const member = await db.prepare(
     "SELECT 1 FROM household_members WHERE household_id = ?1 AND user_id = ?2",
   ).bind(householdId, userId).first();
-  if (member === null) throw new D1NotFoundError(message);
+  if (member === null) {
+    throw new D1NotFoundError(HOUSEHOLD_USER_NOT_FOUND_MESSAGES[code], code);
+  }
 }
 
 type NextOccurrence = {
@@ -112,6 +121,9 @@ function nextCompletionOccurrence(
       scheduledFor: addTokyoDays(occurredAt, occurrence.recommended_start_offset),
     };
   }
+  // ここから下の「次回予定を組み立てられない」失敗は、TaskRuleの保存内容が
+  // 壊れている場合にだけ起こる不変条件違反であり、利用者の操作では起こらない。
+  // 識別コードを持たせず、呼び出し側の一般的な失敗表示へ落とす(Issue #369)。
   if (values.some((value) => value === null)) {
     throw new D1ConflictError("Completion occurrence must have a complete interval rule");
   }

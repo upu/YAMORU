@@ -25,12 +25,19 @@ vi.mock("../src/lib/d1/todos", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import {
   updateRecurringOccurrence,
   updateRecurringRule,
   updateTodo,
 } from "../src/app/todos/[id]/actions";
 import { INITIAL_MAINTENANCE_TODO_STATE } from "../src/features/todos/state";
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
 
 function editForm(overrides: Record<string, string> = {}): FormData {
   const formData = new FormData();
@@ -133,18 +140,18 @@ describe("Todoの編集(updateTodo)", () => {
     }
   });
 
-  it.each([
-    ["Assignee not found", "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。"],
-    ["Managed item not found", "関連する管理対象を指定できませんでした。同じ家庭の管理対象から選び直してください。"],
-    ["Only one-time tasks can be edited", "繰り返しTodoの内容はこの画面から変更できません。"],
-    ["Occurrence not found", "対象のTodoが見つかりませんでした。最新の状態を確認してください。"],
-    ["Occurrence is not pending", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+  it.each<[D1ErrorCode, string]>([
+    ["ASSIGNEE_NOT_FOUND", "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。"],
+    ["MANAGED_ITEM_NOT_FOUND", "関連する管理対象を指定できませんでした。同じ家庭の管理対象から選び直してください。"],
+    ["EDIT_REQUIRES_ONE_TIME", "繰り返しTodoの内容はこの画面から変更できません。"],
+    ["OCCURRENCE_NOT_FOUND", "対象のTodoが見つかりませんでした。最新の状態を確認してください。"],
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
     [
-      "Occurrence already exists for the schedule",
+      "OCCURRENCE_SCHEDULE_TAKEN",
       "その予定日には同じTodoの別の予定があります。別の日付を指定してください。",
     ],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    updateOneTimeTodoMock.mockRejectedValue(new Error(message));
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    updateOneTimeTodoMock.mockRejectedValue(d1Error(code));
 
     const result = await submit(editForm());
 
@@ -155,6 +162,19 @@ describe("Todoの編集(updateTodo)", () => {
 
   it("それ以外の失敗では内部詳細を表示しない", async () => {
     updateOneTimeTodoMock.mockRejectedValue(new Error("D1_ERROR: something internal"));
+
+    const result = await submit(editForm());
+
+    expect(result).toEqual({
+      message: "Todoを更新できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
+  });
+
+  // Issue #369: 以前は英文メッセージの部分一致で案内を選んでいた。識別コードを
+  // 持たないエラーは、同じ英文でも既知エラーとして扱わない。
+  it("識別コードのない英文メッセージは既知エラーとして扱わない", async () => {
+    updateOneTimeTodoMock.mockRejectedValue(new Error("Occurrence is not pending"));
 
     const result = await submit(editForm());
 
@@ -209,6 +229,40 @@ describe("繰り返しTodoの編集", () => {
     await updateRecurringOccurrence(INITIAL_MAINTENANCE_TODO_STATE, formData);
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
+  });
+
+  it.each<[D1ErrorCode, string]>([
+    ["ASSIGNEE_NOT_FOUND", "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。"],
+    ["OCCURRENCE_NOT_FOUND", "対象のTodoが見つかりませんでした。最新の状態を確認してください。"],
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+    ["RECURRENCE_BASIS_IMMUTABLE", "繰り返し方は変更できません。現在の方式の条件を編集してください。"],
+    ["DUE_AT_NOT_IN_FUTURE", "現在の期限は今日より後の日付を指定してください。"],
+    ["DUE_AT_BEFORE_SCHEDULED_FOR", "現在の期限は本来の予定日以降を指定してください。"],
+  ])("今回の変更でD1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    updateRecurringOccurrenceMock.mockRejectedValue(d1Error(code));
+    const formData = new FormData();
+    formData.set("id", "occurrence-1");
+    formData.set("dueDate", "2026-09-20");
+
+    const result = await updateRecurringOccurrence(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(result).toEqual({ message: expected, status: "error" });
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("識別コードを持たない失敗では内部詳細を表示しない", async () => {
+    updateRecurringOccurrenceMock.mockRejectedValue(new Error("D1_ERROR: something internal"));
+    const formData = new FormData();
+    formData.set("id", "occurrence-1");
+    formData.set("dueDate", "2026-09-20");
+
+    const result = await updateRecurringOccurrence(INITIAL_MAINTENANCE_TODO_STATE, formData);
+
+    expect(result).toEqual({
+      message: "Todoを更新できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
   });
 
   it("定例日ルールの入力を現在の方式のままD1へ渡す", async () => {

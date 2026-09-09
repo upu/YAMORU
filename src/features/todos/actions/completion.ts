@@ -5,18 +5,12 @@ import { completeTask, undoTaskCompletion } from "../../../lib/d1/todos";
 import { tokyoDateToUtcIso } from "../../../app/time-zone";
 import type { MaintenanceTodoActionState } from "../state";
 import {
-  CONFLICT_MESSAGE_FRAGMENT,
-  errorMessage,
   INVALID_OCCURRED_ON,
-  mapRpcError,
-  NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT,
-  NOT_COMPLETED_MESSAGE_FRAGMENT,
+  mapTodoError,
   PERFORMER_NOT_FOUND_ERROR,
-  PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT,
   SCHEDULE_COLLISION_ERROR,
-  SCHEDULE_COLLISION_MESSAGE_FRAGMENT,
   STATE_CHANGED_ERROR,
-} from "./rpc-error";
+} from "./error-mapping";
 import { revalidateTodoViews } from "./revalidation";
 
 const GENERIC_COMPLETION_ERROR: MaintenanceTodoActionState = {
@@ -24,14 +18,14 @@ const GENERIC_COMPLETION_ERROR: MaintenanceTodoActionState = {
   status: "error",
 };
 
-function mapCompleteMaintenanceTaskError(message: string): MaintenanceTodoActionState {
-  return mapRpcError(
-    message,
-    [
-      { fragment: PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT, response: PERFORMER_NOT_FOUND_ERROR },
-      { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      { fragment: SCHEDULE_COLLISION_MESSAGE_FRAGMENT, response: SCHEDULE_COLLISION_ERROR },
-    ],
+function mapCompleteMaintenanceTaskError(error: unknown): MaintenanceTodoActionState {
+  return mapTodoError(
+    error,
+    {
+      NEXT_OCCURRENCE_SCHEDULE_TAKEN: SCHEDULE_COLLISION_ERROR,
+      OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+      PERFORMER_NOT_FOUND: PERFORMER_NOT_FOUND_ERROR,
+    },
     GENERIC_COMPLETION_ERROR,
   );
 }
@@ -62,7 +56,7 @@ export async function completeMaintenanceTask(
       performedByUserId,
     });
   } catch (error) {
-    return mapCompleteMaintenanceTaskError(errorMessage(error));
+    return mapCompleteMaintenanceTaskError(error);
   }
 
   revalidateTodoViews(managedItemId, occurrenceId);
@@ -82,18 +76,15 @@ export async function undoMaintenanceTaskCompletion(
     const { db, session } = await getD1Context();
     await undoTaskCompletion(db, session, occurrenceId, idempotencyKey);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        {
-          fragment: NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT,
-          response: {
-            message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
-            status: "error",
-          },
+    return mapTodoError(
+      error,
+      {
+        NEXT_OCCURRENCE_MODIFIED: {
+          message: "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。",
+          status: "error",
         },
-        { fragment: NOT_COMPLETED_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+        OCCURRENCE_NOT_COMPLETED: STATE_CHANGED_ERROR,
+      },
       { message: "取消を記録できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }

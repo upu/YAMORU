@@ -28,7 +28,15 @@ status: stable
 
 公開する名前は`src/lib/d1/todos/index.ts`に集約している。呼び出し側は`../lib/d1/todos`をimportし、分割後のファイルを直接importしない。
 
-画面をまたいで使うTodo操作(action・パネル・action状態型)は`src/features/todos/`に置き、画面(`src/app/`)から参照する。ホーム・Todo一覧・Todo詳細・管理対象詳細・横断検索はいずれも同じ実装を共有し、画面ごとの保存処理を持たない。action同士が共有するRPCエラーの読み替えは`src/features/todos/actions/rpc-error.ts`、更新後の再検証先は`src/features/todos/actions/revalidation.ts`にまとめる。
+画面をまたいで使うTodo操作(action・パネル・action状態型)は`src/features/todos/`に置き、画面(`src/app/`)から参照する。ホーム・Todo一覧・Todo詳細・管理対象詳細・横断検索はいずれも同じ実装を共有し、画面ごとの保存処理を持たない。action同士が共有するエラーの読み替えは`src/features/todos/actions/error-mapping.ts`、更新後の再検証先は`src/features/todos/actions/revalidation.ts`にまとめる。
+
+## エラーの扱い
+
+D1層が投げる業務エラーは`src/lib/d1/errors.ts`の`D1ErrorCode`(識別コード)を持ち、actionはコードだけを見て利用者向けの案内文を選ぶ。内部の英文メッセージは開発者向けであり、変更しても案内文は変わらない(Issue #369)。
+
+- 業務エラー: アプリが明示的に投げる、利用者の操作で起こりうる失敗。コードを持つ。対応表はaction側(`src/features/todos/actions/error-mapping.ts`と各action、`src/app/todos/[id]/actions.ts`)にある。
+- 外部エラー: D1/SQLiteの制約違反。文字列判定は`src/lib/d1/todos/completion.ts`と`src/lib/d1/todos/edit.ts`のD1境界だけに置き、`task_occurrences`の一意制約に限って業務エラーへ読み替える。
+- 予期しないエラー: TaskRuleの保存内容が壊れている場合の不変条件違反など。コードを持たせず、actionの一般的な失敗表示へ落とす。
 
 ## 重要な不変条件
 

@@ -7,14 +7,11 @@ import {
 } from "../../../lib/d1/todos";
 import type { MaintenanceTodoActionState } from "../state";
 import {
-  CONFLICT_MESSAGE_FRAGMENT,
-  errorMessage,
-  mapRpcError,
+  ASSIGNEE_NOT_FOUND_ERROR,
+  mapTodoError,
   STATE_CHANGED_ERROR,
-} from "./rpc-error";
+} from "./error-mapping";
 import { revalidateTodoViews } from "./revalidation";
-
-const ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT = "Assignee not found";
 
 // Issue #72: pendingなOccurrenceの担当者を設定・解除する。assigneeUserIdが
 // nullの場合は「誰でも可」へ解除する。scheduled_for, due_at, status, 次回
@@ -28,18 +25,12 @@ export async function setTaskOccurrenceAssignee(
     const { db, session } = await getD1Context();
     await setTaskOccurrenceAssigneeInD1(db, session, occurrenceId, assigneeUserId);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        {
-          fragment: ASSIGNEE_NOT_FOUND_MESSAGE_FRAGMENT,
-          response: {
-            message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
-            status: "error",
-          },
-        },
-        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+    return mapTodoError(
+      error,
+      {
+        ASSIGNEE_NOT_FOUND: ASSIGNEE_NOT_FOUND_ERROR,
+        OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+      },
       { message: "担当を変更できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }
@@ -50,8 +41,6 @@ export async function setTaskOccurrenceAssignee(
     status: "success",
   };
 }
-
-const ALREADY_ASSIGNED_MESSAGE_FRAGMENT = "already has an assignee";
 
 // Issue #77: 未担当のpending Occurrenceを、操作主体自身の担当として一操作で
 // 引き受ける(「やるよ」)。対象は常にセッション自身で、クライアントからは
@@ -65,18 +54,15 @@ export async function claimTaskOccurrenceAssignee(
     const { db, session } = await getD1Context();
     await claimTaskOccurrenceAssigneeInD1(db, session, occurrenceId);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        {
-          fragment: ALREADY_ASSIGNED_MESSAGE_FRAGMENT,
-          response: {
-            message: "すでに他の家族が担当しています。最新の状態を確認してください。",
-            status: "error",
-          },
+    return mapTodoError(
+      error,
+      {
+        OCCURRENCE_ALREADY_ASSIGNED: {
+          message: "すでに他の家族が担当しています。最新の状態を確認してください。",
+          status: "error",
         },
-        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+        OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+      },
       { message: "担当を開始できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }

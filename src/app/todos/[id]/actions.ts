@@ -10,6 +10,12 @@ import {
   updateRecurringOccurrence as updateRecurringOccurrenceInD1,
   updateRecurringTaskRule,
 } from "../../../lib/d1/todos";
+import {
+  ASSIGNEE_NOT_FOUND_ERROR,
+  mapTodoError,
+  STATE_CHANGED_ERROR,
+  type TodoErrorResponses,
+} from "../../../features/todos/actions/error-mapping";
 import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import { getTokyoDayDistance, tokyoDateToUtcIso } from "../../time-zone";
 import {
@@ -82,40 +88,39 @@ function parseTodoEditForm(formData: FormData): ParsedTodoEditForm {
   };
 }
 
-const EDIT_ERROR_RULES: { fragment: string; message: string }[] = [
-  {
-    fragment: "Assignee not found",
-    message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。",
-  },
-  {
-    fragment: "Managed item not found",
-    message: "関連する管理対象を指定できませんでした。同じ家庭の管理対象から選び直してください。",
-  },
-  {
-    fragment: "Only one-time tasks can be edited",
-    message: "繰り返しTodoの内容はこの画面から変更できません。",
-  },
-  {
-    fragment: "Occurrence already exists for the schedule",
-    message: "その予定日には同じTodoの別の予定があります。別の日付を指定してください。",
-  },
-  {
-    fragment: "Occurrence not found",
-    message: "対象のTodoが見つかりませんでした。最新の状態を確認してください。",
-  },
-  {
-    fragment: "Occurrence is not pending",
-    message: "他の操作で状態が変わりました。最新の状態を確認してください。",
-  },
-];
+// 編集画面が共有する案内。担当者・管理対象・対象Todoの取り違えは、
+// 1回だけのTodoの編集と繰り返しTodoの編集で同じ文言にする。
+const MANAGED_ITEM_NOT_FOUND_ERROR: MaintenanceTodoActionState = {
+  message: "関連する管理対象を指定できませんでした。同じ家庭の管理対象から選び直してください。",
+  status: "error",
+};
 
-function mapEditError(error: unknown): MaintenanceTodoActionState {
-  const message = error instanceof Error ? error.message : "";
-  const matched = EDIT_ERROR_RULES.find((rule) => message.includes(rule.fragment));
-  return matched === undefined
-    ? { message: "Todoを更新できませんでした。時間をおいて再度お試しください。", status: "error" }
-    : { message: matched.message, status: "error" };
-}
+const OCCURRENCE_NOT_FOUND_ERROR: MaintenanceTodoActionState = {
+  message: "対象のTodoが見つかりませんでした。最新の状態を確認してください。",
+  status: "error",
+};
+
+const GENERIC_EDIT_ERROR: MaintenanceTodoActionState = {
+  message: "Todoを更新できませんでした。時間をおいて再度お試しください。",
+  status: "error",
+};
+
+// D1層の識別コード(src/lib/d1/errors.ts)から案内文を選ぶ。コードを持たない
+// エラーは一般的な失敗表示にし、内部の詳細は表示しない(Issue #369)。
+const EDIT_ERROR_RESPONSES: TodoErrorResponses = {
+  ASSIGNEE_NOT_FOUND: ASSIGNEE_NOT_FOUND_ERROR,
+  EDIT_REQUIRES_ONE_TIME: {
+    message: "繰り返しTodoの内容はこの画面から変更できません。",
+    status: "error",
+  },
+  MANAGED_ITEM_NOT_FOUND: MANAGED_ITEM_NOT_FOUND_ERROR,
+  OCCURRENCE_NOT_FOUND: OCCURRENCE_NOT_FOUND_ERROR,
+  OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+  OCCURRENCE_SCHEDULE_TAKEN: {
+    message: "その予定日には同じTodoの別の予定があります。別の日付を指定してください。",
+    status: "error",
+  },
+};
 
 // 保存後に反映する画面。ホーム(#36)、Todo一覧(#201)、Todo詳細と
 // 編集画面、そして関連ManagedItemの詳細を、変更前後の両方について再検証する。
@@ -155,7 +160,7 @@ export async function updateTodo(
       title: parsed.title,
     }));
   } catch (error) {
-    return mapEditError(error);
+    return mapTodoError(error, EDIT_ERROR_RESPONSES, GENERIC_EDIT_ERROR);
   }
 
   revalidateTodoEditViews(parsed.occurrenceId, [
@@ -177,22 +182,24 @@ function parseIntegerField(
   return Number.isInteger(value) && value >= minimum && value <= maximum ? value : null;
 }
 
-function recurringEditError(error: unknown): MaintenanceTodoActionState {
-  const message = error instanceof Error ? error.message : "";
-  const rules: { fragment: string; message: string }[] = [
-    { fragment: "Assignee not found", message: "担当者を指定できませんでした。同じ家庭のメンバーから選び直してください。" },
-    { fragment: "Managed item not found", message: "関連する管理対象を指定できませんでした。同じ家庭の管理対象から選び直してください。" },
-    { fragment: "Occurrence not found", message: "対象のTodoが見つかりませんでした。最新の状態を確認してください。" },
-    { fragment: "Occurrence is not pending", message: "他の操作で状態が変わりました。最新の状態を確認してください。" },
-    { fragment: "Recurrence basis cannot be changed", message: "繰り返し方は変更できません。現在の方式の条件を編集してください。" },
-    { fragment: "new_due_at must be in the future", message: "現在の期限は今日より後の日付を指定してください。" },
-    { fragment: "new_due_at must not be before scheduled_for", message: "現在の期限は本来の予定日以降を指定してください。" },
-  ];
-  const matched = rules.find((rule) => message.includes(rule.fragment));
-  return matched === undefined
-    ? { message: "Todoを更新できませんでした。時間をおいて再度お試しください。", status: "error" }
-    : { message: matched.message, status: "error" };
-}
+const RECURRING_EDIT_ERROR_RESPONSES: TodoErrorResponses = {
+  ASSIGNEE_NOT_FOUND: ASSIGNEE_NOT_FOUND_ERROR,
+  DUE_AT_BEFORE_SCHEDULED_FOR: {
+    message: "現在の期限は本来の予定日以降を指定してください。",
+    status: "error",
+  },
+  DUE_AT_NOT_IN_FUTURE: {
+    message: "現在の期限は今日より後の日付を指定してください。",
+    status: "error",
+  },
+  MANAGED_ITEM_NOT_FOUND: MANAGED_ITEM_NOT_FOUND_ERROR,
+  OCCURRENCE_NOT_FOUND: OCCURRENCE_NOT_FOUND_ERROR,
+  OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+  RECURRENCE_BASIS_IMMUTABLE: {
+    message: "繰り返し方は変更できません。現在の方式の条件を編集してください。",
+    status: "error",
+  },
+};
 
 function recurringBasics(
   formData: FormData,
@@ -324,7 +331,7 @@ export async function updateRecurringOccurrence(
       dueAt,
     }));
   } catch (error) {
-    return recurringEditError(error);
+    return mapTodoError(error, RECURRING_EDIT_ERROR_RESPONSES, GENERIC_EDIT_ERROR);
   }
   revalidateTodoEditViews(occurrenceId, [managedItemId]);
   redirect(`/todos/${encodeURIComponent(occurrenceId)}`);
@@ -346,7 +353,7 @@ export async function updateRecurringRule(
       parsed.input,
     ));
   } catch (error) {
-    return recurringEditError(error);
+    return mapTodoError(error, RECURRING_EDIT_ERROR_RESPONSES, GENERIC_EDIT_ERROR);
   }
   revalidateTodoEditViews(parsed.occurrenceId, [
     previousManagedItemId,

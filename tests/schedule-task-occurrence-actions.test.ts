@@ -12,10 +12,18 @@ vi.mock("../src/lib/d1/todos", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import {
   setTaskOccurrenceSchedule,
   unsetTaskOccurrenceSchedule,
 } from "../src/features/todos/actions/schedule";
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
+
 
 describe("一回限りTodoの予定日変更", () => {
   beforeEach(() => {
@@ -54,11 +62,11 @@ describe("一回限りTodoの予定日変更", () => {
     expect(result).toEqual({ message: "予定日を正しく入力してください。", status: "error" });
   });
 
-  it.each([
-    ["Occurrence is not pending", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-    ["Only one-time tasks can have an undated schedule", "繰り返しTodoの予定日は未定にできません。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    setOneTimeTaskScheduleMock.mockRejectedValue(new Error(message));
+  it.each<[D1ErrorCode, string]>([
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+    ["UNDATED_SCHEDULE_REQUIRES_ONE_TIME", "繰り返しTodoの予定日は未定にできません。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    setOneTimeTaskScheduleMock.mockRejectedValue(d1Error(code));
 
     const result = await unsetTaskOccurrenceSchedule(null, "occurrence-id");
 

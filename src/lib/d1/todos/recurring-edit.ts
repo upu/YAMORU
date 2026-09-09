@@ -195,18 +195,24 @@ function assertRecurringOccurrence(
   occurrence: OccurrenceWithRule,
   input: RecurringOccurrenceUpdate,
 ): void {
-  if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending");
+  if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   if (occurrence.recurrence_basis === "once") {
-    throw new D1ConflictError("Only recurring tasks can use recurring edit");
+    throw new D1ConflictError(
+      "Only recurring tasks can use recurring edit",
+      "RECURRING_EDIT_REQUIRES_RECURRING",
+    );
   }
   if (occurrence.scheduled_for === null || occurrence.due_at === null) {
     throw new D1ConflictError("Recurring occurrence must have a schedule");
   }
   if (input.dueAt <= new Date().toISOString()) {
-    throw new D1ConflictError("new_due_at must be in the future");
+    throw new D1ConflictError("new_due_at must be in the future", "DUE_AT_NOT_IN_FUTURE");
   }
   if (input.dueAt < occurrence.scheduled_for) {
-    throw new D1ConflictError("new_due_at must not be before scheduled_for");
+    throw new D1ConflictError(
+      "new_due_at must not be before scheduled_for",
+      "DUE_AT_BEFORE_SCHEDULED_FOR",
+    );
   }
 }
 
@@ -275,7 +281,7 @@ export async function updateRecurringOccurrence(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   if (input.assigneeUserId !== null) {
-    await requireHouseholdUser(db, householdId, input.assigneeUserId, "Assignee not found");
+    await requireHouseholdUser(db, householdId, input.assigneeUserId, "ASSIGNEE_NOT_FOUND");
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   assertRecurringOccurrence(occurrence, input);
@@ -286,7 +292,7 @@ export async function updateRecurringOccurrence(
   if (statements.length === 0) return { managedItemId: occurrence.managed_item_id };
   const results = await db.batch(statements);
   const missingLog = results.some((result, index) => index % 2 === 0 && result.meta.changes !== 1);
-  if (missingLog) throw new D1ConflictError("Occurrence is not pending");
+  if (missingLog) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   return { managedItemId: occurrence.managed_item_id };
 }
 
@@ -366,12 +372,15 @@ export async function updateRecurringTaskRule(
   const householdId = await requireCurrentHouseholdId(db, session);
   await requireManagedItem(db, householdId, input.managedItemId);
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending");
+  if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   if (occurrence.recurrence_basis === "once") {
-    throw new D1ConflictError("Only recurring tasks can use recurring edit");
+    throw new D1ConflictError(
+      "Only recurring tasks can use recurring edit",
+      "RECURRING_EDIT_REQUIRES_RECURRING",
+    );
   }
   if (occurrence.recurrence_basis !== input.recurrenceBasis) {
-    throw new D1ConflictError("Recurrence basis cannot be changed");
+    throw new D1ConflictError("Recurrence basis cannot be changed", "RECURRENCE_BASIS_IMMUTABLE");
   }
 
   const { changeIndex, statements } = recurringRuleStatements(db, {
@@ -386,11 +395,11 @@ export async function updateRecurringTaskRule(
   if ((results[changeIndex]?.meta.changes ?? 0) === 0) {
     const pending = await db.prepare(PENDING_RECURRING_OCCURRENCE_SQL)
       .bind(occurrenceId, householdId, input.recurrenceBasis).first();
-    if (pending === null) throw new D1ConflictError("Occurrence is not pending");
+    if (pending === null) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
     return { previousManagedItemId: occurrence.managed_item_id };
   }
   if ((results[changeIndex + 1]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Occurrence is not pending");
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
   return { previousManagedItemId: occurrence.managed_item_id };
 }
