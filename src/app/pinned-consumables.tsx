@@ -13,9 +13,9 @@ const COLLAPSED_FAVORITES_COUNT = 5;
    状態変更は○△×で出し、名前が少し長くても1行に収まる幅にする。 */
 function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
   return (
-    <article aria-label={favorite.name} className="favorite-consumable">
+    <article aria-label={favorite.name} className="pinned-consumable">
       <Link
-        className="favorite-consumable-name"
+        className="pinned-consumable-name"
         href={`/consumables/${encodeURIComponent(favorite.id)}`}
       >
         {favorite.name}
@@ -30,7 +30,7 @@ function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
   );
 }
 
-export function FavoriteConsumablesSection({
+export function PinnedConsumablesSection({
   favorites,
 }: {
   favorites: ConsumableSummary[];
@@ -42,23 +42,23 @@ export function FavoriteConsumablesSection({
     : favorites.slice(0, COLLAPSED_FAVORITES_COUNT);
 
   return (
-    <section aria-labelledby="favorite-consumables-title" className="home-section favorites">
+    <section aria-labelledby="pinned-consumables-title" className="home-section favorites">
       <div className="section-heading">
-        <h2 id="favorite-consumables-title">お気に入り</h2>
+        <h2 id="pinned-consumables-title">お気に入り</h2>
         <span aria-label={`${String(favorites.length)}件`} className="count">
           {favorites.length}
         </span>
       </div>
-      <div className="favorite-consumable-list" id="favorite-consumable-list">
+      <div className="pinned-consumable-list" id="pinned-consumable-list">
         {visibleFavorites.map((favorite) => (
           <FavoriteConsumable favorite={favorite} key={favorite.id} />
         ))}
       </div>
       {hasHiddenFavorites ? (
         <button
-          aria-controls="favorite-consumable-list"
+          aria-controls="pinned-consumable-list"
           aria-expanded={expanded}
-          className="favorite-disclosure"
+          className="pinned-disclosure"
           onClick={() => {
             setExpanded((current) => !current);
           }}

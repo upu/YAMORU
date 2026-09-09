@@ -29,8 +29,8 @@ import {
   listShoppingCandidates,
   type ConsumableSummary,
 } from "../lib/d1/consumables";
-import { listFavoriteConsumables } from "../lib/d1/consumable-favorites";
-import { FavoriteConsumablesSection } from "./favorite-consumables";
+import { listPinnedConsumables } from "../lib/d1/consumable-pins";
+import { PinnedConsumablesSection } from "./pinned-consumables";
 import { ShoppingCandidatesSection } from "./shopping-candidates";
 
 export type { PendingOccurrenceRow, RecentCompletionRow } from "../lib/d1/home";
@@ -321,7 +321,7 @@ function HouseholdHomeFlow({
   householdName,
   members,
   sections,
-  favoriteConsumables,
+  pinnedConsumables,
   shoppingCandidates,
 }: {
   actorName: string;
@@ -329,20 +329,20 @@ function HouseholdHomeFlow({
   householdName: string;
   members: HouseholdMemberOption[];
   sections: HomeSection[];
-  favoriteConsumables: ConsumableSummary[];
+  pinnedConsumables: ConsumableSummary[];
   shoppingCandidates: ConsumableSummary[];
 }) {
   if (
     sections.length === 0
-    && favoriteConsumables.length === 0
+    && pinnedConsumables.length === 0
     && shoppingCandidates.length === 0
   ) {
     return <div className="home-flow"><HomeEmptyState householdName={householdName} /></div>;
   }
   return (
     <div className="home-flow">
-      {favoriteConsumables.length === 0 ? null : (
-        <FavoriteConsumablesSection favorites={favoriteConsumables} />
+      {pinnedConsumables.length === 0 ? null : (
+        <PinnedConsumablesSection favorites={pinnedConsumables} />
       )}
       {shoppingCandidates.length === 0 ? null : (
         <ShoppingCandidatesSection candidates={shoppingCandidates} />
@@ -365,7 +365,7 @@ export function HomeContent({
   household,
   members,
   sections,
-  favoriteConsumables = [],
+  pinnedConsumables = [],
   shoppingCandidates = [],
 }: {
   actorName: string;
@@ -373,7 +373,7 @@ export function HomeContent({
   household: HomeHouseholdSummary | null;
   members: HouseholdMemberOption[];
   sections: HomeSection[];
-  favoriteConsumables?: ConsumableSummary[];
+  pinnedConsumables?: ConsumableSummary[];
   shoppingCandidates?: ConsumableSummary[];
 }) {
   const openItemCount = sections.reduce(
@@ -402,7 +402,7 @@ export function HomeContent({
           householdName={household.name}
           members={members}
           sections={visibleSections}
-          favoriteConsumables={favoriteConsumables}
+          pinnedConsumables={pinnedConsumables}
           shoppingCandidates={shoppingCandidates}
         />
       )}
@@ -436,12 +436,12 @@ export default async function Home() {
     );
   }
 
-  const [actorName, sections, members, favoriteConsumables, shoppingCandidates] = await Promise.all([
+  const [actorName, sections, members, pinnedConsumables, shoppingCandidates] = await Promise.all([
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     loadHomeSections(db, session, nowIso),
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(db, session),
-    listFavoriteConsumables(db, session),
+    listPinnedConsumables(db, session),
     listShoppingCandidates(db, session),
   ]);
 
@@ -452,7 +452,7 @@ export default async function Home() {
       household={household}
       members={members}
       sections={sections}
-      favoriteConsumables={favoriteConsumables}
+      pinnedConsumables={pinnedConsumables}
       shoppingCandidates={shoppingCandidates}
     />
   );

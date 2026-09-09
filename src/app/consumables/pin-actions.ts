@@ -2,18 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 
-import { setConsumableFavorite } from "../../lib/d1/consumable-favorites";
+import { setConsumablePinned } from "../../lib/d1/consumable-pins";
 import { getD1Context } from "../../lib/d1/context";
 
-export type ConsumableFavoriteActionState = {
+export type ConsumablePinActionState = {
   message: string;
   status: "error" | "idle" | "success";
 };
 
-export async function updateConsumableFavorite(
-  _previousState: ConsumableFavoriteActionState,
+export async function updateConsumablePin(
+  _previousState: ConsumablePinActionState,
   formData: FormData,
-): Promise<ConsumableFavoriteActionState> {
+): Promise<ConsumablePinActionState> {
   const rawId = formData.get("id");
   const rawFavorite = formData.get("favorite");
   if (
@@ -28,7 +28,7 @@ export async function updateConsumableFavorite(
 
   try {
     const { db, session } = await getD1Context();
-    await setConsumableFavorite(db, session, id, favorite);
+    await setConsumablePinned(db, session, id, favorite);
   } catch {
     return {
       message: "お気に入りを更新できませんでした。時間をおいて再度お試しください。",

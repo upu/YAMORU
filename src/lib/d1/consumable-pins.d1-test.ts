@@ -6,9 +6,9 @@ import {
   getConsumable,
 } from "./consumables";
 import {
-  listFavoriteConsumables,
-  setConsumableFavorite,
-} from "./consumable-favorites";
+  listPinnedConsumables,
+  setConsumablePinned,
+} from "./consumable-pins";
 import {
   householdAMember,
   householdBMember,
@@ -53,26 +53,26 @@ describe("個人別のConsumableお気に入り (Issue #345)", () => {
     const eggsId = await createConsumableFor(householdAMember, "卵");
     const paperId = await createConsumableFor(householdAMember, "トイレットペーパー");
 
-    await setConsumableFavorite(db, householdAMember, eggsId, true);
-    await setConsumableFavorite(db, secondMember, paperId, true);
+    await setConsumablePinned(db, householdAMember, eggsId, true);
+    await setConsumablePinned(db, secondMember, paperId, true);
 
-    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([
+    await expect(listPinnedConsumables(db, householdAMember)).resolves.toEqual([
       expect.objectContaining({ id: eggsId, name: "卵" }),
     ]);
-    await expect(listFavoriteConsumables(db, secondMember)).resolves.toEqual([
+    await expect(listPinnedConsumables(db, secondMember)).resolves.toEqual([
       expect.objectContaining({ id: paperId, name: "トイレットペーパー" }),
     ]);
     await expect(getConsumable(db, householdAMember, eggsId)).resolves.toMatchObject({
-      isFavorite: true,
+      isPinned: true,
     });
     await expect(getConsumable(db, secondMember, eggsId)).resolves.toMatchObject({
-      isFavorite: false,
+      isPinned: false,
     });
 
-    await setConsumableFavorite(db, householdAMember, eggsId, false);
-    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([]);
+    await setConsumablePinned(db, householdAMember, eggsId, false);
+    await expect(listPinnedConsumables(db, householdAMember)).resolves.toEqual([]);
     await expect(getConsumable(db, householdAMember, eggsId)).resolves.toMatchObject({
-      isFavorite: false,
+      isPinned: false,
     });
   });
 
@@ -81,10 +81,10 @@ describe("個人別のConsumableお気に入り (Issue #345)", () => {
     for (let index = 1; index <= 6; index += 1) {
       const id = await createConsumableFor(householdAMember, `消耗品${String(index)}`);
       ids.push(id);
-      await setConsumableFavorite(db, householdAMember, id, true);
+      await setConsumablePinned(db, householdAMember, id, true);
     }
 
-    const favorites = await listFavoriteConsumables(db, householdAMember);
+    const favorites = await listPinnedConsumables(db, householdAMember);
     expect(favorites).toHaveLength(6);
     expect(favorites.map((favorite) => favorite.id)).toEqual(ids.toReversed());
   });
@@ -93,18 +93,18 @@ describe("個人別のConsumableお気に入り (Issue #345)", () => {
     const otherHouseholdId = await createConsumableFor(householdBMember, "別家庭の卵");
 
     await expect(
-      setConsumableFavorite(db, householdAMember, otherHouseholdId, true),
+      setConsumablePinned(db, householdAMember, otherHouseholdId, true),
     ).rejects.toThrow("消耗品が見つかりません。");
-    await expect(listFavoriteConsumables(db, householdAMember)).resolves.toEqual([]);
-    await expect(listFavoriteConsumables(db, householdBMember)).resolves.toEqual([]);
+    await expect(listPinnedConsumables(db, householdAMember)).resolves.toEqual([]);
+    await expect(listPinnedConsumables(db, householdBMember)).resolves.toEqual([]);
   });
 
   it("未認証・家庭未所属の利用者はお気に入りを読み書きできない", async () => {
     const id = await createConsumableFor(householdAMember, "卵");
 
-    await expect(listFavoriteConsumables(db, null)).rejects.toThrow("認証が必要です。");
+    await expect(listPinnedConsumables(db, null)).rejects.toThrow("認証が必要です。");
     await expect(
-      setConsumableFavorite(db, nonMember, id, true),
+      setConsumablePinned(db, nonMember, id, true),
     ).rejects.toThrow("家庭への所属が必要です。");
   });
 });

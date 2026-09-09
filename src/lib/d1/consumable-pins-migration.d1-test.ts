@@ -22,27 +22,27 @@ it("既存Consumableへ個人別のお気に入りを追加できる(Issue #345)
     ),
   ]);
 
-  await applyMigrations(db, ["0025_user_consumable_favorites"]);
+  await applyMigrations(db, ["0025_user_consumable_pins"]);
   await db.batch([
     db.prepare(
-      "INSERT INTO user_consumable_favorites (user_id, household_id, consumable_id) VALUES ('user-a', 'household-a', 'eggs')",
+      "INSERT INTO user_consumable_pins (user_id, household_id, consumable_id) VALUES ('user-a', 'household-a', 'eggs')",
     ),
     db.prepare(
-      "INSERT INTO user_consumable_favorites (user_id, household_id, consumable_id) VALUES ('user-a2', 'household-a', 'eggs')",
+      "INSERT INTO user_consumable_pins (user_id, household_id, consumable_id) VALUES ('user-a2', 'household-a', 'eggs')",
     ),
   ]);
 
   await expect(db.prepare(
-    "SELECT user_id FROM user_consumable_favorites WHERE consumable_id = 'eggs' ORDER BY user_id",
+    "SELECT user_id FROM user_consumable_pins WHERE consumable_id = 'eggs' ORDER BY user_id",
   ).all<{ user_id: string }>()).resolves.toMatchObject({
     results: [{ user_id: "user-a" }, { user_id: "user-a2" }],
   });
   await expect(db.prepare(
-    "INSERT INTO user_consumable_favorites (user_id, household_id, consumable_id) VALUES ('user-a', 'household-a', 'other-eggs')",
+    "INSERT INTO user_consumable_pins (user_id, household_id, consumable_id) VALUES ('user-a', 'household-a', 'other-eggs')",
   ).run()).rejects.toThrow();
 
   await db.prepare("DELETE FROM consumables WHERE id = 'eggs'").run();
   await expect(db.prepare(
-    "SELECT count(*) AS count FROM user_consumable_favorites",
+    "SELECT count(*) AS count FROM user_consumable_pins",
   ).first<{ count: number }>()).resolves.toEqual({ count: 0 });
 });
