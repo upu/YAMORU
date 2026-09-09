@@ -1,13 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/app/consumables/stock-actions", () => ({
   updateConsumableStockStatus: vi.fn(),
 }));
 vi.mock("../src/app/consumables/pin-actions", () => ({
-  updateConsumablePin: vi.fn(),
+  updateConsumablePin: vi.fn(() => ({ message: "", status: "idle" })),
 }));
 
 import { PinnedConsumablesSection } from "../src/app/pinned-consumables";
@@ -105,18 +105,65 @@ describe("ホームのピン留め消耗品", () => {
   });
 });
 
-describe("消耗品詳細のピン留め操作", () => {
-  it("個人のピン留めへ追加・解除する可逆な操作を示す", () => {
+describe("消耗品詳細のピン留め操作(Issue #361)", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("説明文を常時出さず、アイコンだけのボタンで可逆な操作を示す", () => {
     const { rerender } = render(
       <PinToggle consumableId="consumable-1" isPinned={false} />,
     );
-    expect(screen.getByRole("button", { name: "ホームにピン留め" }))
-      .toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "ホームにピン留め" }).querySelector("svg"))
-      .toBeInTheDocument();
+
+    const addButton = screen.getByRole("button", { name: "ホームにピン留め" });
+    expect(addButton).toHaveAttribute("aria-pressed", "false");
+    expect(addButton.querySelector("svg")).toBeInTheDocument();
+    // 見えている語はなく、読み上げ用の語だけを残す。
+    expect(addButton).toHaveTextContent(/^ホームにピン留め$/u);
+    expect(addButton.querySelector("span")).toHaveClass("sr-only");
 
     rerender(<PinToggle consumableId="consumable-1" isPinned />);
-    expect(screen.getByRole("button", { name: "ピン留めを外す" }))
-      .toHaveAttribute("aria-pressed", "true");
+    const removeButton = screen.getByRole("button", { name: "ピン留めを外す" });
+    expect(removeButton).toHaveAttribute("aria-pressed", "true");
+    expect(removeButton).toHaveTextContent(/^ピン留めを外す$/u);
+  });
+
+  it("初めて見るときだけ、操作の意味を補う短いヒントを添える", () => {
+    render(<PinToggle consumableId="consumable-1" isPinned={false} />);
+
+    const hint = screen.getByText(
+      "よく使う消耗品をピン留めすると、ホームからすぐ確認・操作できます。",
+    );
+    expect(hint).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ホームにピン留め" }))
+      .toHaveAttribute("aria-describedby", hint.parentElement?.id ?? "");
+  });
+
+  it("閉じたヒントは、開き直しても繰り返し表示しない", () => {
+    render(<PinToggle consumableId="consumable-1" isPinned={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "ヒントを閉じる" }));
+    expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+      .not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ホームにピン留め" }))
+      .not.toHaveAttribute("aria-describedby");
+
+    cleanup();
+    render(<PinToggle consumableId="consumable-1" isPinned={false} />);
+    expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+      .not.toBeInTheDocument();
+  });
+
+  it("ピン留めを実際に操作したときも、ヒントを既読にする", () => {
+    render(<PinToggle consumableId="consumable-1" isPinned={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "ホームにピン留め" }));
+    expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+      .not.toBeInTheDocument();
+
+    cleanup();
+    render(<PinToggle consumableId="consumable-1" isPinned />);
+    expect(screen.queryByText(/よく使う消耗品をピン留めすると/u))
+      .not.toBeInTheDocument();
   });
 });

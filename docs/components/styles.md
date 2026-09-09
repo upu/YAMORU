@@ -30,10 +30,14 @@ status: stable
 | 台帳のカテゴリ切り替え | `src/app/ledger-category-navigation.module.css` |
 | 横断検索の結果 | `src/app/search/search-results.module.css` |
 | 消耗品の補充記録 | `src/app/consumables/refill-control.module.css` |
+| 消耗品詳細のピン留めボタン | `src/app/consumables/pin-toggle.module.css` |
+| 初回操作ヒント | `src/app/first-run-hint.module.css` |
+| ヘルプの使い方・アイコン一覧 | `src/app/help/help.module.css` |
 | 招待の一覧・発行結果 | `src/app/household/invitations.module.css` |
 
 ## 重要な不変条件
 
+- アイコンだけの操作ボタンは、見た目を小さくしてもタップ領域を44px以上に保ち、アクセシブルネームを`.sr-only`か`aria-label`で残す([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md))。
 - 部品専用のルールはCSS Moduleへ置き、`globals.css`には全体基盤と、複数の部品から使う・複数の部品が配置を調整するルールだけを残す。
 - 部品のmedia query、hover、focus-visible、状態属性の指定は、その部品のCSS Moduleへまとめる。`--mobile-nav-height`のように下部ナビゲーションとダイアログが共有する変数は`globals.css`の`:root`に置く。
 - CSS Moduleから共有クラスの配置だけを調整するときは`:global(.クラス名)`で明示する(例: ピン留め一覧の中の在庫変更ボタン、検索結果の中の操作列)。

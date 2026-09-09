@@ -20,7 +20,7 @@ status: stable
 | 登録・編集 | `src/app/consumables/actions.ts`、`src/app/consumables/consumable-form.tsx` | `src/lib/d1/consumables.ts`の`createConsumable`/`updateConsumable` |
 | 補充の記録 | `src/app/consumables/refill-actions.ts`、`src/app/consumables/refill-control.tsx` | `src/lib/d1/consumables.ts`の`recordConsumableRefill` |
 | 管理対象・Todoとの関連 | `src/app/consumables/relation-actions.ts`、`src/app/consumables/relation-picker.tsx` | `src/lib/d1/consumables.ts`、`src/lib/d1/consumable-relations.ts` |
-| ピン留め | `src/app/consumables/pin-actions.ts`、`src/app/consumables/pin-toggle.tsx` | `src/lib/d1/consumable-pins.ts` |
+| ピン留め | `src/app/consumables/pin-actions.ts`、`src/app/consumables/pin-toggle.tsx`(初回ヒントは`src/app/first-run-hint.tsx`) | `src/lib/d1/consumable-pins.ts` |
 | 買い物候補(ホーム) | `src/app/shopping-candidates.tsx` | `src/lib/d1/consumables.ts`の`listShoppingCandidates` |
 
 スキーマは`d1/migrations/0012_consumables.sql`、`0013_consumable_stock_status.sql`、`0020_consumable_refills.sql`、`0025_user_consumable_favorites.sql`、`0026_user_consumable_pins.sql`が正本。アプリケーションは`user_consumable_pins`だけを使い、`0025`の旧テーブルは新旧Workerの互換性を保つ同期対象として、後続のcontract migrationまで残す。
@@ -31,17 +31,19 @@ status: stable
 - 在庫状態とConsumable本体は家庭共有、ピン留めは利用者ごと(`user_consumable_pins`)。この境界を混ぜない。
 - 補充は現在の在庫状態と別の追記型履歴として持ち、補充日(`refilled_on`)と記録時刻(`recorded_at`)を分ける([YDR-012](../decisions/ydr-012-separate-occurred-recorded-scheduled-due.md)と同じ考え方)。数量はこのテーブルへ持ち込まない。
 - 更新系は`requireCurrentHouseholdId`でセッションから家庭を導出し、`id`と`household_id`の両方を条件にする。変更行数が1でなければNot Foundとして失敗させる。
+- 消耗品詳細のピン留めはアイコンだけのボタンで表し、説明文を常時併記しない。`.sr-only`の語と`aria-pressed`で操作名と状態を残し、初めての利用者には初回ヒントで補う([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md))。
 - 在庫変更のUI部品(`QuickStockStatusControl`)はホームのピン留め・検索結果・消耗品詳細で共有する。画面ごとの保存処理を増やさない([YDR-043](../decisions/ydr-043-cross-search-quick-actions.md))。
 
 ## 関連YDR
 
-- 有効: [YDR-043](../decisions/ydr-043-cross-search-quick-actions.md)(検索結果からの在庫変更)、[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)(在庫を独立したPhaseとして後から追加する方針。消耗品はこのPhaseに当たる)
+- 有効: [YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md)(コンパクト表示と初回ヒント)、[YDR-043](../decisions/ydr-043-cross-search-quick-actions.md)(検索結果からの在庫変更)、[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)(在庫を独立したPhaseとして後から追加する方針。消耗品はこのPhaseに当たる)
 - 在庫状態そのものの仕様を定めたYDRはない。現在の仕様は`d1/migrations/`と`src/lib/d1/consumables.ts`が正本であり、恒久的な規則を追加・変更する場合は新しいYDRを起票する。
 
 ## 検証方法
 
 ```
 npm test -- tests/consumable-stock-actions.test.ts tests/consumable-actions.test.ts tests/consumable-refill-actions.test.ts
+npm test -- tests/consumable-pins-ui.test.tsx tests/help-page.test.tsx
 npm run test:d1
 npm run lint
 npm run typecheck
