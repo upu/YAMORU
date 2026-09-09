@@ -36,8 +36,8 @@ SELECT type, name, sql
 FROM sqlite_schema
 WHERE sql IS NOT NULL
   AND type IN ('table', 'index', 'view', 'trigger')
-  AND name NOT LIKE 'sqlite_%'
-  AND name NOT LIKE '_cf_%'
+  AND name NOT GLOB 'sqlite_*'
+  AND name NOT GLOB '_cf_*'
   AND name <> 'd1_migrations'
 ORDER BY
   CASE type

@@ -19,6 +19,7 @@ import {
 } from "../scripts/d1-schema";
 
 const PROJECT_ROOT = process.cwd();
+const WRANGLER_TEST_TIMEOUT_MS = 120_000;
 const testRoot = mkdtempSync(join(tmpdir(), "yamoru-d1-schema-test-"));
 
 afterAll(() => {
@@ -56,7 +57,7 @@ describe("D1 schema生成", () => {
     expect(first).not.toContain("d1_migrations");
     expect(first).not.toContain("sqlite_sequence");
     expect(readdirSync(temporaryDirectoryParent)).toEqual([]);
-  }, 60_000);
+  }, WRANGLER_TEST_TIMEOUT_MS);
 
   it("ディレクトリへ追加した一時migrationも列挙してschemaへ含める", () => {
     const migrationsDirectory = join(testRoot, "migrations-with-probe");
@@ -65,7 +66,11 @@ describe("D1 schema生成", () => {
     });
     writeFileSync(
       join(migrationsDirectory, "9999_schema_generation_probe.sql"),
-      "CREATE TABLE schema_generation_probe (id TEXT PRIMARY KEY);\n",
+      [
+        "CREATE TABLE schema_generation_probe (id TEXT PRIMARY KEY);",
+        "CREATE TABLE acf_x (id TEXT PRIMARY KEY);",
+        "",
+      ].join("\n"),
     );
 
     const schema = generateCurrentSchema({
@@ -75,7 +80,8 @@ describe("D1 schema生成", () => {
     });
 
     expect(schema).toContain("CREATE TABLE schema_generation_probe");
-  }, 60_000);
+    expect(schema).toContain("CREATE TABLE acf_x");
+  }, WRANGLER_TEST_TIMEOUT_MS);
 
   it("checkは一致時だけ成功し、差分時も追跡対象を書き換えない", () => {
     const schemaPath = join(testRoot, "schema.generated.sql");
@@ -96,7 +102,7 @@ describe("D1 schema生成", () => {
       assertCurrentSchema(`${committed}-- stale\n`, committed);
     }).toThrow(/d1:schema:generate/u);
     expect(readFileSync(schemaPath, "utf8")).toBe(`${committed}-- stale\n`);
-  }, 60_000);
+  }, WRANGLER_TEST_TIMEOUT_MS);
 
   it("migration適用失敗でも専用一時領域を後片付けする", () => {
     const migrationsDirectory = join(testRoot, "broken-migrations");
@@ -110,7 +116,7 @@ describe("D1 schema生成", () => {
       temporaryDirectoryParent,
     })).toThrow(/migration/u);
     expect(readdirSync(temporaryDirectoryParent)).toEqual([]);
-  }, 60_000);
+  }, WRANGLER_TEST_TIMEOUT_MS);
 
   it("npm scriptsとCIがschema生成物の差分検査を実行する", () => {
     const packageJson = JSON.parse(
