@@ -1,0 +1,72 @@
+/* Issue #361: 各画面から外した説明をヘルプへ集める。用語・アイコンと短い説明を
+   並べるだけの一覧にして、画面側の文言を増やさない。 */
+.topics {
+  margin: 0;
+}
+
+.topics > div + div {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.topics dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.topics dd {
+  margin: 4px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* ヘルプの中では操作せず意味だけを示すので、ボタンより小さく描く。 */
+.icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 5px;
+  place-items: center;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--paper);
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.textIcon {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* .detail-card h3はmargin-topを持たないので、直前の説明と間を空ける。 */
+.subheading {
+  margin-top: 18px;
+}
+
+.operations {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.operations li + li {
+  margin-top: 4px;
+}

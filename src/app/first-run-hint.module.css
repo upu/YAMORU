@@ -1,0 +1,51 @@
+/* Issue #361: 初回だけ出す短い操作ヒント。操作の近くに小さく置き、
+   閉じたら繰り返さない。長いチュートリアルの枠組みは持たない。 */
+.hint {
+  display: flex;
+  max-width: 260px;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 7px 8px 7px 10px;
+  border: 1px solid rgb(49 92 73 / 22%);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 2px 8px rgb(31 58 47 / 8%);
+  text-align: left;
+}
+
+.text {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* 記号は小さいままで、タップ領域は44pxを保つ(YDR-045)。負のmarginで、
+   ヒントの枠が押しやすさのために大きくならないようにする。 */
+.dismiss {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  margin: -8px -8px -8px 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: none;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dismiss:hover {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.dismiss:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}

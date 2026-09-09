@@ -314,46 +314,6 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.pin-control {
-  flex: none;
-  text-align: right;
-}
-
-.pin-toggle {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 13px;
-  border: 1px solid rgb(49 92 73 / 28%);
-  border-radius: 999px;
-  color: var(--green);
-  background: var(--paper);
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.pin-toggle[aria-pressed="true"] {
-  border-color: #d59b16;
-  color: #6f4b00;
-  background: #fff3c9;
-}
-
-.pin-toggle svg {
-  width: 1em;
-  height: 1em;
-  stroke: currentColor;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-}
-
-.pin-toggle:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
 .detail-kicker {
   margin-bottom: 5px;
   color: var(--green);
@@ -1558,10 +1518,6 @@ h1 {
 
   .detail-hero-with-action {
     display: grid;
-  }
-
-  .pin-control {
-    text-align: left;
   }
 
   .detail-title-row {

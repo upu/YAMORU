@@ -56,6 +56,7 @@
 | YDR-042 | 横断検索を名前一致で対象へ到達する常設機能として定義し、下部ナビゲーションの4項目目に置く | Superseded by YDR-043(検索結果の操作部分のみ) | [ydr-042-cross-cutting-search.md](ydr-042-cross-cutting-search.md) |
 | YDR-043 | 横断検索の結果から既存の在庫変更とTodo完了を行えるようにする | Superseded by YDR-044(「お気に入り」の名称部分のみ) | [ydr-043-cross-search-quick-actions.md](ydr-043-cross-search-quick-actions.md) |
 | YDR-044 | よく使う消耗品を「ピン留め」と呼び、DB名を段階移行する | Accepted | [ydr-044-consumable-pinning-terminology.md](ydr-044-consumable-pinning-terminology.md) |
+| YDR-045 | 通常UIを1系統のコンパクト表示に統一し、初心者向けの説明は初回ヒントとヘルプへ置く | Accepted | [ydr-045-compact-ui-with-first-run-hints.md](ydr-045-compact-ui-with-first-run-hints.md) |
 
 ## 新しい意思決定の追加
 

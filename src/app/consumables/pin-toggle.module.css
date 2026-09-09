@@ -1,0 +1,63 @@
+/* Issue #361: 消耗品詳細のピン留め操作。説明文を常時出さず、丸いアイコン
+   ボタンだけを置く。見た目を小さくしてもスマートフォンで押せるよう、
+   タップ領域は44pxを保つ。 */
+.control {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  /* 見出しの右端にボタンとヒントをそろえる。 */
+  align-items: flex-end;
+}
+
+.toggle {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 11px;
+  place-items: center;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+/* ピン留め済みは、押した状態が一目で分かるよう塗りと色を変える。 */
+.toggle[aria-pressed="true"] {
+  border-color: #d59b16;
+  color: #6f4b00;
+  background: #fff3c9;
+}
+
+.toggle:hover {
+  background: var(--green-pale);
+}
+
+.toggle[aria-pressed="true"]:hover {
+  background: #ffeeb4;
+}
+
+.toggle:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.toggle svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentcolor;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* 見出しの下へ回り込む幅では、ボタンとヒントを本文と同じ左端へそろえる。 */
+@media (max-width: 480px) {
+  .control {
+    align-items: flex-start;
+  }
+}
