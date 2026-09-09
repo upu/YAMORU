@@ -29,7 +29,8 @@
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* 「予定」「期限切れ」「買っておきたいもの」の3件(Issue #360)。 */
+  grid-template-columns: repeat(3, 1fr);
   overflow: hidden;
   border: 1px solid rgb(49 92 73 / 12%);
   border-radius: 18px;
@@ -37,7 +38,7 @@
   box-shadow: var(--shadow);
 }
 
-.summary div {
+.summaryItem {
   display: flex;
   align-items: baseline;
   gap: 7px;
@@ -45,8 +46,24 @@
   color: rgb(255 255 255 / 78%);
 }
 
-.summary div + div {
+.summaryItem + .summaryItem {
   border-left: 1px solid rgb(255 255 255 / 14%);
+}
+
+/* Issue #360: 1件以上のサマリーは、数値だけでなくブロック全体をホーム内
+   セクションへのタップ領域にする。0件のサマリーはリンクにしない。 */
+.summaryLink {
+  text-decoration: none;
+}
+
+.summaryLink:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.summaryLink:focus-visible {
+  background: rgb(255 255 255 / 10%);
+  outline: 2px solid white;
+  outline-offset: -3px;
 }
 
 .summary strong {
@@ -72,6 +89,20 @@
   gap: 18px;
 }
 
+/* 3列では「買っておきたいもの」の文言が収まらない幅から、3つ目を1行へ広げる
+   (Issue #360)。 */
+@media (max-width: 600px) {
+  .summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summaryItem:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid rgb(255 255 255 / 14%);
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 480px) {
   .heroActions {
     align-items: flex-end;
@@ -86,7 +117,7 @@
     display: none;
   }
 
-  .summary div {
+  .summaryItem {
     display: grid;
     gap: 3px;
     padding: 15px;

@@ -21,6 +21,15 @@
 
 html {
   background: var(--canvas);
+  /* Issue #360: ホーム内アンカーへ移動したとき、固定ヘッダー(app-header)で
+     遷移先の見出しが隠れないようにする。 */
+  scroll-padding-top: 76px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
