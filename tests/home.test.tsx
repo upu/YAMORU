@@ -33,6 +33,11 @@ vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
 import floatingAddButtonStyles from "../src/app/floating-add-button.module.css";
 import homeStyles from "../src/app/home.module.css";
+import {
+  HOME_OVERDUE_ANCHOR_ID,
+  HOME_SHOPPING_CANDIDATES_ANCHOR_ID,
+  HOME_TODO_SECTIONS_ANCHOR_ID,
+} from "../src/app/home-anchors";
 import { buildRecentItems, HomeContent, type HomeSection } from "../src/app/page";
 
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
@@ -57,7 +62,17 @@ function emptySections(overrides: Partial<Record<HomeSection["id"], HomeSection[
   ];
 }
 
-function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null = HOUSEHOLD) {
+const SHOPPING_CANDIDATE = {
+  id: "consumable-1",
+  name: "猫のトイレ砂",
+  stockStatus: "low" as const,
+};
+
+function renderHome(
+  sections: HomeSection[],
+  household: typeof HOUSEHOLD | null = HOUSEHOLD,
+  shoppingCandidates: typeof SHOPPING_CANDIDATE[] = [],
+) {
   return render(
     <HomeContent
       actorName={ACTOR_NAME}
@@ -65,8 +80,20 @@ function renderHome(sections: HomeSection[], household: typeof HOUSEHOLD | null 
       household={household}
       members={MEMBERS}
       sections={sections}
+      shoppingCandidates={shoppingCandidates}
     />,
   );
+}
+
+function overdueItem(id: string, title: string) {
+  return {
+    detail: "管理対象なし",
+    id,
+    managedItemId: null,
+    meta: "期限を過ぎています",
+    title,
+    tone: "urgent" as const,
+  };
 }
 
 describe("ホーム画面(HomeContent)", () => {
@@ -226,6 +253,73 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件が期限切れ");
   });
 
+});
+
+// Issue #360: 上部の件数サマリーを、ホーム内の該当セクションへの導線にする。
+describe("ホーム上部の件数サマリー", () => {
+  it("「件の予定」が1件以上のときはTodo予定エリアの先頭へ移動できる", () => {
+    renderHome(emptySections({ overdue: [overdueItem("occurrence-1", "換気扇の掃除")] }));
+
+    const summary = screen.getByLabelText("対応状況");
+    const link = within(summary).getByRole("link", { name: "1件の予定へ移動" });
+    expect(link).toHaveAttribute("href", `#${HOME_TODO_SECTIONS_ANCHOR_ID}`);
+    expect(document.getElementById(HOME_TODO_SECTIONS_ANCHOR_ID)).toBeInTheDocument();
+  });
+
+  it("「件が期限切れ」が1件以上のときは期限切れセクションへ移動できる", () => {
+    renderHome(emptySections({ overdue: [overdueItem("occurrence-1", "換気扇の掃除")] }));
+
+    const summary = screen.getByLabelText("対応状況");
+    const link = within(summary).getByRole("link", { name: "期限切れの1件へ移動" });
+    expect(link).toHaveAttribute("href", `#${HOME_OVERDUE_ANCHOR_ID}`);
+    // 遷移先は「期限切れ」セクションそのものにする。
+    const overdueSection = screen.getByRole("region", { name: "期限切れ" });
+    expect(overdueSection).toHaveAttribute("id", HOME_OVERDUE_ANCHOR_ID);
+  });
+
+  it("買っておきたいものの件数を上部サマリーへ表示し、該当セクションへ移動できる", () => {
+    renderHome(emptySections(), HOUSEHOLD, [SHOPPING_CANDIDATE]);
+
+    const summary = screen.getByLabelText("対応状況");
+    expect(summary).toHaveTextContent("1件 買っておきたいもの");
+    const link = within(summary).getByRole("link", {
+      name: "買っておきたいもの1件へ移動",
+    });
+    expect(link).toHaveAttribute("href", `#${HOME_SHOPPING_CANDIDATES_ANCHOR_ID}`);
+    expect(screen.getByRole("region", { name: "買っておきたいもの" })).toHaveAttribute(
+      "id",
+      HOME_SHOPPING_CANDIDATES_ANCHOR_ID,
+    );
+  });
+
+  it("各サマリーは数値と文言をまとめて一つのタップ領域にする", () => {
+    renderHome(
+      emptySections({ overdue: [overdueItem("occurrence-1", "換気扇の掃除")] }),
+      HOUSEHOLD,
+      [SHOPPING_CANDIDATE],
+    );
+
+    const summary = screen.getByLabelText("対応状況");
+    const links = within(summary).getAllByRole("link");
+    expect(links).toHaveLength(3);
+    links.forEach((link) => {
+      expect(link).toHaveClass(homeStyles.summaryItem);
+      expect(link).toHaveClass(homeStyles.summaryLink);
+    });
+    // 数値だけを切り出したリンクは作らない。
+    expect(within(summary).getByRole("link", { name: "1件の予定へ移動" }))
+      .toHaveTextContent("1件の予定");
+  });
+
+  it("0件のサマリーはリンクにせず、件数だけを表示する", () => {
+    renderHome(emptySections());
+
+    const summary = screen.getByLabelText("対応状況");
+    expect(within(summary).queryAllByRole("link")).toHaveLength(0);
+    expect(summary).toHaveTextContent("0件の予定");
+    expect(summary).toHaveTextContent("0件が期限切れ");
+    expect(summary).toHaveTextContent("0件 買っておきたいもの");
+  });
 });
 
 describe("ホームのTodo操作", () => {

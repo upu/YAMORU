@@ -17,6 +17,7 @@ status: stable
 | 役割 | 実装 |
 |---|---|
 | 画面組み立てと表示区分 | `src/app/page.tsx`(`HomeContent`、`HomeSection`、`buildRecentItems`) |
+| 上部の見出し・導線・件数サマリー | `src/app/home-hero.tsx`、`src/app/home-anchors.ts` |
 | 未完了Todoの分類 | `src/app/pending-todo.ts` |
 | 期限・推奨期間の表示状態と文言 | `src/app/task-schedule.ts`、`src/app/time-zone.ts` |
 | Todoカードと完了操作 | `src/app/todo-card.tsx` → `src/features/todos/components/complete-todo-panel.tsx` |
@@ -30,6 +31,7 @@ status: stable
 - メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/app/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
 - 完了操作はホーム専用の保存処理を持たず、`CompleteTodoPanel`(→`src/features/todos/actions/completion.ts`)を共有する。同じ部品を台帳詳細と検索結果も使う。
 - 通知機能を持たず、気づきの導線はホームへ集約する([YDR-009](../decisions/ydr-009-drop-notifications-consolidate-home.md))。
+- 上部の件数サマリーは、同じホーム内のセクションへのアンカー導線として使う。遷移先のidは`src/app/home-anchors.ts`が唯一の定義とし、0件のサマリーは遷移先セクションが表示されないためリンクにしない(Issue #360)。
 
 ## 関連YDR
 

@@ -10,6 +10,11 @@ import {
   loadProfileNames,
 } from "../lib/d1/profiles";
 import { FloatingAddButton } from "./floating-add-button";
+import {
+  HOME_OVERDUE_ANCHOR_ID,
+  HOME_TODO_SECTIONS_ANCHOR_ID,
+} from "./home-anchors";
+import { HomeHero } from "./home-hero";
 import { getD1Context } from "../lib/d1/context";
 import {
   listPendingOccurrences,
@@ -194,7 +199,13 @@ function HomeSectionView({
   section: HomeSection;
 }) {
   return (
-    <section aria-labelledby={`${section.id}-title`} className="home-section">
+    <section
+      aria-labelledby={`${section.id}-title`}
+      className="home-section"
+      // Issue #360: 上部サマリーの「件が期限切れ」から移動できるようにする。
+      // 他の区分は「件の予定」の合計に含まれるため、個別のアンカーは持たない。
+      id={section.id === "overdue" ? HOME_OVERDUE_ANCHOR_ID : undefined}
+    >
       <div className="section-heading">
         <div>
           <h2 id={`${section.id}-title`}>{section.title}</h2>
@@ -217,44 +228,6 @@ function HomeSectionView({
         ))}
       </div>
     </section>
-  );
-}
-
-function HomeHero({
-  hasHousehold,
-  openItemCount,
-  overdueItemCount,
-}: {
-  hasHousehold: boolean;
-  openItemCount: number;
-  overdueItemCount: number;
-}) {
-  return (
-    <header className="hero">
-      <h1 className="sr-only">ホーム</h1>
-      <nav aria-label="ホームの操作" className={styles.heroActions}>
-        {hasHousehold ? (
-          /* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */
-          <Link className={`${styles.accountLink} ${styles.todoListLink}`} href="/todos">
-            Todo一覧
-          </Link>
-        ) : null}
-        <Link className={`${styles.accountLink} ${styles.ledgerLink}`} href="/managed-items">
-          家の台帳
-        </Link>
-      </nav>
-
-      <div className={styles.summary} aria-label="対応状況">
-        <div>
-          <strong>{openItemCount}</strong>
-          <span>件の予定</span>
-        </div>
-        <div>
-          <strong>{overdueItemCount}</strong>
-          <span>件が期限切れ</span>
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -302,7 +275,8 @@ function HomeSectionList({
   sections: HomeSection[];
 }) {
   return (
-    <div className={styles.sectionList}>
+    // Issue #360: 上部サマリーの「件の予定」から、Todo予定エリアの先頭へ移動する。
+    <div className={styles.sectionList} id={HOME_TODO_SECTIONS_ANCHOR_ID}>
       {sections.map((section) => (
         <HomeSectionView
           actorName={actorName}
@@ -392,6 +366,7 @@ export function HomeContent({
         hasHousehold={household !== null}
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}
+        shoppingCandidateCount={shoppingCandidates.length}
       />
 
       {household === null ? (
