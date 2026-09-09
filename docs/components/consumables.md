@@ -23,7 +23,7 @@ status: stable
 | ピン留め | `src/app/consumables/pin-actions.ts`、`src/app/consumables/pin-toggle.tsx` | `src/lib/d1/consumable-pins.ts` |
 | 買い物候補(ホーム) | `src/app/shopping-candidates.tsx` | `src/lib/d1/consumables.ts`の`listShoppingCandidates` |
 
-スキーマは`d1/migrations/0012_consumables.sql`、`0013_consumable_stock_status.sql`、`0020_consumable_refills.sql`、`0025_user_consumable_favorites.sql`、`0026_user_consumable_pins.sql`が正本。`0025`は適用済み履歴として保持し、現在のテーブル名は`0026`の`user_consumable_pins`とする。
+スキーマは`d1/migrations/0012_consumables.sql`、`0013_consumable_stock_status.sql`、`0020_consumable_refills.sql`、`0025_user_consumable_favorites.sql`、`0026_user_consumable_pins.sql`が正本。アプリケーションは`user_consumable_pins`だけを使い、`0025`の旧テーブルは新旧Workerの互換性を保つ同期対象として、後続のcontract migrationまで残す。
 
 ## 重要な不変条件
 
