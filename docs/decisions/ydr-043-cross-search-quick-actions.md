@@ -5,14 +5,15 @@ title: 横断検索の結果から既存の在庫変更とTodo完了を行える
 description: 横断検索の詳細リンクを維持しながら、消耗品の在庫3状態と未完了Todoの完了記録だけを既存のクイック操作部品で行えるようにする
 tags: [yamoru, decisions, ydr, search, consumable, todo]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-09-08
 supersedes: YDR-042
+superseded_by: YDR-044
 ---
 
 # YDR-043: 横断検索の結果から既存の在庫変更とTodo完了を行えるようにする
 
-- 状態: Accepted
+- 状態: Superseded by [YDR-044](ydr-044-consumable-pinning-terminology.md)(「お気に入り」を「ピン留め」へ変更する部分のみ。横断検索の操作境界は維持する)
 - 決定日: 2026-09-08
 - 置き換える決定: [YDR-042](ydr-042-cross-cutting-search.md)(検索結果の続きの操作を詳細画面への移動だけとした部分。検索対象、入口、一致規則、件数上限、家庭単位の認可は変更しない)
 

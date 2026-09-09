@@ -48,7 +48,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
     await expect(getConsumable(db, householdAMember, id)).resolves.toEqual({
       externalUrl: "https://example.com/toilet-paper",
       id,
-      isFavorite: false,
+      isPinned: false,
       managedItems: [],
       name: "トイレットペーパー",
       note: "収納棚の上段",
@@ -191,7 +191,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
     await expect(getConsumable(db, householdAMember, id)).resolves.toEqual({
       externalUrl: "https://example.com/filter",
       id,
-      isFavorite: false,
+      isPinned: false,
       managedItems: [],
       name: "交換フィルター",
       note: "型番を確認する",

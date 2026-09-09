@@ -8,7 +8,7 @@ const {
   loadAccountStateMock,
   loadActorNameMock,
   loadHouseholdMembersMock,
-  listFavoriteConsumablesMock,
+  listPinnedConsumablesMock,
   listPendingOccurrencesMock,
   listRecentActiveCompletionsMock,
   listShoppingCandidatesMock,
@@ -18,7 +18,7 @@ const {
   loadAccountStateMock: vi.fn(),
   loadActorNameMock: vi.fn(),
   loadHouseholdMembersMock: vi.fn(),
-  listFavoriteConsumablesMock: vi.fn(),
+  listPinnedConsumablesMock: vi.fn(),
   listPendingOccurrencesMock: vi.fn(),
   listRecentActiveCompletionsMock: vi.fn(),
   listShoppingCandidatesMock: vi.fn(),
@@ -35,8 +35,8 @@ vi.mock("../src/lib/d1/home", () => ({
 vi.mock("../src/lib/d1/consumables", () => ({
   listShoppingCandidates: listShoppingCandidatesMock,
 }));
-vi.mock("../src/lib/d1/consumable-favorites", () => ({
-  listFavoriteConsumables: listFavoriteConsumablesMock,
+vi.mock("../src/lib/d1/consumable-pins", () => ({
+  listPinnedConsumables: listPinnedConsumablesMock,
 }));
 vi.mock("../src/lib/d1/profiles", () => ({
   FALLBACK_OTHER_MEMBER_NAME: "メンバー",
@@ -72,7 +72,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     expect(loadHouseholdMembersMock).not.toHaveBeenCalled();
     expect(listPendingOccurrencesMock).not.toHaveBeenCalled();
     expect(listRecentActiveCompletionsMock).not.toHaveBeenCalled();
-    expect(listFavoriteConsumablesMock).not.toHaveBeenCalled();
+    expect(listPinnedConsumablesMock).not.toHaveBeenCalled();
     expect(listShoppingCandidatesMock).not.toHaveBeenCalled();
   });
 
@@ -87,7 +87,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     ]);
     listPendingOccurrencesMock.mockResolvedValue([]);
     listRecentActiveCompletionsMock.mockResolvedValue([]);
-    listFavoriteConsumablesMock.mockResolvedValue([]);
+    listPinnedConsumablesMock.mockResolvedValue([]);
     listShoppingCandidatesMock.mockResolvedValue([]);
 
     const element = await Home();
@@ -111,7 +111,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     loadHouseholdMembersMock.mockResolvedValue([]);
     listPendingOccurrencesMock.mockResolvedValue([]);
     listRecentActiveCompletionsMock.mockResolvedValue([]);
-    listFavoriteConsumablesMock.mockResolvedValue([]);
+    listPinnedConsumablesMock.mockResolvedValue([]);
     listShoppingCandidatesMock.mockResolvedValue([
       { id: "paper", name: "トイレットペーパー", stockStatus: "low" },
     ]);
@@ -126,7 +126,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
       .not.toBeInTheDocument();
   });
 
-  it("現在の利用者がお気に入りにした消耗品をホームへ表示する", async () => {
+  it("現在の利用者がピン留めした消耗品をホームへ表示する", async () => {
     loadAccountStateMock.mockResolvedValue({
       household: { id: "household-1", name: "テスト家庭" },
       nickname: "ぽっぷ",
@@ -136,17 +136,17 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
     listPendingOccurrencesMock.mockResolvedValue([]);
     listRecentActiveCompletionsMock.mockResolvedValue([]);
     listShoppingCandidatesMock.mockResolvedValue([]);
-    listFavoriteConsumablesMock.mockResolvedValue([
+    listPinnedConsumablesMock.mockResolvedValue([
       { id: "eggs", name: "卵", stockStatus: "available" },
     ]);
 
     render(await Home());
 
-    expect(listFavoriteConsumablesMock).toHaveBeenCalledWith(
+    expect(listPinnedConsumablesMock).toHaveBeenCalledWith(
       {},
       { userId: "user-1" },
     );
-    expect(screen.getByRole("region", { name: "お気に入り" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "ピン留め" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "卵" }))
       .toHaveAttribute("href", "/consumables/eggs");
     expect(screen.queryByRole("heading", { name: "いま対応することはありません" }))

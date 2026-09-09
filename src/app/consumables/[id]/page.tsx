@@ -7,7 +7,7 @@ import { getD1Context } from "../../../lib/d1/context";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
 import { ConsumableRelations } from "../detail-relations";
-import { FavoriteToggle } from "../favorite-toggle";
+import { PinToggle } from "../pin-toggle";
 import { StockStatusControl } from "../stock-status-control";
 import { ConsumableRefillControl } from "../refill-control";
 
@@ -74,9 +74,9 @@ export function ConsumableDetailContent({
           <p className="detail-kicker">CONSUMABLE</p>
           <h1>{consumable.name}</h1>
         </div>
-        <FavoriteToggle
+        <PinToggle
           consumableId={consumable.id}
-          isFavorite={consumable.isFavorite}
+          isPinned={consumable.isPinned}
         />
       </header>
 

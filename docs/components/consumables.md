@@ -1,7 +1,7 @@
 ---
 type: Component Map
 title: 消耗品(Consumable)の修正箇所マップ
-description: 在庫状態、補充記録、関連付け、お気に入りについて、最初に読む実装とテスト、守る不変条件、関連する有効なYDRへの入口
+description: 在庫状態、補充記録、関連付け、ピン留めについて、最初に読む実装とテスト、守る不変条件、関連する有効なYDRへの入口
 tags: [yamoru, components, consumable, inventory]
 status: stable
 ---
@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-家庭で使う消耗品の登録・編集、家庭共有の在庫状態、補充の履歴、管理対象やTodoとの関連付け、利用者ごとのお気に入りを扱う。ConsumableはManagedItemとは別のテーブルであり、台帳画面では3つ目の入口として並べるだけである。
+家庭で使う消耗品の登録・編集、家庭共有の在庫状態、補充の履歴、管理対象やTodoとの関連付け、利用者ごとのピン留めを扱う。ConsumableはManagedItemとは別のテーブルであり、台帳画面では3つ目の入口として並べるだけである。
 
 ## 主要入口
 
@@ -20,18 +20,18 @@ status: stable
 | 登録・編集 | `src/app/consumables/actions.ts`、`src/app/consumables/consumable-form.tsx` | `src/lib/d1/consumables.ts`の`createConsumable`/`updateConsumable` |
 | 補充の記録 | `src/app/consumables/refill-actions.ts`、`src/app/consumables/refill-control.tsx` | `src/lib/d1/consumables.ts`の`recordConsumableRefill` |
 | 管理対象・Todoとの関連 | `src/app/consumables/relation-actions.ts`、`src/app/consumables/relation-picker.tsx` | `src/lib/d1/consumables.ts`、`src/lib/d1/consumable-relations.ts` |
-| お気に入り | `src/app/consumables/favorite-actions.ts`、`src/app/consumables/favorite-toggle.tsx` | `src/lib/d1/consumable-favorites.ts` |
+| ピン留め | `src/app/consumables/pin-actions.ts`、`src/app/consumables/pin-toggle.tsx` | `src/lib/d1/consumable-pins.ts` |
 | 買い物候補(ホーム) | `src/app/shopping-candidates.tsx` | `src/lib/d1/consumables.ts`の`listShoppingCandidates` |
 
-スキーマは`d1/migrations/0012_consumables.sql`、`0013_consumable_stock_status.sql`、`0020_consumable_refills.sql`、`0025_user_consumable_favorites.sql`が正本。
+スキーマは`d1/migrations/0012_consumables.sql`、`0013_consumable_stock_status.sql`、`0020_consumable_refills.sql`、`0025_user_consumable_favorites.sql`、`0026_user_consumable_pins.sql`が正本。アプリケーションは`user_consumable_pins`だけを使い、`0025`の旧テーブルは新旧Workerの互換性を保つ同期対象として、後続のcontract migrationまで残す。
 
 ## 重要な不変条件
 
 - 在庫状態は`available` / `low` / `out`の3値だけで、数量や消費予測を持たない。買い物候補は`low`と`out`から作る。
-- 在庫状態とConsumable本体は家庭共有、お気に入りは利用者ごと(`user_consumable_favorites`)。この境界を混ぜない。
+- 在庫状態とConsumable本体は家庭共有、ピン留めは利用者ごと(`user_consumable_pins`)。この境界を混ぜない。
 - 補充は現在の在庫状態と別の追記型履歴として持ち、補充日(`refilled_on`)と記録時刻(`recorded_at`)を分ける([YDR-012](../decisions/ydr-012-separate-occurred-recorded-scheduled-due.md)と同じ考え方)。数量はこのテーブルへ持ち込まない。
 - 更新系は`requireCurrentHouseholdId`でセッションから家庭を導出し、`id`と`household_id`の両方を条件にする。変更行数が1でなければNot Foundとして失敗させる。
-- 在庫変更のUI部品(`QuickStockStatusControl`)はホームのお気に入り・検索結果・消耗品詳細で共有する。画面ごとの保存処理を増やさない([YDR-043](../decisions/ydr-043-cross-search-quick-actions.md))。
+- 在庫変更のUI部品(`QuickStockStatusControl`)はホームのピン留め・検索結果・消耗品詳細で共有する。画面ごとの保存処理を増やさない([YDR-043](../decisions/ydr-043-cross-search-quick-actions.md))。
 
 ## 関連YDR
 
@@ -47,4 +47,4 @@ npm run lint
 npm run typecheck
 ```
 
-保存や家庭間分離を変える場合は`src/lib/d1/consumable-stock.d1-test.ts`、`src/lib/d1/consumables-authorization.d1-test.ts`、`src/lib/d1/consumable-favorites.d1-test.ts`を確認する。画面回帰は`e2e/consumable-relations.spec.ts`で確認する。
+保存や家庭間分離を変える場合は`src/lib/d1/consumable-stock.d1-test.ts`、`src/lib/d1/consumables-authorization.d1-test.ts`、`src/lib/d1/consumable-pins.d1-test.ts`を確認する。画面回帰は`e2e/consumable-relations.spec.ts`で確認する。

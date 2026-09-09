@@ -52,7 +52,7 @@ function detail(overrides: Partial<ConsumableDetailData> = {}): ConsumableDetail
   return {
     externalUrl: null,
     id: "consumable-1",
-    isFavorite: false,
+    isPinned: false,
     managedItems: [],
     name: "交換フィルター",
     note: null,

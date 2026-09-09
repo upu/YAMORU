@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-認証済み利用者の家庭について、いま対応する未完了Todo、直近の実施記録、買い物候補、お気に入り消耗品を1画面へ集約する。Todoの登録・編集や消耗品の詳細操作は各機能側が持ち、ホームは表示と既存操作部品の呼び出しに限る。
+認証済み利用者の家庭について、いま対応する未完了Todo、直近の実施記録、買い物候補、ピン留めした消耗品を1画面へ集約する。Todoの登録・編集や消耗品の詳細操作は各機能側が持ち、ホームは表示と既存操作部品の呼び出しに限る。
 
 ## 主要入口
 
@@ -20,8 +20,8 @@ status: stable
 | 未完了Todoの分類 | `src/app/pending-todo.ts` |
 | 期限・推奨期間の表示状態と文言 | `src/app/task-schedule.ts`、`src/app/time-zone.ts` |
 | Todoカードと完了操作 | `src/app/todo-card.tsx` → `src/features/todos/components/complete-todo-panel.tsx` |
-| 消耗品の表示 | `src/app/favorite-consumables.tsx`、`src/app/shopping-candidates.tsx` |
-| データ取得 | `src/lib/d1/home.ts`、`src/lib/d1/consumables.ts`、`src/lib/d1/consumable-favorites.ts` |
+| 消耗品の表示 | `src/app/pinned-consumables.tsx`、`src/app/shopping-candidates.tsx` |
+| データ取得 | `src/lib/d1/home.ts`、`src/lib/d1/consumables.ts`、`src/lib/d1/consumable-pins.ts` |
 
 ## 重要な不変条件
 

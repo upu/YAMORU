@@ -6,63 +6,63 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/app/consumables/stock-actions", () => ({
   updateConsumableStockStatus: vi.fn(),
 }));
-vi.mock("../src/app/consumables/favorite-actions", () => ({
-  updateConsumableFavorite: vi.fn(),
+vi.mock("../src/app/consumables/pin-actions", () => ({
+  updateConsumablePin: vi.fn(),
 }));
 
-import { FavoriteConsumablesSection } from "../src/app/favorite-consumables";
-import { FavoriteToggle } from "../src/app/consumables/favorite-toggle";
+import { PinnedConsumablesSection } from "../src/app/pinned-consumables";
+import { PinToggle } from "../src/app/consumables/pin-toggle";
 
 afterEach(cleanup);
 
-const FAVORITES = Array.from({ length: 6 }, (_, index) => ({
+const PINS = Array.from({ length: 6 }, (_, index) => ({
   id: `consumable-${String(index + 1)}`,
-  name: `お気に入り${String(index + 1)}`,
+  name: `ピン留め${String(index + 1)}`,
   stockStatus: index % 2 === 0 ? "available" as const : "low" as const,
 }));
 
-describe("ホームのお気に入り消耗品", () => {
+describe("ホームのピン留め消耗品", () => {
   it("5件以下は全件を表示し、折りたたみ操作を出さない", () => {
-    render(<FavoriteConsumablesSection favorites={FAVORITES.slice(0, 5)} />);
+    render(<PinnedConsumablesSection pins={PINS.slice(0, 5)} />);
 
-    const region = screen.getByRole("region", { name: "お気に入り" });
+    const region = screen.getByRole("region", { name: "ピン留め" });
     expect(within(region).getAllByRole("article")).toHaveLength(5);
     expect(within(region).queryByRole("button", { name: /ほか.*件を表示/u }))
       .not.toBeInTheDocument();
   });
 
   it("6件以上は最近の5件を表示し、残りを展開して閉じられる", () => {
-    render(<FavoriteConsumablesSection favorites={FAVORITES} />);
+    render(<PinnedConsumablesSection pins={PINS} />);
 
-    const region = screen.getByRole("region", { name: "お気に入り" });
+    const region = screen.getByRole("region", { name: "ピン留め" });
     expect(within(region).getAllByRole("article")).toHaveLength(5);
-    expect(within(region).queryByText("お気に入り6")).not.toBeInTheDocument();
+    expect(within(region).queryByText("ピン留め6")).not.toBeInTheDocument();
 
     fireEvent.click(within(region).getByRole("button", { name: "ほか1件を表示" }));
     expect(within(region).getAllByRole("article")).toHaveLength(6);
-    expect(within(region).getByText("お気に入り6")).toBeInTheDocument();
+    expect(within(region).getByText("ピン留め6")).toBeInTheDocument();
 
     fireEvent.click(within(region).getByRole("button", { name: "閉じる" }));
     expect(within(region).getAllByRole("article")).toHaveLength(5);
-    expect(within(region).queryByText("お気に入り6")).not.toBeInTheDocument();
+    expect(within(region).queryByText("ピン留め6")).not.toBeInTheDocument();
   });
 
   it("各消耗品の詳細へ移動でき、家庭共有の在庫状態をその場で変更できる", () => {
-    render(<FavoriteConsumablesSection favorites={[FAVORITES[0]]} />);
+    render(<PinnedConsumablesSection pins={[PINS[0]]} />);
 
-    const item = screen.getByRole("article", { name: "お気に入り1" });
-    expect(within(item).getByRole("link", { name: "お気に入り1" }))
+    const item = screen.getByRole("article", { name: "ピン留め1" });
+    expect(within(item).getByRole("link", { name: "ピン留め1" }))
       .toHaveAttribute("href", "/consumables/consumable-1");
-    expect(within(item).getByRole("group", { name: "お気に入り1の在庫状態を変更" }))
+    expect(within(item).getByRole("group", { name: "ピン留め1の在庫状態を変更" }))
       .toBeInTheDocument();
     expect(within(item).getByRole("button", { name: "ある" }))
       .toHaveAttribute("aria-pressed", "true");
   });
 
   it("現在の在庫状態を状態変更ボタンだけで示し、独立したバッジを重ねない", () => {
-    render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
+    render(<PinnedConsumablesSection pins={[PINS[1]]} />);
 
-    const item = screen.getByRole("article", { name: "お気に入り2" });
+    const item = screen.getByRole("article", { name: "ピン留め2" });
     expect(item.querySelector(".stock-status-badge")).not.toBeInTheDocument();
     expect(within(item).getAllByText("少ない")).toHaveLength(1);
     expect(within(item).getByRole("button", { name: "少ない" }))
@@ -74,9 +74,9 @@ describe("ホームのお気に入り消耗品", () => {
   });
 
   it("状態変更ボタンを○△×のアイコンで表示し、読み上げ用の語は残す", () => {
-    render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
+    render(<PinnedConsumablesSection pins={[PINS[1]]} />);
 
-    const item = screen.getByRole("article", { name: "お気に入り2" });
+    const item = screen.getByRole("article", { name: "ピン留め2" });
     const low = within(item).getByRole("button", { name: "少ない" });
     expect(low.querySelector("svg")).toBeInTheDocument();
     expect(low).toHaveTextContent(/^少ない$/u);
@@ -84,9 +84,9 @@ describe("ホームのお気に入り消耗品", () => {
   });
 
   it("選択中の色を状態ごとに変えられるよう、状態別のクラスを付ける", () => {
-    render(<FavoriteConsumablesSection favorites={[FAVORITES[1]]} />);
+    render(<PinnedConsumablesSection pins={[PINS[1]]} />);
 
-    const item = screen.getByRole("article", { name: "お気に入り2" });
+    const item = screen.getByRole("article", { name: "ピン留め2" });
     expect(within(item).getByRole("button", { name: "ある" }))
       .toHaveClass("stock-status-option-available");
     expect(within(item).getByRole("button", { name: "少ない" }))
@@ -96,25 +96,27 @@ describe("ホームのお気に入り消耗品", () => {
   });
 
   it("表示密度を優先し、セクションに説明文を置かない", () => {
-    render(<FavoriteConsumablesSection favorites={FAVORITES.slice(0, 1)} />);
+    render(<PinnedConsumablesSection pins={PINS.slice(0, 1)} />);
 
-    const region = screen.getByRole("region", { name: "お気に入り" });
-    expect(within(region).getByRole("heading", { name: "お気に入り" }))
+    const region = screen.getByRole("region", { name: "ピン留め" });
+    expect(within(region).getByRole("heading", { name: "ピン留め" }))
       .toBeInTheDocument();
     expect(region.querySelector(".section-heading p")).not.toBeInTheDocument();
   });
 });
 
-describe("消耗品詳細のお気に入り操作", () => {
-  it("個人のお気に入りへ追加・解除する可逆な操作を示す", () => {
+describe("消耗品詳細のピン留め操作", () => {
+  it("個人のピン留めへ追加・解除する可逆な操作を示す", () => {
     const { rerender } = render(
-      <FavoriteToggle consumableId="consumable-1" isFavorite={false} />,
+      <PinToggle consumableId="consumable-1" isPinned={false} />,
     );
-    expect(screen.getByRole("button", { name: "お気に入りに追加" }))
+    expect(screen.getByRole("button", { name: "ホームにピン留め" }))
       .toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "ホームにピン留め" }).querySelector("svg"))
+      .toBeInTheDocument();
 
-    rerender(<FavoriteToggle consumableId="consumable-1" isFavorite />);
-    expect(screen.getByRole("button", { name: "お気に入りから外す" }))
+    rerender(<PinToggle consumableId="consumable-1" isPinned />);
+    expect(screen.getByRole("button", { name: "ピン留めを外す" }))
       .toHaveAttribute("aria-pressed", "true");
   });
 });

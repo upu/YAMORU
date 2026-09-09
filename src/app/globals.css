@@ -314,12 +314,12 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.favorite-control {
+.pin-control {
   flex: none;
   text-align: right;
 }
 
-.favorite-toggle {
+.pin-toggle {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -335,13 +335,21 @@ h1 {
   cursor: pointer;
 }
 
-.favorite-toggle[aria-pressed="true"] {
+.pin-toggle[aria-pressed="true"] {
   border-color: #d59b16;
   color: #6f4b00;
   background: #fff3c9;
 }
 
-.favorite-toggle:disabled {
+.pin-toggle svg {
+  width: 1em;
+  height: 1em;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.pin-toggle:disabled {
   cursor: wait;
   opacity: 0.72;
 }
@@ -1552,7 +1560,7 @@ h1 {
     display: grid;
   }
 
-  .favorite-control {
+  .pin-control {
     text-align: left;
   }
 
