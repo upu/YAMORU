@@ -1,0 +1,65 @@
+/* ホームのお気に入り消耗品(Issue #359)。在庫状態の変更ボタン
+   (consumables/stock-status-control)と操作結果の表示は共通の部品なので、
+   ここでは並びだけを:global()で調整する。 */
+.list {
+  display: grid;
+}
+
+/* Issue #359: 1件あたりの縦幅を詰め、名前と状態変更ボタンを同じ行に置く。
+   1件ずつ枠で囲まず、項目の間を細い線で区切るリスト形式にして余白を減らす。
+   flex-wrapは、状態変更に失敗したときの文言を行全体へ送るために残す。 */
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 4px 0;
+}
+
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+
+/* flex-basis: 0にして、名前が長くても状態変更ボタンを次の行へ送らず、
+   名前の側だけを折り返す。 */
+.name {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
+/* 名前が折り返して次の行へ送られたときも、状態変更ボタンは行の右端へ寄せる。 */
+.item > form {
+  flex: none;
+  margin-left: auto;
+}
+
+.item :global(.stock-status-options) {
+  max-width: none;
+  margin-top: 0;
+  grid-template-columns: repeat(3, auto);
+  gap: 4px;
+}
+
+.item :global(.auth-feedback) {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
+.disclosure {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  color: var(--green);
+  background: var(--green-pale);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}

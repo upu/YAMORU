@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import type { ConsumableSummary } from "../lib/d1/consumables";
 import { QuickStockStatusControl } from "./consumables/stock-status-control";
+import styles from "./favorite-consumables.module.css";
 
 const COLLAPSED_FAVORITES_COUNT = 5;
 
@@ -13,9 +14,9 @@ const COLLAPSED_FAVORITES_COUNT = 5;
    状態変更は○△×で出し、名前が少し長くても1行に収まる幅にする。 */
 function FavoriteConsumable({ favorite }: { favorite: ConsumableSummary }) {
   return (
-    <article aria-label={favorite.name} className="favorite-consumable">
+    <article aria-label={favorite.name} className={styles.item}>
       <Link
-        className="favorite-consumable-name"
+        className={styles.name}
         href={`/consumables/${encodeURIComponent(favorite.id)}`}
       >
         {favorite.name}
@@ -49,7 +50,7 @@ export function FavoriteConsumablesSection({
           {favorites.length}
         </span>
       </div>
-      <div className="favorite-consumable-list" id="favorite-consumable-list">
+      <div className={styles.list} id="favorite-consumable-list">
         {visibleFavorites.map((favorite) => (
           <FavoriteConsumable favorite={favorite} key={favorite.id} />
         ))}
@@ -58,7 +59,7 @@ export function FavoriteConsumablesSection({
         <button
           aria-controls="favorite-consumable-list"
           aria-expanded={expanded}
-          className="favorite-disclosure"
+          className={styles.disclosure}
           onClick={() => {
             setExpanded((current) => !current);
           }}

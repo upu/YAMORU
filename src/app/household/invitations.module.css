@@ -1,0 +1,120 @@
+/* 招待の一覧・発行結果(Issue #68)。家庭の画面(household/)だけで使う。 */
+/* ---------------------------------------------------------------------------
+   招待(Issue #68)
+--------------------------------------------------------------------------- */
+.list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.rowSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.status {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.statusPending {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.statusAccepted {
+  color: var(--blue);
+  background: var(--blue-pale);
+}
+
+.statusExpired {
+  color: var(--orange);
+  background: var(--orange-pale);
+}
+
+.statusCancelled,
+.statusReplaced {
+  color: var(--muted);
+  background: var(--canvas);
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.cancelForm {
+  display: contents;
+}
+
+.cancelButton,
+.reissueLink {
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 1px solid rgb(184 92 45 / 40%);
+  color: var(--orange);
+  background: var(--orange-pale);
+  font: inherit;
+}
+
+.reissueLink {
+  border: 1px solid rgb(49 92 73 / 24%);
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+.issuedResult {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  background: var(--green-pale);
+}
+
+.issuedResult p {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.issuedResult p:last-child {
+  margin-bottom: 0;
+}
+
+.linkCopy {
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-weight: 800;
+}

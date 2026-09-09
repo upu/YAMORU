@@ -39,6 +39,7 @@ vi.mock("../src/lib/d1/profiles", () => ({
 }));
 
 import TodoListPage from "../src/app/todos/page";
+import todoListStyles from "../src/app/todos/todo-list.module.css";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -386,7 +387,7 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
     expect(listPendingOccurrencesMock)
       .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(screen.getByRole("searchbox", { name: "Todo名で検索" })).toHaveValue("");
-    const disclosure = document.querySelector(".todo-search-disclosure");
+    const disclosure = document.querySelector(`.${todoListStyles.searchDisclosure}`);
     expect(disclosure).not.toHaveAttribute("open");
   });
 
@@ -408,7 +409,7 @@ describe("Todo一覧画面のフリーワード検索(TodoListPage、Issue #225)
     expect(screen.getByText(/検索語: 「洗剤」/)).toBeInTheDocument();
     // 再読み込み・URL共有後も検索状態を見失わないよう、検索語が適用中なら
     // 検索欄を開いた状態で描画する(受け入れ基準)。
-    const disclosure = document.querySelector(".todo-search-disclosure");
+    const disclosure = document.querySelector(`.${todoListStyles.searchDisclosure}`);
     expect(disclosure).toHaveAttribute("open");
   });
 

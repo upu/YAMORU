@@ -11,6 +11,7 @@ import {
 import { LedgerHouseholdRequiredNotice } from "../ledger-page-shell";
 import { SearchForm } from "./search-form";
 import { SearchResults } from "./results";
+import styles from "./search-results.module.css";
 
 // Issue #350 / YDR-042: YAMORU全体をまたぐ横断検索の画面。画面内検索
 // (Todo一覧・台帳)が「いま開いている一覧を絞り込む」のに対し、この画面は
@@ -52,7 +53,7 @@ export function SearchContent({
   results: CrossSearchResults | null;
 }) {
   return (
-    <main className="detail-page search-page">
+    <main className={`detail-page ${styles.page}`}>
       <header className="detail-hero">
         <p className="detail-kicker">SEARCH</p>
         <h1>検索</h1>

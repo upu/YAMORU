@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { cancelInvitation } from "./invitation-actions";
+import styles from "./invitations.module.css";
 import { INITIAL_CANCEL_INVITATION_STATE } from "./state";
 
 function SubmitButton() {
@@ -11,7 +12,7 @@ function SubmitButton() {
   return (
     <button
       aria-disabled={pending}
-      className="invitation-cancel-button"
+      className={styles.cancelButton}
       disabled={pending}
       type="submit"
     >
@@ -27,7 +28,7 @@ export function CancelInvitationButton({ invitationId }: { invitationId: string 
   );
 
   return (
-    <form action={formAction} className="invitation-cancel-form">
+    <form action={formAction} className={styles.cancelForm}>
       <input name="invitationId" type="hidden" value={invitationId} />
       <SubmitButton />
       {state.status === "error" ? (

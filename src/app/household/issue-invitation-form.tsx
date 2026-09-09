@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { PHASE_ONE_TIME_ZONE } from "../time-zone";
 import { issueInvitation } from "./invitation-actions";
+import styles from "./invitations.module.css";
 import { INITIAL_ISSUE_INVITATION_STATE } from "./state";
 
 function SubmitButton({ pending }: { pending: string }) {
@@ -34,9 +35,9 @@ function IssuedInvitationResult({
     timeZone: PHASE_ONE_TIME_ZONE,
   });
   return (
-    <div className="invitation-issued-result" role="status">
+    <div className={styles.issuedResult} role="status">
       <p><strong>{invitedEmail}</strong>宛の招待リンクを発行しました。</p>
-      <p className="invitation-link-copy">{link}</p>
+      <p className={styles.linkCopy}>{link}</p>
       <p className="detail-note">
         このリンクは{expiresLabel}まで有効です。この画面を離れると再表示されないため、今すぐコピーして共有してください。
       </p>

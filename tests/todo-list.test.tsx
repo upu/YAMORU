@@ -28,6 +28,7 @@ vi.mock("../src/auth", () => ({ auth: vi.fn() }));
 
 import type { PendingOccurrenceRow } from "../src/lib/d1/home";
 import { buildTodoListItems, TodoListContent } from "../src/app/todos/page";
+import todoListStyles from "../src/app/todos/todo-list.module.css";
 
 const HOUSEHOLD = { id: "household-1", name: "テスト家庭" };
 const ACTOR_NAME = "ぽっぷ";
@@ -211,7 +212,7 @@ describe("Todo一覧画面(TodoListContent)", () => {
   it("担当絞り込みとアイコンの表示切り替えをツールバー内へコンパクトにまとめる", () => {
     renderTodoList([]);
 
-    const toolbarActions = document.querySelector(".todo-toolbar-actions");
+    const toolbarActions = document.querySelector(`.${todoListStyles.toolbarActions}`);
     const assigneeToggle = screen.getByText("担当: 全員", { selector: "summary" });
     const assigneeDisclosure = assigneeToggle.closest("details");
     const cardSwitch = screen.getByRole("link", { name: "カード表示" });
@@ -232,7 +233,7 @@ describe("Todo一覧画面(TodoListContent)", () => {
   it("虫眼鏡ボタンからTodo内検索を開ける入り口を表示し、検索語がなければ閉じておく", () => {
     renderTodoList([]);
 
-    const searchToggle = document.querySelector(".todo-search-toggle");
+    const searchToggle = document.querySelector(`.${todoListStyles.searchToggle}`);
     expect(searchToggle).toHaveAttribute("aria-label", "Todoを検索");
     const disclosure = searchToggle?.closest("details");
     expect(disclosure).not.toBeNull();
@@ -294,7 +295,7 @@ describe("Todo一覧画面(TodoListContent)", () => {
     renderTodoList(items, HOUSEHOLD, "list");
 
     const rowLink = screen.getByRole("link", { name: /フィルター交換/ });
-    const meta = rowLink.querySelector(".todo-list-row-meta");
+    const meta = rowLink.querySelector(`.${todoListStyles.rowMeta}`);
     expect(meta).toHaveTextContent("9/12〜9/15");
     expect(meta).toHaveTextContent("誰でも可");
     expect(rowLink).toHaveTextContent("推奨期間");
@@ -304,8 +305,8 @@ describe("Todo一覧画面(TodoListContent)", () => {
     renderTodoList(buildTodoListItems([onceRow("undated", null)], NOW), HOUSEHOLD, "list");
 
     const rowLink = screen.getByRole("link", { name: /今回だけ点検/ });
-    expect(rowLink.querySelector(".todo-list-row-meta")).toHaveTextContent("誰でも可");
-    expect(rowLink.querySelector(".todo-list-row-meta")).not.toHaveTextContent("未定");
+    expect(rowLink.querySelector(`.${todoListStyles.rowMeta}`)).toHaveTextContent("誰でも可");
+    expect(rowLink.querySelector(`.${todoListStyles.rowMeta}`)).not.toHaveTextContent("未定");
     expect(rowLink.querySelector(".tone-label")).toHaveTextContent("未定");
   });
 

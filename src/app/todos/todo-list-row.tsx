@@ -4,6 +4,7 @@ import { FALLBACK_OTHER_MEMBER_NAME, type HouseholdMemberOption } from "../../li
 import type { TodoListSchedule } from "../task-schedule";
 import { TONE_LABELS, type TodoCardItem } from "../todo-card";
 import { formatTokyoShortMonthDay } from "../time-zone";
+import styles from "./todo-list.module.css";
 
 // Issue #224: コンパクトなリスト表示の操作範囲。カードと同じ操作(担当変更・
 // 完了記録・予定日変更)をそのまま並べると、行が狭いぶん誤タップが起きやすい
@@ -60,7 +61,7 @@ function TodoListRowMeta({
     item.performedByName ?? "",
   ].filter((part) => part !== "");
   return (
-    <span className="todo-list-row-meta">
+    <span className={styles.rowMeta}>
       {parts.join(" ・ ")}
       {assigneeLabel === null ? null : (
         <>
@@ -84,8 +85,8 @@ function TodoListRowBody({
   item: TodoCardItem;
 }) {
   return (
-    <span className="todo-list-row-body">
-      <span className="todo-list-row-title">{item.title}</span>
+    <span className={styles.rowBody}>
+      <span className={styles.rowTitle}>{item.title}</span>
       <TodoListRowMeta assigneeLabel={assigneeLabel} item={item} />
       <span className={`tone-label tone-${item.tone}`}>{item.badge ?? TONE_LABELS[item.tone]}</span>
     </span>
@@ -110,14 +111,14 @@ export function TodoListRow({
     : describeItemAssignee(item.assigneeUserId, currentUserId, members);
   const href = item.todoHref ?? item.detailHref;
   return (
-    <li className="todo-list-row">
+    <li className={styles.row}>
       {href === undefined ? (
-        <span className="todo-list-row-link">
+        <span className={styles.rowLink}>
           <span aria-hidden="true" className={`status-mark status-${item.tone}`} />
           <TodoListRowBody assigneeLabel={assigneeLabel} item={item} />
         </span>
       ) : (
-        <Link className="todo-list-row-link" href={href}>
+        <Link className={styles.rowLink} href={href}>
           <span aria-hidden="true" className={`status-mark status-${item.tone}`} />
           <TodoListRowBody assigneeLabel={assigneeLabel} item={item} />
         </Link>

@@ -11,6 +11,7 @@ import {
   type TodoStatusFilter,
   UNASSIGNED_FILTER_VALUE,
 } from "./list-params";
+import styles from "./todo-list.module.css";
 
 // Issue #222: 「未完了」「実施済み」はstatusクエリーパラメーターで切り替える
 // (このファイル冒頭のTodoStatusFilterのコメント参照)。切り替えても、
@@ -29,17 +30,17 @@ export function TodoStatusSwitch({
   viewParam: TodoListViewMode;
 }) {
   return (
-    <nav aria-label="Todoの状態を切り替え" className="status-switch todo-toolbar-status">
+    <nav aria-label="Todoの状態を切り替え" className={`${styles.statusSwitch} ${styles.toolbarStatus}`}>
       <Link
         aria-current={status === "pending" ? "page" : undefined}
-        className="status-switch-option"
+        className={styles.statusSwitchOption}
         href={buildTodoListHref({ assigneeParam, searchParam, status: "pending", viewParam })}
       >
         未完了
       </Link>
       <Link
         aria-current={status === "completed" ? "page" : undefined}
-        className="status-switch-option"
+        className={styles.statusSwitchOption}
         href={buildTodoListHref({ assigneeParam, searchParam, status: "completed", viewParam })}
       >
         実施済み
@@ -73,19 +74,19 @@ export function AssigneeFilterDisclosure({
     : describeAssigneeFilter(assigneeParam, currentUserId, members) ?? "条件不明";
 
   return (
-    <details className="todo-assignee-disclosure">
-      <summary className="todo-assignee-toggle">担当: {selectedLabel}</summary>
-      <nav aria-label="担当予定者で絞り込み" className="todo-assignee-options">
+    <details className={styles.assigneeDisclosure}>
+      <summary className={styles.assigneeToggle}>担当: {selectedLabel}</summary>
+      <nav aria-label="担当予定者で絞り込み" className={styles.assigneeOptions}>
         <Link
           aria-current={assigneeParam === undefined ? "page" : undefined}
-          className="todo-assignee-option"
+          className={styles.assigneeOption}
           href={buildTodoListHref({ assigneeParam: undefined, searchParam, status, viewParam })}
         >
           全員
         </Link>
         <Link
           aria-current={assigneeParam === currentUserId ? "page" : undefined}
-          className="todo-assignee-option"
+          className={styles.assigneeOption}
           href={buildTodoListHref({ assigneeParam: currentUserId, searchParam, status, viewParam })}
         >
           自分
@@ -93,7 +94,7 @@ export function AssigneeFilterDisclosure({
         {otherMembers.map((member) => (
           <Link
             aria-current={assigneeParam === member.userId ? "page" : undefined}
-            className="todo-assignee-option"
+            className={styles.assigneeOption}
             href={buildTodoListHref({ assigneeParam: member.userId, searchParam, status, viewParam })}
             key={member.userId}
           >
@@ -102,7 +103,7 @@ export function AssigneeFilterDisclosure({
         ))}
         <Link
           aria-current={assigneeParam === UNASSIGNED_FILTER_VALUE ? "page" : undefined}
-          className="todo-assignee-option"
+          className={styles.assigneeOption}
           href={buildTodoListHref({
             assigneeParam: UNASSIGNED_FILTER_VALUE, searchParam, status, viewParam,
           })}
@@ -150,11 +151,11 @@ export function TodoViewSwitch({
   viewParam: TodoListViewMode;
 }) {
   return (
-    <nav aria-label="Todoの表示形式を切り替え" className="todo-view-switch">
+    <nav aria-label="Todoの表示形式を切り替え" className={styles.viewSwitch}>
       <Link
         aria-label="カード表示"
         aria-current={viewParam === "card" ? "page" : undefined}
-        className="todo-view-option"
+        className={styles.viewOption}
         href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "card" })}
         title="カード表示"
       >
@@ -163,7 +164,7 @@ export function TodoViewSwitch({
       <Link
         aria-label="リスト表示"
         aria-current={viewParam === "list" ? "page" : undefined}
-        className="todo-view-option"
+        className={styles.viewOption}
         href={buildTodoListHref({ assigneeParam, searchParam, status, viewParam: "list" })}
         title="リスト表示"
       >
@@ -205,8 +206,8 @@ export function TodoSearchDisclosure({
   viewParam: TodoListViewMode;
 }) {
   return (
-    <details className="todo-search-disclosure" open={searchParam !== undefined}>
-      <summary aria-label="Todoを検索" className="todo-search-toggle">
+    <details className={styles.searchDisclosure} open={searchParam !== undefined}>
+      <summary aria-label="Todoを検索" className={styles.searchToggle}>
         <SearchIcon />
       </summary>
       <TodoSearchForm
@@ -236,7 +237,7 @@ export function TodoSearchForm({
 }) {
   const inputId = "todo-search-q";
   return (
-    <form action="/todos" aria-label="Todoをフリーワードで検索" className="auth-form todo-search-form" method="get">
+    <form action="/todos" aria-label="Todoをフリーワードで検索" className={`auth-form ${styles.searchForm}`} method="get">
       {status === "completed" ? <input name="status" type="hidden" value="completed" /> : null}
       {assigneeParam === undefined ? null : (
         <input name="assignee" type="hidden" value={assigneeParam} />

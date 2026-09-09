@@ -9,13 +9,14 @@ import {
   type ConsumableRefillActionState,
   recordConsumableRefill,
 } from "./refill-actions";
+import styles from "./refill-control.module.css";
 
 const INITIAL_STATE: ConsumableRefillActionState = { message: "", status: "idle" };
 
 function RefillButton() {
   const { pending } = useFormStatus();
   return (
-    <button className="refill-action-button" disabled={pending} type="submit">
+    <button className={styles.actionButton} disabled={pending} type="submit">
       {pending ? "記録中…" : "補充した"}
     </button>
   );
@@ -38,7 +39,7 @@ export function ConsumableRefillControl({
       <p className="detail-kicker">REFILL</p>
       <h2 id="consumable-refill-title">補充</h2>
       <p className="input-help">今日補充したことを記録し、在庫を「ある」に戻します。</p>
-      <form action={formAction} className="refill-action-form">
+      <form action={formAction} className={styles.actionForm}>
         <input name="id" type="hidden" value={consumableId} />
         <RefillButton />
       </form>
@@ -48,11 +49,11 @@ export function ConsumableRefillControl({
         </p>
       )}
 
-      <h3 className="refill-history-title">補充履歴</h3>
+      <h3 className={styles.historyTitle}>補充履歴</h3>
       {refills.length === 0 ? (
         <p className="ledger-empty">補充履歴はありません。</p>
       ) : (
-        <ul className="refill-history-list">
+        <ul className={styles.historyList}>
           {refills.map((refill) => (
             <li key={refill.id}>{refillDateLabel(refill.refilledOn)}</li>
           ))}

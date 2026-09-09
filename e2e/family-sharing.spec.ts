@@ -43,7 +43,8 @@ async function issueInvitation(page: Page, email: string): Promise<string> {
   await page.goto("/household");
   await page.getByLabel("招待先メールアドレス").fill(email);
   await page.getByRole("button", { name: "招待する" }).click();
-  const link = page.locator(".invitation-link-copy");
+  // 見た目のクラス名ではなく、発行結果(role="status")の中のリンク本文で取る。
+  const link = page.getByRole("status").locator("p", { hasText: /^https?:\/\// });
   await expect(link).toBeVisible();
   return (await link.textContent())?.trim() ?? "";
 }

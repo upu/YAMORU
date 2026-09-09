@@ -2,6 +2,8 @@
 
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
+import styles from "./dialog.module.css";
+
 // CompletionPanel・UndoCompletionPanel・PostponePanelが共通で使うダイアログの
 // 外枠(背景クリック・Escapeでの閉じ方、見出し、閉じるボタン)。3箇所で同じ
 // マークアップが重複していたため切り出す。中身(選択肢・確認文・フォームなど)
@@ -28,20 +30,20 @@ export function DialogShell({
   }
 
   return (
-    <div className="completion-dialog-backdrop" onMouseDown={handleBackdropClick}>
+    <div className={styles.backdrop} onMouseDown={handleBackdropClick}>
       <section
         aria-labelledby={titleId}
         aria-modal="true"
-        className="completion-dialog"
+        className={styles.dialog}
         onKeyDown={handleKeyDown}
         role="dialog"
       >
-        <div className="completion-dialog-heading">
+        <div className={styles.heading}>
           <div>
             <p className="detail-kicker">{kicker}</p>
             <h2 id={titleId}>{title}</h2>
           </div>
-          <button aria-label="閉じる" className="dialog-close" onClick={onClose} type="button">
+          <button aria-label="閉じる" className={styles.close} onClick={onClose} type="button">
             <span aria-hidden="true">×</span>
           </button>
         </div>

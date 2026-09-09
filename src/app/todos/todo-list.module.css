@@ -1,0 +1,363 @@
+/* Todo一覧(page.tsx / list-toolbar.tsx / list-sections.tsx / todo-list-row.tsx)
+   だけが使う見た目。ツールバー(状態切り替え・担当絞り込み・表示形式・画面内
+   検索)とリスト表示の行を、画面幅・状態別の指定ごとまとめて置く。
+   カード表示(.task-card)や見出し(.section-heading)はホームと共有するため
+   globals.css側に残す。 */
+/* Issue #222: Todo一覧の未完了/実施済み切り替え。押しやすさを優先し、
+   選択中はaria-current="page"で示す(モバイル下部ナビと同じ考え方)。 */
+.statusSwitch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--green-pale);
+}
+
+.statusSwitchOption {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.statusSwitchOption[aria-current="page"] {
+  color: var(--paper);
+  background: var(--green);
+}
+
+/* Issue #241: ページ見出し・状態切り替え・検索の入り口を一つのツールバーへ
+   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ
+   space-betweenで分け、3要素を1行に収めて画面上部の縦幅を抑える。 */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.toolbarTitle {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.toolbarActions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+
+/* status-switchを幅いっぱいの2択ではなく、ツールバー内の内容幅に収める。 */
+.toolbarStatus {
+  flex: none;
+  width: auto;
+  margin-bottom: 0;
+}
+
+.toolbarStatus .statusSwitchOption {
+  flex: none;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
+
+.loadMore {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* Issue #266: 担当予定者を横一列のチップで常時表示せず、現在の条件だけを
+   ツールバーに表示する。候補はsummaryから開くポップオーバー風のnavに収める。 */
+.assigneeDisclosure {
+  position: relative;
+  flex: none;
+}
+
+.assigneeToggle {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.assigneeToggle::-webkit-details-marker {
+  display: none;
+}
+
+.assigneeToggle::after {
+  content: "⌄";
+  font-size: 0.86rem;
+  line-height: 1;
+}
+
+.assigneeToggle:hover,
+.assigneeDisclosure[open] .assigneeToggle {
+  background: var(--green-pale);
+}
+
+.assigneeToggle:focus-visible,
+.viewOption:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.assigneeOptions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 160px;
+  max-width: min(260px, calc(100vw - 32px));
+  max-height: 280px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 10px 28px rgb(35 60 48 / 18%);
+  overflow-y: auto;
+}
+
+.assigneeOption {
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.assigneeOption:hover,
+.assigneeOption[aria-current="page"] {
+  color: var(--green);
+  background: var(--green-pale);
+}
+
+/* Issue #266: 表示形式は、一般的なグリッド/リストSVGを使うコンパクトな
+   2択としてツールバーへ置く。読み上げ名はリンク側のaria-labelで補う。 */
+.viewSwitch {
+  display: flex;
+  flex: none;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--green-pale);
+}
+
+.viewOption {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.viewOption[aria-current="page"] {
+  color: var(--paper);
+  background: var(--green);
+}
+
+.viewOption svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* Issue #241: ツールバーの虫眼鏡ボタンから開くTodo内検索。<details>の
+   既定表示(list-item、三角マーカー)を外し、refresh-button/icon-linkと
+   同じ丸いアイコンボタンに揃える。開閉自体はブラウザのネイティブな
+   <details>/<summary>に任せる(自前でaria-expandedは付けない、
+   TodoSearchDisclosureのコメント参照)。 */
+.searchDisclosure {
+  flex: none;
+}
+
+.searchToggle {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 9px;
+  place-items: center;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 50%;
+  color: var(--green);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.searchToggle::-webkit-details-marker {
+  display: none;
+}
+
+.searchToggle:hover {
+  background: var(--green-pale);
+}
+
+.searchToggle:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}
+
+.searchDisclosure[open] .searchToggle {
+  background: var(--green-pale);
+}
+
+.searchToggle svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+/* Issue #225: Todo一覧のフリーワード検索フォーム。auth-formの入力枠を
+   流用する。Issue #241: ツールバーの検索ディスクロージャー内に展開される
+   ため、上に余白を足す。
+   分割前は、この指定より後ろにあった共有の.auth-form(display: grid)が
+   優先され、検索欄とボタンは横並びではなく縦に積まれていた。分割で適用順が
+   変わっても見た目を変えないよう、実際に効いていたgridをそのまま書く。
+   横並びに戻すかどうかは、この整理とは別のUIの判断として扱う。 */
+.searchForm {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.searchForm input[type="search"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchForm button {
+  flex: none;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--paper);
+  background: var(--green);
+  font-weight: 700;
+}
+
+/* コンパクトなリスト表示。行全体がTodo詳細への単一の導線(誤操作を避ける
+   ため、カードと同じ操作は置かない、issue #224の設計メモ)。Issue #243:
+   ul要素そのものにブラウザ標準の箇条書き(list-style)と標準余白(margin・
+   padding)が残っていたため、明示的にリセットする(受け入れ基準)。文書
+   構造としてのリストは維持し、見た目だけからマーカー・インデントを除く。 */
+.rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  list-style: none;
+  overflow: hidden;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.rowLink {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:hover {
+  background: var(--green-pale);
+}
+
+.rowLink:focus-visible {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: -3px;
+}
+
+/* Issue #243: Todo名・短い予定・状態ラベルを1行へ並べる(issue本文の
+   設計メモ「レイアウト」)。通常のモバイル幅・文字サイズでは折り返さず
+   収まり、幅が足りない・文字拡大時は状態ラベル側から自然に折り返す
+   (横スクロールや情報欠落を強制しない、受け入れ基準)。 */
+.rowBody {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+/* 日付や短い状態値は途中で不自然に改行させず(issue本文の設計メモ)、
+   家族名が長い場合だけ安全側で省略する。 */
+.rowMeta {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  /* Issue #241: 狭い画面では見出しと2択+検索アイコンが1行に収まりきらない
+     ことがあるため、折り返し(todo-toolbarのflex-wrap)を前提に見出しを
+     さらに小さくし、折り返し後の行間を詰める。 */
+  .toolbarTitle {
+    font-size: 1.15rem;
+  }
+
+  .toolbar {
+    row-gap: 8px;
+  }
+
+  .rowLink {
+    padding: 10px 12px;
+  }
+}

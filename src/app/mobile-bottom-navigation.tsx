@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { isPublicPath } from "./public-paths";
+import styles from "./mobile-bottom-navigation.module.css";
 
 function HomeIcon() {
   return (
@@ -61,8 +62,8 @@ export function MobileBottomNavigation() {
 
   return (
     <>
-      <div aria-hidden="true" className="mobile-bottom-navigation-space" />
-      <nav aria-label="主要ナビゲーション" className="mobile-bottom-navigation">
+      <div aria-hidden="true" className={styles.space} />
+      <nav aria-label="主要ナビゲーション" className={styles.navigation}>
         <Link aria-current={isHome ? "page" : undefined} href="/">
           <HomeIcon />
           <span>ホーム</span>

@@ -1,0 +1,72 @@
+/* 下部ナビゲーション(Issue #146 / #350)。モバイル幅だけで表示するため、
+   指定はすべて画面幅の条件付きで持つ。ダイアログと高さを共有する
+   --mobile-nav-heightは、両者が参照するためglobals.css側に置く。 */
+.navigation,
+.space {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .space {
+    display: block;
+    height: var(--mobile-nav-height);
+  }
+
+  .navigation {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    /* Issue #350 / YDR-042: 「ホーム」「Todo」「台帳」「検索」の4項目。
+       320px相当でも各項目のラベルが折り返さないよう、3項目のときより
+       左右の余白と間隔を詰める(320 - 20 - 6*3 = 282px を4等分)。 */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(49 92 73 / 18%);
+    background: rgb(255 254 250 / 94%);
+    box-shadow: 0 -5px 22px rgb(37 54 45 / 9%);
+    backdrop-filter: blur(12px);
+  }
+
+  .navigation a {
+    display: grid;
+    min-height: 52px;
+    padding: 5px 4px;
+    place-items: center;
+    align-content: center;
+    gap: 1px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+
+  .navigation a span {
+    white-space: nowrap;
+  }
+
+  .navigation a[aria-current="page"] {
+    color: var(--green);
+    background: var(--green-pale);
+  }
+
+  .navigation a:focus-visible {
+    outline: 3px solid rgb(64 103 120 / 38%);
+    outline-offset: 1px;
+  }
+
+  .navigation svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentcolor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+}

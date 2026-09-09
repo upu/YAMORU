@@ -33,6 +33,7 @@
 | ログイン・パスワード | `src/auth.ts`、`src/app/login/actions.ts`、`src/app/account/password-actions.ts` → `src/lib/d1/authentication.ts` | `tests/auth-actions.test.ts`、`tests/password-change-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 | 家庭の作成 | `src/app/household/actions.ts` → `src/lib/d1/households.ts` | `tests/household-actions.test.ts`、`tests/household-ui.test.tsx` | [認証・家庭・招待](household-access.md) |
 | 招待の発行・取消・受諾 | `src/app/household/invitation-actions.ts`、`src/app/invitations/accept/` → `src/lib/d1/invitations.ts` | `tests/invitation-actions.test.ts`、`tests/invite-accept-actions.test.ts`、`e2e/family-sharing.spec.ts` | [認証・家庭・招待](household-access.md) |
+| 画面の見た目(CSS)の置き場所 | `src/app/globals.css`(全体基盤と共有ルール)、部品ごとの`*.module.css` | 変更した画面のテスト・E2E | [スタイル](styles.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 
 ## まだ実装していない領域

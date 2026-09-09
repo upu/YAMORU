@@ -1,0 +1,94 @@
+/* ホーム(page.tsx)だけが使う見た目。共通の枠(.home-section、.section-heading、
+   .card-list)はTodo一覧・買い物候補とも共有するためglobals.css側に残す。 */
+.heroActions {
+  display: flex;
+  /* 「Todoを追加」「Todo一覧」「家の台帳」が狭い幅で収まらない場合は
+     折り返す(Issue #201)。 */
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.accountLink {
+  padding: 6px 11px;
+  border: 1px solid rgb(49 92 73 / 18%);
+  border-radius: 999px;
+  color: var(--green);
+  background: rgb(255 254 250 / 65%);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.accountLink:hover {
+  background: rgb(49 92 73 / 8%);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  overflow: hidden;
+  border: 1px solid rgb(49 92 73 / 12%);
+  border-radius: 18px;
+  background: var(--green);
+  box-shadow: var(--shadow);
+}
+
+.summary div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 17px 19px;
+  color: rgb(255 255 255 / 78%);
+}
+
+.summary div + div {
+  border-left: 1px solid rgb(255 255 255 / 14%);
+}
+
+.summary strong {
+  color: white;
+  font-family: Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.summary span {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sectionList {
+  display: grid;
+  gap: 18px;
+}
+
+.flow {
+  display: grid;
+  gap: 18px;
+}
+
+@media (max-width: 480px) {
+  .heroActions {
+    align-items: flex-end;
+    gap: 5px;
+  }
+
+  .ledgerLink {
+    display: none;
+  }
+
+  .todoListLink {
+    display: none;
+  }
+
+  .summary div {
+    display: grid;
+    gap: 3px;
+    padding: 15px;
+  }
+}
