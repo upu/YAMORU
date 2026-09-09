@@ -18,6 +18,7 @@ import {
 } from "../../scripts/e2e-environment";
 import { hashPassword } from "../../src/lib/auth/password";
 import { createManagedItem } from "../../src/lib/d1/managed-items";
+import { retryD1Busy } from "./d1-busy-retry";
 
 export type E2ECredentials = { email: string; password: string };
 
@@ -34,40 +35,44 @@ export const E2E_HOUSEHOLD_NAME = "架空の家庭A";
 
 // 外部キー制約に沿って、参照する側から先に消す。テーブルを増やしたらここへ足す。
 export async function clearDatabase(db: D1Database): Promise<void> {
-  await db.batch([
-    db.prepare("DELETE FROM managed_item_type_suggestions"),
-    db.prepare("DELETE FROM task_rule_consumables"),
-    db.prepare("DELETE FROM managed_item_consumables"),
-    db.prepare("DELETE FROM consumables"),
-    db.prepare("DELETE FROM invitation_claims"),
-    db.prepare("DELETE FROM household_invitations"),
-    db.prepare("DELETE FROM completion_corrections"),
-    db.prepare("DELETE FROM activity_logs"),
-    db.prepare("DELETE FROM task_occurrences"),
-    db.prepare("DELETE FROM task_rules"),
-    db.prepare("DELETE FROM external_links"),
-    db.prepare("DELETE FROM managed_items"),
-    db.prepare("DELETE FROM household_members"),
-    db.prepare("DELETE FROM profiles"),
-    db.prepare("DELETE FROM households"),
-    db.prepare("DELETE FROM users"),
-  ]);
+  await retryD1Busy("clear", () =>
+    db.batch([
+      db.prepare("DELETE FROM managed_item_type_suggestions"),
+      db.prepare("DELETE FROM task_rule_consumables"),
+      db.prepare("DELETE FROM managed_item_consumables"),
+      db.prepare("DELETE FROM consumables"),
+      db.prepare("DELETE FROM invitation_claims"),
+      db.prepare("DELETE FROM household_invitations"),
+      db.prepare("DELETE FROM completion_corrections"),
+      db.prepare("DELETE FROM activity_logs"),
+      db.prepare("DELETE FROM task_occurrences"),
+      db.prepare("DELETE FROM task_rules"),
+      db.prepare("DELETE FROM external_links"),
+      db.prepare("DELETE FROM managed_items"),
+      db.prepare("DELETE FROM household_members"),
+      db.prepare("DELETE FROM profiles"),
+      db.prepare("DELETE FROM households"),
+      db.prepare("DELETE FROM users"),
+    ]),
+  );
 }
 
 // 家庭Aとそのオーナーだけを作る。台帳やTodoの用意は、必要なspecが
 // createManagedItem・createOneTimeTaskなどをこの後に呼んで積み増す。
 export async function seedOwnerHousehold(db: D1Database): Promise<void> {
   const ownerHash = await hashPassword(E2E_OWNER.password);
-  await db.batch([
-    db.prepare("INSERT INTO users (id, email, password_hash) VALUES (?1, ?2, ?3)")
-      .bind(E2E_OWNER_USER_ID, E2E_OWNER.email, ownerHash),
-    db.prepare("INSERT INTO profiles (user_id, nickname) VALUES (?1, ?2)")
-      .bind(E2E_OWNER_USER_ID, E2E_OWNER_NICKNAME),
-    db.prepare("INSERT INTO households (id, name) VALUES (?1, ?2)")
-      .bind(E2E_HOUSEHOLD_ID, E2E_HOUSEHOLD_NAME),
-    db.prepare("INSERT INTO household_members (household_id, user_id) VALUES (?1, ?2)")
-      .bind(E2E_HOUSEHOLD_ID, E2E_OWNER_USER_ID),
-  ]);
+  await retryD1Busy("seed-owner", () =>
+    db.batch([
+      db.prepare("INSERT INTO users (id, email, password_hash) VALUES (?1, ?2, ?3)")
+        .bind(E2E_OWNER_USER_ID, E2E_OWNER.email, ownerHash),
+      db.prepare("INSERT INTO profiles (user_id, nickname) VALUES (?1, ?2)")
+        .bind(E2E_OWNER_USER_ID, E2E_OWNER_NICKNAME),
+      db.prepare("INSERT INTO households (id, name) VALUES (?1, ?2)")
+        .bind(E2E_HOUSEHOLD_ID, E2E_HOUSEHOLD_NAME),
+      db.prepare("INSERT INTO household_members (household_id, user_id) VALUES (?1, ?2)")
+        .bind(E2E_HOUSEHOLD_ID, E2E_OWNER_USER_ID),
+    ]),
+  );
 }
 
 // Issue #357: 大分類と詳しい種類は廃止されうる(YDR-035でother、YDR-036で
