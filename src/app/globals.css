@@ -423,7 +423,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 4px 8px;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .favorite-consumable + .favorite-consumable {
@@ -437,7 +437,9 @@ h1 {
   flex: 1 1 0;
   overflow-wrap: anywhere;
   color: var(--green);
+  font-size: 0.88rem;
   font-weight: 800;
+  line-height: 1.35;
   text-underline-offset: 4px;
 }
 
@@ -1921,19 +1923,19 @@ h1 {
   opacity: 0.72;
 }
 
-/* Issue #359: 記号表示は語より幅を取らない。見た目は詰めるが、スマホで
-   押しづらくならないよう36×40pxのタップ領域は確保する。 */
+/* Issue #359: 記号表示は語より幅を取らない。ホームのお気に入りをさらに
+   コンパクトに見せつつ、正方形の36pxタップ領域を確保する。 */
 .stock-status-option-symbol {
   display: grid;
   min-width: 36px;
-  min-height: 40px;
+  min-height: 36px;
   padding: 0 6px;
   place-items: center;
 }
 
 .stock-status-option-symbol svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentcolor;
   stroke-linecap: round;
