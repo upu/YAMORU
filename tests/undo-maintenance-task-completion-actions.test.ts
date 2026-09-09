@@ -10,7 +10,15 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ undoTaskCompletion: undoTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import { undoMaintenanceTaskCompletion } from "../src/features/todos/actions/completion";
+
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
 
 describe("メンテナンスTodo完了の取消操作", () => {
   beforeEach(() => {
@@ -34,11 +42,11 @@ describe("メンテナンスTodo完了の取消操作", () => {
     expect(result).toEqual({ message: "完了の取消を記録しました。", status: "success" });
   });
 
-  it.each([
-    ["Next occurrence has been modified", "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。"],
-    ["Occurrence is not completed", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    undoTaskMock.mockRejectedValue(new Error(message));
+  it.each<[D1ErrorCode, string]>([
+    ["NEXT_OCCURRENCE_MODIFIED", "次回Todoがすでに変更されているため自動取消できません。手動で訂正してください。"],
+    ["OCCURRENCE_NOT_COMPLETED", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    undoTaskMock.mockRejectedValue(d1Error(code));
     const result = await undoMaintenanceTaskCompletion(
       "managed-item-id", "occurrence-id", "idempotency-key-2",
     );

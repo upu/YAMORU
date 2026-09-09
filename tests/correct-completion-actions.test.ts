@@ -19,10 +19,18 @@ vi.mock("../src/lib/d1/todos", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import {
   correctCompletionOccurredAt,
   correctCompletionPerformer,
 } from "../src/features/todos/actions/correction";
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
+
 
 describe("実施日時の訂正操作(Issue #148)", () => {
   beforeEach(() => {
@@ -54,18 +62,18 @@ describe("実施日時の訂正操作(Issue #148)", () => {
     expect(result).toEqual({ message: "実施日を正しく入力してください。", status: "error" });
   });
 
-  it.each([
+  it.each<[D1ErrorCode, string]>([
     [
-      "Next occurrence has been modified",
+      "NEXT_OCCURRENCE_MODIFIED",
       "次回Todoがすでに変更されているため、実施日時を訂正できません。次回Todoを手動で調整してください。",
     ],
-    ["Occurrence is not completed", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+    ["OCCURRENCE_NOT_COMPLETED", "他の操作で状態が変わりました。最新の状態を確認してください。"],
     [
-      "already exists for the computed schedule",
+      "NEXT_OCCURRENCE_SCHEDULE_TAKEN",
       "その実施日では次回の予定が既存のTodoと重なります。別の日付を指定してください。",
     ],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    correctCompletionOccurredAtMock.mockRejectedValue(new Error(message));
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    correctCompletionOccurredAtMock.mockRejectedValue(d1Error(code));
     const result = await correctCompletionOccurredAt(
       "managed-item-id", "occurrence-id", "idempotency-key", "2026-08-05",
     );
@@ -105,14 +113,14 @@ describe("実施者の訂正操作(Issue #148)", () => {
     expect(result).toEqual({ message: "実施者を訂正しました。", status: "success" });
   });
 
-  it.each([
+  it.each<[D1ErrorCode, string]>([
     [
-      "Performer not found",
+      "PERFORMER_NOT_FOUND",
       "実施した人を指定できませんでした。同じ家庭のメンバーから選び直してください。",
     ],
-    ["Occurrence is not completed", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    correctCompletionPerformerMock.mockRejectedValue(new Error(message));
+    ["OCCURRENCE_NOT_COMPLETED", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    correctCompletionPerformerMock.mockRejectedValue(d1Error(code));
     const result = await correctCompletionPerformer(
       "managed-item-id", "occurrence-id", "idempotency-key", "user-other",
     );

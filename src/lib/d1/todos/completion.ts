@@ -104,11 +104,17 @@ function completionReplayResult(
   performerId: string,
 ): string | null {
   if (replay.task_occurrence_id !== occurrenceId || replay.performed_by_user_id !== performerId) {
-    throw new D1ConflictError("Idempotency key was already used for a different occurrence");
+    throw new D1ConflictError(
+      "Idempotency key was already used for a different occurrence",
+      "IDEMPOTENCY_KEY_REUSED",
+    );
   }
   return replay.next_task_occurrence_id;
 }
 
+// D1が返す制約違反の文字列判定。外部エラーの文字列に依存する判定はこの
+// 境界だけに置き、意味が確定する一つの業務エラーへ読み替える(Issue #369)。
+// task_occurrencesの一意制約に限定し、他の制約違反は読み替えずそのまま投げる。
 function isNextOccurrenceCollision(error: unknown): boolean {
   const message = error instanceof Error ? error.message : "";
   return message.includes("UNIQUE constraint failed") && message.includes("task_occurrences");
@@ -122,7 +128,10 @@ export async function runCompletionBatch(
     return await db.batch(statements);
   } catch (error) {
     if (isNextOccurrenceCollision(error)) {
-      throw new D1ConflictError("Next occurrence already exists for the computed schedule");
+      throw new D1ConflictError(
+        "Next occurrence already exists for the computed schedule",
+        "NEXT_OCCURRENCE_SCHEDULE_TAKEN",
+      );
     }
     throw error;
   }
@@ -136,7 +145,7 @@ async function resolveCompletionConflict(
 ): Promise<string | null> {
   const replay = await findCompletionReplay(db, householdId, input.idempotencyKey);
   if (replay !== null) return completionReplayResult(replay, input.occurrenceId, performerId);
-  throw new D1ConflictError("Occurrence is not pending");
+  throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 
 export async function completeTask(
@@ -156,8 +165,8 @@ export async function completeTask(
   if (replay !== null) return completionReplayResult(replay, input.occurrenceId, performerId);
   const occurrence = await loadOccurrence(db, householdId, input.occurrenceId);
   const occurredAt = input.occurredAt ?? new Date().toISOString();
-  if (occurredAt > new Date().toISOString()) throw new D1ConflictError("occurred_at must not be in the future");
-  await requireHouseholdUser(db, householdId, performerId, "Performer not found");
+  if (occurredAt > new Date().toISOString()) throw new D1ConflictError("occurred_at must not be in the future", "OCCURRED_AT_IN_FUTURE");
+  await requireHouseholdUser(db, householdId, performerId, "PERFORMER_NOT_FOUND");
   const next = nextOccurrence(occurrence, occurredAt);
   const results = await runCompletionBatch(
     db,
@@ -195,7 +204,7 @@ export async function loadActiveCompletion(
       WHERE household_id = ?1 AND task_occurrence_id = ?2 AND action = 'completed'
       ORDER BY recorded_at DESC, id DESC LIMIT 1`,
   ).bind(householdId, occurrenceId).first<ActiveCompletion>();
-  if (completion === null) throw new D1ConflictError("Occurrence is not completed");
+  if (completion === null) throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   return completion;
 }
 
@@ -233,7 +242,7 @@ export async function resolveEffectiveCompletion(
     occurred_at: string;
     performed_by_user_id: string | null;
   }>();
-  if (row === null) throw new D1ConflictError("Occurrence is not completed");
+  if (row === null) throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   return {
     occurredAt: row.corrected_occurred_at ?? row.occurred_at,
     performedByUserId: row.corrected_performed_by_user_id ?? row.performed_by_user_id,
@@ -315,12 +324,15 @@ export async function undoTaskCompletion(
   ).bind(householdId, idempotencyKey).first<{ task_occurrence_id: string }>();
   if (replay !== null) {
     if (replay.task_occurrence_id !== occurrenceId) {
-      throw new D1ConflictError("Idempotency key was already used for a different occurrence");
+      throw new D1ConflictError(
+      "Idempotency key was already used for a different occurrence",
+      "IDEMPOTENCY_KEY_REUSED",
+    );
     }
     return occurrenceId;
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed");
+  if (occurrence.status !== "completed") throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   const completion = await loadActiveCompletion(db, householdId, occurrenceId);
   const statements = undoStatements(db, {
     actorId: user.userId,
@@ -334,12 +346,12 @@ export async function undoTaskCompletion(
     results = await db.batch(statements);
   } catch {
     if (completion.next_task_occurrence_id !== null) {
-      throw new D1ConflictError("Next occurrence has been modified");
+      throw new D1ConflictError("Next occurrence has been modified", "NEXT_OCCURRENCE_MODIFIED");
     }
-    throw new D1ConflictError("Occurrence is not completed");
+    throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   }
   if ((results[0]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Next occurrence has been modified");
+    throw new D1ConflictError("Next occurrence has been modified", "NEXT_OCCURRENCE_MODIFIED");
   }
   return occurrenceId;
 }

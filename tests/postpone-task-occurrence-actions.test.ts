@@ -10,7 +10,15 @@ vi.mock("../src/lib/d1/context", () => ({ getD1Context: getD1ContextMock }));
 vi.mock("../src/lib/d1/todos", () => ({ postponeTaskOccurrence: postponeTaskMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
+import { D1ConflictError, type D1ErrorCode } from "../src/lib/d1/errors";
 import { postponeTaskOccurrence } from "../src/features/todos/actions/schedule";
+
+
+// Issue #369: 案内の選択はD1層の識別コードだけで決まる。内部の英文メッセージを
+// 判定に使っていないことを確かめるため、実際とは違う英文を持たせる。
+function d1Error(code: D1ErrorCode): Error {
+  return new D1ConflictError("internal detail that must not reach the screen", code);
+}
 
 describe("未完了Todoの延期操作(Issue #19)", () => {
   beforeEach(() => {
@@ -39,12 +47,12 @@ describe("未完了Todoの延期操作(Issue #19)", () => {
     expect(result).toEqual({ message: "延期する日付を正しく入力してください。", status: "error" });
   });
 
-  it.each([
-    ["new_due_at must be in the future", "延期する日付は未来の日を指定してください。"],
-    ["new_due_at must not be before scheduled_for", "本来の予定日より前には延期できません。"],
-    ["Occurrence is not pending", "他の操作で状態が変わりました。最新の状態を確認してください。"],
-  ])("D1の既知エラー %s を利用者向け案内へ変換する", async (message, expected) => {
-    postponeTaskMock.mockRejectedValue(new Error(message));
+  it.each<[D1ErrorCode, string]>([
+    ["DUE_AT_NOT_IN_FUTURE", "延期する日付は未来の日を指定してください。"],
+    ["DUE_AT_BEFORE_SCHEDULED_FOR", "本来の予定日より前には延期できません。"],
+    ["OCCURRENCE_NOT_PENDING", "他の操作で状態が変わりました。最新の状態を確認してください。"],
+  ])("D1の識別コード %s を利用者向け案内へ変換する", async (code, expected) => {
+    postponeTaskMock.mockRejectedValue(d1Error(code));
     const result = await postponeTaskOccurrence(
       "managed-item-id", "occurrence-id", "2026-09-01",
     );

@@ -126,6 +126,9 @@ export type OneTimeTodoUpdate = {
   title: string;
 };
 
+// 完了時の衝突判定(completion.ts)と同じく、D1の制約違反の文字列判定を
+// この境界に閉じ込める。task_occurrencesの一意制約だけを業務エラーへ
+// 読み替え、他の制約違反はそのまま投げる(Issue #369)。
 function isOccurrenceScheduleCollision(error: unknown): boolean {
   const message = error instanceof Error ? error.message : "";
   return message.includes("UNIQUE constraint failed")
@@ -235,16 +238,16 @@ export async function updateOneTimeTodo(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   if (input.assigneeUserId !== null) {
-    await requireHouseholdUser(db, householdId, input.assigneeUserId, "Assignee not found");
+    await requireHouseholdUser(db, householdId, input.assigneeUserId, "ASSIGNEE_NOT_FOUND");
   }
   await requireManagedItem(db, householdId, input.managedItemId);
 
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   if (occurrence.status !== "pending") {
-    throw new D1ConflictError("Occurrence is not pending");
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
   if (occurrence.recurrence_basis !== "once") {
-    throw new D1ConflictError("Only one-time tasks can be edited");
+    throw new D1ConflictError("Only one-time tasks can be edited", "EDIT_REQUIRES_ONE_TIME");
   }
 
   const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
@@ -264,12 +267,12 @@ export async function updateOneTimeTodo(
     results = await db.batch(statements);
   } catch (error) {
     if (isOccurrenceScheduleCollision(error)) {
-      throw new D1ConflictError("Occurrence already exists for the schedule");
+      throw new D1ConflictError("Occurrence already exists for the schedule", "OCCURRENCE_SCHEDULE_TAKEN");
     }
     throw error;
   }
   if ((results[results.length - 1]?.meta.changes ?? 0) !== 1) {
-    throw new D1ConflictError("Occurrence is not pending");
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
   return { previousManagedItemId: occurrence.managed_item_id };
 }

@@ -8,17 +8,12 @@ import {
 import { tokyoDateToUtcIso } from "../../../app/time-zone";
 import type { MaintenanceTodoActionState } from "../state";
 import {
-  errorMessage,
   INVALID_OCCURRED_ON,
-  mapRpcError,
-  NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT,
-  NOT_COMPLETED_MESSAGE_FRAGMENT,
+  mapTodoError,
   PERFORMER_NOT_FOUND_ERROR,
-  PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT,
   SCHEDULE_COLLISION_ERROR,
-  SCHEDULE_COLLISION_MESSAGE_FRAGMENT,
   STATE_CHANGED_ERROR,
-} from "./rpc-error";
+} from "./error-mapping";
 import { revalidateTodoViews } from "./revalidation";
 
 // Issue #148: 完了取消の「後続Todoが変更済みで戻せない」と文言を変えるための
@@ -44,13 +39,13 @@ export async function correctCompletionOccurredAt(
     const { db, session } = await getD1Context();
     await correctCompletionOccurredAtInD1(db, session, occurrenceId, idempotencyKey, occurredAtIso);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        { fragment: NEXT_OCCURRENCE_MODIFIED_MESSAGE_FRAGMENT, response: CORRECTION_NEXT_OCCURRENCE_MODIFIED },
-        { fragment: NOT_COMPLETED_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-        { fragment: SCHEDULE_COLLISION_MESSAGE_FRAGMENT, response: SCHEDULE_COLLISION_ERROR },
-      ],
+    return mapTodoError(
+      error,
+      {
+        NEXT_OCCURRENCE_MODIFIED: CORRECTION_NEXT_OCCURRENCE_MODIFIED,
+        NEXT_OCCURRENCE_SCHEDULE_TAKEN: SCHEDULE_COLLISION_ERROR,
+        OCCURRENCE_NOT_COMPLETED: STATE_CHANGED_ERROR,
+      },
       { message: "実施日時を訂正できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }
@@ -73,12 +68,12 @@ export async function correctCompletionPerformer(
     const { db, session } = await getD1Context();
     await correctCompletionPerformerInD1(db, session, occurrenceId, idempotencyKey, performedByUserId);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        { fragment: PERFORMER_NOT_FOUND_MESSAGE_FRAGMENT, response: PERFORMER_NOT_FOUND_ERROR },
-        { fragment: NOT_COMPLETED_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+    return mapTodoError(
+      error,
+      {
+        OCCURRENCE_NOT_COMPLETED: STATE_CHANGED_ERROR,
+        PERFORMER_NOT_FOUND: PERFORMER_NOT_FOUND_ERROR,
+      },
       { message: "実施者を訂正できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }

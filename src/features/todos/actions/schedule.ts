@@ -7,16 +7,9 @@ import {
 } from "../../../lib/d1/todos";
 import { formatTokyoDate, tokyoDateToUtcIso } from "../../../app/time-zone";
 import type { MaintenanceTodoActionState } from "../state";
-import {
-  CONFLICT_MESSAGE_FRAGMENT,
-  errorMessage,
-  mapRpcError,
-  STATE_CHANGED_ERROR,
-} from "./rpc-error";
+import { mapTodoError, STATE_CHANGED_ERROR } from "./error-mapping";
 import { revalidateTodoViews } from "./revalidation";
 
-const NOT_IN_FUTURE_MESSAGE_FRAGMENT = "must be in the future";
-const BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT = "must not be before scheduled_for";
 const INVALID_DUE_DATE: MaintenanceTodoActionState = {
   message: "延期する日付を正しく入力してください。",
   status: "error",
@@ -38,19 +31,19 @@ export async function postponeTaskOccurrence(
     const { db, session } = await getD1Context();
     await postponeTaskOccurrenceInD1(db, session, occurrenceId, dueAtIso);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        {
-          fragment: NOT_IN_FUTURE_MESSAGE_FRAGMENT,
-          response: { message: "延期する日付は未来の日を指定してください。", status: "error" },
+    return mapTodoError(
+      error,
+      {
+        DUE_AT_BEFORE_SCHEDULED_FOR: {
+          message: "本来の予定日より前には延期できません。",
+          status: "error",
         },
-        {
-          fragment: BEFORE_SCHEDULED_FOR_MESSAGE_FRAGMENT,
-          response: { message: "本来の予定日より前には延期できません。", status: "error" },
+        DUE_AT_NOT_IN_FUTURE: {
+          message: "延期する日付は未来の日を指定してください。",
+          status: "error",
         },
-        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+        OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+      },
       { message: "延期を記録できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }
@@ -62,7 +55,6 @@ export async function postponeTaskOccurrence(
   };
 }
 
-const ONLY_ONE_TIME_SCHEDULE_MESSAGE_FRAGMENT = "Only one-time tasks can have an undated schedule";
 const INVALID_SCHEDULE_DATE: MaintenanceTodoActionState = {
   message: "予定日を正しく入力してください。",
   status: "error",
@@ -77,15 +69,15 @@ async function updateTaskOccurrenceSchedule(
     const { db, session } = await getD1Context();
     await setOneTimeTaskScheduleInD1(db, session, occurrenceId, scheduledFor);
   } catch (error) {
-    return mapRpcError(
-      errorMessage(error),
-      [
-        {
-          fragment: ONLY_ONE_TIME_SCHEDULE_MESSAGE_FRAGMENT,
-          response: { message: "繰り返しTodoの予定日は未定にできません。", status: "error" },
+    return mapTodoError(
+      error,
+      {
+        OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
+        UNDATED_SCHEDULE_REQUIRES_ONE_TIME: {
+          message: "繰り返しTodoの予定日は未定にできません。",
+          status: "error",
         },
-        { fragment: CONFLICT_MESSAGE_FRAGMENT, response: STATE_CHANGED_ERROR },
-      ],
+      },
       { message: "予定日を変更できませんでした。時間をおいて再度お試しください。", status: "error" },
     );
   }
