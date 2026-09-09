@@ -161,7 +161,7 @@ function ManagedItemResults({
   );
 }
 
-// Issue #362 / YDR-043: 在庫状態は検索条件にせず、ホームのお気に入りと同じ
+// Issue #362 / #375 / YDR-043: 在庫状態は検索条件にせず、ホームのピン留めと同じ
 // 3状態のクイック操作を出す。選択状態が現在の在庫も兼ねるためバッジは重ねない。
 function ConsumableResults({
   consumables,

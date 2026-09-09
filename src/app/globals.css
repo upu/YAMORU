@@ -410,14 +410,14 @@ h1 {
   box-shadow: var(--shadow);
 }
 
-.favorite-consumable-list {
+.pinned-consumable-list {
   display: grid;
 }
 
 /* Issue #359: 1件あたりの縦幅を詰め、名前と状態変更ボタンを同じ行に置く。
    1件ずつ枠で囲まず、項目の間を細い線で区切るリスト形式にして余白を減らす。
    flex-wrapは、状態変更に失敗したときの文言を行全体へ送るために残す。 */
-.favorite-consumable {
+.pinned-consumable {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -426,13 +426,13 @@ h1 {
   padding: 2px 0;
 }
 
-.favorite-consumable + .favorite-consumable {
+.pinned-consumable + .pinned-consumable {
   border-top: 1px solid var(--line);
 }
 
 /* flex-basis: 0にして、名前が長くても状態変更ボタンを次の行へ送らず、
    名前の側だけを折り返す。 */
-.favorite-consumable-name {
+.pinned-consumable-name {
   min-width: 0;
   flex: 1 1 0;
   overflow-wrap: anywhere;
@@ -444,24 +444,24 @@ h1 {
 }
 
 /* 名前が折り返して次の行へ送られたときも、状態変更ボタンは行の右端へ寄せる。 */
-.favorite-consumable > form {
+.pinned-consumable > form {
   flex: none;
   margin-left: auto;
 }
 
-.favorite-consumable .stock-status-options {
+.pinned-consumable .stock-status-options {
   max-width: none;
   margin-top: 0;
   grid-template-columns: repeat(3, auto);
   gap: 4px;
 }
 
-.favorite-consumable .auth-feedback {
+.pinned-consumable .auth-feedback {
   flex-basis: 100%;
   margin-top: 0;
 }
 
-.favorite-disclosure {
+.pinned-disclosure {
   width: 100%;
   min-height: 44px;
   margin-top: 12px;
@@ -1203,12 +1203,12 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.favorite-control {
+.pin-control {
   flex: none;
   text-align: right;
 }
 
-.favorite-toggle {
+.pin-toggle {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -1224,13 +1224,21 @@ h1 {
   cursor: pointer;
 }
 
-.favorite-toggle[aria-pressed="true"] {
+.pin-toggle[aria-pressed="true"] {
   border-color: #d59b16;
   color: #6f4b00;
   background: #fff3c9;
 }
 
-.favorite-toggle:disabled {
+.pin-toggle svg {
+  width: 1em;
+  height: 1em;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.pin-toggle:disabled {
   cursor: wait;
   opacity: 0.72;
 }
@@ -2727,7 +2735,7 @@ h1 {
     display: grid;
   }
 
-  .favorite-control {
+  .pin-control {
     text-align: left;
   }
 
