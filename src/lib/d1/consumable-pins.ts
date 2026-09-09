@@ -27,7 +27,7 @@ export async function setConsumablePinned(
   db: D1Database,
   session: D1Session,
   id: string,
-  favorite: boolean,
+  pinned: boolean,
 ): Promise<void> {
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
@@ -38,7 +38,7 @@ export async function setConsumablePinned(
     throw new D1NotFoundError("消耗品が見つかりません。");
   }
 
-  if (favorite) {
+  if (pinned) {
     await db.prepare(
       `INSERT OR IGNORE INTO user_consumable_pins (
         user_id, household_id, consumable_id

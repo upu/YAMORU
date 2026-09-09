@@ -15,23 +15,23 @@ export async function updateConsumablePin(
   formData: FormData,
 ): Promise<ConsumablePinActionState> {
   const rawId = formData.get("id");
-  const rawFavorite = formData.get("favorite");
+  const rawPinned = formData.get("pinned");
   if (
     typeof rawId !== "string"
     || rawId.trim() === ""
-    || (rawFavorite !== "true" && rawFavorite !== "false")
+    || (rawPinned !== "true" && rawPinned !== "false")
   ) {
-    return { message: "お気に入り設定を選び直してください。", status: "error" };
+    return { message: "ピン留め設定を選び直してください。", status: "error" };
   }
   const id = rawId.trim();
-  const favorite = rawFavorite === "true";
+  const pinned = rawPinned === "true";
 
   try {
     const { db, session } = await getD1Context();
-    await setConsumablePinned(db, session, id, favorite);
+    await setConsumablePinned(db, session, id, pinned);
   } catch {
     return {
-      message: "お気に入りを更新できませんでした。時間をおいて再度お試しください。",
+      message: "ピン留めを更新できませんでした。時間をおいて再度お試しください。",
       status: "error",
     };
   }
@@ -39,7 +39,7 @@ export async function updateConsumablePin(
   revalidatePath("/");
   revalidatePath(`/consumables/${encodeURIComponent(id)}`);
   return {
-    message: favorite ? "お気に入りに追加しました。" : "お気に入りから外しました。",
+    message: pinned ? "ホームにピン留めしました。" : "ピン留めを外しました。",
     status: "success",
   };
 }

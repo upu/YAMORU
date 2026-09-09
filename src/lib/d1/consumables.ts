@@ -208,7 +208,7 @@ export async function getConsumable(
   const user = requireD1Session(session);
   const row = await loadConsumableRow(db, householdId, id);
   if (row === null) return null;
-  const [managedItems, taskRules, refills, favorite] = await Promise.all([
+  const [managedItems, taskRules, refills, pin] = await Promise.all([
     loadConsumableManagedItems(db, householdId, id),
     loadConsumableTaskRules(db, householdId, id),
     loadConsumableRefills(db, householdId, id),
@@ -221,7 +221,7 @@ export async function getConsumable(
   return {
     externalUrl: row.external_url,
     id: row.id,
-    isPinned: favorite !== null,
+    isPinned: pin !== null,
     managedItems: managedItems.results,
     name: row.name,
     note: row.note,

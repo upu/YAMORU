@@ -1228,6 +1228,14 @@ h1 {
   background: #fff3c9;
 }
 
+.pin-toggle svg {
+  width: 1em;
+  height: 1em;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 .pin-toggle:disabled {
   cursor: wait;
   opacity: 0.72;

@@ -342,7 +342,7 @@ function HouseholdHomeFlow({
   return (
     <div className="home-flow">
       {pinnedConsumables.length === 0 ? null : (
-        <PinnedConsumablesSection favorites={pinnedConsumables} />
+        <PinnedConsumablesSection pins={pinnedConsumables} />
       )}
       {shoppingCandidates.length === 0 ? null : (
         <ShoppingCandidatesSection candidates={shoppingCandidates} />

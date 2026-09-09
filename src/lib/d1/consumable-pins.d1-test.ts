@@ -41,7 +41,7 @@ async function createConsumableFor(
   });
 }
 
-describe("個人別のConsumableお気に入り (Issue #345)", () => {
+describe("個人別のConsumableピン留め (Issue #345, #375)", () => {
   it("同じ家庭でも利用者ごとに独立して登録・解除できる", async () => {
     await db.batch([
       db.prepare("INSERT INTO users (id, email) VALUES ('user-a2', 'a2@example.com')"),
@@ -84,12 +84,12 @@ describe("個人別のConsumableお気に入り (Issue #345)", () => {
       await setConsumablePinned(db, householdAMember, id, true);
     }
 
-    const favorites = await listPinnedConsumables(db, householdAMember);
-    expect(favorites).toHaveLength(6);
-    expect(favorites.map((favorite) => favorite.id)).toEqual(ids.toReversed());
+    const pins = await listPinnedConsumables(db, householdAMember);
+    expect(pins).toHaveLength(6);
+    expect(pins.map((pin) => pin.id)).toEqual(ids.toReversed());
   });
 
-  it("他家庭のConsumableはお気に入り登録・表示できない", async () => {
+  it("他家庭のConsumableはピン留め登録・表示できない", async () => {
     const otherHouseholdId = await createConsumableFor(householdBMember, "別家庭の卵");
 
     await expect(
@@ -99,7 +99,7 @@ describe("個人別のConsumableお気に入り (Issue #345)", () => {
     await expect(listPinnedConsumables(db, householdBMember)).resolves.toEqual([]);
   });
 
-  it("未認証・家庭未所属の利用者はお気に入りを読み書きできない", async () => {
+  it("未認証・家庭未所属の利用者はピン留めを読み書きできない", async () => {
     const id = await createConsumableFor(householdAMember, "卵");
 
     await expect(listPinnedConsumables(db, null)).rejects.toThrow("認証が必要です。");

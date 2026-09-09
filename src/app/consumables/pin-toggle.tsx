@@ -10,7 +10,15 @@ import {
 
 const INITIAL_STATE: ConsumablePinActionState = { message: "", status: "idle" };
 
-function FavoriteButton({ isPinned }: { isPinned: boolean }) {
+function PinIcon({ isPinned }: { isPinned: boolean }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M8 3h8l-1 6 3 3v2h-5v7l-1 1-1-1v-7H6v-2l3-3Z" fill={isPinned ? "currentColor" : "none"} />
+    </svg>
+  );
+}
+
+function PinButton({ isPinned }: { isPinned: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -19,8 +27,8 @@ function FavoriteButton({ isPinned }: { isPinned: boolean }) {
       disabled={pending}
       type="submit"
     >
-      <span aria-hidden="true">{isPinned ? "★" : "☆"}</span>
-      {isPinned ? "お気に入りから外す" : "お気に入りに追加"}
+      <PinIcon isPinned={isPinned} />
+      {isPinned ? "ピン留めを外す" : "ホームにピン留め"}
     </button>
   );
 }
@@ -37,8 +45,8 @@ export function PinToggle({
     <div className="pin-control">
       <form action={formAction}>
         <input name="id" type="hidden" value={consumableId} />
-        <input name="favorite" type="hidden" value={String(!isPinned)} />
-        <FavoriteButton isPinned={isPinned} />
+        <input name="pinned" type="hidden" value={String(!isPinned)} />
+        <PinButton isPinned={isPinned} />
       </form>
       {state.status === "idle" ? null : (
         <p className="auth-feedback" role={state.status === "error" ? "alert" : "status"}>

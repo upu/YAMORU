@@ -126,7 +126,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
       .not.toBeInTheDocument();
   });
 
-  it("現在の利用者がお気に入りにした消耗品をホームへ表示する", async () => {
+  it("現在の利用者がピン留めした消耗品をホームへ表示する", async () => {
     loadAccountStateMock.mockResolvedValue({
       household: { id: "household-1", name: "テスト家庭" },
       nickname: "ぽっぷ",
@@ -146,7 +146,7 @@ describe("ホーム画面(Home、サーバーコンポーネント)", () => {
       {},
       { userId: "user-1" },
     );
-    expect(screen.getByRole("region", { name: "お気に入り" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "ピン留め" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "卵" }))
       .toHaveAttribute("href", "/consumables/eggs");
     expect(screen.queryByRole("heading", { name: "いま対応することはありません" }))
