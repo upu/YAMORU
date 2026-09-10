@@ -17,6 +17,7 @@ import {
 } from "../../../lib/d1/profiles";
 import { CorrectionPanel } from "../../../features/todos/components/correction-panel";
 import { UNASSIGNED_LABEL } from "../../assignee";
+import { DetailBackNav, TODO_DETAIL_BACK_NAV } from "../../detail-back-nav";
 import { EditIcon } from "../../edit-icon";
 import {
   describeCalendarSchedule,
@@ -177,7 +178,7 @@ function TodoContentSection({ todo }: { todo: TodoDetailData }) {
         </div>
         {canEdit ? (
           <Link
-            aria-label="このTodoを編集"
+            aria-label="Todoを編集"
             className="icon-link"
             href={`/todos/${encodeURIComponent(todo.id)}/edit`}
           >
@@ -190,9 +191,10 @@ function TodoContentSection({ todo }: { todo: TodoDetailData }) {
   );
 }
 
-// Issue #264: Todo詳細はTodo一覧以外からも開くため、Todo一覧へ固定で戻る
-// back-navは置かない。代わりの戻り先も追加しない。モバイル下部ナビゲーション
-// などの既存の共通導線と、ブラウザ/PWAの履歴操作に任せる。
+// Issue #264ではTodo一覧以外からも開くことを理由に戻る導線を置かなかったが、
+// Issue #391で詳細画面の共通規約(detail-back-nav.tsx)へそろえ、備品・消耗品と
+// 同じ位置・同じ表現でTodo一覧へ戻れるようにした。直前の画面へ戻る操作は、
+// これまでどおりブラウザ/PWAの履歴に任せる。
 export function TodoDetailContent({
   currentUserId,
   members,
@@ -204,6 +206,7 @@ export function TodoDetailContent({
 }) {
   return (
     <main className="detail-page todo-detail-page">
+      <DetailBackNav {...TODO_DETAIL_BACK_NAV} />
       <header className="detail-hero">
         <p className="detail-kicker">TODO</p>
         <h1>{todo.title}</h1>

@@ -18,6 +18,7 @@ import { buildPendingTodoEntries } from "../pending-todo";
 import { buildRecentItems } from "../page";
 import type { TodoCardItem } from "../todo-card";
 import { FloatingAddButton } from "../floating-add-button";
+import { ListAddLink, type ListAddAction } from "../list-add-link";
 import {
   COMPLETED_LIMIT_MAX,
   COMPLETED_PAGE_SIZE,
@@ -122,6 +123,11 @@ function TodoListBody({
   );
 }
 
+// Issue #391: 一覧の追加導線は、台帳・消耗品と同じく操作行の先頭のリンクと
+// 右下のフローティングボタンで同じ文言を使い、画面幅ごとにどちらか一方だけを
+// 出す。
+const TODO_ADD_ACTION: ListAddAction = { href: "/todos/new", label: "Todoを追加" };
+
 export function TodoListContent({
   nextLimit = COMPLETED_PAGE_SIZE,
   showLoadMore = false,
@@ -139,6 +145,7 @@ export function TodoListContent({
         <h1 className={styles.toolbarTitle}>Todo一覧</h1>
         {rest.household === null ? null : (
           <div className={styles.toolbarActions}>
+            <ListAddLink add={TODO_ADD_ACTION} />
             <TodoStatusSwitch
               assigneeParam={rest.assigneeParam}
               searchParam={rest.searchParam}
@@ -176,7 +183,9 @@ export function TodoListContent({
         status={status}
         viewParam={viewParam}
       />
-      {rest.household === null ? null : <FloatingAddButton destination="todo" />}
+      {rest.household === null ? null : (
+        <FloatingAddButton {...TODO_ADD_ACTION} mobileOnly />
+      )}
     </main>
   );
 }

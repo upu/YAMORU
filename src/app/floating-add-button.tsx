@@ -2,30 +2,31 @@ import Link from "next/link";
 
 import styles from "./floating-add-button.module.css";
 
-type AddDestination = "consumable" | "managed-item" | "todo";
-
-// Issue #309: 台帳のどのカテゴリを見ていても、右下の追加操作は同じ位置・同じ
-// 名前で見つかるようにする。行き先だけを現在のカテゴリ(備品・サービス・契約は
-// ManagedItem、消耗品はConsumable)へ合わせる。
-const DESTINATIONS: Record<AddDestination, { href: string; label: string }> = {
-  consumable: { href: "/consumables/new", label: "台帳に追加" },
-  "managed-item": { href: "/managed-items/new", label: "台帳に追加" },
-  todo: { href: "/todos/new", label: "Todoを追加" },
-};
-
+// Issue #309: 台帳のどのカテゴリを見ていても、追加操作は同じ位置・同じ名前で
+// 見つかるようにする。Issue #391: 一覧では、この右下のボタンと一覧見出しの中の
+// 追加リンク(globals.cssの.list-add-link)を同時に出さず、画面幅ごとに
+// どちらか一方だけを主要導線にする。モバイル幅は親指の届くこのボタン、それより
+// 広い幅は見出しの中のリンクを使うため、一覧はmobileOnlyを付けて呼ぶ。
+// 表示・非表示はCSSのdisplay: noneで切り替えるので、隠れている側は支援技術
+// からも見えず、同じ操作が二重に読み上げられない。
+// ホームは一覧ではなく、見出しの中に追加リンクを持たないため、どの幅でも出す。
 export function FloatingAddButton({
-  destination,
+  href,
+  label,
+  mobileOnly = false,
 }: {
-  destination: AddDestination;
+  href: string;
+  label: string;
+  mobileOnly?: boolean;
 }) {
-  const { href, label } = DESTINATIONS[destination];
+  const modifier = mobileOnly ? ` ${styles.mobileOnly}` : "";
 
   return (
     <>
-      <div aria-hidden="true" className={styles.space} />
+      <div aria-hidden="true" className={`${styles.space}${modifier}`} />
       <Link
         aria-label={label}
-        className={styles.button}
+        className={`${styles.button}${modifier}`}
         href={href}
         title={label}
       >

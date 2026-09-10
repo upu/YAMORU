@@ -383,7 +383,11 @@ export function HomeContent({
         />
       )}
 
-      {household === null ? null : <FloatingAddButton destination="todo" />}
+      {/* Issue #391: ホームは一覧ではなく、見出しの中に追加リンクを持たない
+          ため、この右下のボタンをどの幅でも主要導線として出す。 */}
+      {household === null ? null : (
+        <FloatingAddButton href="/todos/new" label="Todoを追加" />
+      )}
 
     </main>
   );

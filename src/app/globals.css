@@ -1084,8 +1084,9 @@ h1 {
    絞り込みフォームを続ける。Issue #237: 見出しテキストは画面上から外した
    (sr-onlyのh2 registered-items-titleへ移動)ため、件数バッジだけを
    右寄せしていた。Issue #285: 同じ行の左端へ新規登録の入口を置いたので、
-   両端揃えへ戻す。 */
-.ledger-list-heading {
+   両端揃えへ戻す。Issue #391: Todo一覧とも同じ行の作りを使うため、台帳に
+   限らない名前へ変えた。 */
+.list-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1094,8 +1095,12 @@ h1 {
 }
 
 /* Issue #285: 検索欄と混同されない新規登録の入口。検索・絞り込みの入力欄
-   (枠線だけの入力)と違う、押せる面として見えるボタン型にする。 */
-.ledger-add-link {
+   (枠線だけの入力)と違う、押せる面として見えるボタン型にする。
+   Issue #391: 台帳だけでなくTodo一覧も同じ表現・同じ位置(一覧の操作行の
+   先頭)で追加できるようにしたため、台帳に限らない名前へ変えた。モバイル幅
+   では右下のフローティングボタン(floating-add-button.module.css)へ一本化
+   するので、この行では出さない。 */
+.list-add-link {
   display: inline-flex;
   flex: none;
   min-height: var(--tap-target);
@@ -1570,6 +1575,17 @@ h1 {
 
   .auth-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Issue #391: モバイル幅の追加導線は、右下のフローティングボタン
+     (floating-add-button.module.css)へ一本化する。display: noneなので
+     支援技術からも見えず、同じ追加操作が2か所に現れない。 */
+  .list-add-link {
+    display: none;
+  }
+
+  .list-heading {
+    justify-content: flex-end;
   }
 
   .task-card {

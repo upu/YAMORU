@@ -22,7 +22,7 @@ status: stable
 | 手動更新ボタンと更新結果の通知 | `src/app/refresh-coordinator.module.css` |
 | 共通フッター | `src/app/app-footer.module.css` |
 | 下部ナビゲーション | `src/app/mobile-bottom-navigation.module.css` |
-| 右下の追加ボタン | `src/app/floating-add-button.module.css` |
+| 右下の追加ボタン(一覧ではモバイル幅だけ) | `src/app/floating-add-button.module.css` |
 | ホーム固有(操作リンク・対応状況・並び) | `src/app/home.module.css` |
 | ホームのピン留め消耗品 | `src/app/pinned-consumables.module.css` |
 | 記録・訂正・延期などのダイアログ | `src/app/dialog.module.css` |
@@ -41,6 +41,8 @@ status: stable
 - 見た目の大きさと押せる領域は分けてよい。見た目を小さいまま保ちたい操作は、疑似要素(`globals.css`の`.stock-status-option-symbol`)か負のmargin(`first-run-hint.module.css`の`.dismiss`)で領域だけを広げる。はみ出した分だけ隣の操作との間隔を空け、誤タップを作らない。隣り合う選択肢(表示形式の2択など)は領域が重なるため、この方法を使わず押せる面そのものを広げる。
 - 領域を広げた分は、外側の余白(リスト項目のpadding、パネルのmargin)を詰めて、1件あたりの高さを増やさない。
 - アイコンだけの操作ボタンは、見た目を小さくしてもアクセシブルネームを`.sr-only`か`aria-label`で残す([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md))。
+- 一覧(Todo・備品・サービス・契約・消耗品)の追加導線は、同じ画面へ2つ出さない([Issue #391](https://github.com/upu/YAMORU/issues/391))。モバイル幅(480px以下)は右下のフローティングボタン、それより広い幅は一覧の操作行の先頭のリンク(`.list-add-link`)だけを出す。切り替えは`display: none`で行い、隠れている側は支援技術からも見えないようにする。文言と行き先は`ListAddAction`の同じ値を両方へ渡し、画面幅で名前が変わらないようにする。ホームは一覧ではないため、右下のボタンをどの幅でも出す。
+- 詳細画面(Todo・備品・消耗品)の戻る導線は`DetailBackNav`だけを使い、`main`直下の最初の要素として置く。編集導線は対象の内容を表すセクション見出しの右端に`.icon-link`の鉛筆アイコンで置く。
 - 部品専用のルールはCSS Moduleへ置き、`globals.css`には全体基盤と、複数の部品から使う・複数の部品が配置を調整するルールだけを残す。
 - 部品のmedia query、hover、focus-visible、状態属性の指定は、その部品のCSS Moduleへまとめる。`--mobile-nav-height`のように下部ナビゲーションとダイアログが共有する変数は`globals.css`の`:root`に置く。
 - CSS Moduleから共有クラスの配置だけを調整するときは`:global(.クラス名)`で明示する(例: ピン留め一覧の中の在庫変更ボタン、検索結果の中の操作列)。

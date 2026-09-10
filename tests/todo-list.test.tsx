@@ -263,10 +263,13 @@ describe("Todo一覧画面(TodoListContent)", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "最初のTodoを追加" }))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveAttribute(
-      "href",
-      "/todos/new",
-    );
+    // Issue #391: ツールバーの中のリンクと右下のボタンが同じ文言・同じ行き先を
+    // 持ち、表示は画面幅ごとにどちらか一方だけになる(切り替えはCSSで行う)。
+    const addLinks = screen.getAllByRole("link", { name: "Todoを追加" });
+    expect(addLinks).toHaveLength(2);
+    for (const addLink of addLinks) {
+      expect(addLink).toHaveAttribute("href", "/todos/new");
+    }
     expect(screen.queryByRole("region", { name: "未完了のTodo" })).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "../../../lib/auth/current-user";
@@ -16,6 +15,10 @@ import {
   type ConsumableSummary,
 } from "../../../lib/d1/consumables";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-item-detail";
+import {
+  DetailBackNav,
+  MANAGED_ITEM_DETAIL_BACK_NAV,
+} from "../../detail-back-nav";
 import {
   isSafeExternalUrl,
 } from "../model";
@@ -63,9 +66,7 @@ export function ManagedItemDetailContent({
 
   return (
     <main className="detail-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/managed-items">← 家の台帳へ戻る</Link>
-      </nav>
+      <DetailBackNav {...MANAGED_ITEM_DETAIL_BACK_NAV} />
 
       <ManagedItemHeader
         itemTypeLabel={item.itemTypeLabel}
