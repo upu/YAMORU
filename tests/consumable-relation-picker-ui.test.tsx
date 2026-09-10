@@ -61,14 +61,20 @@ describe("消耗品フォームの関連付け (Issue #292)", () => {
   it("未選択の候補を常時表示せず、選択済みだけをフォームに並べる", () => {
     render(<ConsumableForm mode="create" />);
 
-    expect(screen.getByText("関連付けている管理対象はありません。")).toBeInTheDocument();
-    expect(screen.getByText("関連付けているTodoはありません。")).toBeInTheDocument();
+    // Issue #393: 未選択の状態は「（0件・任意）」と「＋ ○○を追加」だけで示し、
+    // 同じ意味の空状態の行を重ねて置かない。
+    expect(screen.getByRole("group", { name: "関連する管理対象（0件・任意）" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "関連するTodo（0件・任意）" }))
+      .toBeInTheDocument();
+    expect(screen.queryByText("関連付けている管理対象はありません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連付けているTodoはありません。")).not.toBeInTheDocument();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     expect(searchConsumableManagedItemsMock).not.toHaveBeenCalled();
     expect(searchConsumableTaskRulesMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "＋ 管理対象を追加" })).toBeInTheDocument();
-    expect(screen.getByText("どれにも関連付けず、家庭共通の消耗品として登録できます。"))
-      .toBeInTheDocument();
+    expect(screen.queryByText("どれにも関連付けず、家庭共通の消耗品として登録できます。"))
+      .not.toBeInTheDocument();
   });
 
   it("管理対象を検索して複数選び、件数の確認と個別の解除ができる", async () => {

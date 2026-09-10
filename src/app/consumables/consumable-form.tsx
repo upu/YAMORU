@@ -126,16 +126,13 @@ function ConsumableRelationSection({
       </p>
     );
   }
+  // Issue #393: 関連付けが任意であることは、2つのfieldsetのlegendにある
+  // 「（0件・任意）」が示す。同じ意味の説明文を末尾へ重ねて置かない。
   return (
-    <>
-      {/* 管理対象詳細から登録へ進んだ場合(#44)の初期選択を引き継ぐ。 */}
-      <ConsumableRelationFields
-        initialManagedItems={initialManagedItem === undefined ? [] : [initialManagedItem]}
-      />
-      <p className="input-help">
-        どれにも関連付けず、家庭共通の消耗品として登録できます。
-      </p>
-    </>
+    /* 管理対象詳細から登録へ進んだ場合(#44)の初期選択を引き継ぐ。 */
+    <ConsumableRelationFields
+      initialManagedItems={initialManagedItem === undefined ? [] : [initialManagedItem]}
+    />
   );
 }
 

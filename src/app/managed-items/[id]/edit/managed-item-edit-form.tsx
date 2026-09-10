@@ -54,8 +54,9 @@ function ManagedItemNameField({ name }: { name: string }) {
         required
         type="text"
       />
+      {/* Issue #393: 登録フォームと同じ言い回しにそろえる。 */}
       <p id="managed-item-edit-name-help">
-        家庭内でこの管理対象を見分けるための呼び名です。メーカー名や型番は下の欄に書けます。
+        メーカー名や型番は下の「メーカー・商品名など」に書けます。
       </p>
     </>
   );
@@ -75,8 +76,10 @@ function ManagedItemExternalUrlField({ externalUrl }: { externalUrl: string | nu
         placeholder="https://example.com/product"
         type="url"
       />
+      {/* Issue #393: 欄の意味はラベルとplaceholderに任せ、編集画面でしか
+      分からないこと(空にすると外れる)だけを残す。 */}
       <p id="managed-item-edit-external-url-help">
-        商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。空にすると未設定に戻ります。
+        空にすると未設定に戻ります。
       </p>
     </>
   );

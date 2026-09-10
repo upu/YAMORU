@@ -20,6 +20,7 @@ import {
   ConsumableDetailContent,
   type ConsumableDetailData,
 } from "../src/app/consumables/[id]/page";
+import { ConsumableRegistrationContent } from "../src/app/consumables/new/page";
 import {
   ConsumablesContent,
   type ConsumableListItem,
@@ -94,6 +95,33 @@ describe("消耗品一覧", () => {
   });
 });
 
+// Issue #393: 「ADD CONSUMABLE」「消耗品を登録」「登録内容」と役割の重なる
+// 見出しが3つ並び、最初の入力欄までの縦幅を使っていた。
+describe("消耗品登録ページの上部(Issue #393)", () => {
+  it("キッカーと「登録内容」を画面に出さず、見出し一つに収める", () => {
+    render(<ConsumableRegistrationContent hasHousehold />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "消耗品を登録" }))
+      .toBeInTheDocument();
+    expect(screen.queryByText("ADD CONSUMABLE")).not.toBeInTheDocument();
+    // 入力領域の意味は支援技術向けに残す(画面には出さない)。
+    const form = screen.getByRole("region", { name: "登録内容" });
+    expect(within(form).getByRole("heading", { level: 2, name: "登録内容" }))
+      .toHaveClass("sr-only");
+    expect(within(form).getByLabelText("名前")).toBeRequired();
+  });
+
+  it("家庭未所属なら登録フォームを隠して家庭作成を案内する", () => {
+    render(<ConsumableRegistrationContent hasHousehold={false} />);
+
+    expect(screen.getByRole("heading", { name: "家庭を作成してください" }))
+      .toBeInTheDocument();
+    expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "家庭を作成する" }))
+      .toHaveAttribute("href", "/account");
+  });
+});
+
 describe("消耗品登録・編集フォーム", () => {
   it("参照情報を入力でき、関連付けは選択済みと追加操作だけを表示する", () => {
     render(
@@ -112,8 +140,10 @@ describe("消耗品登録・編集フォーム", () => {
     expect(screen.getByRole("button", { name: "猫の給水機を関連から外す" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "＋ Todoを追加" })).toBeInTheDocument();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-    expect(screen.getByText("どれにも関連付けず、家庭共通の消耗品として登録できます。"))
-      .toBeInTheDocument();
+    // Issue #393: 関連付けが任意であることはlegendの「（1件・任意）」が示すため、
+    // 同じ意味の説明文をフォーム末尾へ重ねない。
+    expect(screen.queryByText("どれにも関連付けず、家庭共通の消耗品として登録できます。"))
+      .not.toBeInTheDocument();
   });
 });
 
