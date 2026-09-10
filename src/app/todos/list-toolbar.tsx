@@ -63,6 +63,20 @@ export function TodoStatusSwitch({
   );
 }
 
+// Issue #390: 家族名は最大20文字まで登録できる(account/actions.tsの
+// NICKNAME_MAX_LENGTH)。長い名前でもツールバーが画面からはみ出さないよう、
+// 値だけを縮められるようにして末尾を省略する(assigneeToggleValue)。
+// 「担当:」と開閉の記号は短いので、そのまま残す。
+function AssigneeFilterSummary({ selectedLabel }: { selectedLabel: string }) {
+  return (
+    <summary className={styles.assigneeToggle}>
+      担当:
+      {" "}
+      <span className={styles.assigneeToggleValue}>{selectedLabel}</span>
+    </summary>
+  );
+}
+
 // Issue #223: 担当予定者で絞り込む。「全員」で解除できる。Issue #266:
 // メンバー全員を横並びにせず、現在の条件が閉じた状態でも分かるネイティブな
 // disclosureにまとめる。候補はページ遷移のリンクなのでmenuロールは付けず、
@@ -89,7 +103,7 @@ export function AssigneeFilterDisclosure({
 
   return (
     <details className={styles.assigneeDisclosure}>
-      <summary className={styles.assigneeToggle}>担当: {selectedLabel}</summary>
+      <AssigneeFilterSummary selectedLabel={selectedLabel} />
       <nav aria-label="担当予定者で絞り込み" className={styles.assigneeOptions}>
         <Link
           aria-current={assigneeParam === undefined ? "page" : undefined}

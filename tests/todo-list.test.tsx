@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getAssigneeToggle } from "./support/assignee-toggle";
+
 const {
   completeMaintenanceTaskMock,
   setTaskOccurrenceAssigneeMock,
@@ -218,7 +220,7 @@ describe("Todo一覧画面(TodoListContent)", () => {
 
     const toolbarFilters = document.querySelector(`.${todoListStyles.toolbarFilters}`);
     const toolbarActions = document.querySelector(`.${todoListStyles.toolbarActions}`);
-    const assigneeToggle = screen.getByText("担当: 全員", { selector: "summary" });
+    const assigneeToggle = getAssigneeToggle("担当: 全員");
     const assigneeDisclosure = assigneeToggle.closest("details");
     const statusSwitch = screen.getByRole("link", { name: "未完了" });
     const cardSwitch = screen.getByRole("link", { name: "カード表示" });

@@ -71,6 +71,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  /* 中身の幅(長い家族名の担当ボタンなど)がツールバーを超えないようにする。
+     これがないと、まとまりが内容幅のまま画面からはみ出す。 */
+  max-width: 100%;
 }
 
 .toolbarActions {
@@ -108,11 +111,15 @@
    ツールバーに表示する。候補はsummaryから開くポップオーバー風のnavに収める。 */
 .assigneeDisclosure {
   position: relative;
-  flex: none;
+  /* Issue #390: 長い家族名(最大20文字)でも画面からはみ出さないよう、
+     入り切らないときは縮められるようにする(値はassigneeToggleValueで省略)。 */
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .assigneeToggle {
   display: flex;
+  min-width: 0;
   min-height: var(--tap-target);
   align-items: center;
   gap: 5px;
@@ -126,6 +133,13 @@
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+/* 「担当:」と開閉の記号は残したまま、値だけを省略する。 */
+.assigneeToggleValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assigneeToggle::-webkit-details-marker {
@@ -369,24 +383,28 @@
 
 /* Issue #243: Todo名・短い予定・状態ラベルを1行へ並べる(issue本文の
    設計メモ「レイアウト」)。
-   Issue #390: 折り返しを許していたため、390px幅では短いTodoでも状態
-   ラベルが2行目へ落ち、1件あたり62pxを使っていた。優先順位は
-   「タイトル > 日付/状態 > 補足」なので、折り返さずに1行へ収め、
-   入り切らない分はタイトル側を省略表示する(受け入れ基準)。 */
+   Issue #390: タイトルに160pxの基準幅を与えていたため、390px幅では短いTodoでも
+   状態ラベルが2行目へ落ち、1件あたり62pxを使っていた。基準幅を0にして
+   (rowTitleのflex)、日付/状態と状態ラベルが先に場所を取れるようにすると、
+   通常の文字サイズでは1行に収まる。折り返し自体は許したままにして、
+   文字サイズを大きくして本当に入り切らないときは、隠すのではなく
+   2行目へ回す(.rowsのoverflow: hiddenで欠けさせない)。 */
 .rowBody {
   display: flex;
   flex: 1;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: baseline;
   column-gap: 8px;
+  row-gap: 2px;
   min-width: 0;
 }
 
 /* 長いタイトルは末尾を省略し、日付/状態や状態ラベルを押し出さない。
    省略されるのは見た目だけで、行全体のリンク名には全文が残る。
-   flex-basisを0にするのは見た目の調整ではなく、行の最小幅を決めるため。
-   autoのままだとタイトル全文の幅が行の最小幅に算入され、長いTodoがあると
-   一覧全体(gridの列)がその幅まで広がって横スクロールが出る。 */
+   flex-basisを0にするのは見た目の調整ではなく、行の折り返しと最小幅を
+   決めるため。autoのままだと、タイトル全文の幅が同じ行に並べられるか
+   どうかの判断に使われて状態ラベルが2行目へ落ち、行の最小幅にも算入されて
+   一覧全体(gridの列)がその幅まで広がる。 */
 .rowTitle {
   flex: 1 1 0;
   min-width: 4em;

@@ -12,6 +12,12 @@ import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-z
 
 const SHORT_TODO = "ごみ出し";
 const LONG_TODO = "浄水器のフィルターを交換して記録を残す長いタイトルのTodo";
+// 登録できる上限の20文字(src/app/account/actions.tsのNICKNAME_MAX_LENGTH)。
+const LONG_NICKNAME = "あいうえおかきくけこさしすせそたちつてと";
+const LONG_NICKNAME_USER_ID = "member2";
+// 文字サイズだけを2倍にした状態(既定16px)。ページ全体の拡大とは違い、
+// 幅は変わらず文字だけが大きくなるため、1行に収める指定の逃げ場を確かめられる。
+const DOUBLED_TEXT_STYLE = "html { font-size: 32px !important; }";
 
 function tokyoDateAfter(days: number): string {
   const today = new Intl.DateTimeFormat("en-CA", {
@@ -74,6 +80,16 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(hasHorizontalOverflow, "横スクロールが発生している").toBe(false);
 }
 
+// 中身が入れ物の右端からはみ出していないか。一覧(.rows)は角丸のために
+// overflow: hiddenなので、はみ出した部分は隠れて読めなくなる。
+async function overflowsContainer(locator: Locator): Promise<boolean> {
+  return locator.evaluate((element) => {
+    const container = element.parentElement;
+    if (container === null) return false;
+    return element.getBoundingClientRect().right > container.getBoundingClientRect().right + 1;
+  });
+}
+
 // 見た目が省略表示になっているか(はみ出した分だけscrollWidthが大きくなる)。
 async function isTruncated(locator: Locator): Promise<boolean> {
   return locator.evaluate((element) => element.scrollWidth > element.clientWidth + 1);
@@ -82,6 +98,15 @@ async function isTruncated(locator: Locator): Promise<boolean> {
 test.beforeEach(async ({ db }) => {
   await seedOwnerHousehold(db);
   const session = { userId: "owner" };
+  // 長い家族名でツールバーが広がらないことを確かめるための、もう一人の家族。
+  await db.batch([
+    db.prepare("INSERT INTO users (id, email, password_hash) VALUES (?1, ?2, 'e2e-not-a-real-hash')")
+      .bind(LONG_NICKNAME_USER_ID, `${LONG_NICKNAME_USER_ID}@example.test`),
+    db.prepare("INSERT INTO profiles (user_id, nickname) VALUES (?1, ?2)")
+      .bind(LONG_NICKNAME_USER_ID, LONG_NICKNAME),
+    db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a', ?1)")
+      .bind(LONG_NICKNAME_USER_ID),
+  ]);
   await createOneTimeTask(db, session, {
     managedItemId: null,
     scheduledFor: tokyoDateAfter(0),
@@ -168,6 +193,24 @@ test.describe("390px幅", () => {
   });
 });
 
+test.describe("文字サイズを2倍にした390px幅", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // 1行へ収める指定が、文字サイズを大きくしたときに情報を隠す形で効かないこと。
+  // 入り切らなくなったら、状態ラベルは隠れるのではなく次の行へ回る。
+  test("リスト行は状態ラベルを隠さず、折り返して表示する", async ({ page }) => {
+    await login(page);
+    await page.goto("/todos?view=list");
+    await page.addStyleTag({ content: DOUBLED_TEXT_STYLE });
+
+    const row = page.getByRole("link", { name: new RegExp(SHORT_TODO) });
+    const badge = row.getByText("今日", { exact: true });
+    await expect(badge).toBeVisible();
+    expect(await overflowsContainer(badge), "状態ラベルが行からはみ出して隠れている").toBe(false);
+    await expectNoHorizontalOverflow(page);
+  });
+});
+
 test.describe("320px幅", () => {
   test.use({ viewport: { width: 320, height: 640 } });
 
@@ -185,6 +228,22 @@ test.describe("320px幅", () => {
     // 検索を開いても、入力欄が画面からはみ出さない。
     await page.getByLabel("Todoを検索").click();
     await expect(page.getByLabel("Todo名で検索")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  // 担当の絞り込みは選択中の家族名をそのまま表示する。上限の20文字でも
+  // ツールバーが内容幅のまま広がらず、名前側を省略して画面に収める。
+  test("上限の長さの家族名で絞り込んでもツールバーが画面からはみ出さない", async ({ page }) => {
+    await login(page);
+    await page.goto(`/todos?assignee=${LONG_NICKNAME_USER_ID}`);
+
+    const toggle = await boxOf(
+      page.getByText(`担当: ${LONG_NICKNAME}`, { exact: true }),
+      "担当の絞り込み",
+    );
+    expect(toggle.x, "担当の絞り込みが画面の左外へ出ている").toBeGreaterThanOrEqual(0);
+    expect(toggle.x + toggle.width, "担当の絞り込みが画面の右外へ出ている")
+      .toBeLessThanOrEqual(320);
     await expectNoHorizontalOverflow(page);
   });
 });
