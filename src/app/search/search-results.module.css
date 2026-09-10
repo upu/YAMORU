@@ -3,16 +3,60 @@
    だけを持つ。行内に置く共通部品(完了記録・在庫変更・操作結果)は、他の画面と
    共有するためglobals.css側に残し、:global()で配置だけを調整する。 */
 /* Issue #350 / YDR-042: 横断検索の結果。行そのものは台帳一覧(.ledger-list)を
-   そのまま使い、種類ごとのセクション見出しと件数、補助情報だけを足す。 */
-.sectionHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+   そのまま使い、種類ごとのセクション見出しと件数、補助情報だけを足す。
+   Issue #396: 分類は外側のカードではなく小さな見出しで示す。カードの枠を
+   持つのは結果行だけにして、二重の囲いをやめる。 */
+.results {
+  display: grid;
+  gap: 14px;
 }
 
-.sectionHeading h2 {
+.group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.groupHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 結果行の角丸に対して見出しが浮かないよう、行の左padding分だけ内側へ寄せる。 */
+  padding: 0 4px;
+}
+
+/* 分類は「どこからどこまでが同じ種類か」を示す区切りなので、結果行の名前より
+   小さく、明朝(detail-card h2)ではなく本文と同じ書体にする。 */
+.groupHeading h2 {
   margin: 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* ホームの.count(28pxの丸)は分類見出しには大きいため、件数だけを収める
+   小さな形にする。 */
+.groupCount {
+  display: inline-grid;
+  height: 18px;
+  flex: none;
+  min-width: 18px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-pale);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+/* .ledger-listは詳細画面のカードの中で使う想定の余白を持つ。分類見出しの
+   すぐ下に置くこの一覧では、その上余白を見出しとの間隔(gap)へ譲る。 */
+.rows {
+  margin-top: 0;
+  gap: 8px;
 }
 
 .resultMeta {
@@ -21,17 +65,19 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
 /* Issue #362 / YDR-043: 検索結果は詳細リンクを主役に保ちながら、短い操作だけを
    右側へ置く。名前が長い場合は操作を次の行へ送り、320pxでも横へはみ出さない。 */
+/* Issue #396: 基準幅を0にして、名前が長くても操作を次の行へ送らず、名前の側
+   だけを折り返す(ホームのピン留め・Todo一覧の行 #390 と同じ考え方)。 */
 .resultMain {
   display: grid;
-  flex: 1 1 150px;
+  flex: 1 1 0;
   min-width: 0;
-  gap: 4px;
+  gap: 0;
 }
 
 .resultActions {
@@ -50,13 +96,10 @@
   grid-template-columns: repeat(3, auto);
   max-width: none;
   margin-top: 0;
-  gap: 6px;
-}
-
-.resultActions :global(.stock-status-option) {
-  min-height: var(--tap-target);
-  padding: 0 12px;
-  font-size: 0.78rem;
+  /* Issue #389 / #396: 記号のボタンは見た目36pxのまま、上下左右へ4pxずつ広い
+     タップ領域を持つ(globals.cssの.stock-status-option-symbol)。隣のボタンと
+     その領域が重ならない間隔を空ける(ホームのピン留めと同じ)。 */
+  gap: 8px;
 }
 
 .resultActions :global(.stock-status-option):focus-visible {
@@ -69,12 +112,12 @@
   margin-top: 6px;
 }
 
-/* 上限に達した種類へ出す案内。セクションの外に置くため、間隔だけ詰める。 */
+/* 上限に達した種類へ出す案内。分類のまとまりの外に置くため、間隔だけ詰める。 */
 .moreNote {
-  margin: -8px 0 0;
+  margin: -6px 0 0;
   padding: 0 4px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
 .page :global(.ledger-search-form) {

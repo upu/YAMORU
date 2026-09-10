@@ -34,7 +34,8 @@ status: stable
 - Todoは未完了のOccurrenceだけを対象にする。`rule_snapshot`があるTodoは、一覧・詳細と同じ式で表示名を解決してから一致を判定する。
 - 検索語のエスケープは`likeSearchPattern`に集約する。`%`と`_`はワイルドカードではなく文字として扱う。
 - すべてのクエリーは認証済み利用者の家庭を先に確定し、最初の条件を`household_id`にする。
-- 検索結果へ置く操作は在庫変更とTodo完了の2つだけで、いずれも既存部品(`QuickStockStatusControl`、`CompleteTodoPanel`)を再利用する。検索専用の保存処理を作らない([YDR-043](../decisions/ydr-043-cross-search-quick-actions.md))。
+- 検索結果へ置く操作は在庫変更とTodo完了の2つだけで、いずれも既存部品(`QuickStockStatusControl`、`CompleteTodoPanel`)を再利用する。検索専用の保存処理を作らない([YDR-043](../decisions/ydr-043-cross-search-quick-actions.md))。在庫変更は記号表示(`appearance="symbol"`)を使い、結果行を1行に収める([Issue #396](https://github.com/upu/YAMORU/issues/396))。
+- 分類のまとまりは外側のカード(`detail-card`)を持たない([Issue #396](https://github.com/upu/YAMORU/issues/396))。分類は小さな見出しと件数だけで示し、枠・余白・背景を持つのは結果行の側だけにする(二重の囲いを作らない)。一致が0件の分類は見出しごと出さない。
 
 ## 関連YDR
 
@@ -50,4 +51,4 @@ npm run lint
 npm run typecheck
 ```
 
-取得条件を変える場合は`src/lib/d1/cross-search.d1-test.ts`と`src/lib/d1/todo-filters.d1-test.ts`、画面回帰は`e2e/cross-search.spec.ts`で確認する。
+取得条件を変える場合は`src/lib/d1/cross-search.d1-test.ts`と`src/lib/d1/todo-filters.d1-test.ts`、画面回帰は`e2e/cross-search.spec.ts`で確認する。結果が縦に詰まっていることと、320px・390pxで長い名前でも崩れないことは`e2e/cross-search-compact-layout.spec.ts`が確認する。

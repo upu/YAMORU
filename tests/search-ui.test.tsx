@@ -15,6 +15,7 @@ vi.mock("../src/features/todos/actions/completion", () => ({
 
 import { CROSS_SEARCH_LIMIT, type CrossSearchResults } from "../src/lib/d1/cross-search";
 import { SearchContent } from "../src/app/search/page";
+import searchStyles from "../src/app/search/search-results.module.css";
 
 afterEach(cleanup);
 
@@ -217,6 +218,10 @@ describe("横断検索の画面", () => {
 
     expect(screen.getByRole("heading", { name: "「ありえない名前」に一致する対象はありません" }))
       .toBeInTheDocument();
+    // Issue #396: 一致が0件のときは分類の見出しを一つも置かない。
+    for (const name of ["Todo", "備品", "サービス・契約", "消耗品"]) {
+      expect(screen.queryByRole("region", { name })).not.toBeInTheDocument();
+    }
     expect(screen.getByRole("link", { name: "Todo一覧を開く" })).toHaveAttribute("href", "/todos");
     expect(screen.getByRole("link", { name: "台帳（備品）を開く" }))
       .toHaveAttribute("href", "/managed-items?kind=asset");
@@ -231,5 +236,79 @@ describe("横断検索の画面", () => {
 
     expect(screen.queryByRole("search")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "家庭を作成してください" })).toBeInTheDocument();
+  });
+});
+
+// Issue #396: 検索は候補を見比べて選ぶ画面なので、分類を保ったまま一画面に
+// 見える件数を増やす。分類ごとの外側カードをやめ、囲いは結果行だけに残す。
+describe("横断検索の結果の並べ方(Issue #396)", () => {
+  // Issue #396: 分類ごとの外側カードと結果行の枠で二重の囲いになり、1件だけの
+  // 分類でも大きな余白と見出しが縦幅を使っていた。分類は小さな見出しと件数
+  // だけで示し、枠は結果行の側にだけ残す。
+  it("分類は見出しと件数だけで示し、カードの枠を重ねない", () => {
+    render(
+      <SearchContent
+        {...ACTOR_PROPS}
+        hasHousehold
+        q="卵"
+        results={results({
+          consumables: {
+            hasMore: false,
+            items: [{ id: "c1", name: "卵", stockStatus: "low" }],
+          },
+          managedItems: {
+            hasMore: false,
+            items: [
+              { id: "m1", itemTypeLabel: "調理器具", kindCode: "asset", kindLabel: "備品", name: "卵焼き器" },
+              { id: "m2", itemTypeLabel: null, kindCode: "service", kindLabel: "サービス・契約", name: "卵の定期便" },
+            ],
+          },
+          todos: {
+            hasMore: false,
+            items: [
+              { dueAt: null, id: "o1", managedItemId: null, scheduledFor: "2026-09-10", title: "卵を買う" },
+              { dueAt: null, id: "o2", managedItemId: null, scheduledFor: null, title: "卵を茹でる" },
+            ],
+          },
+        })}
+      />,
+    );
+
+    for (const [name, count] of [
+      ["Todo", "2件"],
+      ["備品", "1件"],
+      ["サービス・契約", "1件"],
+      ["消耗品", "1件"],
+    ]) {
+      const group = screen.getByRole("region", { name });
+      expect(group).toHaveClass(searchStyles.group);
+      expect(group).not.toHaveClass("detail-card");
+      expect(within(group).getByLabelText(count)).toBeInTheDocument();
+      // 囲いを持つのは結果行の側だけ。
+      expect(within(group).getAllByRole("listitem").length).toBeGreaterThan(0);
+    }
+  });
+
+  // Issue #396: 一致のない分類は見出しごと出さないため、結果一覧を押し下げない。
+  it("一致した分類だけを並べ、0件の分類は見出しも置かない", () => {
+    render(
+      <SearchContent
+        {...ACTOR_PROPS}
+        hasHousehold
+        q="卵焼"
+        results={results({
+          managedItems: {
+            hasMore: false,
+            items: [{ id: "m1", itemTypeLabel: "調理器具", kindCode: "asset", kindLabel: "備品", name: "卵焼き器" }],
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getAllByRole("region")).toHaveLength(1);
+    expect(screen.getByRole("region", { name: "備品" })).toBeInTheDocument();
+    for (const name of ["Todo", "サービス・契約", "消耗品"]) {
+      expect(screen.queryByRole("region", { name })).not.toBeInTheDocument();
+    }
   });
 });
