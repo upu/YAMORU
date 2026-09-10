@@ -136,6 +136,22 @@ async function checkTodoListTapTargets(page: Page): Promise<void> {
   );
 }
 
+// Issue #391で3画面へそろえた戻る導線も、他の主要操作と同じ基準で押せる。
+async function checkDetailBackNavTapTarget(
+  page: Page,
+  listPath: string,
+  name: string,
+  backLabel: string,
+): Promise<void> {
+  await page.goto(listPath);
+  await page.getByRole("link", { name }).click();
+  await expectTapHeight(
+    page.getByRole("navigation", { name: "ページ移動" })
+      .getByRole("link", { name: backLabel }),
+    `${name}の詳細の戻る導線`,
+  );
+}
+
 async function checkLedgerTapTargets(page: Page): Promise<void> {
   await page.goto("/managed-items");
 
@@ -204,6 +220,15 @@ test.describe("390px幅", () => {
     await expectNoHorizontalOverflow(page);
 
     await checkCrossSearchTapTargets(page);
+    await expectNoHorizontalOverflow(page);
+
+    await checkDetailBackNavTapTarget(page, "/todos", TODO_TITLE, "← Todo一覧へ戻る");
+    await checkDetailBackNavTapTarget(
+      page, "/managed-items", MANAGED_ITEM_NAME, "← 家の台帳へ戻る",
+    );
+    await checkDetailBackNavTapTarget(
+      page, "/consumables", CONSUMABLE_NAME, "← 家の台帳へ戻る",
+    );
     await expectNoHorizontalOverflow(page);
   });
 });

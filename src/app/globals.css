@@ -304,11 +304,18 @@ h1 {
   width: min(100%, 760px);
 }
 
+/* 詳細画面の戻る導線(detail-back-nav.tsx、Issue #391)と、登録・編集画面の
+   同じ行が共有する。Issue #389: 文字は大きくせず、押せる領域だけを
+   --tap-targetに保つ。増えた高さの分だけ下の余白を詰め、本文の始まる位置を
+   下げない。 */
 .back-nav {
-  margin-bottom: 28px;
+  margin-bottom: 10px;
 }
 
 .back-nav a {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
   color: var(--green);
   font-weight: 800;
   text-underline-offset: 4px;
