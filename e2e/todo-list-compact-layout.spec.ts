@@ -1,7 +1,7 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 
-import { createOneTimeTask } from "../src/lib/d1/todos";
+import { createOneTimeTask, setTaskOccurrenceAssignee } from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
 
 // Issue #390: 390px幅のTodo一覧で、ツールバーの操作が意図したまとまりで
@@ -12,6 +12,7 @@ import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-z
 
 const SHORT_TODO = "ごみ出し";
 const LONG_TODO = "浄水器のフィルターを交換して記録を残す長いタイトルのTodo";
+const ASSIGNED_TODO = "回覧板を回す";
 // 登録できる上限の20文字(src/app/account/actions.tsのNICKNAME_MAX_LENGTH)。
 const LONG_NICKNAME = "あいうえおかきくけこさしすせそたちつてと";
 const LONG_NICKNAME_USER_ID = "member2";
@@ -117,6 +118,18 @@ test.beforeEach(async ({ db }) => {
     scheduledFor: tokyoDateAfter(2),
     title: LONG_TODO,
   });
+  // 行の日付/状態には担当予定者の名前も並ぶ。上限の長さの名前を担当にして、
+  // 名前の長さで行が折り返さないことまで確かめられるようにする。
+  const assignedRuleId = await createOneTimeTask(db, session, {
+    managedItemId: null,
+    scheduledFor: tokyoDateAfter(0),
+    title: ASSIGNED_TODO,
+  });
+  const occurrence = await db.prepare(
+    "SELECT id FROM task_occurrences WHERE task_rule_id = ?1",
+  ).bind(assignedRuleId).first<{ id: string }>();
+  if (occurrence === null) throw new Error("Occurrenceを作成できなかった");
+  await setTaskOccurrenceAssignee(db, session, occurrence.id, LONG_NICKNAME_USER_ID);
 });
 
 test.describe("390px幅", () => {
@@ -189,6 +202,27 @@ test.describe("390px幅", () => {
     await expect(page).toHaveURL(/\/todos\/[^/?]+$/u);
 
     await page.goBack();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  // 日付/状態は行の残りをすべて使えるわけではない。上限の長さの家族名を
+  // 担当にしても、状態ラベルを2行目へ押し出さない。
+  test("上限の長さの家族名を担当にしたTodoでも、行は1行に収まる", async ({ page }) => {
+    await login(page);
+    await page.goto("/todos?view=list");
+
+    const row = page.getByRole("link", { name: new RegExp(ASSIGNED_TODO) });
+    const rowBox = await boxOf(row, `${ASSIGNED_TODO}の行`);
+    const title = await boxOf(
+      row.getByText(ASSIGNED_TODO, { exact: true }),
+      `${ASSIGNED_TODO}のタイトル`,
+    );
+    const badge = await boxOf(row.getByText("今日", { exact: true }), "状態ラベル");
+
+    // 担当予定者は行に出したまま(表示は省略されても、読み上げには残る)。
+    await expect(row).toContainText(LONG_NICKNAME);
+    expect(isSameRow(title, badge), "状態ラベルが2行目へ落ちている").toBe(true);
+    expect(rowBox.height, "行が1行に収まっていない").toBeLessThanOrEqual(48);
     await expectNoHorizontalOverflow(page);
   });
 });
