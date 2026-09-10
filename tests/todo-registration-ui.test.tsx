@@ -1,16 +1,28 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { createTodoMock } = vi.hoisted(() => ({ createTodoMock: vi.fn() }));
 
 vi.mock("../src/app/todos/new/actions", () => ({ createTodo: createTodoMock }));
 vi.mock("../src/auth", () => ({ auth: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
+import { RefreshCoordinator } from "../src/app/refresh-coordinator";
 import { TodoRegistrationContent } from "../src/app/todos/new/page";
 
 afterEach(cleanup);
+
+// Issue #326: 登録の完了通知は、更新結果の通知(RefreshCoordinator)と画面上部の
+// 同じ位置を使うため、その状態を読む。実際の画面ではlayout.tsxが全体を包むので、
+// テストでも同じ入れ子で描画する。
+function renderPage(ui: ReactElement) {
+  return render(
+    <RefreshCoordinator refreshPage={() => Promise.resolve()}>{ui}</RefreshCoordinator>,
+  );
+}
 
 const ITEMS = [
   { id: "item-1", name: "猫の浄水器" },
@@ -23,7 +35,7 @@ const ITEMS = [
 // この画面固有の戻る導線は「どこから来たか」で決める。
 describe("Todo登録ページの上部(Issue #327)", () => {
   function renderContent(initialManagedItemId: string | null) {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={initialManagedItemId}
@@ -72,7 +84,7 @@ describe("Todo登録ページの上部(Issue #327)", () => {
 
 describe("Todo登録ページ", () => {
   it("繰り返しなし・管理対象なしを既定にする", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -95,7 +107,7 @@ describe("Todo登録ページ", () => {
   });
 
   it("名前で絞り込み、関連する管理対象を選べる", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -116,7 +128,7 @@ describe("Todo登録ページ", () => {
   });
 
   it("完了日基準を選ぶと周期と初回の入力へ切り替わる", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -136,7 +148,7 @@ describe("Todo登録ページ", () => {
   });
 
   it("月・年を選ぶと約10年の単位別上限と暦補正を案内する", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -158,7 +170,7 @@ describe("Todo登録ページ", () => {
   });
 
   it("管理対象詳細から来た場合はその管理対象を選んだ状態にする", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId="item-1"
@@ -170,7 +182,7 @@ describe("Todo登録ページ", () => {
   });
 
   it("家庭未所属なら登録フォームを出さず、家庭作成を案内する", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={null}
         initialManagedItemId={null}
@@ -190,7 +202,7 @@ describe("Todo登録ページ", () => {
 // 他の繰り返し方の表示と分けて確かめる。
 describe("Todo登録ページの定例日入力", () => {
   it("定例日基準で毎月を一つの選択肢にまとめ、日付方式と曜日方式を切り替えられる", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -254,7 +266,7 @@ describe("Todo登録ページの定例日入力", () => {
 
   // Issue #101 / YDR-040の3・4
   it("毎年で曜日を選ぶと、月と同じ出現位置の入力へ切り替える", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -284,7 +296,7 @@ describe("Todo登録ページの定例日入力", () => {
 
   // Issue #227 / YDR-032
   it("毎月の日付で「毎月末」を選ぶと日付入力を出さない", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -309,7 +321,7 @@ describe("Todo登録ページの定例日入力", () => {
   });
 
   it("毎月の日付が範囲外なら入力欄の近くに関連付いたエラーを表示する", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -341,7 +353,7 @@ describe("Todo登録ページの定例日入力", () => {
 // Issue #102 / YDR-040: 毎週は複数の曜日を選べる。
 describe("Todo登録ページの毎週の曜日選択", () => {
   it("毎週で曜日をすべて外すと、入力箇所と関連付いたエラーを表示する", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -372,7 +384,7 @@ describe("Todo登録ページの毎週の曜日選択", () => {
 describe("Todo登録ページの一定の間隔", () => {
   // Issue #99 / YDR-037
   it("一定の間隔ではN日ごと・N週ごとと起点日を入力でき、2週は隔週と分かる", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -412,7 +424,7 @@ describe("Todo登録ページの一定の間隔", () => {
 
   // Issue #99 / YDR-037の8: 完了日基準との違いを選択肢の補足文で示す。
   it("完了日基準と一定の間隔の違いを選択肢の補足文で説明する", () => {
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -436,7 +448,7 @@ describe("Todo登録後の表示", () => {
     createTodoMock.mockImplementation(() =>
       Promise.resolve({ message: "Todoを登録しました。", registered, status: "success" }),
     );
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -486,6 +498,37 @@ describe("Todo登録後の表示", () => {
       .not.toBeInTheDocument();
   });
 
+  // Issue #326: 通知は短時間で消えるToastにせず、確認し終えたら閉じられる。
+  it("閉じる操作で通知を消し、次の登録でまた出す", async () => {
+    renderAndSubmit({ homeNotice: null, schedule: "次回: 9月2日" });
+
+    expect(await screen.findByText("Todoを登録しました。")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "登録の通知を閉じる" }));
+
+    expect(screen.queryByText("Todoを登録しました。")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+    // 閉じても入力と登録は続けられる(モーダルではない)。
+    expect(screen.getByLabelText("Todo名")).toBeInTheDocument();
+
+    createTodoMock.mockImplementation(() =>
+      Promise.resolve({
+        message: "Todoを登録しました。",
+        registered: { homeNotice: null, schedule: "次回: 9月20日" },
+        status: "success",
+      }),
+    );
+    // 登録が終わるとReactがフォームを初期状態へ戻すため、次のTodo名を入れ直す。
+    fireEvent.change(screen.getByLabelText("Todo名"), {
+      target: { value: "資源ごみを出す" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Todoを登録" }));
+
+    expect(await screen.findByText("次回: 9月20日")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登録の通知を閉じる" })).toBeInTheDocument();
+  });
+
   it("登録に失敗したときは予定も導線も出さない", async () => {
     createTodoMock.mockImplementation(() =>
       Promise.resolve({
@@ -493,7 +536,7 @@ describe("Todo登録後の表示", () => {
         status: "error",
       }),
     );
-    render(
+    renderPage(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
         initialManagedItemId={null}
@@ -507,6 +550,9 @@ describe("Todo登録後の表示", () => {
       await screen.findByText("Todoを登録できませんでした。時間をおいて再度お試しください。"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+    // Issue #326: 失敗の理由は直す入力欄の近く(登録ボタンのそば)に残す。
+    expect(screen.queryByRole("button", { name: "登録の通知を閉じる" }))
       .not.toBeInTheDocument();
   });
 });

@@ -1,0 +1,93 @@
+/* Issue #326: Todo登録の完了通知。以前は登録ボタンの直下に出していたため、
+   スマホでフォーム下部まで進んで登録すると、通知が画面の外にあることがあった
+   (押した位置と通知の位置がずれる)。画面上部へ固定し、スクロール位置に
+   かかわらず確認できるようにする。
+   位置と重なりの順は、同じく上部へ固定する更新結果の通知
+   (refresh-coordinator.module.css)にそろえる。 */
+.notice {
+  position: fixed;
+  /* 更新結果の通知(refresh-coordinator)はヘッダーの重なり順(z-index: 20)の
+     中にある。この通知をそれより後ろに置き、位置の見積もりが外れて重なった
+     ときでも、更新の失敗と「再試行」が隠れないようにする。 */
+  z-index: 19;
+  top: var(--top-notice-top);
+  left: 50%;
+  display: grid;
+  gap: 4px;
+  /* スマホで画面を覆わないよう、幅は画面から余白を引いた分までに抑える。
+     高さは中身なりで、閉じる操作を必ず見える位置に置く。 */
+  width: min(520px, calc(100vw - 24px));
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(49 92 73 / 22%);
+  border-radius: 14px;
+  background: var(--green-pale);
+  box-shadow: 0 12px 32px rgb(24 34 29 / 16%);
+  transform: translateX(-50%);
+}
+
+/* Issue #326: 更新結果の通知が出ている間は、その下へ積んで場所を分ける。
+   同じ位置に重ねると、自動では消えない登録の通知が、更新の失敗と「再試行」を
+   覆ってしまう。 */
+.belowRefreshNotice {
+  top: calc(var(--top-notice-top) + var(--top-notice-stack));
+}
+
+/* 通知の外はこれまでどおり操作できる。覆いも焦点の閉じ込めも置かない
+   (issue本文の「モーダルにはせず、他の操作は継続できる」)。 */
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.message {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.schedule {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.notice .homeNotice {
+  margin: 0;
+}
+
+.link {
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+/* Issue #389: アイコンだけの操作も--tap-target以上を押せるようにする。
+   見た目を大きくせず、はみ出した分は負のmarginで隣と重ならないよう詰める。 */
+.dismiss {
+  display: grid;
+  flex: none;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  margin: calc((var(--tap-target) - 20px) / -2);
+  margin-left: 0;
+  border: 0;
+  color: var(--green);
+  background: none;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  place-items: center;
+}
+
+.dismiss:focus-visible {
+  border-radius: 999px;
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}

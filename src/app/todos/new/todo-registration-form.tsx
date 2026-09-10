@@ -13,6 +13,7 @@ import {
   ManagedItemSearch,
   type TodoManagedItemOption,
 } from "../managed-item-search";
+import { useRefresh } from "../../refresh-coordinator";
 import { createTodo } from "./actions";
 import { CalendarFields } from "./calendar-fields";
 import {
@@ -21,6 +22,7 @@ import {
   IntervalFields,
   OneTimeFields,
 } from "./recurrence-fields";
+import styles from "./registration-notice.module.css";
 
 export type { TodoManagedItemOption };
 
@@ -91,29 +93,49 @@ function RecurrenceFields({
 // Issue #286: 登録できたことに加えて、次回の予定と確認先をその場で示す。
 // ホームは「いま対応すること」に絞る役割(Issue #201)を変えないため、
 // 直後にホームへ出ないTodoでは、いつ出るかとTodo一覧への導線を添える。
-function TodoRegistrationFeedback({
+//
+// Issue #326: この通知は登録ボタンの直下ではなく、画面上部へ固定して出す。
+// スマホでフォーム下部まで進んで登録すると、ボタンの下に出た通知が画面の外に
+// あることがあり、登録できたことに気づけなかった。短時間で消えるToastには
+// せず、次回予定と一覧への導線を確認し終えるまで残し、閉じる操作で消す。
+// モーダルにもしないため、通知が出ている間もフォームの操作を続けられる。
+function TodoRegistrationNotice({
   message,
+  onDismiss,
   registered,
-  status,
 }: {
   message: string;
+  onDismiss: () => void;
   registered: RegisteredTodoSummary | undefined;
-  status: "error" | "idle" | "success";
 }) {
-  if (status === "idle") return null;
-  if (status === "error") {
-    return <p className="auth-feedback" role="status">{message}</p>;
-  }
+  // 更新結果の通知も同じ位置(画面上部)へ出る。自動では消えないこの通知が
+  // 「更新できませんでした」と「再試行」を覆わないよう、出ている間は下へ積む。
+  const { status: refreshStatus } = useRefresh();
+  const stacked = refreshStatus === "error" || refreshStatus === "success";
+  const className = stacked
+    ? `${styles.notice} ${styles.belowRefreshNotice}`
+    : styles.notice;
+
   return (
-    <div className="todo-registration-feedback" role="status">
-      <p className="auth-feedback todo-success">{message}</p>
+    <div className={className} role="status">
+      <div className={styles.heading}>
+        <p className={styles.message}>{message}</p>
+        <button
+          aria-label="登録の通知を閉じる"
+          className={styles.dismiss}
+          onClick={onDismiss}
+          type="button"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
       {registered === undefined ? null : (
         <>
-          <p className="todo-registration-schedule">{registered.schedule}</p>
-          {registered.homeNotice === null
-            ? null
-            : <p className="input-help">{registered.homeNotice}</p>}
-          <Link className="todo-registration-link" href="/todos">
+          <p className={styles.schedule}>{registered.schedule}</p>
+          {registered.homeNotice === null ? null : (
+            <p className={`input-help ${styles.homeNotice}`}>{registered.homeNotice}</p>
+          )}
+          <Link className={styles.link} href="/todos">
             登録したTodoを一覧で確認
           </Link>
         </>
@@ -130,10 +152,15 @@ export function TodoRegistrationForm({
   managedItems: TodoManagedItemOption[];
 }) {
   const [recurrenceBasis, setRecurrenceBasis] = useState<RecurrenceBasis>("once");
-  const [state, formAction] = useActionState<TodoRegistrationState, FormData>(
+  const [state, formAction, isPending] = useActionState<TodoRegistrationState, FormData>(
     createTodo,
     INITIAL_MAINTENANCE_TODO_STATE,
   );
+  // Issue #326: 閉じた通知を覚えておく。useActionStateは登録のたびに新しい
+  // 状態を返すため、次の登録では別の値になり通知がまた出る。送信中は前回の
+  // 「登録しました」を残さない。
+  const [dismissed, setDismissed] = useState<TodoRegistrationState | null>(null);
+  const showNotice = state.status === "success" && state !== dismissed && !isPending;
 
   return (
     <form aria-label="Todo登録フォーム" action={formAction} className="auth-form maintenance-todo-form">
@@ -168,11 +195,18 @@ export function TodoRegistrationForm({
       />
 
       <SubmitButton />
-      <TodoRegistrationFeedback
-        message={state.message}
-        registered={state.registered}
-        status={state.status}
-      />
+      {/* 入力のやり直しに使う失敗の理由は、これまでどおり登録ボタンの近くに
+      置く。上部へ動かすと、直す対象の入力欄から離れてしまう。 */}
+      {state.status === "error" ? (
+        <p className="auth-feedback" role="status">{state.message}</p>
+      ) : null}
+      {showNotice ? (
+        <TodoRegistrationNotice
+          message={state.message}
+          onDismiss={() => { setDismissed(state); }}
+          registered={state.registered}
+        />
+      ) : null}
     </form>
   );
 }
