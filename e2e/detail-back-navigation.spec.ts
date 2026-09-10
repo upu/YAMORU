@@ -109,4 +109,42 @@ test.describe("モバイル幅", () => {
       await expect(page).toHaveURL(detail.newPath);
     }
   });
+
+  // Issue #327: ホームへは共通ヘッダーと下部タブから移動できるため、
+  // Todoを追加する作業の文脈を切る「ホームへ戻る」は置かない。
+  test("一覧から開いたTodo追加画面には、この画面固有の戻る導線を置かない", async ({ page }) => {
+    await login(page);
+
+    await page.goto("/todos/new");
+    await expect(page.getByRole("heading", { level: 1, name: "Todoを追加" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "ページ移動" })).toHaveCount(0);
+  });
+
+  // Issue #327: 管理対象からTodo追加へ来たときだけ、その管理対象へ戻れる。
+  // 戻り先はブラウザ履歴ではなく管理対象のURLに固定するため、途中で
+  // 再読み込みしても行き先は変わらない。
+  test("管理対象から開いたTodo追加画面は、その管理対象へ戻れる", async ({ page }) => {
+    await login(page);
+
+    await page.goto("/managed-items");
+    await page.getByRole("link", { name: MANAGED_ITEM_NAME }).click();
+    await expect(page).toHaveURL(/\/managed-items\/[^/?]+$/u);
+    const detailUrl = page.url();
+    await page.getByRole("link", { name: "Todoを追加" }).click();
+    await expect(page).toHaveURL(/\/todos\/new\?managedItemId=/u);
+
+    // 既存のmanagedItemIdによる初期選択は維持する。
+    await expect(page.getByLabel(MANAGED_ITEM_NAME)).toBeChecked();
+
+    // 再読み込みしても戻り先は同じ管理対象のまま。
+    await page.reload();
+    const backLink = page.getByRole("navigation", { name: "ページ移動" })
+      .getByRole("link", { name: `← ${MANAGED_ITEM_NAME}へ戻る` });
+    await expect(backLink).toBeVisible();
+
+    await backLink.click();
+    await expect(page).toHaveURL(detailUrl);
+    await expect(page.getByRole("heading", { level: 1, name: MANAGED_ITEM_NAME }))
+      .toBeVisible();
+  });
 });
