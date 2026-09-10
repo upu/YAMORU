@@ -30,11 +30,10 @@ export function ManagedItemRegistrationContent({
         <Link href="/managed-items">← 家の台帳へ戻る</Link>
       </nav>
 
-      <header className="detail-hero">
-        <p className="detail-kicker">ADD ITEM</p>
-        <h1>管理対象を登録</h1>
-        <p>家で管理するものと、確認に使う外部リンクを登録します。</p>
-      </header>
+      {/* Issue #393: 「ADD ITEM」「管理対象を登録」説明文「登録内容」と役割の
+      重なる見出しが4つ並び、最初の入力欄までの縦幅を使っていた。Todo追加画面
+      (#327)と同じく、小さめのページ見出し一つへ寄せる。 */}
+      <h1 className="form-page-title">管理対象を登録</h1>
 
       {household === null ? (
         <section aria-labelledby="household-required-title" className="detail-card">
@@ -46,7 +45,9 @@ export function ManagedItemRegistrationContent({
         </section>
       ) : (
         <section aria-labelledby="register-item-title" className="detail-card">
-          <h2 id="register-item-title">登録内容</h2>
+          {/* 「登録内容」はページ見出しと役割が重なるため画面には出さないが、
+          入力領域の意味は支援技術向けに残す(Todo追加画面と同じ扱い)。 */}
+          <h2 className="sr-only" id="register-item-title">登録内容</h2>
           <p className="detail-note">{household.name}の台帳へ追加します。</p>
           <ManagedItemForm
             classificationOptions={classificationOptions}

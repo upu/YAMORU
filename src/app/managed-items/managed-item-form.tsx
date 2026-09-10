@@ -42,8 +42,10 @@ function ManagedItemNameField() {
         required
         type="text"
       />
+      {/* Issue #393: 「家庭内での呼び名」はラベルとplaceholderから分かるため
+      繰り返さない。名前欄に書かなくてよいもの(メーカー名・型番)だけを残す。 */}
       <p id="managed-item-name-help">
-        家庭内でこの管理対象を見分けるための呼び名です。メーカー名や型番は下の欄に書けます。
+        メーカー名や型番は下の「メーカー・商品名など」に書けます。
       </p>
     </>
   );
@@ -79,8 +81,9 @@ export function ManagedItemForm({
       />
 
       <label htmlFor="managed-item-external-url">外部リンク（任意）</label>
+      {/* Issue #393: 何を入れる欄かはラベルとplaceholderで示せるため、補足文は
+      置かない。httpまたはhttpsという条件は入力時の検証で伝える。 */}
       <input
-        aria-describedby="managed-item-external-url-help"
         autoComplete="url"
         id="managed-item-external-url"
         maxLength={2048}
@@ -88,9 +91,6 @@ export function ManagedItemForm({
         placeholder="https://example.com/product"
         type="url"
       />
-      <p id="managed-item-external-url-help">
-        商品ページや説明書など、httpまたはhttpsで始まるURLを入力できます。
-      </p>
 
       <ManagedItemOptionalAttributeFields
         idPrefix="managed-item"

@@ -227,17 +227,15 @@ function SelectedRelations<T extends RelationCandidate>({
   fieldName,
   items,
   onRemove,
-  unit,
 }: {
   describe: (item: T) => string;
   fieldName: string;
   items: T[];
   onRemove: (id: string) => void;
-  unit: string;
 }) {
-  if (items.length === 0) {
-    return <p className="input-help">関連付けている{unit}はありません。</p>;
-  }
+  // Issue #393: 未選択であることはlegendの「0件・任意」と、その下の
+  // 「＋ ○○を追加」だけで分かる。同じ意味の空状態の行を重ねて置かない。
+  if (items.length === 0) return null;
   return (
     <ul className="relation-chip-list">
       {items.map((item) => (
@@ -321,7 +319,6 @@ export function ConsumableRelationField<T extends RelationCandidate>({
         fieldName={fieldName}
         items={items}
         onRemove={(id) => { onChange(items.filter((item) => item.id !== id)); }}
-        unit={unit}
       />
       <AddRelationTrigger
         count={items.length}

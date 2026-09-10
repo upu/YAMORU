@@ -59,8 +59,10 @@ function StartedOnFields({
   return (
     <fieldset className="started-on-fieldset">
       <legend>{label}（任意）</legend>
+      {/* Issue #393: 月日の「わからない」は選択肢自体が示すため繰り返さず、
+      年だけでも登録できることだけを残す。 */}
       <p className="started-on-help" id={`${idPrefix}-started-help`}>
-        分かる範囲だけで入力できます。年だけ、年と月だけでもかまいません。
+        年だけ、年と月だけでもかまいません。
       </p>
       <div className="started-on-inputs">
         <span>
@@ -131,9 +133,10 @@ export function ManagedItemOptionalAttributeFields({
         placeholder="例: 三菱 霧ヶ峰 MSZ-0000"
         type="text"
       />
+      {/* Issue #393: 何を書く欄かはラベルとplaceholderで分かるため、ここには
+      「正確な型番でなくてよい」という判断材料だけを残す。 */}
       <p id={`${idPrefix}-product-info-help`}>
-        メーカー名、商品名、型番など、購入した商品を見分けるための情報を
-        分かる範囲で書けます。型番だけを正確に入力する必要はありません。
+        正確な型番が分からなくても、分かる範囲で書けます。
       </p>
 
       <StartedOnFields
@@ -143,18 +146,17 @@ export function ManagedItemOptionalAttributeFields({
         startedOn={startedOn}
       />
 
+      {/* Issue #393: 自由記述であることはラベルから分かるため、補足文をやめて
+      例だけをplaceholderで示す(消耗品のメモ欄と同じ形)。 */}
       <label htmlFor={`${idPrefix}-note`}>メモ（任意）</label>
       <textarea
-        aria-describedby={`${idPrefix}-note-help`}
         defaultValue={note ?? ""}
         id={`${idPrefix}-note`}
         maxLength={1000}
         name="note"
+        placeholder="例: 置き場所や使い方"
         rows={4}
       />
-      <p id={`${idPrefix}-note-help`}>
-        置き場所や使い方など、家庭で残しておきたいことを自由に書けます。
-      </p>
     </>
   );
 }

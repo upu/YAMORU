@@ -21,6 +21,41 @@ async function loadInitialManagedItem(
   return item === null ? undefined : { id: item.id, name: item.name };
 }
 
+// Issue #393: 画面の組み立てだけを取り出し、家庭の有無ごとの見出しと入力欄を
+// D1なしでテストできるようにする(管理対象登録・Todo追加と同じ形)。
+export function ConsumableRegistrationContent({
+  hasHousehold,
+  initialManagedItem,
+}: {
+  hasHousehold: boolean;
+  initialManagedItem?: ConsumableRelationOption;
+}) {
+  return (
+    <main className="detail-page ledger-page">
+      <nav aria-label="ページ移動" className="back-nav">
+        <Link href="/consumables">← 消耗品一覧へ戻る</Link>
+      </nav>
+      {/* Issue #393: キッカー・大見出し・「登録内容」と役割の重なる見出しを
+      並べず、Todo追加画面(#327)と同じ小さめのページ見出し一つへ寄せる。 */}
+      <h1 className="form-page-title">消耗品を登録</h1>
+      {hasHousehold ? (
+        <section aria-labelledby="register-consumable-title" className="detail-card">
+          {/* 「登録内容」は画面には出さず、入力領域の意味だけを支援技術向けに
+          残す(Todo追加画面と同じ扱い)。 */}
+          <h2 className="sr-only" id="register-consumable-title">登録内容</h2>
+          <ConsumableForm initialManagedItem={initialManagedItem} mode="create" />
+        </section>
+      ) : (
+        <section aria-labelledby="household-required-title" className="detail-card">
+          <h2 id="household-required-title">家庭を作成してください</h2>
+          <p>消耗品は家庭ごとに保存します。</p>
+          <Link className="ledger-primary-link" href="/account">家庭を作成する</Link>
+        </section>
+      )}
+    </main>
+  );
+}
+
 export default async function ConsumableRegistrationPage({
   searchParams,
 }: {
@@ -34,26 +69,9 @@ export default async function ConsumableRegistrationPage({
     : await loadInitialManagedItem(db, session, (await searchParams).managedItemId);
 
   return (
-    <main className="detail-page ledger-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/consumables">← 消耗品一覧へ戻る</Link>
-      </nav>
-      <header className="detail-hero">
-        <p className="detail-kicker">ADD CONSUMABLE</p>
-        <h1>消耗品を登録</h1>
-      </header>
-      {accountState.household === null ? (
-        <section aria-labelledby="household-required-title" className="detail-card">
-          <h2 id="household-required-title">家庭を作成してください</h2>
-          <p>消耗品は家庭ごとに保存します。</p>
-          <Link className="ledger-primary-link" href="/account">家庭を作成する</Link>
-        </section>
-      ) : (
-        <section aria-labelledby="register-consumable-title" className="detail-card">
-          <h2 id="register-consumable-title">登録内容</h2>
-          <ConsumableForm initialManagedItem={initialManagedItem} mode="create" />
-        </section>
-      )}
-    </main>
+    <ConsumableRegistrationContent
+      hasHousehold={accountState.household !== null}
+      initialManagedItem={initialManagedItem}
+    />
   );
 }

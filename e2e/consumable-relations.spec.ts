@@ -72,7 +72,9 @@ test("モバイル幅で関連付けを検索して選び、解除もできる�
 
   // 未選択の候補を全件チェックリストとして並べない。
   await expect(page.getByRole("checkbox")).toHaveCount(0);
-  await expect(page.getByText("関連付けている管理対象はありません。")).toBeVisible();
+  // Issue #393: 未選択であることはlegendの件数で示し、空状態の行は置かない。
+  await expect(page.getByRole("group", { name: "関連する管理対象（0件・任意）" }))
+    .toBeVisible();
 
   await page.getByLabel("名前").fill("交換フィルター");
 

@@ -44,13 +44,15 @@ describe("ManagedItemの任意の記録(Issue #42)", () => {
     render(<ManagedItemForm classificationOptions={CLASSIFICATION_OPTIONS} />);
 
     // ラベルは「名前」のまま。商品情報との違いは補足文で伝える。
+    // Issue #393: 補足文は「名前欄に書かなくてよいもの」だけへ短くした。
     expect(screen.getByLabelText("名前")).toBeRequired();
-    expect(screen.getByText(/家庭内でこの管理対象を見分けるための呼び名です。/u))
-      .toHaveTextContent("メーカー名や型番は下の欄に書けます。");
+    expect(screen.getByText("メーカー名や型番は下の「メーカー・商品名など」に書けます。"))
+      .toBeInTheDocument();
 
     const productInfo = screen.getByLabelText("メーカー・商品名など（任意）");
     expect(productInfo).not.toBeRequired();
-    expect(screen.getByText(/メーカー名、商品名、型番など/u)).toBeInTheDocument();
+    expect(screen.getByText("正確な型番が分からなくても、分かる範囲で書けます。"))
+      .toBeInTheDocument();
 
     // 型番だけを独立した必須項目にしない。
     expect(screen.queryByLabelText("型番")).not.toBeInTheDocument();
