@@ -279,6 +279,9 @@ export function TodoSearchForm({
 // (追加・表示形式)を別のまとまりにして、折り返す位置をまとまりの境目に固定
 // する(CSS側のtoolbarFilters)。検索は開くとツールバーの全幅を使うため、
 // どちらのまとまりにも入れず直下へ置く。
+// 並び順は、狭い幅で実際に表示される順(見出し・操作・検索・絞り込み)へ
+// そろえる。CSSのorderで見た目だけを入れ替えると、キーボードの移動順が
+// 画面の並びと食い違う。
 export function TodoListToolbar({
   currentUserId,
   hasHousehold,
@@ -297,6 +300,11 @@ export function TodoListToolbar({
       <h1 className={styles.toolbarTitle}>Todo一覧</h1>
       {hasHousehold ? (
         <>
+          <div className={styles.toolbarActions}>
+            <ListAddLink add={TODO_ADD_ACTION} />
+            <TodoViewSwitch {...filters} />
+          </div>
+          <TodoSearchDisclosure {...filters} />
           <div className={styles.toolbarFilters}>
             <TodoStatusSwitch {...filters} />
             <AssigneeFilterDisclosure
@@ -305,11 +313,6 @@ export function TodoListToolbar({
               members={members}
             />
           </div>
-          <div className={styles.toolbarActions}>
-            <ListAddLink add={TODO_ADD_ACTION} />
-            <TodoViewSwitch {...filters} />
-          </div>
-          <TodoSearchDisclosure {...filters} />
         </>
       ) : null}
     </div>

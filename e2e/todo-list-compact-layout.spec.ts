@@ -43,6 +43,30 @@ function isSameRow(left: Box, right: Box): boolean {
     && rightCenter >= left.y && rightCenter <= left.y + left.height;
 }
 
+// 画面の並び(上の行が先、同じ行なら左が先)どおりにキーボードで移動できるか。
+// 名前の並びをそのままDOMの順として確かめる(タブ移動順はDOMの順で決まる)。
+async function expectFocusOrderFollowsRows(page: Page, names: string[]): Promise<void> {
+  const positions = await page.evaluate((accessibleNames) => {
+    const focusable = Array.from(
+      document.querySelectorAll<HTMLElement>("main a[href], main summary"),
+    );
+    return accessibleNames.map((name) => focusable.findIndex((element) => {
+      const ariaLabel = element.getAttribute("aria-label");
+      const label = ariaLabel === null ? element.textContent : ariaLabel;
+      return label.trim() === name;
+    }));
+  }, names);
+
+  for (const [index, position] of positions.entries()) {
+    expect(position, `${names[index] ?? ""}が見つからない`).toBeGreaterThanOrEqual(0);
+    if (index === 0) continue;
+    expect(
+      position,
+      `${names[index] ?? ""}が${names[index - 1] ?? ""}より前に移動順へ現れる`,
+    ).toBeGreaterThan(positions[index - 1] ?? -1);
+  }
+}
+
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -98,6 +122,10 @@ test.describe("390px幅", () => {
     // まとまりは2行までで、どの操作もはみ出さない。
     expect(search.y, "検索が絞り込みより下の行にある").toBeLessThan(pending.y);
     await expectNoHorizontalOverflow(page);
+
+    // 画面の並び(上の行が先)とキーボードの移動順が一致する。CSSのorderで
+    // 見た目だけを入れ替えると、下の行を先にたどってから上の行へ戻ることになる。
+    await expectFocusOrderFollowsRows(page, ["リスト表示", "Todoを検索", "未完了", "実施済み"]);
   });
 
   test("リスト表示は短いTodoを1行に収め、長いタイトルだけを省略する", async ({ page }) => {
