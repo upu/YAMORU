@@ -486,6 +486,37 @@ describe("Todo登録後の表示", () => {
       .not.toBeInTheDocument();
   });
 
+  // Issue #326: 通知は短時間で消えるToastにせず、確認し終えたら閉じられる。
+  it("閉じる操作で通知を消し、次の登録でまた出す", async () => {
+    renderAndSubmit({ homeNotice: null, schedule: "次回: 9月2日" });
+
+    expect(await screen.findByText("Todoを登録しました。")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "登録の通知を閉じる" }));
+
+    expect(screen.queryByText("Todoを登録しました。")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+    // 閉じても入力と登録は続けられる(モーダルではない)。
+    expect(screen.getByLabelText("Todo名")).toBeInTheDocument();
+
+    createTodoMock.mockImplementation(() =>
+      Promise.resolve({
+        message: "Todoを登録しました。",
+        registered: { homeNotice: null, schedule: "次回: 9月20日" },
+        status: "success",
+      }),
+    );
+    // 登録が終わるとReactがフォームを初期状態へ戻すため、次のTodo名を入れ直す。
+    fireEvent.change(screen.getByLabelText("Todo名"), {
+      target: { value: "資源ごみを出す" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Todoを登録" }));
+
+    expect(await screen.findByText("次回: 9月20日")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登録の通知を閉じる" })).toBeInTheDocument();
+  });
+
   it("登録に失敗したときは予定も導線も出さない", async () => {
     createTodoMock.mockImplementation(() =>
       Promise.resolve({
@@ -507,6 +538,9 @@ describe("Todo登録後の表示", () => {
       await screen.findByText("Todoを登録できませんでした。時間をおいて再度お試しください。"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "登録したTodoを一覧で確認" }))
+      .not.toBeInTheDocument();
+    // Issue #326: 失敗の理由は直す入力欄の近く(登録ボタンのそば)に残す。
+    expect(screen.queryByRole("button", { name: "登録の通知を閉じる" }))
       .not.toBeInTheDocument();
   });
 });
