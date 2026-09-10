@@ -173,5 +173,19 @@ for (const width of [320, 390]) {
         expect(await hasHorizontalOverflow(page)).toBe(false);
       }
     });
+
+    // 名称の列は一覧全体で一つ。行ごとに列を作ると、値の始まる位置が名称の
+    // 長さでばらつく。
+    test("1行に並べた属性の値が、名称の長さによらず同じ位置から始まる", async ({ page }) => {
+      await login(page);
+      await page.goto(`/todos/${ids.todo}`);
+
+      const values = page.getByRole("region", { name: "Todoの内容" }).locator("dd");
+      const lefts = await values.evaluateAll(
+        (nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().left)),
+      );
+      expect(lefts.length).toBeGreaterThan(1);
+      expect(new Set(lefts).size).toBe(1);
+    });
   });
 }
