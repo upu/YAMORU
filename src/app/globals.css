@@ -325,6 +325,18 @@ h1 {
   padding: 0 4px 24px;
 }
 
+/* Issue #327: 登録・編集画面のページ見出し。画面の役目は下のフォームを見れば
+   分かるので、詳細画面のような大きな見出し(detail-hero)は使わず、Todo一覧の
+   ツールバーと同じ大きさに収める。区切り線までを見出しの範囲として示す。 */
+.form-page-title {
+  margin-bottom: 14px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
 .detail-hero-with-action {
   display: flex;
   align-items: flex-start;

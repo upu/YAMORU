@@ -18,8 +18,60 @@ const ITEMS = [
   { id: "item-3", name: "空気清浄機" },
 ];
 
+// Issue #327: Todoを追加するだけの画面に、役割の重なる見出しが4つ並び、
+// フォームまでの縦幅を使っていた。上部を小さなページ見出し一つへ寄せ、
+// この画面固有の戻る導線は「どこから来たか」で決める。
+describe("Todo登録ページの上部(Issue #327)", () => {
+  function renderContent(initialManagedItemId: string | null) {
+    render(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={initialManagedItemId}
+        managedItems={ITEMS}
+      />,
+    );
+  }
+
+  it("キッカー・説明文・「登録内容」を画面に出さず、見出し一つに収める", () => {
+    renderContent(null);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Todoを追加" })).toBeInTheDocument();
+    expect(screen.queryByText("ADD TODO")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("やることと繰り返し方を登録します。管理対象との関連付けは任意です。"),
+    ).not.toBeInTheDocument();
+    // 入力領域の意味は支援技術向けに残す(画面には出さない)。
+    const form = screen.getByRole("region", { name: "登録内容" });
+    expect(within(form).getByRole("heading", { level: 2, name: "登録内容" }))
+      .toHaveClass("sr-only");
+  });
+
+  it("ホームへ戻る導線は置かない(共通ヘッダーと下部タブに任せる)", () => {
+    renderContent(null);
+
+    expect(screen.queryByRole("link", { name: /ホームへ戻る/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "ページ移動" })).not.toBeInTheDocument();
+  });
+
+  it("管理対象から来たときだけ、その管理対象へ戻るリンクを出す", () => {
+    renderContent("item-2");
+
+    const backNav = screen.getByRole("navigation", { name: "ページ移動" });
+    expect(within(backNav).getByRole("link", { name: "← コーヒーマシーンへ戻る" }))
+      .toHaveAttribute("href", "/managed-items/item-2");
+    // 既存のmanagedItemIdによる初期選択は維持する。
+    expect(screen.getByLabelText("コーヒーマシーン")).toBeChecked();
+  });
+
+  it("実在しない管理対象を指定されたときは戻るリンクを出さない", () => {
+    renderContent("item-unknown");
+
+    expect(screen.queryByRole("navigation", { name: "ページ移動" })).not.toBeInTheDocument();
+  });
+});
+
 describe("Todo登録ページ", () => {
-  it("繰り返しなし・管理対象なしを既定にし、ホームへ戻れる", () => {
+  it("繰り返しなし・管理対象なしを既定にする", () => {
     render(
       <TodoRegistrationContent
         household={{ id: "household-1", name: "テスト家庭" }}
@@ -29,7 +81,6 @@ describe("Todo登録ページ", () => {
     );
 
     expect(screen.getByRole("heading", { level: 1, name: "Todoを追加" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /ホームへ戻る/ })).toHaveAttribute("href", "/");
     expect(screen.getByLabelText("繰り返しなし")).toBeChecked();
     expect(screen.getByLabelText("完了した日から繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("一定の間隔で繰り返す")).not.toBeChecked();
