@@ -209,23 +209,46 @@ describe("Todo一覧画面(TodoListContent)", () => {
   // Issue #266: 担当条件と表示形式は、一覧の縦幅を増やす独立した行ではなく
   // 見出し横のツールバーへまとめる。担当候補は閉じた選択UIに収め、表示形式は
   // 一般的なグリッド/リストアイコンで表す。
+  // Issue #390: そのまとめ方を、絞り込み(状態・担当)とそれ以外の操作
+  // (追加・表示形式)の2つのまとまりに分ける。狭い幅で折り返す位置を
+  // まとまりの境目に固定し、単独の操作が次行へ取り残されないようにする
+  // (実際の行の並びはe2e/todo-list-compact-layout.spec.tsで確認する)。
   it("担当絞り込みとアイコンの表示切り替えをツールバー内へコンパクトにまとめる", () => {
     renderTodoList([]);
 
+    const toolbarFilters = document.querySelector(`.${todoListStyles.toolbarFilters}`);
     const toolbarActions = document.querySelector(`.${todoListStyles.toolbarActions}`);
     const assigneeToggle = screen.getByText("担当: 全員", { selector: "summary" });
     const assigneeDisclosure = assigneeToggle.closest("details");
+    const statusSwitch = screen.getByRole("link", { name: "未完了" });
     const cardSwitch = screen.getByRole("link", { name: "カード表示" });
     const listSwitch = screen.getByRole("link", { name: "リスト表示" });
 
-    expect(toolbarActions).toContainElement(assigneeDisclosure);
+    expect(toolbarFilters).toContainElement(statusSwitch);
+    expect(toolbarFilters).toContainElement(assigneeDisclosure);
     expect(toolbarActions).toContainElement(cardSwitch);
     expect(toolbarActions).toContainElement(listSwitch);
+    expect(toolbarActions).not.toContainElement(assigneeDisclosure);
     expect(assigneeDisclosure).not.toHaveAttribute("open");
     expect(cardSwitch.querySelector("svg")).toBeInTheDocument();
     expect(listSwitch.querySelector("svg")).toBeInTheDocument();
     expect(document.querySelector(".assignee-filter")).not.toBeInTheDocument();
     expect(document.querySelector(".view-switch")).not.toBeInTheDocument();
+  });
+
+  // Issue #390: 検索は開くとツールバーの全幅を使うため、他の操作と同じ
+  // まとまりには入れず、ツールバー直下へ置く。
+  it("Todo内検索を表示形式の操作群の外側へ置き、開いたときに他の操作を押し出さない", () => {
+    renderTodoList([]);
+
+    const searchToggle = document.querySelector(`.${todoListStyles.searchToggle}`);
+    const searchDisclosure = searchToggle?.closest("details");
+    const toolbar = document.querySelector(`.${todoListStyles.toolbar}`);
+    const toolbarActions = document.querySelector(`.${todoListStyles.toolbarActions}`);
+
+    expect(toolbar).toContainElement(searchDisclosure ?? null);
+    expect(toolbarActions).not.toContainElement(searchDisclosure ?? null);
+    expect(searchDisclosure?.parentElement).toBe(toolbar);
   });
 
   // Issue #241: 虫眼鏡から開くTodo内検索。検索語が適用中でなければ既定で

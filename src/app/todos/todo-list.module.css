@@ -36,24 +36,39 @@
 }
 
 /* Issue #241: ページ見出し・状態切り替え・検索の入り口を一つのツールバーへ
-   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ
-   space-betweenで分け、3要素を1行に収めて画面上部の縦幅を抑える。 */
+   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ分け、
+   広い幅では1行に収めて画面上部の縦幅を抑える。
+   Issue #390: 操作を一つの入れ物へ並べて折り返しの成り行きに任せると、
+   390px幅で検索だけが3行目へ孤立していた。絞り込み(状態・担当)と
+   それ以外の操作(追加・表示形式)をまとまりに分け、狭い幅ではまとまりの
+   境目でだけ折り返す。見出しを伸ばして、まとまりを右端へ寄せる
+   (space-betweenだと3つ以上のまとまりの間隔が均等に開いてしまう)。 */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   margin-bottom: 16px;
 }
 
 .toolbarTitle {
+  flex: 1 1 auto;
   margin: 0;
   overflow-wrap: anywhere;
   font-family: Georgia, "Yu Mincho", serif;
   font-size: 1.3rem;
   font-weight: 600;
   letter-spacing: 0.03em;
+}
+
+/* 状態の切り替えと担当の絞り込み。この2つは「いま何を絞り込んでいるか」を
+   表すため、離さずに並べる。 */
+.toolbarFilters {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .toolbarActions {
@@ -215,6 +230,18 @@
   flex: none;
 }
 
+/* Issue #390: 閉じているときはアイコン1つ分の幅で表示形式の隣に並び、
+   開いたときだけツールバーの全幅を使う。同じ行に居続けようとすると、
+   入力欄の幅ぶん他の操作が押し出されて折り返しが崩れる。開いた行の中でも
+   アイコンの位置は右端のまま保つ。 */
+.searchDisclosure[open] {
+  flex: 1 1 100%;
+}
+
+.searchDisclosure[open] .searchToggle {
+  margin-left: auto;
+}
+
 .searchToggle {
   display: grid;
   width: var(--tap-target);
@@ -265,8 +292,13 @@
 .searchForm {
   display: grid;
   gap: 8px;
+  /* Issue #390: 開くとツールバーの全幅を使えるようになったため、広い画面で
+     入力欄と送信ボタンが伸びすぎないよう上限を置き、入口のアイコンと同じ
+     右端へそろえる。 */
+  max-width: 420px;
   margin-top: 10px;
   margin-bottom: 20px;
+  margin-left: auto;
 }
 
 .searchForm input[type="search"] {
@@ -301,6 +333,14 @@
   overflow: hidden;
 }
 
+/* Issue #390: gridの行(li)は既定の最小幅が中身の最小内容幅になる。行を
+   1行へ収める(rowBodyのflex-wrap: nowrap)と、長いTodo名の全文が最小幅に
+   算入され、一覧全体がその幅まで広がって横スクロールが出るため、行側で
+   最小幅の縛りを外す。 */
+.row {
+  min-width: 0;
+}
+
 .row + .row {
   border-top: 1px solid var(--line);
 }
@@ -326,25 +366,33 @@
 }
 
 /* Issue #243: Todo名・短い予定・状態ラベルを1行へ並べる(issue本文の
-   設計メモ「レイアウト」)。通常のモバイル幅・文字サイズでは折り返さず
-   収まり、幅が足りない・文字拡大時は状態ラベル側から自然に折り返す
-   (横スクロールや情報欠落を強制しない、受け入れ基準)。 */
+   設計メモ「レイアウト」)。
+   Issue #390: 折り返しを許していたため、390px幅では短いTodoでも状態
+   ラベルが2行目へ落ち、1件あたり62pxを使っていた。優先順位は
+   「タイトル > 日付/状態 > 補足」なので、折り返さずに1行へ収め、
+   入り切らない分はタイトル側を省略表示する(受け入れ基準)。 */
 .rowBody {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
   column-gap: 8px;
-  row-gap: 2px;
   min-width: 0;
 }
 
+/* 長いタイトルは末尾を省略し、日付/状態や状態ラベルを押し出さない。
+   省略されるのは見た目だけで、行全体のリンク名には全文が残る。
+   flex-basisを0にするのは見た目の調整ではなく、行の最小幅を決めるため。
+   autoのままだとタイトル全文の幅が行の最小幅に算入され、長いTodoがあると
+   一覧全体(gridの列)がその幅まで広がって横スクロールが出る。 */
 .rowTitle {
-  flex: 1 1 160px;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 1 0;
+  min-width: 4em;
+  overflow: hidden;
   font-size: 0.86rem;
   font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 日付や短い状態値は途中で不自然に改行させず(issue本文の設計メモ)、
@@ -370,6 +418,15 @@
 
   .toolbar {
     row-gap: 8px;
+  }
+
+  /* Issue #390: 390px・320pxのどちらでも、すべての操作を1行に並べる幅はない。
+     どこで折り返すかを幅の測り合いに委ねず、絞り込みだけを2行目の全幅へ
+     固定する。1行目は「見出し + 表示形式 + 検索」で収まり、単独の操作が
+     次行へ取り残されない。 */
+  .toolbarFilters {
+    order: 1;
+    flex: 1 1 100%;
   }
 
   .rowLink {

@@ -18,7 +18,6 @@ import { buildPendingTodoEntries } from "../pending-todo";
 import { buildRecentItems } from "../page";
 import type { TodoCardItem } from "../todo-card";
 import { FloatingAddButton } from "../floating-add-button";
-import { ListAddLink, type ListAddAction } from "../list-add-link";
 import {
   COMPLETED_LIMIT_MAX,
   COMPLETED_PAGE_SIZE,
@@ -31,18 +30,12 @@ import {
   type TodoListViewMode,
   type TodoStatusFilter,
 } from "./list-params";
-import {
-  AssigneeFilterDisclosure,
-  TodoSearchDisclosure,
-  TodoStatusSwitch,
-  TodoViewSwitch,
-} from "./list-toolbar";
+import { TODO_ADD_ACTION, TodoListToolbar } from "./list-toolbar";
 import {
   HouseholdRequiredNotice,
   TodoListEmptyState,
   TodoListSection,
 } from "./list-sections";
-import styles from "./todo-list.module.css";
 
 export type TodoListHouseholdSummary = { id: string; name: string };
 
@@ -123,11 +116,6 @@ function TodoListBody({
   );
 }
 
-// Issue #391: 一覧の追加導線は、台帳・消耗品と同じく操作行の先頭のリンクと
-// 右下のフローティングボタンで同じ文言を使い、画面幅ごとにどちらか一方だけを
-// 出す。
-const TODO_ADD_ACTION: ListAddAction = { href: "/todos/new", label: "Todoを追加" };
-
 export function TodoListContent({
   nextLimit = COMPLETED_PAGE_SIZE,
   showLoadMore = false,
@@ -137,44 +125,15 @@ export function TodoListContent({
 }: TodoListContentProps) {
   return (
     <main className="detail-page todo-list-page">
-      {/* Issue #241: ページ名・状態切り替え・検索の入り口を一つのツールバーへ
-      まとめる(案1)。状態によって変わる説明文や「ALL TODOS」のような
-      キッカーは、画面を見れば用途が分かるため出さない(受け入れ基準)。
-      見出し自体は文書構造として残しつつ、見た目は小さくする。 */}
-      <div className={styles.toolbar}>
-        <h1 className={styles.toolbarTitle}>Todo一覧</h1>
-        {rest.household === null ? null : (
-          <div className={styles.toolbarActions}>
-            <ListAddLink add={TODO_ADD_ACTION} />
-            <TodoStatusSwitch
-              assigneeParam={rest.assigneeParam}
-              searchParam={rest.searchParam}
-              status={status}
-              viewParam={viewParam}
-            />
-            <AssigneeFilterDisclosure
-              assigneeParam={rest.assigneeParam}
-              currentUserId={rest.currentUserId}
-              members={rest.members}
-              searchParam={rest.searchParam}
-              status={status}
-              viewParam={viewParam}
-            />
-            <TodoViewSwitch
-              assigneeParam={rest.assigneeParam}
-              searchParam={rest.searchParam}
-              status={status}
-              viewParam={viewParam}
-            />
-            <TodoSearchDisclosure
-              assigneeParam={rest.assigneeParam}
-              searchParam={rest.searchParam}
-              status={status}
-              viewParam={viewParam}
-            />
-          </div>
-        )}
-      </div>
+      <TodoListToolbar
+        assigneeParam={rest.assigneeParam}
+        currentUserId={rest.currentUserId}
+        hasHousehold={rest.household !== null}
+        members={rest.members}
+        searchParam={rest.searchParam}
+        status={status}
+        viewParam={viewParam}
+      />
 
       <TodoListBody
         {...rest}
