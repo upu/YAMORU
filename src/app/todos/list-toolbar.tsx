@@ -4,6 +4,7 @@
 import Link from "next/link";
 
 import type { HouseholdMemberOption } from "../../lib/d1/profiles";
+import { ListAddLink, type ListAddAction } from "../list-add-link";
 import {
   buildTodoListHref,
   describeAssigneeFilter,
@@ -12,6 +13,19 @@ import {
   UNASSIGNED_FILTER_VALUE,
 } from "./list-params";
 import styles from "./todo-list.module.css";
+
+// Issue #391: 一覧の追加導線は、台帳・消耗品と同じく操作行の先頭のリンクと
+// 右下のフローティングボタンで同じ文言を使い、画面幅ごとにどちらか一方だけを
+// 出す。
+export const TODO_ADD_ACTION: ListAddAction = { href: "/todos/new", label: "Todoを追加" };
+
+// 一覧の絞り込みとhrefの組み立てに要る条件。ツールバーの部品が共通して受け取る。
+type TodoListFilterParams = {
+  assigneeParam: string | undefined;
+  searchParam: string | undefined;
+  status: TodoStatusFilter;
+  viewParam: TodoListViewMode;
+};
 
 // Issue #222: 「未完了」「実施済み」はstatusクエリーパラメーターで切り替える
 // (このファイル冒頭のTodoStatusFilterのコメント参照)。切り替えても、
@@ -49,6 +63,20 @@ export function TodoStatusSwitch({
   );
 }
 
+// Issue #390: 家族名は最大20文字まで登録できる(account/actions.tsの
+// NICKNAME_MAX_LENGTH)。長い名前でもツールバーが画面からはみ出さないよう、
+// 値だけを縮められるようにして末尾を省略する(assigneeToggleValue)。
+// 「担当:」と開閉の記号は短いので、そのまま残す。
+function AssigneeFilterSummary({ selectedLabel }: { selectedLabel: string }) {
+  return (
+    <summary className={styles.assigneeToggle}>
+      担当:
+      {" "}
+      <span className={styles.assigneeToggleValue}>{selectedLabel}</span>
+    </summary>
+  );
+}
+
 // Issue #223: 担当予定者で絞り込む。「全員」で解除できる。Issue #266:
 // メンバー全員を横並びにせず、現在の条件が閉じた状態でも分かるネイティブな
 // disclosureにまとめる。候補はページ遷移のリンクなのでmenuロールは付けず、
@@ -75,7 +103,7 @@ export function AssigneeFilterDisclosure({
 
   return (
     <details className={styles.assigneeDisclosure}>
-      <summary className={styles.assigneeToggle}>担当: {selectedLabel}</summary>
+      <AssigneeFilterSummary selectedLabel={selectedLabel} />
       <nav aria-label="担当予定者で絞り込み" className={styles.assigneeOptions}>
         <Link
           aria-current={assigneeParam === undefined ? "page" : undefined}
@@ -256,5 +284,51 @@ export function TodoSearchForm({
       />
       <button type="submit">検索</button>
     </form>
+  );
+}
+
+// Issue #241: ページ名・状態切り替え・検索の入り口を一つのツールバーへまとめる。
+// Issue #390: 390px幅では操作を並べ切れず、検索だけが3行目へ孤立して折り返して
+// いた。折り返しの成り行きに任せず、絞り込み(状態・担当)とそれ以外の操作
+// (追加・表示形式)を別のまとまりにして、折り返す位置をまとまりの境目に固定
+// する(CSS側のtoolbarFilters)。検索は開くとツールバーの全幅を使うため、
+// どちらのまとまりにも入れず直下へ置く。
+// 並び順は、狭い幅で実際に表示される順(見出し・操作・検索・絞り込み)へ
+// そろえる。CSSのorderで見た目だけを入れ替えると、キーボードの移動順が
+// 画面の並びと食い違う。
+export function TodoListToolbar({
+  currentUserId,
+  hasHousehold,
+  members,
+  ...filters
+}: TodoListFilterParams & {
+  currentUserId: string;
+  hasHousehold: boolean;
+  members: HouseholdMemberOption[];
+}) {
+  return (
+    <div className={styles.toolbar}>
+      {/* 状態によって変わる説明文や「ALL TODOS」のようなキッカーは、画面を
+      見れば用途が分かるため出さない(Issue #241の受け入れ基準)。見出し自体は
+      文書構造として残しつつ、見た目は小さくする。 */}
+      <h1 className={styles.toolbarTitle}>Todo一覧</h1>
+      {hasHousehold ? (
+        <>
+          <div className={styles.toolbarActions}>
+            <ListAddLink add={TODO_ADD_ACTION} />
+            <TodoViewSwitch {...filters} />
+          </div>
+          <TodoSearchDisclosure {...filters} />
+          <div className={styles.toolbarFilters}>
+            <TodoStatusSwitch {...filters} />
+            <AssigneeFilterDisclosure
+              {...filters}
+              currentUserId={currentUserId}
+              members={members}
+            />
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getAssigneeToggle } from "./support/assignee-toggle";
+
 const {
   getD1ContextMock,
   listPendingOccurrencesMock,
@@ -269,7 +271,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       .toHaveBeenCalledWith({}, { userId: "user-1" }, undefined, undefined);
     expect(screen.getByRole("link", { name: "全員" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "自分" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByText("担当: 全員", { selector: "summary" }).closest("details"))
+    expect(getAssigneeToggle("担当: 全員").closest("details"))
       .not.toHaveAttribute("open");
   });
 
@@ -285,7 +287,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
     );
     expect(screen.getByRole("link", { name: "自分" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "全員" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByText("担当: 自分", { selector: "summary" })).toBeInTheDocument();
+    expect(getAssigneeToggle("担当: 自分")).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: 自分/)).toBeInTheDocument();
   });
 
@@ -300,7 +302,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       undefined,
     );
     expect(screen.getByRole("link", { name: "たろう" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("担当: たろう", { selector: "summary" })).toBeInTheDocument();
+    expect(getAssigneeToggle("担当: たろう")).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: たろう/)).toBeInTheDocument();
   });
 
@@ -315,7 +317,7 @@ describe("Todo一覧画面の担当予定者による絞り込み(TodoListPage�
       undefined,
     );
     expect(screen.getByRole("link", { name: "担当未定" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("担当: 担当未定", { selector: "summary" })).toBeInTheDocument();
+    expect(getAssigneeToggle("担当: 担当未定")).toBeInTheDocument();
     expect(screen.getByText(/担当予定者: 担当未定/)).toBeInTheDocument();
   });
 

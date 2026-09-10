@@ -1491,6 +1491,10 @@ h1 {
 
 .assignee-panel select {
   min-height: var(--tap-target);
+  /* Issue #390: selectの幅は一番長い選択肢に合わせて広がる。家族名は最大20文字
+     まで登録できる(account/actions.tsのNICKNAME_MAX_LENGTH)ため、上限を置かないと
+     320px幅で画面からはみ出す。はみ出した分はブラウザが省略して表示する。 */
+  max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 8px;

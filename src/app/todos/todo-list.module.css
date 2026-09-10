@@ -36,24 +36,44 @@
 }
 
 /* Issue #241: ページ見出し・状態切り替え・検索の入り口を一つのツールバーへ
-   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ
-   space-betweenで分け、3要素を1行に収めて画面上部の縦幅を抑える。 */
+   まとめる(案1)。app-header-innerと同じく、見出しを左・操作群を右へ分け、
+   広い幅では1行に収めて画面上部の縦幅を抑える。
+   Issue #390: 操作を一つの入れ物へ並べて折り返しの成り行きに任せると、
+   390px幅で検索だけが3行目へ孤立していた。絞り込み(状態・担当)と
+   それ以外の操作(追加・表示形式)をまとまりに分け、狭い幅ではまとまりの
+   境目でだけ折り返す。見出しを伸ばして、まとまりを右端へ寄せる
+   (space-betweenだと3つ以上のまとまりの間隔が均等に開いてしまう)。
+   まとまりの並びはDOMの順のまま変えない(orderで見た目だけ入れ替えると、
+   キーボードの移動順が画面の並びと食い違う)。 */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   margin-bottom: 16px;
 }
 
 .toolbarTitle {
+  flex: 1 1 auto;
   margin: 0;
   overflow-wrap: anywhere;
   font-family: Georgia, "Yu Mincho", serif;
   font-size: 1.3rem;
   font-weight: 600;
   letter-spacing: 0.03em;
+}
+
+/* 状態の切り替えと担当の絞り込み。この2つは「いま何を絞り込んでいるか」を
+   表すため、離さずに並べる。 */
+.toolbarFilters {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  /* 中身の幅(長い家族名の担当ボタンなど)がツールバーを超えないようにする。
+     これがないと、まとまりが内容幅のまま画面からはみ出す。 */
+  max-width: 100%;
 }
 
 .toolbarActions {
@@ -91,11 +111,15 @@
    ツールバーに表示する。候補はsummaryから開くポップオーバー風のnavに収める。 */
 .assigneeDisclosure {
   position: relative;
-  flex: none;
+  /* Issue #390: 長い家族名(最大20文字)でも画面からはみ出さないよう、
+     入り切らないときは縮められるようにする(値はassigneeToggleValueで省略)。 */
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .assigneeToggle {
   display: flex;
+  min-width: 0;
   min-height: var(--tap-target);
   align-items: center;
   gap: 5px;
@@ -109,6 +133,13 @@
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+/* 「担当:」と開閉の記号は残したまま、値だけを省略する。 */
+.assigneeToggleValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assigneeToggle::-webkit-details-marker {
@@ -215,6 +246,18 @@
   flex: none;
 }
 
+/* Issue #390: 閉じているときはアイコン1つ分の幅で表示形式の隣に並び、
+   開いたときだけツールバーの全幅を使う。同じ行に居続けようとすると、
+   入力欄の幅ぶん他の操作が押し出されて折り返しが崩れる。開いた行の中でも
+   アイコンの位置は右端のまま保つ。 */
+.searchDisclosure[open] {
+  flex: 1 1 100%;
+}
+
+.searchDisclosure[open] .searchToggle {
+  margin-left: auto;
+}
+
 .searchToggle {
   display: grid;
   width: var(--tap-target);
@@ -265,8 +308,13 @@
 .searchForm {
   display: grid;
   gap: 8px;
+  /* Issue #390: 開くとツールバーの全幅を使えるようになったため、広い画面で
+     入力欄と送信ボタンが伸びすぎないよう上限を置き、入口のアイコンと同じ
+     右端へそろえる。 */
+  max-width: 420px;
   margin-top: 10px;
   margin-bottom: 20px;
+  margin-left: auto;
 }
 
 .searchForm input[type="search"] {
@@ -301,6 +349,14 @@
   overflow: hidden;
 }
 
+/* Issue #390: gridの行(li)は既定の最小幅が中身の最小内容幅になる。行を
+   1行へ収める(rowBodyのflex-wrap: nowrap)と、長いTodo名の全文が最小幅に
+   算入され、一覧全体がその幅まで広がって横スクロールが出るため、行側で
+   最小幅の縛りを外す。 */
+.row {
+  min-width: 0;
+}
+
 .row + .row {
   border-top: 1px solid var(--line);
 }
@@ -326,9 +382,13 @@
 }
 
 /* Issue #243: Todo名・短い予定・状態ラベルを1行へ並べる(issue本文の
-   設計メモ「レイアウト」)。通常のモバイル幅・文字サイズでは折り返さず
-   収まり、幅が足りない・文字拡大時は状態ラベル側から自然に折り返す
-   (横スクロールや情報欠落を強制しない、受け入れ基準)。 */
+   設計メモ「レイアウト」)。
+   Issue #390: タイトルに160pxの基準幅を与えていたため、390px幅では短いTodoでも
+   状態ラベルが2行目へ落ち、1件あたり62pxを使っていた。基準幅を0にして
+   (rowTitleのflex)、日付/状態と状態ラベルが先に場所を取れるようにすると、
+   通常の文字サイズでは1行に収まる。折り返し自体は許したままにして、
+   文字サイズを大きくして本当に入り切らないときは、隠すのではなく
+   2行目へ回す(.rowsのoverflow: hiddenで欠けさせない)。 */
 .rowBody {
   display: flex;
   flex: 1;
@@ -339,20 +399,44 @@
   min-width: 0;
 }
 
+/* 長いタイトルは末尾を省略し、日付/状態や状態ラベルを押し出さない。
+   省略されるのは見た目だけで、行全体のリンク名には全文が残る。
+   flex-basisを0にするのは見た目の調整ではなく、行の折り返しと最小幅を
+   決めるため。autoのままだと、タイトル全文の幅が同じ行に並べられるか
+   どうかの判断に使われて状態ラベルが2行目へ落ち、行の最小幅にも算入されて
+   一覧全体(gridの列)がその幅まで広がる。 */
 .rowTitle {
-  flex: 1 1 160px;
-  min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 1 0;
+  min-width: 4em;
+  overflow: hidden;
   font-size: 0.86rem;
   font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 日付や短い状態値は途中で不自然に改行させず(issue本文の設計メモ)、
-   家族名が長い場合だけ安全側で省略する。 */
+   家族名が長い場合だけ安全側で省略する。
+   Issue #390: 上限は幅そのものの制限というより、1行に収めるため。日付は
+   推奨期間の「8/31〜9/5」のような範囲になり、担当の家族名は最大20文字まで
+   登録できるので、上限がないとこの2つだけで行の幅を使い切り、状態ラベルが
+   2行目へ落ちる。
+   引く9.5remの内訳は、いちばん長い状態ラベル「推奨期間超過」(約5rem)、
+   タイトルの最小幅(rowTitleのmin-width、約3.5rem)、左右のgap(1rem)。
+   広い画面ではこの引き算だけだと日付側が伸びすぎるため、行の半分も上限に
+   入れて、タイトルの取り分を残す。短い値のときはどちらの上限にも当たらず、
+   これまでどおり内容の幅で表示する。
+   文字サイズを大きくして引く分が幅を超えるときは、max()の4emが下限として
+   残る。日付を消して1行を守るのではなく、折り返して次の行へ回す。 */
 .rowMeta {
+  /* 中の「担当予定者:」(sr-only)は位置指定で1pxの箱として置かれる。基準に
+     なる要素がないと画面の左上を基準にした位置に置かれ、値が長いときに
+     その箱が画面の右端をわずかに越えて横スクロールを生む。ここを基準に
+     して、この要素のoverflow: hiddenの中へ収める。 */
+  position: relative;
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 100%;
+  max-width: max(4em, min(50%, calc(100% - 9.5rem)));
   overflow: hidden;
   color: var(--muted);
   font-size: 0.74rem;
@@ -370,6 +454,15 @@
 
   .toolbar {
     row-gap: 8px;
+  }
+
+  /* Issue #390: 390px・320pxのどちらでも、すべての操作を1行に並べる幅はない。
+     どこで折り返すかを幅の測り合いに委ねず、絞り込みだけを2行目の全幅へ
+     固定する。1行目は「見出し + 表示形式 + 検索」で収まり、単独の操作が
+     次行へ取り残されない。orderは使わず、DOMの並び(絞り込みが最後)の
+     ままで2行目に来るようにして、キーボードの移動順と画面の並びをそろえる。 */
+  .toolbarFilters {
+    flex: 1 1 100%;
   }
 
   .rowLink {
