@@ -1,7 +1,11 @@
 import { type Locator, type Page } from "@playwright/test";
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 
-import { createOneTimeTask, setTaskOccurrenceAssignee } from "../src/lib/d1/todos";
+import {
+  createMaintenanceTask,
+  createOneTimeTask,
+  setTaskOccurrenceAssignee,
+} from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
 
 // Issue #390: 390px幅のTodo一覧で、ツールバーの操作が意図したまとまりで
@@ -13,6 +17,10 @@ import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-z
 const SHORT_TODO = "ごみ出し";
 const LONG_TODO = "浄水器のフィルターを交換して記録を残す長いタイトルのTodo";
 const ASSIGNED_TODO = "回覧板を回す";
+// 推奨期間を過ぎたメンテナンスTodo。日付が範囲表示になり、状態ラベルも
+// いちばん長い「推奨期間超過」になる、行がもっとも混み合う組み合わせ。
+const OVERDUE_TODO = "浄水フィルター";
+const LONGEST_BADGE = "推奨期間超過";
 // 登録できる上限の20文字(src/app/account/actions.tsのNICKNAME_MAX_LENGTH)。
 const LONG_NICKNAME = "あいうえおかきくけこさしすせそたちつてと";
 const LONG_NICKNAME_USER_ID = "member2";
@@ -130,7 +138,38 @@ test.beforeEach(async ({ db }) => {
   ).bind(assignedRuleId).first<{ id: string }>();
   if (occurrence === null) throw new Error("Occurrenceを作成できなかった");
   await setTaskOccurrenceAssignee(db, session, occurrence.id, LONG_NICKNAME_USER_ID);
+  await seedOverdueMaintenanceTodo(db);
 });
+
+// 日付が範囲、状態ラベルが最長、担当が上限の長さ、という行がもっとも
+// 混み合う組み合わせを作る。
+async function seedOverdueMaintenanceTodo(db: D1Database): Promise<void> {
+  const session = { userId: "owner" };
+  const ruleId = await createMaintenanceTask(db, session, {
+    firstDueAt: tokyoDateAfter(-5),
+    firstScheduledFor: tokyoDateAfter(-10),
+    managedItemId: null,
+    recommendedStartOffset: 1,
+    recommendedUntilOffset: 2,
+    title: OVERDUE_TODO,
+  });
+  const occurrence = await db.prepare(
+    "SELECT id FROM task_occurrences WHERE task_rule_id = ?1",
+  ).bind(ruleId).first<{ id: string }>();
+  if (occurrence === null) throw new Error("Occurrenceを作成できなかった");
+  await setTaskOccurrenceAssignee(db, session, occurrence.id, LONG_NICKNAME_USER_ID);
+}
+
+// タイトル・日付/状態・状態ラベルが同じ行に並び、1件が1行に収まっているか。
+async function expectSingleLineRow(page: Page, title: string, badge: string): Promise<void> {
+  const row = page.getByRole("link", { name: new RegExp(title) });
+  const rowBox = await boxOf(row, `${title}の行`);
+  const titleBox = await boxOf(row.getByText(title, { exact: true }), `${title}のタイトル`);
+  const badgeBox = await boxOf(row.getByText(badge, { exact: true }), `${title}の状態ラベル`);
+
+  expect(isSameRow(titleBox, badgeBox), `${title}の状態ラベルが2行目へ落ちている`).toBe(true);
+  expect(rowBox.height, `${title}の行が1行に収まっていない`).toBeLessThanOrEqual(48);
+}
 
 test.describe("390px幅", () => {
   test.use({ viewport: { width: 390, height: 844 } });
@@ -206,23 +245,18 @@ test.describe("390px幅", () => {
   });
 
   // 日付/状態は行の残りをすべて使えるわけではない。上限の長さの家族名を
-  // 担当にしても、状態ラベルを2行目へ押し出さない。
-  test("上限の長さの家族名を担当にしたTodoでも、行は1行に収まる", async ({ page }) => {
+  // 担当にしても、日付が範囲で状態ラベルが最長でも、状態ラベルを2行目へ
+  // 押し出さない。
+  test("日付・担当・状態ラベルが最も長い組み合わせでも、行は1行に収まる", async ({ page }) => {
     await login(page);
     await page.goto("/todos?view=list");
 
-    const row = page.getByRole("link", { name: new RegExp(ASSIGNED_TODO) });
-    const rowBox = await boxOf(row, `${ASSIGNED_TODO}の行`);
-    const title = await boxOf(
-      row.getByText(ASSIGNED_TODO, { exact: true }),
-      `${ASSIGNED_TODO}のタイトル`,
-    );
-    const badge = await boxOf(row.getByText("今日", { exact: true }), "状態ラベル");
-
     // 担当予定者は行に出したまま(表示は省略されても、読み上げには残る)。
-    await expect(row).toContainText(LONG_NICKNAME);
-    expect(isSameRow(title, badge), "状態ラベルが2行目へ落ちている").toBe(true);
-    expect(rowBox.height, "行が1行に収まっていない").toBeLessThanOrEqual(48);
+    await expect(page.getByRole("link", { name: new RegExp(ASSIGNED_TODO) }))
+      .toContainText(LONG_NICKNAME);
+
+    await expectSingleLineRow(page, ASSIGNED_TODO, "今日");
+    await expectSingleLineRow(page, OVERDUE_TODO, LONGEST_BADGE);
     await expectNoHorizontalOverflow(page);
   });
 });
@@ -257,6 +291,8 @@ test.describe("320px幅", () => {
     await page.goto("/todos?view=list");
     const row = page.getByRole("link", { name: new RegExp(LONG_TODO) });
     await expect(row).toBeVisible();
+    // 最小幅でも、行がもっとも混み合う組み合わせで1行に収まる。
+    await expectSingleLineRow(page, OVERDUE_TODO, LONGEST_BADGE);
     await expectNoHorizontalOverflow(page);
 
     // 検索を開いても、入力欄が画面からはみ出さない。
