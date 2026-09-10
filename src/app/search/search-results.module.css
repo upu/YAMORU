@@ -41,9 +41,9 @@
 
 .resultActions :global(.completion-trigger) {
   width: auto;
-  min-height: 40px;
+  min-height: var(--tap-target);
   margin-top: 0;
-  padding: 8px 14px;
+  padding: 0 14px;
 }
 
 .resultActions :global(.stock-status-options) {
@@ -54,7 +54,7 @@
 }
 
 .resultActions :global(.stock-status-option) {
-  min-height: 40px;
+  min-height: var(--tap-target);
   padding: 0 12px;
   font-size: 0.78rem;
 }

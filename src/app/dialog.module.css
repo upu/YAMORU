@@ -54,8 +54,8 @@
 
 .close {
   flex: none;
-  width: 42px;
-  height: 42px;
+  width: var(--tap-target);
+  height: var(--tap-target);
   border: 1px solid var(--line);
   border-radius: 50%;
   color: var(--muted);
@@ -140,8 +140,12 @@
 }
 
 .backButton {
+  display: inline-flex;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  align-items: center;
   justify-self: start;
-  padding: 8px 0;
+  padding: 0;
   border: 0;
   color: var(--green);
   background: transparent;

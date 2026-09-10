@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { requireUser } from "../../../lib/auth/current-user";
 import { getConsumable, type ConsumableDetail } from "../../../lib/d1/consumables";
 import { getD1Context } from "../../../lib/d1/context";
+import {
+  CONSUMABLE_DETAIL_BACK_NAV,
+  DetailBackNav,
+} from "../../detail-back-nav";
 import { EditIcon } from "../../edit-icon";
 import { isSafeExternalUrl } from "../../managed-items/model";
 import { ConsumableRelations } from "../detail-relations";
@@ -66,9 +70,7 @@ export function ConsumableDetailContent({
 }) {
   return (
     <main className="detail-page">
-      <nav aria-label="ページ移動" className="back-nav">
-        <Link href="/consumables">← 消耗品一覧へ戻る</Link>
-      </nav>
+      <DetailBackNav {...CONSUMABLE_DETAIL_BACK_NAV} />
       <header className="detail-hero detail-hero-with-action">
         <div>
           <p className="detail-kicker">CONSUMABLE</p>

@@ -5,6 +5,7 @@ import {
   LedgerCategoryNavigation,
   type LedgerCategory,
 } from "./ledger-category-navigation";
+import { ListAddLink, type ListAddAction } from "./list-add-link";
 
 // Issue #309: 台帳内でカテゴリを切り替えても、ページタイトル・説明・カテゴリ
 // 切り替えの骨格を共通にする(issue本文の設計メモの第一候補)。/managed-itemsと
@@ -36,24 +37,22 @@ export function LedgerPageShell({
 }
 
 // Issue #285: 検索欄へ入力しなくても新規登録の入口が見つかるように、検索・
-// 絞り込みより前の行へ登録リンクを置く(右下のフローティングボタンはそのまま
-// 維持する)。件数バッジと同じ行に収めるため、モバイルでも一覧確認を押し下げる
-// 高さを増やさない。Issue #309: この行を台帳の全カテゴリで共通にし、文言と
-// 行き先だけを現在のカテゴリに合わせる(位置は動かさない)。
+// 絞り込みより前の行へ登録リンクを置く。件数バッジと同じ行に収めるため、
+// 一覧確認を押し下げる高さを増やさない。Issue #309: この行を台帳の全カテゴリで
+// 共通にし、文言と行き先だけを現在のカテゴリに合わせる(位置は動かさない)。
+// Issue #391: モバイル幅ではこのリンクを出さず、右下のフローティングボタンを
+// 主要導線にする(globals.cssの.list-add-link)。同じ追加操作が同時に2か所へ
+// 出ないよう、どちらの幅でもリンクとボタンは同じ文言を使う。
 export function LedgerListHeading({
-  addHref,
-  addLabel,
+  add,
   count,
 }: {
-  addHref: string;
-  addLabel: string;
+  add: ListAddAction;
   count: number;
 }) {
   return (
-    <div className="ledger-list-heading">
-      <Link className="ledger-add-link" href={addHref}>
-        <span aria-hidden="true">＋</span>{addLabel}
-      </Link>
+    <div className="list-heading">
+      <ListAddLink add={add} />
       <span aria-label={`${String(count)}件`} className="count">{count}</span>
     </div>
   );

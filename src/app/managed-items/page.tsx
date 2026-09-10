@@ -20,6 +20,7 @@ import {
   LedgerListHeading,
   LedgerPageShell,
 } from "../ledger-page-shell";
+import type { ListAddAction } from "../list-add-link";
 import { ClassificationBadges } from "./classification-badges";
 import type { ManagedItemTypeGroup } from "./item-type-picker";
 import { ManagedItemsSearchForm } from "./managed-items-search-form";
@@ -224,7 +225,7 @@ function ManagedItemsList({ items }: { items: ManagedItemSummary[] }) {
 }
 
 function RegisteredItemsSection({
-  addLabel,
+  add,
   classificationOptions,
   customItemType,
   customItemTypeOptions,
@@ -234,7 +235,7 @@ function RegisteredItemsSection({
   kind,
   q,
 }: {
-  addLabel: string;
+  add: ListAddAction;
   classificationOptions: ManagedItemClassificationOptions;
   customItemType: string | undefined;
   customItemTypeOptions: ManagedItemCustomTypeOption[];
@@ -258,11 +259,7 @@ function RegisteredItemsSection({
       管理対象」を画面上の見出しとしては出さない(案1)。一覧領域の意味は
       支援技術向けに残したaria-labelledbyの見出しで伝える。 */}
       <h2 className="sr-only" id="registered-items-title">登録済みの管理対象</h2>
-      <LedgerListHeading
-        addHref="/managed-items/new"
-        addLabel={addLabel}
-        count={items.length}
-      />
+      <LedgerListHeading add={add} count={items.length} />
 
       <ManagedItemsSearchForm
         itemTypeGroups={itemTypeGroups}
@@ -278,7 +275,7 @@ function RegisteredItemsSection({
       />
 
       {items.length === 0 ? (
-        <ManagedItemsEmptyState addLabel={addLabel} filterDescription={filterDescription} />
+        <ManagedItemsEmptyState addLabel={add.label} filterDescription={filterDescription} />
       ) : (
         <ManagedItemsList items={items} />
       )}
@@ -312,9 +309,12 @@ export function ManagedItemsContent({
   // Issue #309: 登録ボタンの文言だけを現在のカテゴリに合わせる。存在しない
   // 大分類コードがURLで指定された場合は、カテゴリ名を語れないため台帳共通の
   // 言葉へ落とす(一覧が0件になる従来の安全側の挙動に合わせる)。
-  const addLabel = currentCategory === undefined
-    ? "新しく登録"
-    : `${ledgerCategoryLabel(currentCategory)}を登録`;
+  const add: ListAddAction = {
+    href: "/managed-items/new",
+    label: currentCategory === undefined
+      ? "新しく登録"
+      : `${ledgerCategoryLabel(currentCategory)}を登録`,
+  };
   return (
     <LedgerPageShell
       currentCategory={currentCategory}
@@ -325,7 +325,7 @@ export function ManagedItemsContent({
       ) : (
         <div className="ledger-grid">
           <RegisteredItemsSection
-            addLabel={addLabel}
+            add={add}
             classificationOptions={classificationOptions ?? { itemTypes: [], kinds: [] }}
             customItemType={customItemType}
             customItemTypeOptions={customItemTypeOptions ?? []}
@@ -338,7 +338,7 @@ export function ManagedItemsContent({
         </div>
       )}
       {household === null ? null : (
-        <FloatingAddButton destination="managed-item" />
+        <FloatingAddButton {...add} mobileOnly />
       )}
     </LedgerPageShell>
   );

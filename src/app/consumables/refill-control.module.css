@@ -5,7 +5,7 @@
 }
 
 .actionButton {
-  min-height: 44px;
+  min-height: var(--tap-target);
   padding: 9px 18px;
   border: 0;
   border-radius: 999px;

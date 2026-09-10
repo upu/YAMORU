@@ -33,6 +33,7 @@
 | ログイン・パスワード | `src/auth.ts`、`src/app/login/actions.ts`、`src/app/account/password-actions.ts` → `src/lib/d1/authentication.ts` | `tests/auth-actions.test.ts`、`tests/password-change-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 | 家庭の作成 | `src/app/household/actions.ts` → `src/lib/d1/households.ts` | `tests/household-actions.test.ts`、`tests/household-ui.test.tsx` | [認証・家庭・招待](household-access.md) |
 | 招待の発行・取消・受諾 | `src/app/household/invitation-actions.ts`、`src/app/invitations/accept/` → `src/lib/d1/invitations.ts` | `tests/invitation-actions.test.ts`、`tests/invite-accept-actions.test.ts`、`e2e/family-sharing.spec.ts` | [認証・家庭・招待](household-access.md) |
+| 一覧の追加導線・詳細の戻る導線(位置と文言の共通規約) | `src/app/list-add-link.tsx`、`src/app/floating-add-button.tsx`、`src/app/detail-back-nav.tsx` | `tests/floating-add-button.test.tsx`、`tests/detail-page-navigation.test.tsx`、`e2e/floating-add-button.spec.ts`、`e2e/detail-back-navigation.spec.ts` | [スタイル](styles.md) |
 | 初回操作ヒント・ヘルプの使い方 | `src/app/first-run-hint.tsx`、`src/app/help/page.tsx` | `tests/consumable-pins-ui.test.tsx`、`tests/help-page.test.tsx` | [スタイル](styles.md) |
 | 画面の見た目(CSS)の置き場所 | `src/app/globals.css`(全体基盤と共有ルール)、部品ごとの`*.module.css` | 変更した画面のテスト・E2E | [スタイル](styles.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |

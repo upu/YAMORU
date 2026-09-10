@@ -41,9 +41,9 @@
 
 .menuTrigger {
   display: grid;
-  width: 42px;
-  height: 42px;
-  padding: 9px;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 10px;
   place-items: center;
   border: 1px solid rgb(49 92 73 / 24%);
   border-radius: 50%;

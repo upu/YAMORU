@@ -74,12 +74,10 @@ describe("家の台帳一覧", () => {
 
     // カテゴリ切り替え → 登録導線 → 一覧の順序を、消耗品と揃える。
     const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
-    const addLink = screen.getByRole("link", { name: "サービス・契約を登録" });
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    const addLink = within(list).getByRole("link", { name: "サービス・契約を登録" });
     expect(addLink).toHaveAttribute("href", "/managed-items/new");
     expect(navigation.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_FOLLOWING)
-      .toBeTruthy();
-    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
-    expect(list.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_CONTAINED_BY)
       .toBeTruthy();
   });
 
@@ -93,10 +91,9 @@ describe("家の台帳一覧", () => {
     );
 
     expect(screen.getByRole("heading", { level: 1, name: "家の台帳" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "新しく登録" })).toHaveAttribute(
-      "href",
-      "/managed-items/new",
-    );
+    for (const addLink of screen.getAllByRole("link", { name: "新しく登録" })) {
+      expect(addLink).toHaveAttribute("href", "/managed-items/new");
+    }
     const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
     expect(within(navigation).queryByRole("link", { current: "page" }))
       .not.toBeInTheDocument();
@@ -113,8 +110,6 @@ describe("家の台帳一覧", () => {
       "href",
       "/account",
     );
-    expect(screen.queryByRole("link", { name: "台帳に追加" }))
-      .not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "備品を登録" }))
       .not.toBeInTheDocument();
   });
@@ -132,16 +127,17 @@ describe("家の台帳一覧", () => {
       .toBeInTheDocument();
     expect(within(list).queryByRole("link", { name: "管理対象を登録" }))
       .not.toBeInTheDocument();
-    // Issue #285: 一覧の中の登録リンクと、右下の共通追加ボタンの両方から進める。
+    // Issue #285: 一覧の中の登録リンクから進める。
     // Issue #309: 一覧の中の文言は現在のカテゴリ(既定は備品)に合わせる。
+    // Issue #391: 右下の共通追加ボタンも同じ文言・同じ行き先を使い、表示は
+    // 画面幅ごとにどちらか一方だけになる(切り替えはCSSで行う)。
     expect(within(list).getByRole("link", { name: "備品を登録" })).toHaveAttribute(
       "href",
       "/managed-items/new",
     );
-    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
-      "href",
-      "/managed-items/new",
-    );
+    expect(screen.getAllByRole("link", { name: "備品を登録" })).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: "台帳に追加" }))
+      .not.toBeInTheDocument();
     expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /ホームへ戻る/ }),
@@ -178,10 +174,9 @@ describe("家の台帳一覧", () => {
 
     expect(screen.queryByRole("link", { name: "管理対象を登録" }))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
-      "href",
-      "/managed-items/new",
-    );
+    for (const addLink of screen.getAllByRole("link", { name: "備品を登録" })) {
+      expect(addLink).toHaveAttribute("href", "/managed-items/new");
+    }
     expect(screen.queryByLabelText("名前")).not.toBeInTheDocument();
   });
 

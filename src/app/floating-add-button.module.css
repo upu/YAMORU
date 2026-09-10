@@ -47,3 +47,12 @@
     height: 72px;
   }
 }
+
+/* Issue #391: 一覧の追加導線は画面幅ごとにどちらか一方だけを出す。モバイル幅
+   より広い画面では、一覧見出しの中の追加リンク(globals.cssの.list-add-link)
+   を主要導線にするため、このボタンと下端の余白を消す。 */
+@media (min-width: 481px) {
+  .mobileOnly {
+    display: none;
+  }
+}

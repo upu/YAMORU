@@ -14,7 +14,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px 8px;
-  padding: 2px 0;
+  /* Issue #389: 状態変更ボタンは見た目36pxのまま、上下左右へ4pxずつ広い
+     タップ領域を持つ(globals.cssの.stock-status-option-symbol)。行の
+     上下と、隣の行のボタンとの間にその4pxずつを空ける。 */
+  padding: 4px 0;
 }
 
 .item + .item {
@@ -44,7 +47,8 @@
   max-width: none;
   margin-top: 0;
   grid-template-columns: repeat(3, auto);
-  gap: 4px;
+  /* 隣のボタンとタップ領域が重ならないよう、はみ出す4pxずつを足した間隔。 */
+  gap: 8px;
 }
 
 .item :global(.auth-feedback) {
@@ -54,7 +58,7 @@
 
 .disclosure {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--tap-target);
   margin-top: 12px;
   border: 1px solid rgb(49 92 73 / 24%);
   border-radius: 12px;

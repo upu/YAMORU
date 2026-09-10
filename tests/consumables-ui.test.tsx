@@ -50,10 +50,9 @@ describe("消耗品一覧", () => {
       .toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("link", { name: /家の台帳へ戻る/u }))
       .not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "消耗品を登録" })).toHaveAttribute(
-      "href",
-      "/consumables/new",
-    );
+    for (const addLink of screen.getAllByRole("link", { name: "消耗品を登録" })) {
+      expect(addLink).toHaveAttribute("href", "/consumables/new");
+    }
     expect(screen.getByRole("link", { name: "トイレットペーパー" })).toHaveAttribute(
       "href",
       "/consumables/consumable-1",
@@ -69,19 +68,19 @@ describe("消耗品一覧", () => {
 
     // カテゴリ切り替え → 登録導線 → 一覧の順序を、備品・サービス・契約と揃える。
     const navigation = screen.getByRole("navigation", { name: "台帳の種類" });
-    const addLink = screen.getByRole("link", { name: "消耗品を登録" });
     const list = screen.getByRole("region", { name: "登録済みの消耗品" });
+    const addLink = within(list).getByRole("link", { name: "消耗品を登録" });
     expect(navigation.compareDocumentPosition(addLink) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
     expect(addLink.compareDocumentPosition(
       within(list).getByRole("link", { name: "トイレットペーパー" }),
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // 右下の共通追加ボタンも、備品・サービス・契約と同じ名前のまま消耗品登録へ進む。
-    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
-      "href",
-      "/consumables/new",
-    );
+    // Issue #391: 右下の共通追加ボタンも「消耗品を登録」で、「台帳に追加」の
+    // ような別名を同じ画面に出さない。表示は画面幅ごとにどちらか一方だけになる。
+    expect(screen.getAllByRole("link", { name: "消耗品を登録" })).toHaveLength(2);
+    expect(screen.queryByRole("link", { name: "台帳に追加" }))
+      .not.toBeInTheDocument();
   });
 
   it("Issue #309: 消耗品が無いときも、登録の入口の言葉で案内する", () => {
@@ -89,10 +88,9 @@ describe("消耗品一覧", () => {
 
     expect(screen.getByText(/まだ消耗品はありません。「消耗品を登録」から台帳に追加できます。/u))
       .toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "消耗品を登録" })).toHaveAttribute(
-      "href",
-      "/consumables/new",
-    );
+    for (const addLink of screen.getAllByRole("link", { name: "消耗品を登録" })) {
+      expect(addLink).toHaveAttribute("href", "/consumables/new");
+    }
   });
 });
 

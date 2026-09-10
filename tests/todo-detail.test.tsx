@@ -172,15 +172,14 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.getByText("2026年9月2日")).toBeInTheDocument();
   });
 
-  // Issue #264: Todo詳細は複数の画面から開くため、Todo一覧への固定戻りリンクは
-  // 表示しない。モバイル下部ナビゲーションなど既存の共通導線を使う。
-  it("Todo一覧へ戻る固定リンクを表示しない", () => {
+  // Issue #391: 詳細画面の戻る導線を備品・消耗品とそろえ、Todo一覧を固定の
+  // 戻り先としてページ最上部に置く(#264では置かない判断だった)。
+  it("ページ最上部からTodo一覧へ戻れる", () => {
     renderDetail(todo());
 
-    expect(
-      screen.queryByRole("link", { name: "← Todo一覧へ戻る" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "ページ移動" })).not.toBeInTheDocument();
+    const backNav = screen.getByRole("navigation", { name: "ページ移動" });
+    expect(within(backNav).getByRole("link", { name: "← Todo一覧へ戻る" }))
+      .toHaveAttribute("href", "/todos");
   });
 
   // Issue #244: Todo名直下の言い直し説明文は表示しない。
@@ -231,7 +230,7 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   it("繰り返しなし・未完了Todoでは、Todoの内容の見出し横から編集画面へ移動でき、実施記録の修正は出さない", () => {
     renderDetail(todo());
 
-    expect(screen.getByRole("link", { name: "このTodoを編集" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Todoを編集" })).toHaveAttribute(
       "href",
       "/todos/occurrence-1/edit",
     );
@@ -241,7 +240,7 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   it("未完了の繰り返しTodoも同じ編集画面へ移動できる", () => {
     renderDetail(todo({ recurrenceBasis: "calendar", recurrenceLabel: "毎月末" }));
 
-    expect(screen.getByRole("link", { name: "このTodoを編集" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Todoを編集" })).toHaveAttribute(
       "href",
       "/todos/occurrence-1/edit",
     );
@@ -267,13 +266,12 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
     expect(screen.queryByText("担当")).not.toBeInTheDocument();
   });
 
-  // Issue #264: 完了済みTodo詳細でも固定戻りリンクは表示しない。
-  it("Todo一覧へ戻る固定リンクを表示しない", () => {
+  // Issue #391: 完了済みTodoの詳細も同じ位置・同じ表現で戻れる。
+  it("ページ最上部からTodo一覧へ戻れる", () => {
     renderDetail(completedTodo());
 
-    expect(
-      screen.queryByRole("link", { name: "← Todo一覧へ戻る" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "← Todo一覧へ戻る" }))
+      .toHaveAttribute("href", "/todos");
   });
 
   it("実施記録の修正から訂正と完了取消を選べる", () => {
@@ -291,7 +289,7 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
     renderDetail(completedTodo());
 
     expect(
-      screen.queryByRole("link", { name: "このTodoを編集" }),
+      screen.queryByRole("link", { name: "Todoを編集" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/繰り返しのあるTodoの内容は/u)).not.toBeInTheDocument();
   });

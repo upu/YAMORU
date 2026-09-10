@@ -498,7 +498,8 @@ describe("台帳一覧の検索と新規登録の区別(ManagedItemsPage、Issue
   it("検索欄へ入力しなくても見つかる新規登録の入口を、検索・絞り込みより前に置く", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
-    const addLink = screen.getByRole("link", { name: "備品を登録" });
+    const list = screen.getByRole("region", { name: "登録済みの管理対象" });
+    const addLink = within(list).getByRole("link", { name: "備品を登録" });
     expect(addLink).toHaveAttribute("href", "/managed-items/new");
     // DOMの順序で、登録の入口が検索・絞り込みより前にあることを確かめる。
     const form = screen.getByRole("form", { name: "検索・絞り込み" });
@@ -506,12 +507,16 @@ describe("台帳一覧の検索と新規登録の区別(ManagedItemsPage、Issue
       .toBeTruthy();
   });
 
-  it("右下の「＋」からの登録導線も維持する", async () => {
+  // Issue #391: 右下の「＋」も一覧の中のリンクと同じ文言・同じ行き先を使う。
+  // 実際に見えるのは画面幅ごとにどちらか一方だけ(切り替えはCSSで行う)。
+  it("右下の「＋」からの登録導線も、一覧の中と同じ言葉で維持する", async () => {
     render(await ManagedItemsPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByRole("link", { name: "台帳に追加" })).toHaveAttribute(
-      "href", "/managed-items/new",
-    );
+    const addLinks = screen.getAllByRole("link", { name: "備品を登録" });
+    expect(addLinks).toHaveLength(2);
+    for (const addLink of addLinks) {
+      expect(addLink).toHaveAttribute("href", "/managed-items/new");
+    }
   });
 
   it("管理対象がまだ無いときの案内も、新規登録の入口の言葉で説明する", async () => {

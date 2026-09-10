@@ -76,7 +76,11 @@
 
 .cancelButton,
 .reissueLink {
-  padding: 8px 14px;
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
   border-radius: 10px;
   font-weight: 800;
   cursor: pointer;
