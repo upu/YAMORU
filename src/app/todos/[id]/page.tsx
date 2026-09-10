@@ -11,12 +11,14 @@ import {
 import { loadTodoDetail, type TodoDetailRow } from "../../../lib/d1/todos";
 import {
   FALLBACK_OTHER_MEMBER_NAME,
+  FALLBACK_SELF_ACTOR_NAME,
   type HouseholdMemberOption,
   loadActorName,
   loadHouseholdMembers,
 } from "../../../lib/d1/profiles";
+import { AssigneePanel } from "../../../features/todos/components/assignee-panel";
+import { CompleteTodoPanel } from "../../../features/todos/components/complete-todo-panel";
 import { CorrectionPanel } from "../../../features/todos/components/correction-panel";
-import { UNASSIGNED_LABEL } from "../../assignee";
 import { DetailBackNav, TODO_DETAIL_BACK_NAV } from "../../detail-back-nav";
 import { EditIcon } from "../../edit-icon";
 import {
@@ -39,7 +41,10 @@ export type TodoCompletionData = {
 };
 
 export type TodoDetailData = {
-  assigneeName: string | null;
+  // Issue #392: 担当は読み取り専用の表示ではなく、その場で変更できる操作に
+  // なった。担当予定者の名前はメンバー一覧(members)から解決するため、ここは
+  // 選択中の値だけを持つ。担当未定(誰でも可)はnull。
+  assigneeUserId: string | null;
   completion: TodoCompletionData | null;
   consumables: ConsumableSummary[];
   dueAt: string | null;
@@ -119,14 +124,49 @@ function TodoDetailList({ todo }: { todo: TodoDetailData }) {
           )}
         </dd>
       </div>
-      {todo.isCompleted ? null : (
-        <div>
-          <dt>担当</dt>
-          <dd>{todo.assigneeName ?? UNASSIGNED_LABEL}</dd>
-        </div>
-      )}
       <TodoScheduleRows todo={todo} />
     </dl>
+  );
+}
+
+// Issue #392: 未完了Todoの詳細から、その場で担当と完了を行えるようにする。
+// ホーム・Todoカード・横断検索・関連する備品詳細と同じ部品をそのまま使い、
+// 権限・競合・エラーの扱いを一本化する(issue本文の設計メモ)。内容を確認する
+// 前に見つけられるよう「Todoの内容」より先へ置き、見出しはタイトルや期日より
+// 強くしない。担当の現在値はこのselectが示すため、「Todoの内容」側の読み取り
+// 専用の担当行とは重ねて出さない。
+function TodoPendingActionsSection({
+  actorName,
+  currentUserId,
+  members,
+  todo,
+}: {
+  actorName: string;
+  currentUserId: string;
+  members: HouseholdMemberOption[];
+  todo: TodoDetailData;
+}) {
+  if (todo.isCompleted) return null;
+  return (
+    <section aria-labelledby="todo-actions-title" className="detail-card">
+      <p className="detail-kicker">ACTION</p>
+      <h2 id="todo-actions-title">担当と完了</h2>
+      <AssigneePanel
+        assigneeUserId={todo.assigneeUserId}
+        managedItemId={todo.managedItemId}
+        members={members}
+        occurrenceId={todo.id}
+        taskTitle={todo.title}
+      />
+      <CompleteTodoPanel
+        actorName={actorName}
+        currentUserId={currentUserId}
+        managedItemId={todo.managedItemId}
+        members={members}
+        occurrenceId={todo.id}
+        taskTitle={todo.title}
+      />
+    </section>
   );
 }
 
@@ -196,10 +236,12 @@ function TodoContentSection({ todo }: { todo: TodoDetailData }) {
 // 同じ位置・同じ表現でTodo一覧へ戻れるようにした。直前の画面へ戻る操作は、
 // これまでどおりブラウザ/PWAの履歴に任せる。
 export function TodoDetailContent({
+  actorName,
   currentUserId,
   members,
   todo,
 }: {
+  actorName: string;
   currentUserId: string;
   members: HouseholdMemberOption[];
   todo: TodoDetailData;
@@ -213,6 +255,12 @@ export function TodoDetailContent({
       </header>
 
       <div className="ledger-grid">
+        <TodoPendingActionsSection
+          actorName={actorName}
+          currentUserId={currentUserId}
+          members={members}
+          todo={todo}
+        />
         <TodoContentSection todo={todo} />
         {/* 関連はTaskRule単位で、DBもメンテナンスTodoだけを許す。期限のある
             Todoへ形だけの編集入口を出して失敗させない。 */}
@@ -280,10 +328,11 @@ export default async function TodoDetailPage({
   if (row === null) notFound();
 
   const isCompleted = row.status === "completed";
-  const [assigneeName, performerName, members, consumables] = await Promise.all([
-    row.assignee_user_id === null
-      ? Promise.resolve(null)
-      : loadActorName(db, session, row.assignee_user_id, FALLBACK_OTHER_MEMBER_NAME),
+  const [actorName, performerName, members, consumables] = await Promise.all([
+    // Issue #392: 完了ダイアログが「誰が実施したか」の既定として示す、
+    // 操作している本人の名前(他画面と同じ扱い)。担当予定者の名前は担当の
+    // selectがmembersから解決するため、ここでは引かない。
+    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     // performed_by_user_idはaction='completed'の行に必ず設定される(CHECK制約、
     // YDR-020)。型上のnull許容には、他画面と同じフォールバック名で備える。
     !isCompleted || row.performed_by_user_id === null
@@ -296,10 +345,11 @@ export default async function TodoDetailPage({
 
   return (
     <TodoDetailContent
+      actorName={actorName}
       currentUserId={user.id}
       members={members}
       todo={{
-        assigneeName,
+        assigneeUserId: row.assignee_user_id,
         completion: isCompleted && row.occurred_at !== null
           ? {
               occurredAt: row.occurred_at,
