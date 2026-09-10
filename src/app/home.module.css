@@ -74,6 +74,13 @@
   line-height: 1;
 }
 
+/* Issue #394: 対応が必要な件数ほど視線に入るよう、0件の数字は他の2つより
+   控えめにする。数字の大きさは変えず、色だけを弱める(桁で行の高さが
+   変わらないようにするため)。 */
+.summaryItem[data-empty="true"] strong {
+  color: rgb(255 255 255 / 55%);
+}
+
 .summary span {
   font-size: 0.75rem;
   font-weight: 600;
@@ -89,17 +96,15 @@
   gap: 18px;
 }
 
-/* 3列では「買っておきたいもの」の文言が収まらない幅から、3つ目を1行へ広げる
-   (Issue #360)。 */
-@media (max-width: 600px) {
-  .summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .summaryItem:nth-child(3) {
-    border-left: 0;
-    border-top: 1px solid rgb(255 255 255 / 14%);
-    grid-column: 1 / -1;
+/* Issue #360では3列に収まらない幅で3つ目を全幅の2行目へ回していたが、
+   サマリーだけで2行を使い、本文を押し下げていた(Issue #394)。短い表示ラベル
+   (「買うもの」)と、狭い幅での縦積み(下のmedia query)で3列のまま収める。
+   数字と語を横に並べたままでは3列が窮屈になる幅から、縦積みへ切り替える。 */
+@media (max-width: 620px) {
+  .summaryItem {
+    display: grid;
+    gap: 3px;
+    padding: 15px;
   }
 }
 
@@ -117,9 +122,8 @@
     display: none;
   }
 
+  /* Issue #394: 一番狭い幅では、3列を保つために左右の余白をさらに詰める。 */
   .summaryItem {
-    display: grid;
-    gap: 3px;
-    padding: 15px;
+    padding: 14px 10px;
   }
 }

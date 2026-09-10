@@ -12,6 +12,10 @@ import styles from "./home.module.css";
 // Issue #360: 件数が1件以上のときは、ブロック全体をホーム内セクションへの
 // タップ領域にする。0件のときは遷移先セクションがホームに出ないため、
 // リンクにせず通常表示のままにする。
+// Issue #394: 対応が必要な件数ほど視線に入るよう、0件は数字を控えめにする
+// (data-empty)。3項目が同じ高さの行を分け合うため、0件だけ枠を小さくは
+// できない。サマリー全体が1行に収まること自体で、0件の指標が場所を
+// 取りすぎないようにする。
 function HomeSummaryItem({
   anchorId,
   count,
@@ -30,7 +34,9 @@ function HomeSummaryItem({
     </>
   );
 
-  if (count === 0) return <div className={styles.summaryItem}>{content}</div>;
+  if (count === 0) {
+    return <div className={styles.summaryItem} data-empty="true">{content}</div>;
+  }
 
   return (
     <Link
@@ -85,7 +91,10 @@ export function HomeHero({
         <HomeSummaryItem
           anchorId={HOME_SHOPPING_CANDIDATES_ANCHOR_ID}
           count={shoppingCandidateCount}
-          label="件 買っておきたいもの"
+          // Issue #394: 3項目を1行に収めるため、サマリーでは短い表示ラベルを
+          // 使う。移動先のセクション見出しは「買っておきたいもの」のままで、
+          // 読み上げ名(linkLabel)にもそちらを使う。
+          label="件 買うもの"
           linkLabel={`買っておきたいもの${String(shoppingCandidateCount)}件へ移動`}
         />
       </div>

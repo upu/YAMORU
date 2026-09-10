@@ -9,8 +9,7 @@ import {
 } from "./task-schedule";
 import type { TodoCardItem } from "./todo-card";
 import {
-  describeMaintenanceWindowFromIso,
-  describeStrictScheduleFromIso,
+  formatTokyoMonthDay,
   getMaintenanceDisplayStateFromIso,
   getStrictDisplayStateFromIso,
   getTokyoDayDistance,
@@ -109,6 +108,14 @@ function buildUndatedEntry(
   };
 }
 
+// Issue #394: 推奨期間の開始日と上限日を、状態の言い回しを付けずに示す。
+// 現在どの状態かはバッジ(推奨期間/そろそろ/推奨期間超過)が伝える。
+function describeMaintenanceWindowDates(
+  window: { dueAt: string; scheduledFor: string },
+): string {
+  return `${formatTokyoMonthDay(window.scheduledFor)}〜${formatTokyoMonthDay(window.dueAt)}`;
+}
+
 function buildMaintenanceEntry(
   row: PendingOccurrenceRow,
   scheduledFor: string,
@@ -130,7 +137,10 @@ function buildMaintenanceEntry(
       // Issue #348: 現在状態はバッジとトーンが伝えるため、リストの日付は
       // 推奨期間の開始日と上限日を常に同じ形で示す。
       listSchedule: { fromIso: scheduledFor, kind: "range", untilIso: dueAt },
-      meta: describeMaintenanceWindowFromIso(state, window),
+      // Issue #394: カードでも同じ考え方にそろえる。「推奨期間です」「上限を
+      // 過ぎました」はバッジ(推奨期間/そろそろ/推奨期間超過)と同じ意味を
+      // 繰り返すため、日付だけを示す。
+      meta: describeMaintenanceWindowDates(window),
       tone: copy.tone,
     },
     sortKey: dueAt,
@@ -177,9 +187,10 @@ function buildStrictEntry(
       // Issue #243: 期日だけを短く示す。期限切れ・今日・予定の別はバッジが
       // 伝えるため、リスト表示では繰り返し方式(#227)を省略する。
       listSchedule: { iso: dueAt, kind: "due" },
-      meta: `${describeStrictScheduleFromIso(state, dueAt)} ・ ${
-        STRICT_RECURRENCE_LABELS[recurrenceBasis]
-      }`,
+      // Issue #394: カードでも、期日の状態はバッジ(期限切れ/今日/予定)に
+      // 任せ、本文では日付と繰り返し方だけを示す。「今日（9月10日）の予定です」
+      // のように、バッジと同じ語を本文で繰り返さない。
+      meta: `${formatTokyoMonthDay(dueAt)} ・ ${STRICT_RECURRENCE_LABELS[recurrenceBasis]}`,
       tone: STRICT_DISPLAY_COPY[state].tone,
     },
     sortKey: dueAt,

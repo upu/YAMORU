@@ -277,11 +277,14 @@ describe("ホーム上部の件数サマリー", () => {
     expect(overdueSection).toHaveAttribute("id", HOME_OVERDUE_ANCHOR_ID);
   });
 
+  // Issue #394: 3項目を1行に収めるため、サマリーの表示は短いラベルにする。
+  // 移動先のセクション見出しと読み上げ名は「買っておきたいもの」のまま。
   it("買っておきたいものの件数を上部サマリーへ表示し、該当セクションへ移動できる", () => {
     renderHome(emptySections(), HOUSEHOLD, [SHOPPING_CANDIDATE]);
 
     const summary = screen.getByLabelText("対応状況");
-    expect(summary).toHaveTextContent("1件 買っておきたいもの");
+    expect(summary).toHaveTextContent("1件 買うもの");
+    expect(summary).not.toHaveTextContent("買っておきたいもの");
     const link = within(summary).getByRole("link", {
       name: "買っておきたいもの1件へ移動",
     });
@@ -318,7 +321,13 @@ describe("ホーム上部の件数サマリー", () => {
     expect(within(summary).queryAllByRole("link")).toHaveLength(0);
     expect(summary).toHaveTextContent("0件の予定");
     expect(summary).toHaveTextContent("0件が期限切れ");
-    expect(summary).toHaveTextContent("0件 買っておきたいもの");
+    expect(summary).toHaveTextContent("0件 買うもの");
+    // Issue #394: 対応が必要な件数ほど視線に入るよう、0件の指標は控えめにする。
+    expect(within(summary).getAllByText("0")).toHaveLength(3);
+    for (const item of within(summary).getAllByText("0")) {
+      expect(item.closest(`.${homeStyles.summaryItem}`))
+        .toHaveAttribute("data-empty", "true");
+    }
   });
 });
 

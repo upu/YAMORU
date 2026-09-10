@@ -16,7 +16,7 @@
 
 | 変更したいこと | 最初に読む実装 | テスト | 詳細文書 |
 |---|---|---|---|
-| ホームに出す内容・並び・状態表示 | `src/app/page.tsx`、`src/app/pending-todo.ts`、`src/lib/d1/home.ts` | `tests/home.test.tsx`、`tests/home-sections.test.ts` | [ホーム](home.md) |
+| ホームに出す内容・並び・状態表示 | `src/app/page.tsx`、`src/app/home-hero.tsx`、`src/app/pending-todo.ts`、`src/lib/d1/home.ts` | `tests/home.test.tsx`、`tests/home-sections.test.ts`、`e2e/home-summary.spec.ts` | [ホーム](home.md) |
 | Todoの登録 | `src/app/todos/new/actions.ts` → `src/lib/d1/todos/creation.ts` | `tests/todo-registration-actions.test.ts`、`tests/todo-registration-calendar-actions.test.ts` | [Todo](todos.md) |
 | 繰り返し条件の入力解釈・制約値(登録・編集で共通) | `src/app/todos/calendar-schedule-input.ts`、`src/app/todos/todo-input-limits.ts` | `tests/todo-calendar-schedule-input.test.ts`、`tests/todo-recurrence-shared-input.test.ts` | [Todo](todos.md) |
 | Todoの編集(1回だけ / 現在回 / 次回以降) | `src/app/todos/[id]/actions.ts` → `src/lib/d1/todos/edit.ts`、`src/lib/d1/todos/recurring-edit.ts` | `tests/todo-edit-actions.test.ts`、`src/lib/d1/recurring-todo-edit.d1-test.ts` | [Todo](todos.md) |

@@ -53,7 +53,7 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
       assigneeUserId: null,
       badge: "推奨期間",
       managedItemId: "item-1",
-      meta: "8月31日までが推奨期間です",
+      meta: "8月28日〜8月31日",
       tone: "upcoming",
     });
   });
@@ -71,7 +71,7 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
       title: "フィルター交換",
       tone: "reminder",
     });
-    expect(items[0].meta).toBe("9月5日までが推奨期間です");
+    expect(items[0].meta).toBe("8月7日〜9月5日");
   });
 
   it("推奨期間の上限超過はcautionトーンで責めずに案内する", () => {
@@ -79,7 +79,7 @@ describe("推奨期間による分類(buildPendingSectionItems, YDR-017)", () =>
     expect(items).toHaveLength(1);
     expect(items[0].badge).toBe("推奨期間超過");
     expect(items[0].tone).toBe("caution");
-    expect(items[0].meta).toBe("9月5日に推奨期間の上限を過ぎました");
+    expect(items[0].meta).toBe("8月7日〜9月5日");
   });
 
   it("上限超過・80%以上・80%未満の順にし、同じ状態では上限日の昇順にする", () => {
@@ -155,7 +155,7 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
     expect(items.overdue.map((item) => item.id)).toEqual(["overdue"]);
     expect(items.today.map((item) => item.id)).toEqual(["today"]);
     expect(items.upcoming.map((item) => item.id)).toEqual(["upcoming"]);
-    expect(items.upcoming[0].meta).toBe("8月15日の予定です ・ 繰り返しなし");
+    expect(items.upcoming[0].meta).toBe("8月15日 ・ 繰り返しなし");
   });
 
   it("予定日未定Todoはホームのどの区分にも入れない(Issue #202、YDR-031)", () => {
@@ -207,7 +207,7 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
     const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.upcoming[0]).toMatchObject({
-      meta: "8月15日の予定です ・ 一定の間隔で繰り返す",
+      meta: "8月15日 ・ 一定の間隔で繰り返す",
       title: "水槽の水換え",
     });
   });
@@ -220,7 +220,7 @@ describe("一回限りTodoの分類(buildPendingSectionItems)", () => {
     const items = buildPendingSectionItems([row], "2026-08-12T00:00:00.000Z");
 
     expect(items.upcoming[0]).toMatchObject({
-      meta: "8月15日の予定です ・ 曜日・日付で繰り返す",
+      meta: "8月15日 ・ 曜日・日付で繰り返す",
       title: "毎週の家族会議",
     });
   });
