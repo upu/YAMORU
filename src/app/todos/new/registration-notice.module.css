@@ -6,8 +6,11 @@
    (refresh-coordinator.module.css)にそろえる。 */
 .notice {
   position: fixed;
-  z-index: 30;
-  top: 68px;
+  /* 更新結果の通知(refresh-coordinator)はヘッダーの重なり順(z-index: 20)の
+     中にある。この通知をそれより後ろに置き、位置の見積もりが外れて重なった
+     ときでも、更新の失敗と「再試行」が隠れないようにする。 */
+  z-index: 19;
+  top: var(--top-notice-top);
   left: 50%;
   display: grid;
   gap: 4px;
@@ -21,6 +24,13 @@
   background: var(--green-pale);
   box-shadow: 0 12px 32px rgb(24 34 29 / 16%);
   transform: translateX(-50%);
+}
+
+/* Issue #326: 更新結果の通知が出ている間は、その下へ積んで場所を分ける。
+   同じ位置に重ねると、自動では消えない登録の通知が、更新の失敗と「再試行」を
+   覆ってしまう。 */
+.belowRefreshNotice {
+  top: calc(var(--top-notice-top) + var(--top-notice-stack));
 }
 
 /* 通知の外はこれまでどおり操作できる。覆いも焦点の閉じ込めも置かない

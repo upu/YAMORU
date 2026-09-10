@@ -49,7 +49,9 @@
 .feedback {
   position: fixed;
   z-index: 30;
-  top: 68px;
+  /* Issue #326: 画面上部の通知の基準位置。ほかの通知はこの下へ積む
+     (globals.cssの:root)。 */
+  top: var(--top-notice-top);
   left: 50%;
   width: max-content;
   max-width: calc(100vw - 32px);

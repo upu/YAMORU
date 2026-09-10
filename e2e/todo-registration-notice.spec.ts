@@ -47,3 +47,33 @@ test("フォーム下部で登録しても、完了通知が画面の中に見�
   await page.getByRole("button", { name: "登録の通知を閉じる" }).click();
   await expect(notice).toHaveCount(0);
 });
+
+// 更新結果の通知も画面上部の同じ位置へ出る。登録の通知は自動では消えないため、
+// 重ねると更新の失敗と「再試行」を覆ってしまう。
+test("更新の失敗が出ている間は、登録の通知がその下へ積まれる", async ({ context, page }) => {
+  await login(page);
+  await page.goto("/todos/new");
+
+  await page.getByLabel("Todo名").fill("換気扇の掃除");
+  await page.getByRole("button", { name: "Todoを登録" }).click();
+  const notice = page.getByRole("status").filter({ hasText: "Todoを登録しました。" });
+  await expect(notice).toBeVisible();
+
+  // オフラインでは更新を渡す前に再試行案内へ切り替わる(#149)。
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "最新状態に更新" }).click();
+  const refreshError = page.getByRole("alert")
+    .filter({ hasText: "更新できませんでした。現在の表示はそのままです。" });
+  await expect(refreshError).toBeVisible();
+
+  const refreshBox = await refreshError.boundingBox();
+  const noticeBox = await notice.boundingBox();
+  if (refreshBox === null || noticeBox === null) {
+    throw new Error("通知の位置を取得できなかった");
+  }
+  // 更新の失敗と「再試行」が、登録の通知に覆われない。
+  expect(noticeBox.y).toBeGreaterThanOrEqual(refreshBox.y + refreshBox.height);
+  await expect(refreshError.getByRole("button", { name: "再試行" })).toBeVisible();
+
+  await context.setOffline(false);
+});

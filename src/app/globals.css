@@ -19,6 +19,16 @@
      marginで領域だけをこの値まで広げる(.stock-status-option-symbol、
      first-run-hint.module.cssの.dismiss)。 */
   --tap-target: 44px;
+
+  /* Issue #326: 画面上部へ固定する通知の位置。共通ヘッダーのすぐ下を基準に
+     し、複数の通知が同時に出るときは--top-notice-stackずつ下へ積む。
+     いまこの位置を使うのは更新結果の通知(refresh-coordinator.module.css)と
+     Todo登録の完了通知(todos/new/registration-notice.module.css)で、
+     二つの部品が同じ位置を共有するため:rootへ置く(--mobile-nav-heightと
+     同じ扱い)。積む間隔は、更新結果の通知でいちばん高い「更新できません
+     でした」+「再試行」(--tap-targetのボタンを含む)が収まる高さにする。 */
+  --top-notice-top: 68px;
+  --top-notice-stack: 76px;
 }
 
 * {

@@ -13,6 +13,7 @@ import {
   ManagedItemSearch,
   type TodoManagedItemOption,
 } from "../managed-item-search";
+import { useRefresh } from "../../refresh-coordinator";
 import { createTodo } from "./actions";
 import { CalendarFields } from "./calendar-fields";
 import {
@@ -107,8 +108,16 @@ function TodoRegistrationNotice({
   onDismiss: () => void;
   registered: RegisteredTodoSummary | undefined;
 }) {
+  // 更新結果の通知も同じ位置(画面上部)へ出る。自動では消えないこの通知が
+  // 「更新できませんでした」と「再試行」を覆わないよう、出ている間は下へ積む。
+  const { status: refreshStatus } = useRefresh();
+  const stacked = refreshStatus === "error" || refreshStatus === "success";
+  const className = stacked
+    ? `${styles.notice} ${styles.belowRefreshNotice}`
+    : styles.notice;
+
   return (
-    <div className={styles.notice} role="status">
+    <div className={className} role="status">
       <div className={styles.heading}>
         <p className={styles.message}>{message}</p>
         <button
