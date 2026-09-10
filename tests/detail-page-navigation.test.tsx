@@ -29,7 +29,7 @@ afterEach(cleanup);
 // 探し直さずに済むことを、3画面へ同じ検査を当てて確かめる。
 
 const TODO: TodoDetailData = {
-  assigneeName: null,
+  assigneeUserId: null,
   completion: null,
   consumables: [],
   dueAt: "2026-09-02",
@@ -92,7 +92,9 @@ const DETAIL_CASES: DetailCase[] = [
     editHref: "/todos/occurrence-1/edit",
     editLabel: "Todoを編集",
     render: () => {
-      render(<TodoDetailContent currentUserId="user-1" members={[]} todo={TODO} />);
+      render(
+        <TodoDetailContent actorName="自分" currentUserId="user-1" members={[]} todo={TODO} />,
+      );
     },
     title: "Todo詳細",
   },

@@ -31,6 +31,7 @@ vi.mock("../src/lib/d1/consumables", () => ({
 }));
 vi.mock("../src/lib/d1/profiles", () => ({
   FALLBACK_OTHER_MEMBER_NAME: "メンバー",
+  FALLBACK_SELF_ACTOR_NAME: "自分",
   loadActorName: loadActorNameMock,
   loadHouseholdMembers: loadHouseholdMembersMock,
 }));
@@ -55,7 +56,7 @@ const MEMBERS = [
 
 function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
   return {
-    assigneeName: null,
+    assigneeUserId: null,
     completion: null,
     consumables: [],
     dueAt: "2026-09-01T15:00:00.000Z",
@@ -87,7 +88,12 @@ function completedTodo(overrides: Partial<TodoDetailData> = {}): TodoDetailData 
 
 function renderDetail(data: TodoDetailData) {
   return render(
-    <TodoDetailContent currentUserId="user-1" members={MEMBERS} todo={data} />,
+    <TodoDetailContent
+      actorName="ぽっぷ"
+      currentUserId="user-1"
+      members={MEMBERS}
+      todo={data}
+    />,
   );
 }
 
@@ -157,8 +163,10 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
       .not.toBeInTheDocument();
   });
 
-  it("Todo名、状態、繰り返し、関連する管理対象、担当、予定日を表示する", () => {
-    renderDetail(todo({ assigneeName: "ぽっぷ" }));
+  // Issue #392: 担当は読み取り専用の一項目ではなく、その場で変更できる操作に
+  // なった(値はそちらのselectが示す)。ここでは内容側の項目だけを見る。
+  it("Todo名、状態、繰り返し、関連する管理対象、予定日を表示する", () => {
+    renderDetail(todo({ assigneeUserId: "user-1" }));
 
     expect(screen.getByRole("heading", { level: 1, name: "フィルターの申請" }))
       .toBeInTheDocument();
@@ -168,7 +176,6 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
       "/managed-items/item-1",
     );
     expect(screen.getByText("繰り返しなし")).toBeInTheDocument();
-    expect(screen.getByText("ぽっぷ")).toBeInTheDocument();
     expect(screen.getByText("2026年9月2日")).toBeInTheDocument();
   });
 
@@ -191,10 +198,9 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("担当が未設定なら誰でも可、管理対象がなければ関連なしと表示する", () => {
+  it("管理対象がなければ関連なしと表示する", () => {
     renderDetail(todo({ managedItemId: null, managedItemName: null }));
 
-    expect(screen.getByText("誰でも可")).toBeInTheDocument();
     expect(screen.getByText("関連する管理対象なし")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "猫の浄水器" })).not.toBeInTheDocument();
   });
@@ -316,9 +322,11 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
 });
 
 describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () => {
-  it("現在の家庭のTodoを読み出し、担当者名を解決する", async () => {
+  // Issue #392: 担当予定者の名前は担当のselectがメンバー一覧から解決するため、
+  // 取得経路では現在の担当のuser_idがそのまま渡ることを確かめる。
+  it("現在の家庭のTodoを読み出し、現在の担当を選択済みで表示する", async () => {
     loadTodoDetailMock.mockResolvedValue(pendingRow({ assignee_user_id: "user-2" }));
-    loadActorNameMock.mockResolvedValue("たろう");
+    loadActorNameMock.mockResolvedValue("ぽっぷ");
 
     render(await TodoDetailPage({ params: Promise.resolve({ id: "occurrence-1" }) }));
 
@@ -329,7 +337,7 @@ describe("Todo詳細(TodoDetailPage、サーバーコンポーネント)", () =>
     );
     expect(screen.getByRole("heading", { level: 1, name: "通知書が届いたら申請" }))
       .toBeInTheDocument();
-    expect(screen.getByText("たろう")).toBeInTheDocument();
+    expect(screen.getByLabelText("通知書が届いたら申請の担当")).toHaveValue("user-2");
   });
 
   it("完了済みTodoでは訂正後の実施日時と実施者名を表示する(YDR-026)", async () => {

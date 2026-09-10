@@ -1,4 +1,11 @@
-import { expect, login, seedManagedItem, seedOwnerHousehold, test } from "./support/fixtures";
+import {
+  E2E_OWNER_USER_ID,
+  expect,
+  login,
+  seedManagedItem,
+  seedOwnerHousehold,
+  test,
+} from "./support/fixtures";
 import { createOneTimeTask } from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
 
@@ -52,8 +59,10 @@ test("Todo一覧からTodo詳細を開き、名前・予定日・担当・管理
   await expect(page.getByRole("heading", { level: 1, name: ORIGINAL_TITLE })).toBeVisible();
   const summary = page.getByRole("region", { name: "Todoの内容" });
   await expect(summary.getByText("関連する管理対象なし")).toBeVisible();
-  await expect(summary.getByText("誰でも可")).toBeVisible();
   await expect(summary.getByText("未定", { exact: true })).toBeVisible();
+  // Issue #392: 担当は「Todoの内容」の読み取り専用の項目ではなく、その場で
+  // 変更できる操作として持つ。未設定は「誰でも可」を選んだ状態。
+  await expect(page.getByLabel(`${ORIGINAL_TITLE}の担当`)).toHaveValue("");
   const detailUrl = page.url();
 
   // キャンセルでは保存しない。
@@ -74,8 +83,8 @@ test("Todo一覧からTodo詳細を開き、名前・予定日・担当・管理
   await expect(page).toHaveURL(detailUrl);
   await expect(page.getByRole("heading", { level: 1, name: EDITED_TITLE })).toBeVisible();
   await expect(summary.getByRole("link", { name: MANAGED_ITEM_NAME })).toBeVisible();
-  await expect(summary.getByText("家族Aさん")).toBeVisible();
   await expect(summary.getByText("未定", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel(`${EDITED_TITLE}の担当`)).toHaveValue(E2E_OWNER_USER_ID);
 
   // ホーム(近日)と管理対象の詳細にも、変更後の内容が反映される。
   await page.goto("/");
