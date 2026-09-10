@@ -897,11 +897,39 @@ h1 {
 
 /* 名称と値の対を並べる一覧。管理対象の任意の記録(#42)とTodo詳細(#203)で
    同じ見た目にする。 */
+/* Issue #395: 短い属性(状態・予定日・購入時期など)は、名称と値を縦に積まず
+   1行へ並べる。名称の列は「いちばん長い名称の幅」に合わせて自動でそろえ、
+   幅が足りないときは縮められるようにして(minmax(0, max-content))、320px幅でも
+   横スクロールを作らない。列は一覧全体で一つにするため、名称と値の対を包む
+   divではなくこの一覧に置き、各行はsubgridで同じ列をそのまま使う。行ごとに
+   grid-template-columnsを書くと、max-contentがその行の名称だけから決まり、
+   値の始まる位置が行ごとにずれる。 */
 .managed-item-record-list,
 .todo-detail-list {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 10px 12px;
   margin: 18px 0 0;
+}
+
+.managed-item-record-list > div,
+.todo-detail-list > div {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+
+/* メモや外部リンクのように、行の残り幅では読みにくい長い値は縦積みのまま
+   全幅を使う。名称の列にも入らないため、この行の名称は列の幅を決めない。 */
+.managed-item-record-list > .detail-record-block,
+.todo-detail-list > .detail-record-block {
+  display: block;
+}
+
+.managed-item-record-list > .detail-record-block dd,
+.todo-detail-list > .detail-record-block dd {
+  margin-top: 2px;
 }
 
 .managed-item-record-list dt,
@@ -913,7 +941,7 @@ h1 {
 
 .managed-item-record-list dd,
 .todo-detail-list dd {
-  margin: 2px 0 0;
+  margin: 0;
   overflow-wrap: anywhere;
   /* メモの改行を入力どおり表示する。 */
   white-space: pre-wrap;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { type ReactNode, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { ConsumableStockStatus } from "../../lib/d1/consumables";
@@ -141,19 +141,23 @@ export function QuickStockStatusControl({
   );
 }
 
+// Issue #395: 在庫の状態・変更と、在庫を「ある」へ戻す補充を1枚のカードに
+// まとめる。消耗品詳細でいちばん重要な状態と操作が、最初のスマホ画面へ収まる。
 export function StockStatusControl({
+  children,
   consumableId,
   stockStatus,
 }: {
+  children?: ReactNode;
   consumableId: string;
   stockStatus: ConsumableStockStatus;
 }) {
   return (
     <section aria-labelledby="consumable-stock-title" className="detail-card">
-      <p className="detail-kicker">STOCK</p>
-      <h2 id="consumable-stock-title">在庫</h2>
+      <h2 id="consumable-stock-title">在庫と補充</h2>
       <p className="stock-status-current">現在: {stockStatusLabel(stockStatus)}</p>
       <StockStatusForm consumableId={consumableId} stockStatus={stockStatus} />
+      {children}
     </section>
   );
 }

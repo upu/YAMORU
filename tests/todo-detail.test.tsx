@@ -156,10 +156,27 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   });
 
   it("期限のあるTodoでは関連付け編集を表示しない", () => {
-    renderDetail(todo());
+    renderDetail(todo({
+      consumables: [{
+        id: "consumable-1",
+        name: "交換フィルター",
+        stockStatus: "available",
+      }],
+    }));
 
     const section = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(section).getByRole("link", { name: "交換フィルター" }))
+      .toBeInTheDocument();
     expect(within(section).queryByRole("button", { name: "消耗品を追加" }))
+      .not.toBeInTheDocument();
+  });
+
+  // Issue #395: 期限のあるTodoはDBが関連を持てないため、関連も追加導線もない。
+  // 見出しだけが残る空カードを置かない。
+  it("期限のあるTodoで関連する消耗品が0件なら、カードごと表示しない", () => {
+    renderDetail(todo());
+
+    expect(screen.queryByRole("region", { name: "関連する消耗品" }))
       .not.toBeInTheDocument();
   });
 
@@ -201,7 +218,9 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   it("管理対象がなければ関連なしと表示する", () => {
     renderDetail(todo({ managedItemId: null, managedItemName: null }));
 
-    expect(screen.getByText("関連する管理対象なし")).toBeInTheDocument();
+    // Issue #395: 関連付けがないTodoでは、その行自体を置かない。
+    expect(screen.queryByText("関連する管理対象なし")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連する管理対象")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "猫の浄水器" })).not.toBeInTheDocument();
   });
 
@@ -303,7 +322,9 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
   it("管理対象に紐づかない完了済みTodoも同じ画面で扱える", () => {
     renderDetail(completedTodo({ managedItemId: null, managedItemName: null }));
 
-    expect(screen.getByText("関連する管理対象なし")).toBeInTheDocument();
+    // Issue #395: 関連付けがないTodoでは、その行自体を置かない。
+    expect(screen.queryByText("関連する管理対象なし")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連する管理対象")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "フィルターの申請を修正" }),
     ).toBeInTheDocument();

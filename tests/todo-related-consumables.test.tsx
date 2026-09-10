@@ -36,6 +36,28 @@ function renderEditable(consumables = CONSUMABLES.slice(0, 1)) {
   );
 }
 
+// Issue #395: 期限のあるTodo(メンテナンス以外)は関連を持てないため、追加の
+// 導線も渡されない。関連も増やす導線もないカードは、見出しだけの空カードに
+// なるので出さない。
+describe("関連も導線もない場合の関連する消耗品 (Issue #395)", () => {
+  it("追加も解除もできず関連が0件なら、カードごと表示しない", () => {
+    render(<RelatedConsumablesSection consumables={[]} />);
+
+    expect(screen.queryByRole("region", { name: "関連する消耗品" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("追加できなくても関連があれば、確認と遷移のために表示する", () => {
+    render(<RelatedConsumablesSection consumables={CONSUMABLES.slice(0, 1)} />);
+
+    const readOnly = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(readOnly).getByRole("link", { name: "交換フィルター" }))
+      .toHaveAttribute("href", "/consumables/filter");
+    expect(within(readOnly).queryByRole("button", { name: "消耗品を追加" }))
+      .not.toBeInTheDocument();
+  });
+});
+
 describe("Todo詳細の関連する消耗品の編集 (Issue #328)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -93,8 +115,10 @@ describe("Todo詳細の関連する消耗品の編集 (Issue #328)", () => {
     await waitFor(() => {
       expect(setTaskRuleRelationMock).toHaveBeenCalledWith("filter", "rule-1", false);
     });
-    expect(await within(section()).findByText("関連する消耗品はありません。"))
+    // Issue #395: 空になったら行を置かず、件数だけを読み上げへ残す。
+    expect(await within(section()).findByText("関連する消耗品は0件です。"))
       .toBeInTheDocument();
+    expect(within(section()).queryByRole("listitem")).not.toBeInTheDocument();
   });
 
   it("保存に失敗したら既存表示を変えず、同じカードで理由を伝える", async () => {

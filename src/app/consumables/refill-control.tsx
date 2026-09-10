@@ -35,9 +35,10 @@ export function ConsumableRefillControl({
 }) {
   const [state, formAction] = useActionState(recordConsumableRefill, INITIAL_STATE);
   return (
-    <section aria-labelledby="consumable-refill-title" className="detail-card">
-      <p className="detail-kicker">REFILL</p>
-      <h2 id="consumable-refill-title">補充</h2>
+    // Issue #395: 補充は在庫を「ある」へ戻す操作なので、独立したカードを持たず
+    // 在庫カードの中に置く。カード1枚分の枠と見出しが減り、在庫の状態・変更・
+    // 補充・履歴を最初の画面で見渡せるようになる。
+    <div>
       <p className="input-help">今日補充したことを記録し、在庫を「ある」に戻します。</p>
       <form action={formAction} className={styles.actionForm}>
         <input name="id" type="hidden" value={consumableId} />
@@ -49,16 +50,18 @@ export function ConsumableRefillControl({
         </p>
       )}
 
-      <h3 className={styles.historyTitle}>補充履歴</h3>
-      {refills.length === 0 ? (
-        <p className="ledger-empty">補充履歴はありません。</p>
-      ) : (
-        <ul className={styles.historyList}>
-          {refills.map((refill) => (
-            <li key={refill.id}>{refillDateLabel(refill.refilledOn)}</li>
-          ))}
-        </ul>
+      {/* 補充した記録がないうちは、見出しと「ありません」だけの空欄を置かない
+      (記録は上の「補充した」から増える)。 */}
+      {refills.length === 0 ? null : (
+        <>
+          <h3 className={styles.historyTitle}>補充履歴</h3>
+          <ul className={styles.historyList}>
+            {refills.map((refill) => (
+              <li key={refill.id}>{refillDateLabel(refill.refilledOn)}</li>
+            ))}
+          </ul>
+        </>
       )}
-    </section>
+    </div>
   );
 }

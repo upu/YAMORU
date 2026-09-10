@@ -29,10 +29,7 @@ function ConsumableRecord({
   return (
     <section aria-labelledby="consumable-record-title" className="detail-card">
           <div className="detail-section-heading">
-            <div>
-              <p className="detail-kicker">RECORD</p>
-              <h2 id="consumable-record-title">消耗品の記録</h2>
-            </div>
+            <h2 id="consumable-record-title">消耗品の記録</h2>
             <Link
               aria-label="消耗品を編集"
               className="icon-link"
@@ -56,7 +53,7 @@ function ConsumableRecord({
               </div>
             )}
             {consumable.note === null ? null : (
-              <div><dt>メモ</dt><dd>{consumable.note}</dd></div>
+              <div className="detail-record-block"><dt>メモ</dt><dd>{consumable.note}</dd></div>
             )}
           </dl>
     </section>
@@ -83,8 +80,15 @@ export function ConsumableDetailContent({
       </header>
 
       <div className="ledger-grid">
-        <StockStatusControl consumableId={consumable.id} stockStatus={consumable.stockStatus} />
-        <ConsumableRefillControl consumableId={consumable.id} refills={consumable.refills} />
+        <StockStatusControl
+          consumableId={consumable.id}
+          stockStatus={consumable.stockStatus}
+        >
+          <ConsumableRefillControl
+            consumableId={consumable.id}
+            refills={consumable.refills}
+          />
+        </StockStatusControl>
         <ConsumableRecord consumable={consumable} />
         {/* Issue #311: 関連の追加・解除は、関連を確認している場所で行う。 */}
         <ConsumableRelations

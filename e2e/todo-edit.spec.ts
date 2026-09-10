@@ -58,7 +58,8 @@ test("Todo一覧からTodo詳細を開き、名前・予定日・担当・管理
   await expect(page).toHaveURL(/\/todos\/[^/]+$/u);
   await expect(page.getByRole("heading", { level: 1, name: ORIGINAL_TITLE })).toBeVisible();
   const summary = page.getByRole("region", { name: "Todoの内容" });
-  await expect(summary.getByText("関連する管理対象なし")).toBeVisible();
+  // Issue #395: 関連付けがないTodoでは、その行自体を置かない。
+  await expect(summary.getByText("関連する管理対象")).toHaveCount(0);
   await expect(summary.getByText("未定", { exact: true })).toBeVisible();
   // Issue #392: 担当は「Todoの内容」の読み取り専用の項目ではなく、その場で
   // 変更できる操作として持つ。未設定は「誰でも可」を選んだ状態。

@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/app/consumables/refill-actions", () => ({
@@ -23,19 +23,23 @@ describe("消耗品の補充記録", () => {
       />,
     );
 
-    const region = screen.getByRole("region", { name: "補充" });
-    expect(within(region).getByRole("button", { name: "補充した" })).toBeInTheDocument();
-    expect(within(region).queryByLabelText("補充日")).not.toBeInTheDocument();
-    expect(within(region).getByRole("heading", { level: 3, name: "補充履歴" }))
+    // Issue #395: 補充は在庫カードの中の一区画になり、専用のカードは持たない。
+    expect(screen.getByRole("button", { name: "補充した" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("補充日")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "補充履歴" }))
       .toBeInTheDocument();
-    expect(within(region).getAllByRole("listitem").map((item) => item.textContent))
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent))
       .toEqual(["2026年9月2日", "2026年8月20日"]);
   });
 
-  it("履歴がない場合も補充操作へ到達できる", () => {
+  // Issue #395: 記録は「補充した」から増えるため、履歴がないうちは見出しごと
+  // 出さない。
+  it("履歴がない場合は履歴の見出しを出さず、補充操作だけを残す", () => {
     render(<ConsumableRefillControl consumableId="consumable-1" refills={[]} />);
 
     expect(screen.getByRole("button", { name: "補充した" })).toBeInTheDocument();
-    expect(screen.getByText("補充履歴はありません。")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "補充履歴" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByText("補充履歴はありません。")).not.toBeInTheDocument();
   });
 });

@@ -90,10 +90,7 @@ export function RelatedTodoSection({
   return (
     <section aria-labelledby="related-todos-title" className="detail-card">
       <div className="detail-section-heading">
-        <div>
-          <p className="detail-kicker">TODO</p>
-          <h2 id="related-todos-title">関連するTodo</h2>
-        </div>
+        <h2 id="related-todos-title">関連するTodo</h2>
         <Link
           className="ledger-primary-link"
           href={`/todos/new?managedItemId=${encodeURIComponent(managedItemId)}`}
@@ -101,9 +98,12 @@ export function RelatedTodoSection({
           Todoを追加
         </Link>
       </div>
-      {todos.length === 0 ? (
-        <p className="ledger-empty">現在の未完了Todoはありません。</p>
-      ) : (
+      {/* Issue #395: 未完了Todoがないことは、見出しと「Todoを追加」だけで分かる。
+      同じ意味の空状態の行を重ねて置かない(件数はsr-onlyで補う)。 */}
+      <p aria-live="polite" className="sr-only">
+        現在の未完了Todoは{todos.length}件です。
+      </p>
+      {todos.length === 0 ? null : (
         <ul className="maintenance-todo-list">
           {todos.map((todo) => (
             <li key={todo.id}>
@@ -136,32 +136,32 @@ export function RelatedTodoSection({
 // 「いつ・誰が」を確認できるようにする。訂正済みの実施日時・実施者
 // (YDR-026)、完了取消済みを除く現在有効な完了(selectActiveCompletionLogs)
 // は、既にbuildRecentCompletionsが解決済みの値を使う。
+// Issue #395: この一覧は確認専用で、ここから記録を足す導線がない。記録が
+// 一つもない管理対象では、見出しと「ありません」だけのカードを置いても
+// できることが増えないため、セクションごと出さない(記録・関連のように
+// 追加導線を持つカードは、見出しと導線だけを残す)。
 export function RecentCompletionSection({
   completions,
 }: {
   completions: RecentCompletionData[];
 }) {
+  if (completions.length === 0) return null;
   return (
     <section aria-labelledby="recent-completions-title" className="detail-card">
-      <p className="detail-kicker">RECENT ACTIVITY</p>
       <h2 id="recent-completions-title">直近の完了</h2>
-      {completions.length === 0 ? (
-        <p className="ledger-empty">まだ完了の記録はありません。</p>
-      ) : (
-        <ul className="maintenance-todo-list">
-          {completions.map((completion) => (
-            <li key={completion.id}>
-              {/* Issue #206: 一覧は確認専用とし、Todo名から完了済み詳細へ移動する。 */}
-              <strong>
-                <Link href={`/todos/${completion.id}`}>{completion.title}</Link>
-              </strong>
-              <span>
-                {formatTokyoDate(completion.occurredAt)}に完了・{completion.performerName}が実施
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="maintenance-todo-list">
+        {completions.map((completion) => (
+          <li key={completion.id}>
+            {/* Issue #206: 一覧は確認専用とし、Todo名から完了済み詳細へ移動する。 */}
+            <strong>
+              <Link href={`/todos/${completion.id}`}>{completion.title}</Link>
+            </strong>
+            <span>
+              {formatTokyoDate(completion.occurredAt)}に完了・{completion.performerName}が実施
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -201,7 +201,9 @@ export function ManagedItemRecordSection({
   safeLinks: ExternalLinkData[];
   startedOn: string | null;
 }) {
-  const records: { label: string; value: ReactNode }[] = [];
+  // Issue #395: blockは「行の残り幅では読みにくい長い値」の印。外部リンクの
+  // 一覧とメモだけが全幅を使い、ほかは名称と値を1行へ並べる。
+  const records: { block?: true; label: string; value: ReactNode }[] = [];
   if (productInfo !== null) {
     records.push({ label: "メーカー・商品名など", value: productInfo });
   }
@@ -209,17 +211,18 @@ export function ManagedItemRecordSection({
     records.push({ label: startedOnLabel(kindCode), value: formatStartedOn(startedOn) });
   }
   if (safeLinks.length > 0) {
-    records.push({ label: "外部リンク", value: <ExternalLinksValue links={safeLinks} /> });
+    records.push({
+      block: true,
+      label: "外部リンク",
+      value: <ExternalLinksValue links={safeLinks} />,
+    });
   }
-  if (note !== null) records.push({ label: "メモ", value: note });
+  if (note !== null) records.push({ block: true, label: "メモ", value: note });
 
   return (
     <section aria-labelledby="managed-item-record-title" className="detail-card">
       <div className="detail-section-heading">
-        <div>
-          <p className="detail-kicker">RECORD</p>
-          <h2 id="managed-item-record-title">この管理対象の記録</h2>
-        </div>
+        <h2 id="managed-item-record-title">この管理対象の記録</h2>
         <Link
           aria-label="管理対象を編集"
           className="icon-link"
@@ -231,7 +234,10 @@ export function ManagedItemRecordSection({
       {records.length === 0 ? null : (
         <dl className="managed-item-record-list">
           {records.map((record) => (
-            <div key={record.label}>
+            <div
+              className={record.block === true ? "detail-record-block" : undefined}
+              key={record.label}
+            >
               <dt>{record.label}</dt>
               <dd>{record.value}</dd>
             </div>

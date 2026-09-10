@@ -47,9 +47,9 @@ function ConsumableList({
   isSaving: boolean;
   onRemove?: (consumable: ConsumableSummary) => void;
 }) {
-  if (consumables.length === 0) {
-    return <p className="ledger-empty">関連する消耗品はありません。</p>;
-  }
+  // Issue #395: 未選択であることは見出しと追加導線だけで分かる。同じ意味の
+  // 空状態の行を重ねない(件数はsr-onlyのライブリージョンが伝える)。
+  if (consumables.length === 0) return null;
   return (
     <ul className="ledger-list">
       {consumables.map((consumable) => (
@@ -137,10 +137,7 @@ function RelationHeading({
 }) {
   return (
     <div className="detail-section-heading">
-      <div>
-        <p className="detail-kicker">CONSUMABLES</p>
-        <h2 id="related-consumables-title">関連する消耗品</h2>
-      </div>
+      <h2 id="related-consumables-title">関連する消耗品</h2>
       {taskRuleId === undefined ? null : (
         <AddConsumableButton onClick={onAdd} triggerRef={triggerRef} />
       )}
@@ -148,6 +145,14 @@ function RelationHeading({
         <Link className="ledger-primary-link" href={addHref}>消耗品を追加</Link>
       )}
     </div>
+  );
+}
+
+function RelationCount({ count }: { count: number }) {
+  return (
+    <p aria-live="polite" className="sr-only">
+      関連する消耗品は{count}件です。
+    </p>
   );
 }
 
@@ -167,9 +172,7 @@ function EditorStatus({
   const selectedIds = new Set(consumables.map((consumable) => consumable.id));
   return (
     <>
-      <p aria-live="polite" className="sr-only">
-        関連する消耗品は{consumables.length}件です。
-      </p>
+      <RelationCount count={consumables.length} />
       {message === "" ? null : (
         <p className="auth-feedback" role="alert">{message}</p>
       )}
@@ -196,6 +199,10 @@ export function RelatedConsumablesSection({
   consumables: ConsumableSummary[];
   taskRuleId?: string;
 }) {
+  // Issue #395: 期限のあるTodo(メンテナンス以外)はDBが関連を持てないため、
+  // taskRuleIdもaddHrefも渡されない。関連もそこから増やす導線もないカードは、
+  // 見出しだけが残る空カードになるので出さない(直近の完了と同じ扱い)。
+  const isReadOnly = taskRuleId === undefined && addHref === undefined;
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { consumables, isSaving, message, save } = useRelatedConsumables(
@@ -206,6 +213,7 @@ export function RelatedConsumablesSection({
     setIsOpen(false);
     triggerRef.current?.focus();
   }
+  if (isReadOnly && consumables.length === 0) return null;
   return (
     <section aria-labelledby="related-consumables-title" className="detail-card">
       <RelationHeading
@@ -221,7 +229,10 @@ export function RelatedConsumablesSection({
           save(consumable, false);
         }}
       />
-      {taskRuleId === undefined ? null : (
+      {taskRuleId === undefined ? (
+        // 備品詳細では解除・追加をこの場で行わないため、件数だけを伝える。
+        <RelationCount count={consumables.length} />
+      ) : (
         <EditorStatus
           closePicker={closePicker}
           consumables={consumables}
