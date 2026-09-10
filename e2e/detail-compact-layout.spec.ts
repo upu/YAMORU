@@ -29,8 +29,15 @@ const ids = {
   todo: "",
 };
 
+// 詳細のカードはどれも見出しで名前を持つsection(role=region)なので、見た目の
+// クラス名ではなくその役割で取る(styles.mdの「テストから見た目のクラス名を
+// 選択子に使わない」)。
+function detailCards(page: Page) {
+  return page.getByRole("main").getByRole("region");
+}
+
 async function contentBottom(page: Page): Promise<number> {
-  const cards = page.locator(".detail-card");
+  const cards = detailCards(page);
   const last = await cards.nth((await cards.count()) - 1).boundingBox();
   if (last === null) throw new Error("詳細カードの位置を取得できなかった");
   return last.y + last.height;

@@ -199,6 +199,10 @@ export function RelatedConsumablesSection({
   consumables: ConsumableSummary[];
   taskRuleId?: string;
 }) {
+  // Issue #395: 期限のあるTodo(メンテナンス以外)はDBが関連を持てないため、
+  // taskRuleIdもaddHrefも渡されない。関連もそこから増やす導線もないカードは、
+  // 見出しだけが残る空カードになるので出さない(直近の完了と同じ扱い)。
+  const isReadOnly = taskRuleId === undefined && addHref === undefined;
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { consumables, isSaving, message, save } = useRelatedConsumables(
@@ -209,6 +213,7 @@ export function RelatedConsumablesSection({
     setIsOpen(false);
     triggerRef.current?.focus();
   }
+  if (isReadOnly && consumables.length === 0) return null;
   return (
     <section aria-labelledby="related-consumables-title" className="detail-card">
       <RelationHeading

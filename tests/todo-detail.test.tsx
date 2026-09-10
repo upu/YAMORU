@@ -156,10 +156,27 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   });
 
   it("期限のあるTodoでは関連付け編集を表示しない", () => {
-    renderDetail(todo());
+    renderDetail(todo({
+      consumables: [{
+        id: "consumable-1",
+        name: "交換フィルター",
+        stockStatus: "available",
+      }],
+    }));
 
     const section = screen.getByRole("region", { name: "関連する消耗品" });
+    expect(within(section).getByRole("link", { name: "交換フィルター" }))
+      .toBeInTheDocument();
     expect(within(section).queryByRole("button", { name: "消耗品を追加" }))
+      .not.toBeInTheDocument();
+  });
+
+  // Issue #395: 期限のあるTodoはDBが関連を持てないため、関連も追加導線もない。
+  // 見出しだけが残る空カードを置かない。
+  it("期限のあるTodoで関連する消耗品が0件なら、カードごと表示しない", () => {
+    renderDetail(todo());
+
+    expect(screen.queryByRole("region", { name: "関連する消耗品" }))
       .not.toBeInTheDocument();
   });
 
