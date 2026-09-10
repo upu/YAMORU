@@ -13,6 +13,12 @@
   --amber: #8a6817;
   --amber-pale: #f7efd9;
   --shadow: 0 10px 35px rgb(37 54 45 / 8%);
+
+  /* Issue #389 / YDR-045: 主要な操作が持つタップ領域の下限。見た目の大きさと
+     押せる領域は分けて扱い、見た目を小さく保ちたい操作は疑似要素や負の
+     marginで領域だけをこの値まで広げる(.stock-status-option-symbol、
+     first-run-hint.module.cssの.dismiss)。 */
+  --tap-target: 44px;
 }
 
 * {
@@ -249,7 +255,7 @@ h1 {
 
 .completion-trigger {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--tap-target);
   margin-top: 13px;
   padding: 10px 16px;
   border: 1px solid var(--green);
@@ -401,20 +407,21 @@ h1 {
 
 .detail-section-heading .ledger-primary-link {
   flex: none;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 /* Issue #240: RECORD見出し横の鉛筆アイコンなど、丸いアイコンだけのリンク。
    refresh-button/account-menu-triggerと同じ大きさ・フォーカス表示にそろえる。
    Issue #311: 関連する管理対象・Todoの見出し横に置く「＋」も、同じ丸い
-   ボタンとして扱う。 */
+   ボタンとして扱う。Issue #389: アイコンだけの操作の下限(--tap-target)へ
+   そろえ、内側の余白で記号の見た目は変えない。 */
 .icon-link,
 .icon-button {
   display: grid;
   flex: none;
-  width: 42px;
-  height: 42px;
-  padding: 10px;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 11px;
   place-items: center;
   border: 1px solid rgb(49 92 73 / 24%);
   border-radius: 50%;
@@ -612,6 +619,9 @@ h1 {
 }
 
 .nickname-toggle-button {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
   padding: 0;
   border: 0;
   background: none;
@@ -736,7 +746,9 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 9px;
-  padding: 10px 8px 10px 12px;
+  /* Issue #389: 解除ボタンが--tap-targetになった分、チップ側の上下余白を
+     詰めて1件あたりの高さを保つ。 */
+  padding: 5px 6px 5px 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
   background: var(--paper);
@@ -745,8 +757,8 @@ h1 {
 
 .relation-chip-remove {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: var(--tap-target);
+  height: var(--tap-target);
   border: 1px solid var(--line);
   border-radius: 50%;
   color: var(--muted);
@@ -764,8 +776,12 @@ h1 {
 }
 
 .relation-add-trigger {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  justify-content: center;
   justify-self: start;
-  padding: 10px 16px;
+  padding: 0 16px;
   border: 1px dashed var(--line);
   border-radius: 999px;
   color: var(--green);
@@ -884,9 +900,13 @@ h1 {
   white-space: pre-wrap;
 }
 
+/* Issue #389: 「Todoを追加」「家庭を作成する」など、本文から次の操作へ進む
+   文字リンク。文字を大きくせず、--tap-targetの高さを押せるようにする。 */
 .ledger-primary-link {
-  display: inline-block;
-  margin-top: 8px;
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  margin-top: 4px;
   color: var(--green);
   font-weight: 800;
   text-underline-offset: 4px;
@@ -908,15 +928,23 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px;
+  /* Issue #389: 行の名前リンクが--tap-targetの高さを持つため、上下の余白は
+     その分詰めて1件あたりの高さを変えない。 */
+  padding: 5px 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--paper);
 }
 
+/* Issue #389: 一覧から対象へ移動する主要なリンク。文字の行だけでなく、
+   --tap-targetの高さを押せるようにする。 */
 .ledger-list a,
 .external-link-list a {
+  display: inline-flex;
+  flex-wrap: wrap;
   min-width: 0;
+  min-height: var(--tap-target);
+  align-items: center;
   overflow-wrap: anywhere;
   color: var(--green);
   font-weight: 800;
@@ -953,7 +981,7 @@ h1 {
 }
 
 .stock-status-option {
-  min-height: 44px;
+  min-height: var(--tap-target);
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
@@ -974,14 +1002,31 @@ h1 {
   opacity: 0.72;
 }
 
-/* Issue #359: 記号表示は語より幅を取らない。ホームのお気に入りをさらに
-   コンパクトに見せつつ、正方形の36pxタップ領域を確保する。 */
+/* Issue #359: 記号表示は語より幅を取らない。ホームのピン留めをさらに
+   コンパクトに見せる。
+   Issue #389: 記号の見た目は36pxのまま、押せる領域だけを--tap-targetへ
+   広げる。疑似要素はボタン自身の一部なので、はみ出した部分を押しても同じ
+   在庫状態になる。上下左右へ4pxずつはみ出すため、隣の操作と重ならない
+   間隔は呼び出し側(pinned-consumables.module.css)で確保する。 */
 .stock-status-option-symbol {
+  position: relative;
   display: grid;
   min-width: 36px;
   min-height: 36px;
   padding: 0 6px;
   place-items: center;
+}
+
+.stock-status-option-symbol::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  content: "";
+  transform: translate(-50%, -50%);
 }
 
 .stock-status-option-symbol svg {
@@ -1053,9 +1098,11 @@ h1 {
 .ledger-add-link {
   display: inline-flex;
   flex: none;
+  min-height: var(--tap-target);
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 8px 14px;
+  padding: 0 14px;
   border-radius: 999px;
   color: var(--paper);
   background: var(--green);
@@ -1096,6 +1143,7 @@ h1 {
 
 .ledger-search-form button {
   flex: none;
+  min-height: var(--tap-target);
   padding: 0 16px;
   border: 0;
   border-radius: 10px;
@@ -1139,7 +1187,7 @@ h1 {
 .ledger-filter-summary {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   margin: 10px 0 0;
   color: var(--muted);
@@ -1147,6 +1195,9 @@ h1 {
 }
 
 .ledger-filter-clear {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
   color: var(--green);
   font-weight: 800;
   text-underline-offset: 3px;
@@ -1200,7 +1251,7 @@ h1 {
 }
 
 .custom-item-type-suggestion {
-  min-height: 44px;
+  min-height: var(--tap-target);
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1236,7 +1287,7 @@ h1 {
   gap: 6px;
   align-items: center;
   justify-self: start;
-  min-height: 44px;
+  min-height: var(--tap-target);
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1413,9 +1464,11 @@ h1 {
 
 .assignee-panel {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  /* Issue #389: 担当のselectが--tap-targetの高さを持つため、上の余白は詰める。 */
+  margin-top: 2px;
 }
 
 .assignee-panel label {
@@ -1425,8 +1478,8 @@ h1 {
 }
 
 .assignee-panel select {
-  min-height: 34px;
-  padding: 4px 8px;
+  min-height: var(--tap-target);
+  padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -1436,15 +1489,21 @@ h1 {
 }
 
 .correction-panel {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 /* correction-trigger(修正、Issue #148)・postpone-trigger(延期)・
    claim-assignee-trigger(やるよ、Issue #77)は、Todo詳細操作の補助的な
    テキストボタンとして見た目を共有し、色だけで意味を区別する。 */
+/* Issue #389: 文字は小さいままで、押せる領域だけを--tap-targetへそろえる。
+   左端はpaddingを持たないので、隣の本文と文字の始まりはずれない。 */
 .correction-trigger,
 .postpone-trigger,
 .claim-assignee-trigger {
+  display: inline-flex;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  align-items: center;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1485,7 +1544,7 @@ h1 {
 }
 
 .postpone-panel {
-  margin-top: 6px;
+  margin-top: 0;
 }
 
 @media (max-width: 480px) {

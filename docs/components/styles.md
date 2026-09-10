@@ -37,7 +37,10 @@ status: stable
 
 ## 重要な不変条件
 
-- アイコンだけの操作ボタンは、見た目を小さくしてもタップ領域を44px以上に保ち、アクセシブルネームを`.sr-only`か`aria-label`で残す([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md))。
+- 主要な操作(ボタン、タブ、切り替え、リンク、担当のselect)は、押せる領域を`--tap-target`(`globals.css`の`:root`、44px)以上に保つ([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md)、[Issue #389](https://github.com/upu/YAMORU/issues/389))。大きさを直接書かず、この変数を参照する。
+- 見た目の大きさと押せる領域は分けてよい。見た目を小さいまま保ちたい操作は、疑似要素(`globals.css`の`.stock-status-option-symbol`)か負のmargin(`first-run-hint.module.css`の`.dismiss`)で領域だけを広げる。はみ出した分だけ隣の操作との間隔を空け、誤タップを作らない。隣り合う選択肢(表示形式の2択など)は領域が重なるため、この方法を使わず押せる面そのものを広げる。
+- 領域を広げた分は、外側の余白(リスト項目のpadding、パネルのmargin)を詰めて、1件あたりの高さを増やさない。
+- アイコンだけの操作ボタンは、見た目を小さくしてもアクセシブルネームを`.sr-only`か`aria-label`で残す([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md))。
 - 部品専用のルールはCSS Moduleへ置き、`globals.css`には全体基盤と、複数の部品から使う・複数の部品が配置を調整するルールだけを残す。
 - 部品のmedia query、hover、focus-visible、状態属性の指定は、その部品のCSS Moduleへまとめる。`--mobile-nav-height`のように下部ナビゲーションとダイアログが共有する変数は`globals.css`の`:root`に置く。
 - CSS Moduleから共有クラスの配置だけを調整するときは`:global(.クラス名)`で明示する(例: ピン留め一覧の中の在庫変更ボタン、検索結果の中の操作列)。
@@ -54,3 +57,5 @@ npm run build
 ```
 
 見た目を変えない整理をしたときは、モバイル相当(390px)とPC相当(1280px)で、ホーム・Todo一覧・台帳・消耗品詳細・検索・ダイアログを変更前後で見比べる。
+
+押せる領域は`e2e/tap-target-size.spec.ts`が390pxと320pxで確認する。要素の大きさだけでなく、中心から21px離れた点を押したときにその操作へ当たるかどうかで見るため、疑似要素で広げた領域も対象になる。

@@ -25,8 +25,8 @@
    ヒントの枠が押しやすさのために大きくならないようにする。 */
 .dismiss {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: var(--tap-target);
+  height: var(--tap-target);
   flex: none;
   margin: -8px -8px -8px 0;
   place-items: center;

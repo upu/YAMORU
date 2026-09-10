@@ -6,9 +6,9 @@
 
 .button {
   display: grid;
-  width: 42px;
-  height: 42px;
-  padding: 9px;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 10px;
   place-items: center;
   border: 1px solid rgb(49 92 73 / 24%);
   border-radius: 50%;
@@ -76,7 +76,8 @@
 
 .feedbackError button {
   flex: none;
-  padding: 4px 8px;
+  min-height: var(--tap-target);
+  padding: 0 12px;
   border: 1px solid currentcolor;
   border-radius: 8px;
   color: inherit;
