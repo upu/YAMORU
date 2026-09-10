@@ -18,6 +18,10 @@ import styles from "./search-results.module.css";
 // 「備品」「サービス・契約」「消耗品」とする(台帳の入口の並び #291 と揃える)。
 // 一致が0件の種類はセクションごと出さない。
 
+// Issue #396: 分類ごとに外側のカード(detail-card)を作ると、結果行が持つ枠と
+// 二重の囲いになり、1件しかない分類でも余白と大きな見出しが縦幅を使っていた。
+// 分類は「小さな見出し + 件数」だけで示し、囲いは結果行の側だけに残す。
+// これで分類の区切りと、押せる対象である結果行とを見分けやすくもなる。
 function SearchResultSection({
   children,
   count,
@@ -30,12 +34,12 @@ function SearchResultSection({
   title: string;
 }) {
   return (
-    <section aria-labelledby={id} className="detail-card">
-      <div className={styles.sectionHeading}>
+    <section aria-labelledby={id} className={styles.group}>
+      <div className={styles.groupHeading}>
         <h2 id={id}>{title}</h2>
-        <span aria-label={`${String(count)}件`} className="count">{count}</span>
+        <span aria-label={`${String(count)}件`} className={styles.groupCount}>{count}</span>
       </div>
-      <ul className="ledger-list">{children}</ul>
+      <ul className={`ledger-list ${styles.rows}`}>{children}</ul>
     </section>
   );
 }
@@ -77,7 +81,7 @@ function TodoResults({
     <>
       <SearchResultSection count={todos.items.length} id="search-todos-title" title="Todo">
         {todos.items.map((todo) => (
-          <li className="search-result-row" key={todo.id}>
+          <li key={todo.id}>
             <div className={styles.resultMain}>
               <Link href={`/todos/${encodeURIComponent(todo.id)}`}>{todo.title}</Link>
               <span className={styles.resultMeta}>
@@ -164,6 +168,9 @@ function ManagedItemResults({
 
 // Issue #362 / #375 / YDR-043: 在庫状態は検索条件にせず、ホームのピン留めと同じ
 // 3状態のクイック操作を出す。選択状態が現在の在庫も兼ねるためバッジは重ねない。
+// Issue #396: 語(ある/少ない/ない)のままでは390px幅で操作が次の行へ落ち、
+// 消耗品の行だけが2行分の高さになっていた。ホームのピン留めと同じ記号表示
+// (#359)にして1行へ収める。読み上げ名は語のまま(sr-only)で変わらない。
 function ConsumableResults({
   consumables,
 }: {
@@ -178,7 +185,7 @@ function ConsumableResults({
         title="消耗品"
       >
         {consumables.items.map((consumable: CrossSearchConsumable) => (
-          <li className="search-result-row" key={consumable.id}>
+          <li key={consumable.id}>
             <div className={styles.resultMain}>
               <Link href={`/consumables/${encodeURIComponent(consumable.id)}`}>
                 {consumable.name}
@@ -186,6 +193,7 @@ function ConsumableResults({
             </div>
             <div className={styles.resultActions}>
               <QuickStockStatusControl
+                appearance="symbol"
                 consumableId={consumable.id}
                 label={`${consumable.name}の在庫状態を変更`}
                 stockStatus={consumable.stockStatus}

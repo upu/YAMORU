@@ -54,15 +54,18 @@ export function SearchContent({
 }) {
   return (
     <main className={`detail-page ${styles.page}`}>
+      {/* Issue #396: 何を探せるかは、検索語がないときの案内(SearchGuide)が
+      同じことを書いている。結果を見ている間は繰り返さない。 */}
       <header className="detail-hero">
         <p className="detail-kicker">SEARCH</p>
         <h1>検索</h1>
-        <p>Todoと台帳をまたいで、名前から対象を探します。</p>
       </header>
 
       {hasHousehold ? <SearchForm q={q} /> : null}
 
-      <div className="ledger-grid">
+      {/* Issue #396: 分類のまとまりは外側のカードを持たないため、カードどうしの
+      間隔(ledger-grid)ではなく、この画面の間隔で並べる。 */}
+      <div className={styles.results}>
         {!hasHousehold ? (
           <LedgerHouseholdRequiredNotice />
         ) : q === undefined || results === null ? (
