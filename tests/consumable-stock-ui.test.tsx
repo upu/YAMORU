@@ -16,7 +16,8 @@ describe("消耗品の在庫状態", () => {
   it("数量入力なしで、ある・少ない・ないを可逆に選べる", () => {
     render(<StockStatusControl consumableId="consumable-1" stockStatus="low" />);
 
-    const region = screen.getByRole("region", { name: "在庫" });
+    // Issue #395: 在庫の変更と補充を1枚のカードへまとめた。
+    const region = screen.getByRole("region", { name: "在庫と補充" });
     expect(within(region).getByText("現在: 少ない")).toBeInTheDocument();
     expect(within(region).getByRole("button", { name: "ある" }))
       .toHaveAttribute("aria-pressed", "false");

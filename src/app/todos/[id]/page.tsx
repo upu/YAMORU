@@ -112,18 +112,19 @@ function TodoDetailList({ todo }: { todo: TodoDetailData }) {
         <dt>繰り返し</dt>
         <dd>{todo.recurrenceLabel}</dd>
       </div>
-      <div>
-        <dt>関連する管理対象</dt>
-        <dd>
-          {todo.managedItemId === null || todo.managedItemName === null ? (
-            "関連する管理対象なし"
-          ) : (
+      {/* Issue #395: 関連付けがないTodoでは、ラベルと同じ内容を値として繰り返す
+      「関連する管理対象なし」の行を置かない(管理対象の記録と同じく、残した
+      項目だけを並べる)。 */}
+      {todo.managedItemId === null || todo.managedItemName === null ? null : (
+        <div>
+          <dt>関連する管理対象</dt>
+          <dd>
             <Link href={`/managed-items/${encodeURIComponent(todo.managedItemId)}`}>
               {todo.managedItemName}
             </Link>
-          )}
-        </dd>
-      </div>
+          </dd>
+        </div>
+      )}
       <TodoScheduleRows todo={todo} />
     </dl>
   );
@@ -149,7 +150,6 @@ function TodoPendingActionsSection({
   if (todo.isCompleted) return null;
   return (
     <section aria-labelledby="todo-actions-title" className="detail-card">
-      <p className="detail-kicker">ACTION</p>
       <h2 id="todo-actions-title">担当と完了</h2>
       <AssigneePanel
         assigneeUserId={todo.assigneeUserId}
@@ -185,7 +185,6 @@ function TodoCompletionSection({
   if (completion === null) return null;
   return (
     <section aria-labelledby="todo-completion-title" className="detail-card">
-      <p className="detail-kicker">CORRECT</p>
       <h2 id="todo-completion-title">実施記録を修正</h2>
       <p className="detail-note">
         実施日や実施した人の訂正、完了の取消ができます。元の記録は残したまま、訂正した内容を追記します。
@@ -212,10 +211,7 @@ function TodoContentSection({ todo }: { todo: TodoDetailData }) {
   return (
     <section aria-labelledby="todo-summary-title" className="detail-card">
       <div className="detail-section-heading">
-        <div>
-          <p className="detail-kicker">SUMMARY</p>
-          <h2 id="todo-summary-title">Todoの内容</h2>
-        </div>
+        <h2 id="todo-summary-title">Todoの内容</h2>
         {canEdit ? (
           <Link
             aria-label="Todoを編集"

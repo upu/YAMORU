@@ -93,8 +93,10 @@ describe("Todo詳細の関連する消耗品の編集 (Issue #328)", () => {
     await waitFor(() => {
       expect(setTaskRuleRelationMock).toHaveBeenCalledWith("filter", "rule-1", false);
     });
-    expect(await within(section()).findByText("関連する消耗品はありません。"))
+    // Issue #395: 空になったら行を置かず、件数だけを読み上げへ残す。
+    expect(await within(section()).findByText("関連する消耗品は0件です。"))
       .toBeInTheDocument();
+    expect(within(section()).queryByRole("listitem")).not.toBeInTheDocument();
   });
 
   it("保存に失敗したら既存表示を変えず、同じカードで理由を伝える", async () => {

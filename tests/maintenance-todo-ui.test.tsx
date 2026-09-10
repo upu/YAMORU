@@ -176,21 +176,26 @@ describe("ManagedItem詳細のメンテナンスTodo", () => {
     expect(within(todoList).getByText("10月9日の予定です")).toBeInTheDocument();
   });
 
-  it("未完了Todoがない場合は空状態を表示する", () => {
+  // Issue #395: 追加導線があるカードは、空でも見出しと導線だけを残す。
+  it("未完了Todoがない場合も見出しと追加導線を残し、空状態の行は置かない", () => {
     render(
       <ManagedItemDetailContent item={{ ...ITEM_WITH_TODO, pendingTodos: [] }} />,
     );
 
-    expect(screen.getByText("現在の未完了Todoはありません。")).toBeInTheDocument();
+    const todoList = screen.getByRole("region", { name: "関連するTodo" });
+    expect(within(todoList).getByRole("link", { name: "Todoを追加" }))
+      .toHaveAttribute("href", "/todos/new?managedItemId=item-1");
+    expect(screen.queryByText("現在の未完了Todoはありません。")).not.toBeInTheDocument();
+    expect(within(todoList).getByText("現在の未完了Todoは0件です。")).toBeInTheDocument();
   });
 
-  it("完了の記録がない場合は空状態を表示する", () => {
+  // Issue #395: 直近の完了はここから記録を足せない確認専用のカードなので、
+  // 記録が一つもないときはカードごと出さない。
+  it("完了の記録がない場合は直近の完了カードを表示しない", () => {
     render(<ManagedItemDetailContent item={ITEM_WITH_TODO} />);
 
-    const recentSection = screen.getByRole("region", { name: "直近の完了" });
-    expect(
-      within(recentSection).getByText("まだ完了の記録はありません。"),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "直近の完了" })).not.toBeInTheDocument();
+    expect(screen.queryByText("まだ完了の記録はありません。")).not.toBeInTheDocument();
   });
 
   it("直近の完了を日本時間で表示し、Todo詳細への導線だけを表示する(Issue #240)", () => {

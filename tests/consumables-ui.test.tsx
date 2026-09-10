@@ -168,8 +168,11 @@ describe("消耗品詳細", () => {
       .toBeInTheDocument();
     expect(screen.getByText("収納棚の上段")).toBeInTheDocument();
     expect(screen.getByText("TP-12")).toBeInTheDocument();
-    expect(screen.getByText("関連する管理対象はありません。")).toBeInTheDocument();
-    expect(screen.getByText("関連するTodoはありません。")).toBeInTheDocument();
+    // Issue #395: 空の関連は行を出さず、見出しと「＋」だけを残す。
+    expect(screen.queryByText("関連する管理対象はありません。")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連するTodoはありません。")).not.toBeInTheDocument();
+    expect(screen.getByText("関連する管理対象は0件です。")).toBeInTheDocument();
+    expect(screen.getByText("関連するTodoは0件です。")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "消耗品を編集" })).toHaveAttribute(
       "href",
       "/consumables/consumable-1/edit",

@@ -86,8 +86,11 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
   it("関連する管理対象の見出しから候補を検索して追加し、その場で反映する", async () => {
     render(<ConsumableDetailContent consumable={detail()} />);
 
-    expect(within(relationSection("管理対象")).getByText("関連する管理対象はありません。"))
+    // Issue #395: 空の関連は行を置かず、件数だけを読み上げへ残す。
+    expect(within(relationSection("管理対象")).getByText("関連する管理対象は0件です。"))
       .toBeInTheDocument();
+    expect(within(relationSection("管理対象")).queryByRole("listitem"))
+      .not.toBeInTheDocument();
 
     const dialog = openPicker("管理対象");
     fireEvent.change(within(dialog).getByLabelText("管理対象を検索"), {
@@ -154,14 +157,14 @@ describe("消耗品詳細の関連編集 (Issue #311)", () => {
       expect(setManagedItemRelationMock)
         .toHaveBeenCalledWith("consumable-1", "item-1", false);
     });
-    expect(await within(relationSection("管理対象")).findByText("関連する管理対象はありません。"))
+    expect(await within(relationSection("管理対象")).findByText("関連する管理対象は0件です。"))
       .toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "フィルターを交換する（猫の給水機）を関連から外す" }),
     );
 
-    expect(await within(relationSection("Todo")).findByText("関連するTodoはありません。"))
+    expect(await within(relationSection("Todo")).findByText("関連するTodoは0件です。"))
       .toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "交換フィルター" }))
       .toBeInTheDocument();

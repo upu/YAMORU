@@ -201,7 +201,9 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
   it("管理対象がなければ関連なしと表示する", () => {
     renderDetail(todo({ managedItemId: null, managedItemName: null }));
 
-    expect(screen.getByText("関連する管理対象なし")).toBeInTheDocument();
+    // Issue #395: 関連付けがないTodoでは、その行自体を置かない。
+    expect(screen.queryByText("関連する管理対象なし")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連する管理対象")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "猫の浄水器" })).not.toBeInTheDocument();
   });
 
@@ -303,7 +305,9 @@ describe("完了済みTodoの詳細(TodoDetailContent、Issue #205)", () => {
   it("管理対象に紐づかない完了済みTodoも同じ画面で扱える", () => {
     renderDetail(completedTodo({ managedItemId: null, managedItemName: null }));
 
-    expect(screen.getByText("関連する管理対象なし")).toBeInTheDocument();
+    // Issue #395: 関連付けがないTodoでは、その行自体を置かない。
+    expect(screen.queryByText("関連する管理対象なし")).not.toBeInTheDocument();
+    expect(screen.queryByText("関連する管理対象")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "フィルターの申請を修正" }),
     ).toBeInTheDocument();

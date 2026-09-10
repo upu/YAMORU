@@ -67,13 +67,11 @@ function nextScheduleLabel(occurrence: ConsumableTaskRuleNextOccurrence | null):
 }
 
 function RelationHeading({
-  kicker,
   onAdd,
   titleId,
   triggerRef,
   unit,
 }: {
-  kicker: string;
   onAdd: () => void;
   titleId: string;
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -81,10 +79,7 @@ function RelationHeading({
 }) {
   return (
     <div className="detail-section-heading">
-      <div>
-        <p className="detail-kicker">{kicker}</p>
-        <h2 id={titleId}>関連する{unit}</h2>
-      </div>
+      <h2 id={titleId}>関連する{unit}</h2>
       <button
         aria-label={`${unit}を追加`}
         className="icon-button"
@@ -104,18 +99,16 @@ function RelationList<T extends RelationCandidate>({
   items,
   onRemove,
   renderItem,
-  unit,
 }: {
   describe: (item: T) => string;
   isSaving: boolean;
   items: T[];
   onRemove: (item: T) => void;
   renderItem: (item: T) => ReactNode;
-  unit: string;
 }) {
-  if (items.length === 0) {
-    return <p className="ledger-empty">関連する{unit}はありません。</p>;
-  }
+  // Issue #395: 未選択であることは見出しと「＋」だけで分かる。同じ意味の
+  // 空状態の行を重ねない(件数はRelationStatusのsr-onlyが伝える)。
+  if (items.length === 0) return null;
   return (
     <ul className="ledger-list">
       {items.map((item) => (
@@ -200,7 +193,6 @@ function RelationStatus({
 function RelationSection<T extends RelationCandidate>({
   describe,
   items,
-  kicker,
   onChange,
   renderItem,
   save,
@@ -210,7 +202,6 @@ function RelationSection<T extends RelationCandidate>({
 }: {
   describe: (item: T) => string;
   items: T[];
-  kicker: string;
   onChange: Dispatch<SetStateAction<T[]>>;
   renderItem: (item: T) => ReactNode;
   save: RelationSave;
@@ -231,7 +222,6 @@ function RelationSection<T extends RelationCandidate>({
   return (
     <section aria-labelledby={titleId} className="detail-card">
       <RelationHeading
-        kicker={kicker}
         onAdd={() => { setIsOpen(true); }}
         titleId={titleId}
         triggerRef={triggerRef}
@@ -243,7 +233,6 @@ function RelationSection<T extends RelationCandidate>({
         items={items}
         onRemove={(item) => { apply(item, false); }}
         renderItem={renderItem}
-        unit={unit}
       />
       <RelationStatus count={items.length} message={message} unit={unit} />
       {isOpen ? (
@@ -338,7 +327,6 @@ export function ConsumableRelations({
       <RelationSection
         describe={describeManagedItem}
         items={managedItems}
-        kicker="MANAGED ITEMS"
         onChange={setManagedItems}
         renderItem={renderManagedItem}
         save={saveManagedItem}
@@ -349,7 +337,6 @@ export function ConsumableRelations({
       <RelationSection
         describe={describeTaskRule}
         items={taskRules}
-        kicker="TODOS"
         onChange={setTaskRules}
         renderItem={renderTaskRule}
         save={saveTaskRule}

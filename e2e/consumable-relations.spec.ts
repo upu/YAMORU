@@ -158,10 +158,13 @@ test("消耗品詳細の関連表示から管理対象・Todoを追加し、解�
     .getByText("給水機のフィルターを交換する")).toBeVisible();
 
   await page.getByRole("button", { name: "猫の給水機を関連から外す" }).click();
-  await expect(page.getByText("関連する管理対象はありません。")).toBeVisible();
+  // Issue #395: 空になったら行を置かず、一覧そのものが消える。
+  await expect(managedItems.getByRole("link", { name: "猫の給水機" })).toHaveCount(0);
+  await expect(managedItems.getByText("関連する管理対象は0件です。")).toBeAttached();
 
   await page.reload();
-  await expect(page.getByText("関連する管理対象はありません。")).toBeVisible();
+  await expect(page.getByRole("region", { name: "関連する管理対象" })
+    .getByRole("listitem")).toHaveCount(0);
   // 関連を外しても消耗品自体は残る。
   await expect(page.getByRole("heading", { level: 1, name: "詰め替え用洗剤" })).toBeVisible();
   await expect(page.getByRole("region", { name: "関連するTodo" })
@@ -196,10 +199,13 @@ test("Todo詳細の関連する消耗品から検索して追加し、解除で�
     .getByRole("link", { name: "詰め替え用洗剤" })).toBeVisible();
 
   await page.getByRole("button", { name: "詰め替え用洗剤を関連から外す" }).click();
-  await expect(page.getByText("関連する消耗品はありません。")).toBeVisible();
+  // Issue #395: 空になったら行を置かず、一覧そのものが消える。
+  await expect(consumables.getByRole("link", { name: "詰め替え用洗剤" })).toHaveCount(0);
+  await expect(consumables.getByText("関連する消耗品は0件です。")).toBeAttached();
 
   await page.reload();
-  await expect(page.getByText("関連する消耗品はありません。")).toBeVisible();
+  await expect(page.getByRole("region", { name: "関連する消耗品" })
+    .getByRole("listitem")).toHaveCount(0);
   await page.goto(`/consumables/${consumableId}`);
   await expect(page.getByRole("heading", { level: 1, name: "詰め替え用洗剤" })).toBeVisible();
 });
