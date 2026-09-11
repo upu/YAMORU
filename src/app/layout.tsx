@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { AppFooter } from "./app-footer";
 import { AppHeader } from "./app-header";
+import { AppShell } from "./app-shell";
 import { APP_VERSION_INFO } from "./app-version";
 import { MobileBottomNavigation } from "./mobile-bottom-navigation";
 import { RefreshCoordinator } from "./refresh-coordinator";
@@ -42,12 +43,15 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <RefreshCoordinator>
           <RefreshOnVisible />
-          <AppHeader />
           {/* Issue #219: モバイル幅より広い画面の主要ナビゲーション。
-          下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。 */}
+          下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。
+          AppShellは、サイドバーを出す画面でだけ本文をその幅だけ右へ寄せる。 */}
           <SidebarNavigation />
-          {children}
-          <AppFooter versionInfo={APP_VERSION_INFO} />
+          <AppShell>
+            <AppHeader />
+            {children}
+            <AppFooter versionInfo={APP_VERSION_INFO} />
+          </AppShell>
           <MobileBottomNavigation />
         </RefreshCoordinator>
       </body>

@@ -71,10 +71,6 @@ html {
 
 body {
   margin: 0;
-  /* Issue #219: サイドバーはposition: fixedなので、本文・ヘッダー・フッターの
-     側を同じ幅だけ右へ寄せる。mainの中央揃え(margin: 0 auto)は残り幅の中で
-     効く。 */
-  padding-left: var(--sidebar-width);
   color: var(--ink);
   background:
     radial-gradient(circle at top right, rgb(219 229 216 / 75%), transparent 32rem),

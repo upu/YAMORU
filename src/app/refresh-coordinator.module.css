@@ -56,7 +56,8 @@
      右へずらして本文の真ん中へ置く(モバイル幅では--sidebar-widthが0)。 */
   left: calc(50% + var(--sidebar-width) / 2);
   width: max-content;
-  max-width: calc(100vw - 32px);
+  /* Issue #219: サイドバーを除いた残りの幅に収める(通知の中心と同じ基準)。 */
+  max-width: calc(100vw - var(--sidebar-width) - 32px);
   margin: 0;
   padding: 9px 13px;
   border: 1px solid rgb(49 92 73 / 22%);

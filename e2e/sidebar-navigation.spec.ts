@@ -101,10 +101,19 @@ test.describe("PC幅(1280px)", () => {
       .toHaveCount(0);
   });
 
-  test("ログイン画面にはサイドバーを出さない", async ({ page }) => {
-    await page.goto("/login");
+  // サイドバーを出さない画面では、その幅の余白も空けない。bodyへ一律に余白を
+  // 置くと、ログイン・招待受諾の画面まで左側が空いたままになる。
+  test("公開画面にはサイドバーを出さず、その幅の余白も空けない", async ({ page }) => {
+    for (const path of ["/login", "/invitations/accept"]) {
+      await page.goto(path);
 
-    await expect(primaryNavigation(page)).toHaveCount(0);
+      await expect(primaryNavigation(page)).toHaveCount(0);
+      // 本文は画面の中央のまま。サイドバーの幅だけ右へ寄っていれば、左右の
+      // 余白が食い違う。
+      const content = await page.getByRole("main").boundingBox();
+      if (content === null) throw new Error("本文の位置を取得できなかった");
+      expect(content.x).toBe(1280 - (content.x + content.width));
+    }
   });
 });
 
