@@ -51,8 +51,8 @@ test("フォーム下部で登録しても、完了通知が画面の中に見�
 // Issue #219: サイドバーを出す幅では、通知の幅も中心もサイドバーを除いた残りの
 // 幅から決める。画面の幅のままだと、中間幅でサイドバーに左端を覆われ、右端の
 // 閉じる操作が画面の外へはみ出す。
-test.describe("サイドバーを出す中間幅(500px)", () => {
-  test.use({ viewport: { height: 844, width: 500 } });
+test.describe("サイドバーを出す中間幅(600px)", () => {
+  test.use({ viewport: { height: 844, width: 600 } });
 
   test("通知がサイドバーに覆われず、画面の外へもはみ出さない", async ({ page }) => {
     await login(page);
@@ -68,7 +68,7 @@ test.describe("サイドバーを出す中間幅(500px)", () => {
     if (sidebar === null || box === null) throw new Error("位置を取得できなかった");
 
     expect(box.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
-    expect(box.x + box.width).toBeLessThanOrEqual(500);
+    expect(box.x + box.width).toBeLessThanOrEqual(600);
     await expect(page.getByRole("button", { name: "登録の通知を閉じる" })).toBeVisible();
   });
 });

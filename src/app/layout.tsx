@@ -43,12 +43,14 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <RefreshCoordinator>
           <RefreshOnVisible />
-          {/* Issue #219: モバイル幅より広い画面の主要ナビゲーション。
-          下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。
-          AppShellは、サイドバーを出す画面でだけ本文をその幅だけ右へ寄せる。 */}
-          <SidebarNavigation />
           <AppShell>
             <AppHeader />
+            {/* Issue #219: モバイル幅より広い画面の主要ナビゲーション。
+            下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。
+            画面ではヘッダーの下に立つので、キーボードの移動順もそろえて
+            ヘッダーの次に置く(サイドバー自身はposition: fixedなので、
+            AppShellが本文へ足す左余白の影響を受けない)。 */}
+            <SidebarNavigation />
             {children}
             <AppFooter versionInfo={APP_VERSION_INFO} />
           </AppShell>

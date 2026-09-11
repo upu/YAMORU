@@ -56,7 +56,7 @@
 }
 
 /* 見出しの下へ回り込む幅では、ボタンとヒントを本文と同じ左端へそろえる。 */
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   .control {
     align-items: flex-start;
   }

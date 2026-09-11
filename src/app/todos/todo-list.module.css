@@ -444,7 +444,7 @@
   text-overflow: ellipsis;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   /* Issue #241: 狭い画面では見出しと2択+検索アイコンが1行に収まりきらない
      ことがあるため、折り返し(todo-toolbarのflex-wrap)を前提に見出しを
      さらに小さくし、折り返し後の行間を詰める。 */

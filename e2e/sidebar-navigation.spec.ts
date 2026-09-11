@@ -128,8 +128,8 @@ test.describe("PC幅(1280px)", () => {
 
 // モーダルを開いている間は、サイドバーも覆いの後ろへ入れる。手前にあると、
 // 移動先を押せてしまううえ、狭いPC幅ではダイアログの左端に重なる。
-test.describe("サイドバーを出す中間幅(500px)", () => {
-  test.use({ viewport: { height: 844, width: 500 } });
+test.describe("サイドバーを出す中間幅(600px)", () => {
+  test.use({ viewport: { height: 844, width: 600 } });
 
   test("ダイアログを開くとサイドバーは覆いの後ろへ入る", async ({ page }) => {
     await login(page);
@@ -172,6 +172,31 @@ test.describe("中間幅(768px)", () => {
     if (sidebar === null || content === null) throw new Error("位置を取得できなかった");
     expect(content.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
     expect(await hasHorizontalOverflow(page)).toBe(false);
+  });
+});
+
+// 境界は「サイドバーを出したあとの本文の幅」で決めている。564pxまでは下部
+// ナビゲーション、565pxからサイドバー。サイドバーを出すとき、本文は
+// これまで下部ナビゲーションなしで扱っていた幅(481px以上)を保つ。
+test.describe("切り替えの境界", () => {
+  test("564pxは下部ナビゲーション、565pxからサイドバーへ替わる", async ({ page }) => {
+    await login(page);
+
+    await page.setViewportSize({ height: 844, width: 564 });
+    await page.goto("/todos");
+    const bottom = await primaryNavigation(page).boundingBox();
+    if (bottom === null) throw new Error("位置を取得できなかった");
+    expect(bottom.width).toBe(564);
+    expect(await page.getByRole("main").boundingBox()).toMatchObject({ x: 0 });
+
+    await page.setViewportSize({ height: 844, width: 565 });
+    const sidebar = await primaryNavigation(page).boundingBox();
+    const content = await page.getByRole("main").boundingBox();
+    if (sidebar === null || content === null) throw new Error("位置を取得できなかった");
+    expect(sidebar.x).toBe(0);
+    expect(sidebar.height).toBeGreaterThan(200);
+    // 本文に残る幅が481pxを下回らない。
+    expect(565 - sidebar.width).toBeGreaterThanOrEqual(481);
   });
 });
 

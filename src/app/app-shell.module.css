@@ -1,7 +1,7 @@
 /* Issue #219: サイドバーを出す幅でだけ、ヘッダー・本文・フッターを
    サイドバーの幅(globals.cssの--sidebar-width)だけ右へ寄せる。
    mainの中央揃え(margin: 0 auto)は、寄せたあとの残り幅の中で効く。 */
-@media (min-width: 481px) {
+@media (min-width: 565px) {
   .withSidebar {
     padding-left: var(--sidebar-width);
   }
