@@ -1,6 +1,8 @@
 import { type Page } from "@playwright/test";
 
-import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+import { E2E_OWNER_USER_ID, expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+
+import { createOneTimeTask } from "../src/lib/d1/todos";
 
 // Issue #219: モバイル幅より広い画面には主要ナビゲーションが無く、行き先へ
 // 移動する手段が共通ヘッダーのYAMORU(ホーム)だけだった。PCではサイドバー、
@@ -21,8 +23,15 @@ async function hasHorizontalOverflow(page: Page): Promise<boolean> {
   );
 }
 
+const TODO_TITLE = "換気扇を掃除する";
+
 test.beforeEach(async ({ db }) => {
   await seedOwnerHousehold(db);
+  await createOneTimeTask(db, { userId: E2E_OWNER_USER_ID }, {
+    managedItemId: null,
+    scheduledFor: "2026-09-10",
+    title: TODO_TITLE,
+  });
 });
 
 test.describe("PC幅(1280px)", () => {
@@ -114,6 +123,34 @@ test.describe("PC幅(1280px)", () => {
       if (content === null) throw new Error("本文の位置を取得できなかった");
       expect(content.x).toBe(1280 - (content.x + content.width));
     }
+  });
+});
+
+// モーダルを開いている間は、サイドバーも覆いの後ろへ入れる。手前にあると、
+// 移動先を押せてしまううえ、狭いPC幅ではダイアログの左端に重なる。
+test.describe("サイドバーを出す中間幅(500px)", () => {
+  test.use({ viewport: { height: 844, width: 500 } });
+
+  test("ダイアログを開くとサイドバーは覆いの後ろへ入る", async ({ page }) => {
+    await login(page);
+    await page.goto("/todos");
+
+    const home = primaryNavigation(page).getByRole("link", { name: "ホーム" });
+    const before = await home.boundingBox();
+    if (before === null) throw new Error("サイドバーの位置を取得できなかった");
+
+    await page.getByRole("button", { name: `${TODO_TITLE}を記録` }).click();
+    await expect(page.getByRole("dialog", { name: `${TODO_TITLE}を記録` })).toBeVisible();
+
+    // サイドバーの項目があった場所を押しても、当たるのは覆いの側。
+    const topmost = await page.evaluate(
+      ([x, y]) => {
+        const element = document.elementFromPoint(x, y);
+        return element?.closest("nav") === null ? "backdrop" : "navigation";
+      },
+      [before.x + before.width / 2, before.y + before.height / 2] as const,
+    );
+    expect(topmost).toBe("backdrop");
   });
 });
 
