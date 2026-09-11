@@ -14,15 +14,38 @@ const VERSION_INFO = {
 };
 
 describe("ヘルプの使い方(Issue #361)", () => {
-  it("YAMORUで扱う主なものを確認できる", () => {
+  // Issue #399: 画面では消耗品は台帳の中の一種類なので、Todo・台帳・消耗品を
+  // 同列の3概念として並べない。大きな役割はTodo(やること)と台帳(家で管理して
+  // おくもの)の2つにする。
+  it("大きな役割をTodoと台帳の2つで説明する", () => {
     render(<HelpContent versionInfo={VERSION_INFO} />);
 
     const usage = screen.getByRole("region", { name: "YAMORUの使い方" });
-    for (const term of ["Todo", "台帳", "消耗品"]) {
-      expect(within(usage).getByText(term)).toBeInTheDocument();
-    }
+    const terms = within(usage).getAllByRole("term");
+    expect(terms.map((term) => term.textContent)).toEqual(["Todo", "台帳"]);
+    expect(within(usage).getByText(/^やることです。/u)).toBeInTheDocument();
+    expect(within(usage).getByText(/家で管理しておくものです。/u)).toBeInTheDocument();
     expect(within(usage).getByRole("heading", { name: "日常的な操作" }))
       .toBeInTheDocument();
+  });
+
+  it("消耗品を、備品・サービス・契約と並ぶ台帳の種類として説明する", () => {
+    render(<HelpContent versionInfo={VERSION_INFO} />);
+
+    const usage = screen.getByRole("region", { name: "YAMORUの使い方" });
+    // 台帳の説明(dd)の中に3種類が入っていて、Todoと同じ階層には出ない。
+    const ledgerDetail = within(usage).getByText(/家で管理しておくものです。/u);
+    const kinds = within(ledgerDetail).getAllByRole("listitem");
+    expect(kinds).toHaveLength(3);
+    for (const [kind, term] of [
+      [kinds[0], "備品"],
+      [kinds[1], "サービス・契約"],
+      [kinds[2], "消耗品"],
+    ] as const) {
+      expect(within(kind).getByText(term)).toBeInTheDocument();
+    }
+    // 画面(台帳の種類)と同じ用語で、消耗品固有の在庫の扱いもここに残す。
+    expect(kinds[2].textContent).toContain("ある / 少ない / ない");
   });
 
   it("アイコンだけの操作の意味を、ピン留めを含めて確認できる", () => {
