@@ -27,6 +27,7 @@ status: stable
 | 右下の追加ボタン(一覧ではモバイル幅だけ) | `src/app/floating-add-button.module.css` |
 | ホーム固有(操作リンク・対応状況・並び) | `src/app/home.module.css` |
 | ホームのピン留め消耗品 | `src/app/pinned-consumables.module.css` |
+| ホームの買い物候補 | `src/app/shopping-candidates.module.css` |
 | 記録・訂正・延期などのダイアログ | `src/app/dialog.module.css` |
 | Todo一覧(ツールバー・リスト表示) | `src/app/todos/todo-list.module.css` |
 | 台帳のカテゴリ切り替え | `src/app/ledger-category-navigation.module.css` |

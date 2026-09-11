@@ -1261,10 +1261,6 @@ h1 {
   background: #ffe1dc;
 }
 
-.shopping-candidates .ledger-list {
-  margin-top: 16px;
-}
-
 /* Issue #218: 台帳一覧の検索・絞り込み。件数バッジ(count)の下に検索・
    絞り込みフォームを続ける。Issue #237: 見出しテキストは画面上から外した
    (sr-onlyのh2 registered-items-titleへ移動)ため、件数バッジだけを
