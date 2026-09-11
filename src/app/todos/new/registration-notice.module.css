@@ -11,12 +11,17 @@
      ときでも、更新の失敗と「再試行」が隠れないようにする。 */
   z-index: 19;
   top: var(--top-notice-top);
-  left: 50%;
+  /* Issue #219: サイドバーは画面の左端を占めるため、その分だけ中心を
+     右へずらして本文の真ん中へ置く(モバイル幅では--sidebar-widthが0)。 */
+  left: calc(50% + var(--sidebar-width) / 2);
   display: grid;
   gap: 4px;
   /* スマホで画面を覆わないよう、幅は画面から余白を引いた分までに抑える。
-     高さは中身なりで、閉じる操作を必ず見える位置に置く。 */
-  width: min(520px, calc(100vw - 24px));
+     高さは中身なりで、閉じる操作を必ず見える位置に置く。
+     Issue #219: 画面の幅ではなく、サイドバーを除いた残りの幅から決める。
+     画面の幅のままだと、中間幅(481〜603px)でサイドバーに左端を覆われ、
+     右端の閉じる操作が画面の外へはみ出す。 */
+  width: min(520px, calc(100vw - var(--sidebar-width) - 24px));
   margin: 0;
   padding: 12px 14px;
   border: 1px solid rgb(49 92 73 / 22%);

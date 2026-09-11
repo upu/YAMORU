@@ -48,6 +48,31 @@ test("フォーム下部で登録しても、完了通知が画面の中に見�
   await expect(notice).toHaveCount(0);
 });
 
+// Issue #219: サイドバーを出す幅では、通知の幅も中心もサイドバーを除いた残りの
+// 幅から決める。画面の幅のままだと、中間幅でサイドバーに左端を覆われ、右端の
+// 閉じる操作が画面の外へはみ出す。
+test.describe("サイドバーを出す中間幅(600px)", () => {
+  test.use({ viewport: { height: 844, width: 600 } });
+
+  test("通知がサイドバーに覆われず、画面の外へもはみ出さない", async ({ page }) => {
+    await login(page);
+    await page.goto("/todos/new");
+    await page.getByLabel("Todo名").fill("換気扇の掃除");
+    await page.getByRole("button", { name: "Todoを登録" }).click();
+
+    const notice = page.getByRole("status").filter({ hasText: "Todoを登録しました。" });
+    await expect(notice).toBeVisible();
+    const sidebar = await page.getByRole("navigation", { name: "主要ナビゲーション" })
+      .boundingBox();
+    const box = await notice.boundingBox();
+    if (sidebar === null || box === null) throw new Error("位置を取得できなかった");
+
+    expect(box.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
+    expect(box.x + box.width).toBeLessThanOrEqual(600);
+    await expect(page.getByRole("button", { name: "登録の通知を閉じる" })).toBeVisible();
+  });
+});
+
 // 更新結果の通知も画面上部の同じ位置へ出る。登録の通知は自動では消えないため、
 // 重ねると更新の失敗と「再試行」を覆ってしまう。
 test("更新の失敗が出ている間は、登録の通知がその下へ積まれる", async ({ context, page }) => {

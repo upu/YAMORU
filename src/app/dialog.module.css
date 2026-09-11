@@ -155,7 +155,7 @@
   cursor: pointer;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   .backdrop {
     /* 下部ナビゲーション(z-index: 20)より手前に出し、かつ下部ナビゲーション
        の高さぶん下に余白を確保して、ダイアログの選択肢が下部ナビゲーションと

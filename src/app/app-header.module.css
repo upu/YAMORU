@@ -118,7 +118,7 @@
   opacity: 0.68;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   .inner {
     padding-inline: 16px;
   }

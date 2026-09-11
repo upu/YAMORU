@@ -4,10 +4,12 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { AppFooter } from "./app-footer";
 import { AppHeader } from "./app-header";
+import { AppShell } from "./app-shell";
 import { APP_VERSION_INFO } from "./app-version";
 import { MobileBottomNavigation } from "./mobile-bottom-navigation";
 import { RefreshCoordinator } from "./refresh-coordinator";
 import { RefreshOnVisible } from "./refresh-on-visible";
+import { SidebarNavigation } from "./sidebar-navigation";
 
 export const metadata: Metadata = {
   title: "YAMORU",
@@ -41,9 +43,17 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <RefreshCoordinator>
           <RefreshOnVisible />
-          <AppHeader />
-          {children}
-          <AppFooter versionInfo={APP_VERSION_INFO} />
+          <AppShell>
+            <AppHeader />
+            {/* Issue #219: モバイル幅より広い画面の主要ナビゲーション。
+            下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。
+            画面ではヘッダーの下に立つので、キーボードの移動順もそろえて
+            ヘッダーの次に置く(サイドバー自身はposition: fixedなので、
+            AppShellが本文へ足す左余白の影響を受けない)。 */}
+            <SidebarNavigation />
+            {children}
+            <AppFooter versionInfo={APP_VERSION_INFO} />
+          </AppShell>
           <MobileBottomNavigation />
         </RefreshCoordinator>
       </body>

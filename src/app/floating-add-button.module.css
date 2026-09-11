@@ -35,7 +35,7 @@
   height: 76px;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   .button {
     right: calc(16px + env(safe-area-inset-right));
     bottom: calc(var(--mobile-nav-height) + 16px);
@@ -51,7 +51,7 @@
 /* Issue #391: 一覧の追加導線は画面幅ごとにどちらか一方だけを出す。モバイル幅
    より広い画面では、一覧見出しの中の追加リンク(globals.cssの.list-add-link)
    を主要導線にするため、このボタンと下端の余白を消す。 */
-@media (min-width: 481px) {
+@media (min-width: 565px) {
   .mobileOnly {
     display: none;
   }

@@ -108,7 +108,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 564px) {
   .heroActions {
     align-items: flex-end;
     gap: 5px;
