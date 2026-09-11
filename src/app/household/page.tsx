@@ -155,7 +155,7 @@ export function HouseholdContent({
   nickname,
 }: HouseholdContentProps) {
   return (
-    <main className="detail-page household-page">
+    <main className="page-form household-page">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/">← ホームへ戻る</Link>
       </nav>

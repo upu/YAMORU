@@ -53,7 +53,7 @@ export function SearchContent({
   results: CrossSearchResults | null;
 }) {
   return (
-    <main className={`detail-page ${styles.page}`}>
+    <main className={`page-list ${styles.page}`}>
       {/* Issue #396: 何を探せるかは、検索語がないときの案内(SearchGuide)が
       同じことを書いている。結果を見ている間は繰り返さない。 */}
       <header className="detail-hero">

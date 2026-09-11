@@ -21,7 +21,7 @@ export function LedgerPageShell({
   showCategoryNavigation?: boolean;
 }) {
   return (
-    <main className="detail-page ledger-page">
+    <main className="page-list ledger-page">
       <header className="detail-hero">
         <p className="detail-kicker">HOUSE LEDGER</p>
         <h1>家の台帳</h1>

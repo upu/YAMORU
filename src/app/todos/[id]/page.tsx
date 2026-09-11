@@ -243,32 +243,40 @@ export function TodoDetailContent({
   todo: TodoDetailData;
 }) {
   return (
-    <main className="detail-page todo-detail-page">
+    <main className="page-detail todo-page-detail">
       <DetailBackNav {...TODO_DETAIL_BACK_NAV} />
       <header className="detail-hero">
         <p className="detail-kicker">TODO</p>
         <h1>{todo.title}</h1>
       </header>
 
-      <div className="ledger-grid">
-        <TodoPendingActionsSection
-          actorName={actorName}
-          currentUserId={currentUserId}
-          members={members}
-          todo={todo}
-        />
-        <TodoContentSection todo={todo} />
-        {/* 関連はTaskRule単位で、DBもメンテナンスTodoだけを許す。期限のある
-            Todoへ形だけの編集入口を出して失敗させない。 */}
-        <RelatedConsumablesSection
-          consumables={todo.consumables}
-          taskRuleId={todo.isMaintenance ? todo.taskRuleId : undefined}
-        />
-        <TodoCompletionSection
-          currentUserId={currentUserId}
-          members={members}
-          todo={todo}
-        />
+      {/* Issue #397: PC幅では、このTodoへの対応と内容(主要情報)と、関連する
+      消耗品・完了の記録を横に並べる。2カラムにしない幅では包みが
+      display: contentsで消え、これまでどおりこの並びのまま縦に積まれる。 */}
+      <div className="ledger-grid detail-columns">
+        <div className="detail-column-main">
+          <TodoPendingActionsSection
+            actorName={actorName}
+            currentUserId={currentUserId}
+            members={members}
+            todo={todo}
+          />
+          <TodoContentSection todo={todo} />
+        </div>
+
+        <div className="detail-column-side">
+          {/* 関連はTaskRule単位で、DBもメンテナンスTodoだけを許す。期限のある
+              Todoへ形だけの編集入口を出して失敗させない。 */}
+          <RelatedConsumablesSection
+            consumables={todo.consumables}
+            taskRuleId={todo.isMaintenance ? todo.taskRuleId : undefined}
+          />
+          <TodoCompletionSection
+            currentUserId={currentUserId}
+            members={members}
+            todo={todo}
+          />
+        </div>
       </div>
     </main>
   );

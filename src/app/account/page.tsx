@@ -14,7 +14,7 @@ export default async function AccountPage() {
   const profile = accountState.nickname === null ? null : { nickname: accountState.nickname };
 
   return (
-    <main className="detail-page account-page">
+    <main className="page-form account-page">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/">← ホームへ戻る</Link>
       </nav>

@@ -66,7 +66,7 @@ export function ConsumableDetailContent({
   consumable: ConsumableDetailData;
 }) {
   return (
-    <main className="detail-page">
+    <main className="page-detail">
       <DetailBackNav {...CONSUMABLE_DETAIL_BACK_NAV} />
       <header className="detail-hero detail-hero-with-action">
         <div>
@@ -79,23 +79,31 @@ export function ConsumableDetailContent({
         />
       </header>
 
-      <div className="ledger-grid">
-        <StockStatusControl
-          consumableId={consumable.id}
-          stockStatus={consumable.stockStatus}
-        >
-          <ConsumableRefillControl
+      {/* Issue #397: PC幅では、この消耗品そのものの状態・記録(主要情報)と、
+      関連する管理対象・Todoを横に並べる。2カラムにしない幅では包みが
+      display: contentsで消え、これまでどおりこの並びのまま縦に積まれる。 */}
+      <div className="ledger-grid detail-columns">
+        <div className="detail-column-main">
+          <StockStatusControl
             consumableId={consumable.id}
-            refills={consumable.refills}
+            stockStatus={consumable.stockStatus}
+          >
+            <ConsumableRefillControl
+              consumableId={consumable.id}
+              refills={consumable.refills}
+            />
+          </StockStatusControl>
+          <ConsumableRecord consumable={consumable} />
+        </div>
+
+        <div className="detail-column-side">
+          {/* Issue #311: 関連の追加・解除は、関連を確認している場所で行う。 */}
+          <ConsumableRelations
+            consumableId={consumable.id}
+            managedItems={consumable.managedItems}
+            taskRules={consumable.taskRules}
           />
-        </StockStatusControl>
-        <ConsumableRecord consumable={consumable} />
-        {/* Issue #311: 関連の追加・解除は、関連を確認している場所で行う。 */}
-        <ConsumableRelations
-          consumableId={consumable.id}
-          managedItems={consumable.managedItems}
-          taskRules={consumable.taskRules}
-        />
+        </div>
       </div>
     </main>
   );

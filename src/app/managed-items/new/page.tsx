@@ -25,7 +25,7 @@ export function ManagedItemRegistrationContent({
   nowIso?: string;
 }) {
   return (
-    <main className="detail-page ledger-page">
+    <main className="page-form ledger-page">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/managed-items">← 家の台帳へ戻る</Link>
       </nav>

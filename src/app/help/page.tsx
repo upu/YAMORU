@@ -56,7 +56,7 @@ const ICON_TOPICS = [
 
 export function HelpContent({ versionInfo }: { versionInfo: AppVersionInfo }) {
   return (
-    <main className="detail-page help-page">
+    <main className="page-form help-page">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/">← ホームへ戻る</Link>
       </nav>

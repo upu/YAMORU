@@ -65,7 +65,7 @@ export function ManagedItemDetailContent({
   );
 
   return (
-    <main className="detail-page">
+    <main className="page-detail">
       <DetailBackNav {...MANAGED_ITEM_DETAIL_BACK_NAV} />
 
       <ManagedItemHeader
@@ -74,32 +74,39 @@ export function ManagedItemDetailContent({
         name={item.name}
       />
 
-      <div className="ledger-grid managed-item-detail-grid">
-        <ManagedItemRecordSection
-          kindCode={item.kindCode}
-          managedItemId={item.id}
-          note={item.note}
-          productInfo={item.productInfo}
-          safeLinks={safeLinks}
-          startedOn={item.startedOn}
-        />
+      {/* Issue #397: PC幅では、この管理対象そのものの記録(主要情報)と、
+      そこにぶら下がる関連情報を横に並べる。2カラムにしない幅では包みが
+      display: contentsで消え、これまでどおりこの並びのまま縦に積まれる。 */}
+      <div className="ledger-grid detail-columns managed-item-detail-grid">
+        <div className="detail-column-main">
+          <ManagedItemRecordSection
+            kindCode={item.kindCode}
+            managedItemId={item.id}
+            note={item.note}
+            productInfo={item.productInfo}
+            safeLinks={safeLinks}
+            startedOn={item.startedOn}
+          />
+        </div>
 
-        <RelatedConsumablesSection
-          addHref={`/consumables/new?managedItemId=${encodeURIComponent(item.id)}`}
-          consumables={item.consumables ?? []}
-        />
+        <div className="detail-column-side">
+          <RelatedConsumablesSection
+            addHref={`/consumables/new?managedItemId=${encodeURIComponent(item.id)}`}
+            consumables={item.consumables ?? []}
+          />
 
-        <RelatedTodoSection
-          actorName={item.actorName}
-          currentUserId={item.currentUserId}
-          managedItemId={item.id}
-          members={item.members}
-          todos={item.pendingTodos}
-        />
+          <RelatedTodoSection
+            actorName={item.actorName}
+            currentUserId={item.currentUserId}
+            managedItemId={item.id}
+            members={item.members}
+            todos={item.pendingTodos}
+          />
 
-        <RecentCompletionSection
-          completions={item.recentCompletions}
-        />
+          <RecentCompletionSection
+            completions={item.recentCompletions}
+          />
+        </div>
       </div>
     </main>
   );

@@ -18,7 +18,7 @@ export default async function ConsumableEditPage({
   if (consumable === null) notFound();
 
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href={`/consumables/${encodeURIComponent(id)}`}>← 消耗品の詳細へ戻る</Link>
       </nav>

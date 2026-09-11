@@ -35,6 +35,21 @@
      合わせるために、複数の部品が同じ値を参照する(--mobile-nav-heightと同じ
      扱い)。モバイル幅ではサイドバーを出さないため0。 */
   --sidebar-width: 0px;
+
+  /* Issue #397: 画面種別ごとの本文の最大幅。スマホ向けの単一カラムをそのまま
+     中央へ置くと、PC幅で左右が大きく空く。どの画面でも一律に広げるのではなく、
+     その画面が幅を何に使えるかで3種類に分ける(page-form / page-list /
+     page-detail、mainが--page-max-widthとして読む)。
+     - フォーム・読み物(760px、これまでの幅): 入力欄は幅いっぱいに伸びるため、
+       広げると入力欄と補足文の行長だけが伸びて読みにくくなる。幅ではなく、
+       横に並べられる短い入力(年・月・日など)で詰める画面。
+     - 一覧(1160px): 幅を「一度に見える件数」に使う。PCでは1件ずつの行・カードを
+       2列に並べ、縦スクロールの回数を減らす。
+     - 詳細(1000px): 幅を「主要情報と関連情報を同時に見せること」に使う。
+       関連情報は補助なので、一覧ほど広げない。 */
+  --page-width-form: 760px;
+  --page-width-list: 1160px;
+  --page-width-detail: 1000px;
 }
 
 /* 下部ナビゲーションが消える幅からサイドバーを出し、主要ナビゲーションが
@@ -96,11 +111,58 @@ body {
   border: 0;
 }
 
+/* Issue #397: 本文の最大幅は画面種別が決める。種別を付け忘れた画面は、いちばん
+   狭いフォーム・読み物の幅へ落とす(広げるのは意図したときだけにする)。 */
 main {
-  width: min(100%, 760px);
+  width: min(100%, var(--page-max-width, var(--page-width-form)));
   min-height: 100vh;
   margin: 0 auto;
   padding: 48px 24px 32px;
+}
+
+/* 登録・編集・アカウント・家庭・招待・ヘルプ。入力欄の幅と行長を保つ。 */
+.page-form {
+  --page-max-width: var(--page-width-form);
+}
+
+/* ホーム・Todo一覧・台帳・消耗品・検索。ホームは追加導線の規約(#391)では
+   「一覧ではない」が、並んでいるのは一覧と同じカードなので、幅と段組みは
+   一覧と同じ種別として扱う。 */
+.page-list {
+  --page-max-width: var(--page-width-list);
+}
+
+/* Todo・備品・消耗品の詳細。 */
+.page-detail {
+  --page-max-width: var(--page-width-detail);
+}
+
+/* Issue #397: 一覧画面の一覧本体だけを2列にする。2列にする下限は「1列の幅が
+   モバイルを下回らないこと」から決める。一覧はカード(.detail-card /
+   .home-section)の中にあるため、390px幅での1行の幅は326px(本文358px = 390 -
+   mainの左右16pxずつ、そこからカードの左右16pxずつを引いた値)。2列にするには
+   326 * 2 + 10(gap) + 44(PC幅でのカードの左右22pxずつ) + 2(カードの左右の
+   border)= 708pxの本文が要る。mainの左右padding 48pxと、この幅では常に216pxに
+   なるサイドバー(#219)を足した972pxを境界にする
+   (972 - 216 - 48 - 44 - 2 - 10 = 652、1列326px)。
+   詳細画面のカードの中にも同じ.ledger-list(関連する消耗品など)があるため、
+   一覧画面(.page-list)の中のものだけを対象にする。 */
+@media (min-width: 972px) {
+  .page-list .card-list,
+  .page-list .ledger-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+/* Issue #397: 一覧を広げても、検索・絞り込みの1行の入力はそれに合わせて
+   伸ばさない。1行の入力は幅を増やしても読みやすさが上がらず、右端の送信
+   ボタンだけが遠くなる(Todo一覧の画面内検索が#390で同じ上限を持つのと同じ
+   考え方)。上限は、フォーム画面でカードの中の入力欄が持つ幅にそろえる:
+   760(--page-width-form) - 48(mainの左右padding) - 44(カードの左右padding)
+   - 2(カードの左右のborder)。 */
+.page-list .ledger-search-form {
+  max-width: 666px;
 }
 
 .hero {
@@ -337,8 +399,45 @@ h1 {
   user-select: all;
 }
 
-.detail-page {
-  width: min(100%, 760px);
+/* Issue #397: 詳細画面の2カラム。主要情報(.detail-column-main)と関連情報
+   (.detail-column-side)へDOMの並びのまま分け、2カラムにしない幅では包みを
+   display: contentsで消して、これまでどおり1カラムでDOM順に並べる。
+   カード自体を並べ替えないので、モバイルの並び(#395で決めた重要度順)は
+   どの幅でも変わらない。 */
+.detail-column-main,
+.detail-column-side {
+  display: contents;
+}
+
+/* 2カラムにする下限は「2カラムにしたあとの各カラムの幅」から決める。主カラムは
+   本文がこれまで下回らないとした481px(#219)、副カラムは対応する最小の画面幅
+   320pxを下限にする。481 + 18(gap) + 320 = 819pxの本文が要るので、mainの左右
+   padding 48pxと、この幅では常に216pxになるサイドバー(#219)を足した1083pxを
+   境界にする。列の比(3fr : 2fr)は、この境界でちょうど481px : 320pxになる。 */
+@media (min-width: 1083px) {
+  .detail-columns {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+  }
+
+  .detail-columns > .detail-column-main,
+  .detail-columns > .detail-column-side {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+  }
+
+  /* 関連情報を一枚も持たない対象(関連する消耗品も実施記録も無い、予定日だけの
+     Todoなど)では、空の列を作らず1カラムへ戻す。#395で「導線を持たない確認
+     専用のカードは、内容がないときカードごと出さない」としたため、関連情報の
+     側が丸ごと空になることがある。 */
+  .detail-columns:has(> .detail-column-side:empty) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .detail-columns > .detail-column-side:empty {
+    display: none;
+  }
 }
 
 /* 詳細画面の戻る導線(detail-back-nav.tsx、Issue #391)と、登録・編集画面の
@@ -528,8 +627,10 @@ h1 {
   font-size: 1.25rem;
 }
 
+/* ログイン画面は2枚のカードを横に並べる(.auth-grid)ため、フォームの幅より
+   広い自前の値を持つ(Issue #397の3種別には入れない)。 */
 .auth-page {
-  width: min(100%, 900px);
+  --page-max-width: 900px;
 }
 
 .auth-hero {

@@ -31,7 +31,7 @@ export function ConsumableRegistrationContent({
   initialManagedItem?: ConsumableRelationOption;
 }) {
   return (
-    <main className="detail-page ledger-page">
+    <main className="page-form ledger-page">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href="/consumables">← 消耗品一覧へ戻る</Link>
       </nav>

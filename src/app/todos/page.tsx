@@ -124,7 +124,7 @@ export function TodoListContent({
   ...rest
 }: TodoListContentProps) {
   return (
-    <main className="detail-page todo-list-page">
+    <main className="page-list todo-list-page">
       <TodoListToolbar
         assigneeParam={rest.assigneeParam}
         currentUserId={rest.currentUserId}

@@ -41,7 +41,7 @@ export function TodoRegistrationContent({
 }) {
   const backNav = managedItemBackNav(initialManagedItemId, managedItems);
   return (
-    <main className="detail-page todo-registration-page">
+    <main className="page-form todo-registration-page">
       {backNav === null ? null : <DetailBackNav {...backNav} />}
       {/* Issue #327: Todoを追加するだけの画面に「ADD TODO」「Todoを追加」
       説明文「登録内容」と役割の重なる見出しが4つ並び、フォームまでの縦幅を
