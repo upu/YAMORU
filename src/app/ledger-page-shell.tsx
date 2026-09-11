@@ -6,6 +6,7 @@ import {
   type LedgerCategory,
 } from "./ledger-category-navigation";
 import { ListAddLink, type ListAddAction } from "./list-add-link";
+import styles from "./ledger-page.module.css";
 
 // Issue #309: 台帳内でカテゴリを切り替えても、ページタイトル・説明・カテゴリ
 // 切り替えの骨格を共通にする(issue本文の設計メモの第一候補)。/managed-itemsと
@@ -22,10 +23,15 @@ export function LedgerPageShell({
 }) {
   return (
     <main className="page-list ledger-page">
-      <header className="detail-hero">
-        <p className="detail-kicker">HOUSE LEDGER</p>
-        <h1>家の台帳</h1>
-        <p>家の備品、サービス・契約、消耗品をまとめます。</p>
+      {/* Issue #400: 台帳は一覧を日常的に確認・操作する画面なので、上部で
+      縦幅を使わない。詳細画面の大見出し(.detail-hero)ではなく、Todo一覧・
+      登録画面と同じ大きさのページ見出しに収め、説明も小さく1行に寄せる。
+      英字のキッカー(HOUSE LEDGER)は見出しと同じことしか示さないため外した。 */}
+      <header className={styles.header}>
+        <h1 className={styles.title}>家の台帳</h1>
+        <p className={styles.description}>
+          家の備品、サービス・契約、消耗品をまとめます。
+        </p>
       </header>
 
       {showCategoryNavigation ? (

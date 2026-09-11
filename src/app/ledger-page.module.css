@@ -1,0 +1,28 @@
+/* 台帳のページ見出し(ledger-page-shell.tsx、Issue #400)。台帳は一覧を日常的に
+   確認・操作する画面なので、詳細画面の大見出し(.detail-hero + clamp(2.3rem,
+   8vw, 3.4rem)のh1)ではなく、一覧・フォームのページ見出しと同じ大きさに収める
+   (Todo一覧のtodo-list.module.cssの.toolbarTitle、登録・編集画面の
+   globals.cssの.form-page-titleと同じ1.3rem)。詳細画面の大見出しは変えない。
+   英字のキッカー(HOUSE LEDGER)は、すぐ下のh1「家の台帳」と同じことしか
+   示さないため置かない(ページ名と意味が重なる見出しを重ねない、#237と同じ
+   考え方)。 */
+.header {
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+
+.title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* 説明はページ名を補うだけなので、ホームのセクション説明(.section-heading p)や
+   .detail-noteと同じ小ささにし、見出しの行数を増やさない。 */
+.description {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
