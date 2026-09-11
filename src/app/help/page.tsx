@@ -10,19 +10,37 @@ import { EditIcon } from "../edit-icon";
 import styles from "./help.module.css";
 
 /* Issue #361: 通常の画面はコンパクトなままにし、各操作の説明はこの画面へ
-   集める。画面側とヘルプで同じ説明を重複させない。 */
-const USAGE_TOPICS = [
+   集める。画面側とヘルプで同じ説明を重複させない。
+   Issue #399: 画面では消耗品は台帳の中の一種類(ledger-category-navigation.tsxの
+   「台帳の種類」)なので、Todo・台帳・消耗品を同列に並べると画面の作りと
+   食い違う。大きな役割は「やること(Todo)」と「家で管理しておくもの(台帳)」の
+   2つに分け、備品・サービス・契約・消耗品は台帳が扱う種類として中へ入れる。 */
+const USAGE_TOPICS: {
+  detail: string;
+  kinds?: { detail: string; term: string }[];
+  term: string;
+}[] = [
   {
-    detail: "家事や手続きの予定です。期限が近いものと期限切れをホームに集めます。",
+    detail: "やることです。家事や手続きの予定を登録すると、期限が近いものと期限切れをホームに集めます。",
     term: "Todo",
   },
   {
-    detail: "備品とサービス・契約の記録です。Todoや消耗品と関連づけられます。",
+    detail: "家で管理しておくものです。次の3種類を記録し、それぞれにTodoを関連づけられます。",
+    kinds: [
+      { detail: "家電や住宅設備など、家にあるもの。", term: "備品" },
+      // YDR-036: サービス・契約は、サービス提供・契約に加えて税金や公的支払いも
+      // 含む大分類。詳しい種類のプリセットも契約・習い事・固定資産税なので、
+      // 「契約して使っているもの」だけだと登録できる対象を狭く見せてしまう。
+      {
+        detail: "契約や習い事、税金など、物として家にはないもの。",
+        term: "サービス・契約",
+      },
+      {
+        detail: "使うとなくなる日用品。在庫を「ある / 少ない / ない」で切り替えると、少ないものが買い物候補に出ます。",
+        term: "消耗品",
+      },
+    ],
     term: "台帳",
-  },
-  {
-    detail: "日用品の在庫です。「ある / 少ない / ない」で切り替え、少ないものは買い物候補に出ます。",
-    term: "消耗品",
   },
 ];
 
@@ -54,6 +72,40 @@ const ICON_TOPICS = [
   },
 ];
 
+function UsageSection() {
+  return (
+    <section aria-labelledby="usage-title" className="detail-card">
+      <h2 id="usage-title">YAMORUの使い方</h2>
+      <dl className={styles.topics}>
+        {USAGE_TOPICS.map((topic) => (
+          <div key={topic.term}>
+            <dt>{topic.term}</dt>
+            <dd>
+              {topic.detail}
+              {topic.kinds === undefined ? null : (
+                <ul className={styles.kinds}>
+                  {topic.kinds.map((kind) => (
+                    <li key={kind.term}>
+                      <span className={styles.kindTerm}>{kind.term}</span>
+                      ：{kind.detail}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <h3 className={styles.subheading}>日常的な操作</h3>
+      <ul className={styles.operations}>
+        {BASIC_OPERATIONS.map((operation) => (
+          <li key={operation}>{operation}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function HelpContent({ versionInfo }: { versionInfo: AppVersionInfo }) {
   return (
     <main className="page-form help-page">
@@ -67,23 +119,7 @@ export function HelpContent({ versionInfo }: { versionInfo: AppVersionInfo }) {
         <p>YAMORUの使い方と、問い合わせるときに必要な情報を確認できます。</p>
       </header>
 
-      <section aria-labelledby="usage-title" className="detail-card">
-        <h2 id="usage-title">YAMORUの使い方</h2>
-        <dl className={styles.topics}>
-          {USAGE_TOPICS.map((topic) => (
-            <div key={topic.term}>
-              <dt>{topic.term}</dt>
-              <dd>{topic.detail}</dd>
-            </div>
-          ))}
-        </dl>
-        <h3 className={styles.subheading}>日常的な操作</h3>
-        <ul className={styles.operations}>
-          {BASIC_OPERATIONS.map((operation) => (
-            <li key={operation}>{operation}</li>
-          ))}
-        </ul>
-      </section>
+      <UsageSection />
 
       <section aria-labelledby="icons-title" className="detail-card">
         <h2 id="icons-title">主なアイコン</h2>

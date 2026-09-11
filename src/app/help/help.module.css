@@ -25,6 +25,22 @@
   line-height: 1.6;
 }
 
+/* Issue #399: 台帳が扱う3種類。台帳の説明の中へ入れて、Todoや台帳と同列の
+   概念に見えないようにする。 */
+.kinds {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+}
+
+.kinds li + li {
+  margin-top: 2px;
+}
+
+.kindTerm {
+  color: var(--green);
+  font-weight: 800;
+}
+
 /* ヘルプの中では操作せず意味だけを示すので、ボタンより小さく描く。 */
 .icon {
   display: grid;
