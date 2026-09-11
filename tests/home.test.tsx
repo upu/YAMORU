@@ -109,10 +109,6 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getByRole("link", { name: "Todoを追加" })).toHaveClass(
       floatingAddButtonStyles.button,
     );
-    expect(screen.getByRole("link", { name: "家の台帳" })).toHaveAttribute(
-      "href",
-      "/managed-items",
-    );
     expect(screen.getByLabelText("対応状況")).toBeInTheDocument();
     expect(document.querySelector(".brand-row")).not.toBeInTheDocument();
     expect(document.querySelector(".date-badge")).not.toBeInTheDocument();
@@ -150,22 +146,23 @@ describe("ホーム画面(HomeContent)", () => {
     expect(screen.getAllByRole("link", { name: /Todoを追加/u })).toHaveLength(1);
   });
 
-  it("Todo一覧へのPC向け導線を表示し、モバイルではタブと重複しない印を付ける", () => {
+  // Issue #219: PCはサイドバー、モバイルは下部ナビゲーションがTodo一覧と台帳へ
+  // の行き先を常に見せている。ホーム上部に同じ行き先の二つ目の入口を置かない。
+  it("Todo一覧・台帳へのボタンをホーム上部に置かない", () => {
     renderHome(emptySections());
 
-    expect(screen.getByRole("link", { name: "Todo一覧" })).toHaveAttribute(
-      "href",
-      "/todos",
-    );
-    expect(screen.getByRole("link", { name: "Todo一覧" })).toHaveClass(
-      homeStyles.todoListLink,
-    );
+    expect(screen.queryByRole("navigation", { name: "ホームの操作" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Todo一覧" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "家の台帳" })).not.toBeInTheDocument();
+    // 対応状況のサマリーと、Todoを追加する導線は残す。
+    expect(screen.getByLabelText("対応状況")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Todoを追加" })).toBeInTheDocument();
   });
 
-  it("家庭未所属の利用者にはTodo関連の導線を表示しない", () => {
+  it("家庭未所属の利用者にはTodoを追加する導線を表示しない", () => {
     renderHome([], null);
 
-    expect(screen.queryByRole("link", { name: "Todo一覧" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Todoを追加" })).not.toBeInTheDocument();
   });
 

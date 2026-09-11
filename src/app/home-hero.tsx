@@ -49,13 +49,15 @@ function HomeSummaryItem({
   );
 }
 
+// Issue #219: PCにはサイドバー、モバイルには下部ナビゲーションがあり、どちらも
+// Todo一覧と台帳への行き先を常に見せている。ホーム上部に置いていた「Todo一覧」
+// 「家の台帳」のボタンは同じ行き先の二つ目の入口になるため外した(同じ移動先を
+// 一画面に2か所出さない、#391の規約)。ホームは対応状況の把握に専念する。
 export function HomeHero({
-  hasHousehold,
   openItemCount,
   overdueItemCount,
   shoppingCandidateCount,
 }: {
-  hasHousehold: boolean;
   openItemCount: number;
   overdueItemCount: number;
   shoppingCandidateCount: number;
@@ -63,18 +65,6 @@ export function HomeHero({
   return (
     <header className="hero">
       <h1 className="sr-only">ホーム</h1>
-      <nav aria-label="ホームの操作" className={styles.heroActions}>
-        {hasHousehold ? (
-          /* PCはこの導線、モバイルは下部のTodoタブから一覧へ移動する(#213)。 */
-          <Link className={`${styles.accountLink} ${styles.todoListLink}`} href="/todos">
-            Todo一覧
-          </Link>
-        ) : null}
-        <Link className={`${styles.accountLink} ${styles.ledgerLink}`} href="/managed-items">
-          家の台帳
-        </Link>
-      </nav>
-
       <div className={styles.summary} aria-label="対応状況">
         <HomeSummaryItem
           anchorId={HOME_TODO_SECTIONS_ANCHOR_ID}

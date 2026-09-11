@@ -1,32 +1,5 @@
 /* ホーム(page.tsx)だけが使う見た目。共通の枠(.home-section、.section-heading、
    .card-list)はTodo一覧・買い物候補とも共有するためglobals.css側に残す。 */
-.heroActions {
-  display: flex;
-  /* 「Todoを追加」「Todo一覧」「家の台帳」が狭い幅で収まらない場合は
-     折り返す(Issue #201)。 */
-  flex: none;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.accountLink {
-  padding: 6px 11px;
-  border: 1px solid rgb(49 92 73 / 18%);
-  border-radius: 999px;
-  color: var(--green);
-  background: rgb(255 254 250 / 65%);
-  font-size: 0.76rem;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.accountLink:hover {
-  background: rgb(49 92 73 / 8%);
-}
-
 .summary {
   display: grid;
   /* 「予定」「期限切れ」「買っておきたいもの」の3件(Issue #360)。 */
@@ -109,15 +82,8 @@
 }
 
 @media (max-width: 564px) {
-  .heroActions {
-    align-items: flex-end;
-    gap: 5px;
-  }
-
-  .ledgerLink {
-    display: none;
-  }
-
+  /* Issue #213: モバイルはTodoタブから一覧へ移動するため、本文の中の
+     「Todo一覧を見る」は出さない。 */
   .todoListLink {
     display: none;
   }
