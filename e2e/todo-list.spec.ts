@@ -97,9 +97,11 @@ test("ホームから開いたTodo一覧で、自分の家庭の未完了Todoだ
   await expect(page.getByLabel(`${TODAY_TODO}の担当`)).toBeVisible();
   await expect(page.getByRole("button", { name: `${TODAY_TODO}を記録` })).toBeVisible();
 
-  // Issue #357: ホームからTodo一覧への導線のリンク名は「Todo一覧」(#213以降、
-  // モバイルは下部ナビゲーションのTodoタブから移動する)。
-  await page.getByRole("link", { name: "Todo一覧", exact: true }).click();
+  // Issue #219: ホームからTodo一覧へは主要ナビゲーション(PCはサイドバー、
+  // モバイルは下部ナビゲーションのTodoタブ)から移動する。ホーム上部に置いて
+  // いた「Todo一覧」ボタンは、同じ行き先の二つ目の入口になるため外した。
+  await page.getByRole("navigation", { name: "主要ナビゲーション" })
+    .getByRole("link", { name: "Todo", exact: true }).click();
   await expect(page).toHaveURL(/\/todos$/u);
 
   const section = page.getByRole("region", { name: "未完了のTodo" });

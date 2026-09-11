@@ -17,7 +17,7 @@ status: stable
 | 役割 | 実装 |
 |---|---|
 | 画面組み立てと表示区分 | `src/app/page.tsx`(`HomeContent`、`HomeSection`、`buildRecentItems`) |
-| 上部の見出し・導線・件数サマリー | `src/app/home-hero.tsx`、`src/app/home-anchors.ts` |
+| 上部の見出し・件数サマリー | `src/app/home-hero.tsx`、`src/app/home-anchors.ts` |
 | 未完了Todoの分類 | `src/app/pending-todo.ts` |
 | 期限・推奨期間の表示状態と文言 | `src/app/task-schedule.ts`、`src/app/time-zone.ts` |
 | Todoカードと完了操作 | `src/app/todo-card.tsx` → `src/features/todos/components/complete-todo-panel.tsx` |
@@ -28,6 +28,7 @@ status: stable
 
 - 未完了Todoの分類は`src/app/pending-todo.ts`の一箇所で行う。ホームは「いま対応すること」だけを出し、Todo一覧(`/todos`)は同じ分類結果を並べ替えて全件出す。ホーム専用の分類規則を増やさない。
 - 予定日未定のOccurrenceはホームの要対応表示へ出さず、Todo一覧で扱う([YDR-031](../decisions/ydr-031-undated-todos-out-of-home.md))。
+- ホーム上部にTodo一覧・台帳への移動ボタンを置かない([Issue #219](https://github.com/upu/YAMORU/issues/219))。PCはサイドバー、モバイルは下部ナビゲーションがどちらの行き先も常に見せているため、同じ移動先の二つ目の入口になる(#391の規約)。上部は対応状況のサマリーだけを持つ。ホームが空のときに出す再発見の導線(`HomeEmptyState`)は、「予定日未定のTodoはTodo一覧で確認できる」という文脈を伴う案内なので別に扱う([Issue #202](https://github.com/upu/YAMORU/issues/202))。
 - メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/app/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
 - 完了操作はホーム専用の保存処理を持たず、`CompleteTodoPanel`(→`src/features/todos/actions/completion.ts`)を共有する。同じ部品を台帳詳細と検索結果も使う。
 - 通知機能を持たず、気づきの導線はホームへ集約する([YDR-009](../decisions/ydr-009-drop-notifications-consolidate-home.md))。

@@ -363,7 +363,6 @@ export function HomeContent({
   return (
     <main>
       <HomeHero
-        hasHousehold={household !== null}
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}
         shoppingCandidateCount={shoppingCandidates.length}
