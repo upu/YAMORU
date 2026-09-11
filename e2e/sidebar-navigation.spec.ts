@@ -110,6 +110,25 @@ test.describe("PC幅(1280px)", () => {
       .toHaveCount(0);
   });
 
+  // 画面上部へ固定する通知は、サイドバーではなく本文の真ん中へ置く。更新結果の
+  // 通知は共通ヘッダー(backdrop-filterでfixedの基準になる)の中にあり、その
+  // ヘッダー自体がすでにサイドバーの右側へ寄っているため、さらにずらすと
+  // 二重にずれる。
+  test("更新結果の通知が本文の真ん中に出る", async ({ page }) => {
+    await login(page);
+    await page.goto("/todos");
+
+    await page.getByRole("button", { name: "最新状態に更新" }).click();
+    const notice = page.getByRole("status").filter({ hasText: "更新しました" });
+    await expect(notice).toBeVisible();
+
+    const box = await notice.boundingBox();
+    const content = await page.getByRole("main").boundingBox();
+    if (box === null || content === null) throw new Error("位置を取得できなかった");
+    expect(Math.round(box.x + box.width / 2))
+      .toBe(Math.round(content.x + content.width / 2));
+  });
+
   // サイドバーを出さない画面では、その幅の余白も空けない。bodyへ一律に余白を
   // 置くと、ログイン・招待受諾の画面まで左側が空いたままになる。
   test("公開画面にはサイドバーを出さず、その幅の余白も空けない", async ({ page }) => {
