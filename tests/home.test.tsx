@@ -292,6 +292,16 @@ describe("ホーム上部の件数サマリー", () => {
     );
   });
 
+  // Issue #398: 0件のときはセクションごと出さない(0件のサマリーがリンクに
+  // ならないのと同じ理由。遷移先が無い見出しをホームへ残さない)。
+  it("買っておきたいものが0件のときは、そのセクションを出さない", () => {
+    renderHome(emptySections(), HOUSEHOLD, []);
+
+    expect(screen.queryByRole("region", { name: "買っておきたいもの" }))
+      .not.toBeInTheDocument();
+    expect(screen.getByLabelText("対応状況")).toHaveTextContent("0件 買うもの");
+  });
+
   it("各サマリーは数値と文言をまとめて一つのタップ領域にする", () => {
     renderHome(
       emptySections({ overdue: [overdueItem("occurrence-1", "換気扇の掃除")] }),

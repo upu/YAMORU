@@ -1,0 +1,47 @@
+/* ホームの買い物候補(Issue #398)。ピン留め(pinned-consumables.module.css)と
+   同じ密度・同じ作りの一覧にして、ホームの中で2つの消耗品の並びが別物に
+   見えないようにする。1件ずつ枠で囲まず、項目の間を細い線で区切る。
+   ピン留めと違い在庫状態の変更は持たない確認専用の一覧なので、状態は
+   共通のバッジ(globals.cssの.stock-status-badge)で示す。 */
+.list {
+  display: grid;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+
+/* 行の主要導線。Issue #389: 文字は大きくせず、押せる高さを--tap-targetに保つ
+   (ピン留めの行は在庫変更ボタンが同じ高さを作っているので、並べたときの
+   1件あたりの高さがそろう)。
+   Issue #390と同じ考え方で、基準幅(flex-basis)を0にして、名前が長くても
+   在庫状態を次の行へ送らず、名前の側だけを折り返す。 */
+.name {
+  display: flex;
+  min-width: 0;
+  min-height: var(--tap-target);
+  flex: 1 1 0;
+  align-items: center;
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-underline-offset: 4px;
+}
+
+/* 名前が折り返して次の行へ送られたときも、在庫状態は行の右端へ寄せる。 */
+.item :global(.stock-status-badge) {
+  margin-left: auto;
+}
