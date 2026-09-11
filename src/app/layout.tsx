@@ -8,6 +8,7 @@ import { APP_VERSION_INFO } from "./app-version";
 import { MobileBottomNavigation } from "./mobile-bottom-navigation";
 import { RefreshCoordinator } from "./refresh-coordinator";
 import { RefreshOnVisible } from "./refresh-on-visible";
+import { SidebarNavigation } from "./sidebar-navigation";
 
 export const metadata: Metadata = {
   title: "YAMORU",
@@ -42,6 +43,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <RefreshCoordinator>
           <RefreshOnVisible />
           <AppHeader />
+          {/* Issue #219: モバイル幅より広い画面の主要ナビゲーション。
+          下部ナビゲーションとは画面幅で出し分ける(CSSのdisplay: none)。 */}
+          <SidebarNavigation />
           {children}
           <AppFooter versionInfo={APP_VERSION_INFO} />
           <MobileBottomNavigation />

@@ -11,7 +11,9 @@
      ときでも、更新の失敗と「再試行」が隠れないようにする。 */
   z-index: 19;
   top: var(--top-notice-top);
-  left: 50%;
+  /* Issue #219: サイドバーは画面の左端を占めるため、その分だけ中心を
+     右へずらして本文の真ん中へ置く(モバイル幅では--sidebar-widthが0)。 */
+  left: calc(50% + var(--sidebar-width) / 2);
   display: grid;
   gap: 4px;
   /* スマホで画面を覆わないよう、幅は画面から余白を引いた分までに抑える。

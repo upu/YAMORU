@@ -29,6 +29,27 @@
      でした」+「再試行」(--tap-targetのボタンを含む)が収まる高さにする。 */
   --top-notice-top: 68px;
   --top-notice-stack: 76px;
+
+  /* Issue #219: PC向けサイドバー(sidebar-navigation)の幅。サイドバー自身の
+     幅と、本文をその分だけ右へ寄せる余白、画面上部へ固定する通知の中心を
+     合わせるために、複数の部品が同じ値を参照する(--mobile-nav-heightと同じ
+     扱い)。モバイル幅ではサイドバーを出さないため0。 */
+  --sidebar-width: 0px;
+}
+
+/* 下部ナビゲーションが消える幅(481px以上)からサイドバーを出し、主要
+   ナビゲーションが無い幅を作らない。中間幅(481〜899px)は本文の幅を優先して
+   折りたたみ、広い幅で語を横へ並べて展開する。 */
+@media (min-width: 481px) {
+  :root {
+    --sidebar-width: 84px;
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --sidebar-width: 216px;
+  }
 }
 
 * {
@@ -50,6 +71,10 @@ html {
 
 body {
   margin: 0;
+  /* Issue #219: サイドバーはposition: fixedなので、本文・ヘッダー・フッターの
+     側を同じ幅だけ右へ寄せる。mainの中央揃え(margin: 0 auto)は残り幅の中で
+     効く。 */
+  padding-left: var(--sidebar-width);
   color: var(--ink);
   background:
     radial-gradient(circle at top right, rgb(219 229 216 / 75%), transparent 32rem),

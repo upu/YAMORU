@@ -52,7 +52,9 @@
   /* Issue #326: 画面上部の通知の基準位置。ほかの通知はこの下へ積む
      (globals.cssの:root)。 */
   top: var(--top-notice-top);
-  left: 50%;
+  /* Issue #219: サイドバーは画面の左端を占めるため、その分だけ中心を
+     右へずらして本文の真ん中へ置く(モバイル幅では--sidebar-widthが0)。 */
+  left: calc(50% + var(--sidebar-width) / 2);
   width: max-content;
   max-width: calc(100vw - 32px);
   margin: 0;

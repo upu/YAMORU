@@ -22,7 +22,8 @@ status: stable
 | 手動更新ボタンと更新結果の通知 | `src/app/refresh-coordinator.module.css` |
 | Todo登録の完了通知 | `src/app/todos/new/registration-notice.module.css` |
 | 共通フッター | `src/app/app-footer.module.css` |
-| 下部ナビゲーション | `src/app/mobile-bottom-navigation.module.css` |
+| 下部ナビゲーション(モバイル幅) | `src/app/mobile-bottom-navigation.module.css` |
+| サイドバーナビゲーション(モバイル幅より広い画面) | `src/app/sidebar-navigation.module.css` |
 | 右下の追加ボタン(一覧ではモバイル幅だけ) | `src/app/floating-add-button.module.css` |
 | ホーム固有(操作リンク・対応状況・並び) | `src/app/home.module.css` |
 | ホームのピン留め消耗品 | `src/app/pinned-consumables.module.css` |
@@ -38,6 +39,9 @@ status: stable
 
 ## 重要な不変条件
 
+- 主要ナビゲーションは画面幅で見た目だけを変え、項目・行き先・現在地の意味は`src/app/primary-navigation.tsx`の一つの値から両方へ渡す([Issue #219](https://github.com/upu/YAMORU/issues/219))。モバイル幅(480px以下)は下部ナビゲーション、それより広い幅はサイドバー。切り替えは`display: none`で行い、隠れている側は支援技術からも見えないようにする(追加導線 #391 と同じ方法)。境界を下部ナビゲーションが消える幅とそろえ、主要ナビゲーションが無い幅を作らない。
+- サイドバーは481〜899pxでアイコンの下に語を置いて折りたたみ、900px以上で語を横へ並べて展開する([Issue #219](https://github.com/upu/YAMORU/issues/219))。折りたたんでも語は消さない(記号だけにすると行き先が読み取れない)。利用者が開閉する状態は持たないため、保存する開閉状態もない。
+- サイドバーの幅は`--sidebar-width`(`globals.css`の`:root`、モバイル幅では`0px`)に持つ([Issue #219](https://github.com/upu/YAMORU/issues/219))。サイドバー自身の幅、`body`の左padding(ヘッダー・本文・フッターを右へ寄せる)、画面上部へ固定する通知の中心(`left: calc(50% + var(--sidebar-width) / 2)`)が同じ値を参照する。右下の追加ボタンは画面の反対側に固定するため、サイドバーとは重ならない。
 - 主要な操作(ボタン、タブ、切り替え、リンク、担当のselect)は、押せる領域を`--tap-target`(`globals.css`の`:root`、44px)以上に保つ([YDR-045](../decisions/ydr-045-compact-ui-with-first-run-hints.md)、[Issue #389](https://github.com/upu/YAMORU/issues/389))。大きさを直接書かず、この変数を参照する。
 - 見た目の大きさと押せる領域は分けてよい。見た目を小さいまま保ちたい操作は、疑似要素(`globals.css`の`.stock-status-option-symbol`)か負のmargin(`first-run-hint.module.css`の`.dismiss`)で領域だけを広げる。はみ出した分だけ隣の操作との間隔を空け、誤タップを作らない。隣り合う選択肢(表示形式の2択など)は領域が重なるため、この方法を使わず押せる面そのものを広げる。
 - 領域を広げた分は、外側の余白(リスト項目のpadding、パネルのmargin)を詰めて、1件あたりの高さを増やさない。
@@ -79,5 +83,7 @@ npm run build
 Todo・備品・消耗品の詳細が、空・少量・多量のどの状態でも縦に詰まっていることと、重要な状態と操作が最初の画面へ収まることは`e2e/detail-compact-layout.spec.ts`が確認する。
 
 Todo登録の完了通知が、フォーム下部で登録しても画面の中に見えることと、画面を覆わず操作を妨げないことは`e2e/todo-registration-notice.spec.ts`が確認する。
+
+主要ナビゲーションが画面幅で入れ替わること、サイドバーが本文を覆わないこと、キーボードと文字サイズ2倍で使えること、公開画面に出ないことは`e2e/sidebar-navigation.spec.ts`が390px・768px・1280pxで確認する。
 
 押せる領域は`e2e/tap-target-size.spec.ts`が390pxと320pxで確認する。要素の大きさだけでなく、中心から21px離れた点を押したときにその操作へ当たるかどうかで見るため、疑似要素で広げた領域も対象になる。

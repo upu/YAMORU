@@ -1,0 +1,100 @@
+/* PC向けのサイドバーナビゲーション(Issue #219)。モバイル幅では下部
+   ナビゲーションが主要導線なので、ここはすべて画面幅の条件付きで持つ。
+   サイドバーの幅は本文の左余白としても使うため、globals.cssの
+   --sidebar-widthを両方から参照する。 */
+.sidebar {
+  display: none;
+}
+
+/* モバイル幅(480px以下)より広ければサイドバーを出す。下部ナビゲーションが
+   消える幅と同じ境界にして、主要ナビゲーションが無い幅を作らない。 */
+@media (min-width: 481px) {
+  .sidebar {
+    position: fixed;
+    z-index: 21;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    width: var(--sidebar-width);
+    flex-direction: column;
+    /* 共通ヘッダー(高さ58px相当)の下から項目を始め、ヘッダーの帯と
+       サイドバーの項目が横一列で競合しないようにする。 */
+    padding: 74px 10px 16px;
+    border-right: 1px solid rgb(49 92 73 / 14%);
+    background: rgb(255 254 250 / 94%);
+    backdrop-filter: blur(12px);
+    gap: 4px;
+    overflow-y: auto;
+  }
+
+  .items {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* 中間幅(481〜899px)は本文の幅を優先して折りたたむ。アイコンの下に語を
+     置き、語そのものは残す(記号だけにすると行き先が読み取りにくい)。 */
+  .item {
+    display: grid;
+    min-height: var(--tap-target);
+    padding: 8px 4px;
+    place-items: center;
+    align-content: center;
+    gap: 2px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+
+  .label {
+    white-space: nowrap;
+  }
+
+  .item[aria-current="page"] {
+    color: var(--green);
+    background: var(--green-pale);
+  }
+
+  .item:hover {
+    color: var(--green);
+  }
+
+  .item:focus-visible {
+    outline: 3px solid rgb(64 103 120 / 38%);
+    outline-offset: 2px;
+  }
+
+  .sidebar svg {
+    width: 25px;
+    height: 25px;
+    fill: none;
+    stroke: currentcolor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+}
+
+/* 広い幅ではアイコンと語を横に並べ、押せる面を項目の全幅へ広げる。 */
+@media (min-width: 900px) {
+  .sidebar {
+    padding: 74px 12px 20px;
+  }
+
+  .item {
+    grid-template-columns: 25px minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+  }
+}
