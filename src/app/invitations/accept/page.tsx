@@ -42,7 +42,7 @@ export default function AcceptInvitationPage() {
   }, []);
 
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <section aria-labelledby="invitation-loading-title" className="detail-card">
         <h1 id="invitation-loading-title">招待を確認しています</h1>
         <p>自動的に進まない場合は、しばらくお待ちください。</p>

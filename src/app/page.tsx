@@ -361,7 +361,7 @@ export function HomeContent({
   const visibleSections = sections.filter((section) => section.items.length > 0);
 
   return (
-    <main>
+    <main className="page-list">
       <HomeHero
         openItemCount={openItemCount}
         overdueItemCount={overdueItemCount}

@@ -31,7 +31,7 @@ export default async function AcceptInvitationConfirmPage() {
 
   if (claimSecret === undefined) {
     return (
-      <main className="detail-page">
+      <main className="page-form">
         <CommonErrorCard />
       </main>
     );
@@ -40,7 +40,7 @@ export default async function AcceptInvitationConfirmPage() {
   const db = await getD1Database();
   const claimState = await getInvitationClaimState(db, claimSecret);
   if (claimState === null) {
-    return <main className="detail-page"><CommonErrorCard /></main>;
+    return <main className="page-form"><CommonErrorCard /></main>;
   }
 
   const user = await getCurrentUser();
@@ -52,7 +52,7 @@ export default async function AcceptInvitationConfirmPage() {
   }
 
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <header className="detail-hero">
         <p className="detail-kicker">INVITATION</p>
         <h1>招待を受諾</h1>

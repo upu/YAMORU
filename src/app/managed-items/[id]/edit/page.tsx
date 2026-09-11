@@ -32,7 +32,7 @@ export default async function ManagedItemEditPage({
   if (item === null) notFound();
 
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href={`/managed-items/${encodeURIComponent(id)}`}>
           ← 管理対象の詳細へ戻る

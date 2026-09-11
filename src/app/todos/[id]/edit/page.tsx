@@ -22,7 +22,7 @@ function TodoEditSections({ id, managedItems, members, todo }: {
   todo: TodoDetailRow;
 }) {
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <nav aria-label="ページ移動" className="back-nav">
         <Link href={`/todos/${encodeURIComponent(id)}`}>← Todoの詳細へ戻る</Link>
       </nav>

@@ -13,7 +13,7 @@ export default function ResumeInvitationPage() {
   }, []);
 
   return (
-    <main className="detail-page">
+    <main className="page-form">
       <section aria-labelledby="invitation-resume-title" className="detail-card">
         <h1 id="invitation-resume-title">招待の確認へ進みます</h1>
         <p>
