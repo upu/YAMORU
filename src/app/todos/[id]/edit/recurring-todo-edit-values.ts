@@ -6,6 +6,12 @@ import {
   type RecurringRuleEditValues,
 } from "./recurring-todo-edit-form";
 
+// Issue #329 / YDR-047: 未設定のメモは空文字で初期表示する(textareaの
+// defaultValueにnullを渡さない)。三つの方式で同じ扱いにする。
+function noteValue(todo: TodoDetailRow): string {
+  return todo.note ?? "";
+}
+
 function completionValues(todo: TodoDetailRow): RecurringRuleEditValues {
   const hasSavedValues = todo.recommended_start_value !== null &&
     todo.recommended_until_value !== null && todo.recommended_unit !== null;
@@ -17,6 +23,7 @@ function completionValues(todo: TodoDetailRow): RecurringRuleEditValues {
   }
   return {
     managedItemId: todo.managed_item_id,
+    note: noteValue(todo),
     recurrenceBasis: "completion",
     recommendedStartValue: todo.recommended_start_value ??
       (useWeeks ? todo.recommended_start_offset / 7 : todo.recommended_start_offset),
@@ -39,6 +46,7 @@ function intervalValues(todo: TodoDetailRow): RecurringRuleEditValues {
     intervalCount: todo.interval_count,
     intervalUnit: todo.interval_unit,
     managedItemId: todo.managed_item_id,
+    note: noteValue(todo),
     recurrenceBasis: "interval",
     title: todo.title,
   };
@@ -71,6 +79,7 @@ function calendarValues(todo: TodoDetailRow): RecurringRuleEditValues {
     .filter((week) => week !== 0);
   return {
     managedItemId: todo.managed_item_id,
+    note: noteValue(todo),
     recurrenceBasis: "calendar",
     scheduleDayOfMonth: first.dayOfMonth === 0 ? null : first.dayOfMonth,
     scheduleDaysOfWeek: [...new Set(

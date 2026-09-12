@@ -18,6 +18,7 @@ function yearlyWeekdayInput(
 ) {
   return {
     managedItemId: null,
+    note: null,
     scheduleDayOfMonth: null,
     scheduleDaysOfWeek: [dayOfWeek],
     scheduleKind: "yearly_nth_weekday",
@@ -160,6 +161,7 @@ describe("毎年の第N曜日と最終曜日", () => {
   it("毎年の月日から曜日方式へ変えても現在回を動かさない", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: 20,
       scheduleDaysOfWeek: [],
       scheduleKind: "yearly",

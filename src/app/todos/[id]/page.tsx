@@ -53,6 +53,8 @@ export type TodoDetailData = {
   isMaintenance: boolean;
   managedItemId: string | null;
   managedItemName: string | null;
+  // Issue #329 / YDR-047: 実施するときに毎回参照する手順・注意点。未設定はnull。
+  note: string | null;
   recurrenceBasis: RecurrenceBasis;
   // Issue #244(設計メモ案A): 方式と具体条件を一つにまとめた表示文字列。
   // 「繰り返しなし」「完了から4〜8週間後」「毎週月曜日」など。
@@ -101,6 +103,20 @@ function TodoCompletionRows({ completion }: { completion: TodoCompletionData | n
         <dd>{completion.performerName}</dd>
       </div>
     </>
+  );
+}
+
+// Issue #329 / YDR-047: メモは複数行のプレーンテキストなので、他の一行項目と
+// 同じdt/ddに押し込めず、改行を保ったまま読める独立した節に置く。Markdownは
+// 解釈せず、入力された文字をそのまま示す。未設定のTodoには節自体を出さない
+// (#395の「残した項目だけを並べる」と同じ考え方)。
+function TodoNoteSection({ note }: { note: string | null }) {
+  if (note === null) return null;
+  return (
+    <section aria-labelledby="todo-note-title" className="detail-card">
+      <h2 id="todo-note-title">メモ</h2>
+      <p className="todo-note-body">{note}</p>
+    </section>
   );
 }
 
@@ -266,6 +282,7 @@ export function TodoDetailContent({
             todo={todo}
           />
           <TodoContentSection todo={todo} />
+          <TodoNoteSection note={todo.note} />
         </div>
 
         <div className="detail-column-side">
@@ -375,6 +392,7 @@ export default async function TodoDetailPage({
         isMaintenance: toDeadlineKind(row.deadline_kind) === "maintenance",
         managedItemId: row.managed_item_id,
         managedItemName: row.managed_item_name,
+        note: row.note,
         recurrenceBasis: toRecurrenceBasis(row.recurrence_basis),
         recurrenceLabel: buildRecurrenceLabel(row),
         scheduledFor: row.scheduled_for,

@@ -59,6 +59,7 @@ function todoForm(overrides: Record<string, string | string[]> = {}) {
     intervalMin: "1",
     intervalUnit: "week",
     managedItemId: "",
+    note: "",
     plannedDate: "2026-10-10",
     recurrenceBasis: "once",
     scheduleDayOfMonth: "25",
@@ -100,6 +101,7 @@ describe("専用ページのTodo登録操作", () => {
 
     expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "once",
       scheduledFor: "2026-10-09T15:00:00.000Z",
       title: "家族会議",
@@ -119,6 +121,7 @@ describe("専用ページのTodo登録操作", () => {
 
     expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "once",
       scheduledFor: null,
       title: "家族会議",
@@ -132,6 +135,53 @@ describe("専用ページのTodo登録操作", () => {
       },
       status: "success",
     });
+  });
+
+  // Issue #329 / YDR-047
+  it("メモを前後の空白と改行コードをそろえて保存する", async () => {
+    await createTodo(
+      INITIAL_STATE,
+      todoForm({ note: "  石灰除去剤を1本入れる。\r\n水だけで2回すすぐ。  " }),
+    );
+
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ note: "石灰除去剤を1本入れる。\n水だけで2回すすぐ。" }),
+    );
+  });
+
+  it("空欄と空白だけのメモはメモ未設定として保存する", async () => {
+    await createTodo(INITIAL_STATE, todoForm({ note: "   \n  " }));
+
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ note: null }),
+    );
+  });
+
+  it("上限を超えたメモは保存せず、入力の直し方を案内する", async () => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({ note: "あ".repeat(1001) }),
+    );
+
+    expect(createOneTimeTaskMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "メモは1000文字以内で入力してください。",
+      status: "error",
+    });
+  });
+
+  it("上限ちょうどのメモは保存できる", async () => {
+    await createTodo(INITIAL_STATE, todoForm({ note: "あ".repeat(1000) }));
+
+    expect(createOneTimeTaskMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({ note: "あ".repeat(1000) }),
+    );
   });
 
   // Issue #325 / YDR-046
@@ -148,6 +198,7 @@ describe("専用ページのTodo登録操作", () => {
     // 予定日欄(plannedDate)に値が残っていても、manualでは読まない。
     expect(createManualTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: "item-1",
+      note: null,
       recurrenceBasis: "manual",
       title: "コーヒーマシーンの石灰除去",
     });
@@ -174,6 +225,7 @@ describe("専用ページのTodo登録操作", () => {
       firstDueAt: "2026-10-14T15:00:00.000Z",
       firstScheduledFor: "2026-10-07T15:00:00.000Z",
       managedItemId: null,
+      note: null,
       recurrenceBasis: "completion",
       recommendedStartOffset: 7,
       recommendedStartValue: 1,
@@ -214,6 +266,7 @@ describe("専用ページのTodo登録操作", () => {
 
     expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 31,
       scheduleDaysOfWeek: [],
@@ -342,6 +395,7 @@ describe("専用ページの固定間隔Todo登録操作", () => {
       intervalCount: 2,
       intervalUnit: "week",
       managedItemId: null,
+      note: null,
       recurrenceBasis: "interval",
       title: "ゴミ出し",
     }, expect.any(Date));

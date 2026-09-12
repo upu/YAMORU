@@ -24,6 +24,8 @@ import {
   MAX_COMPLETION_VALUE,
   MAX_INTERVAL_ANCHOR_DISTANCE_DAYS,
   MAX_INTERVAL_COUNT,
+  INVALID_TASK_NOTE_MESSAGE,
+  parseTodoNote,
   parseTodoTitle,
 } from "../todo-input-limits";
 import { parseCalendarRuleSchedule } from "./calendar-rule-input";
@@ -32,6 +34,7 @@ type ParsedTodoEditForm =
   | {
       assigneeUserId: string | null;
       managedItemId: string | null;
+      note: string | null;
       occurrenceId: string;
       scheduledFor: string | null;
       status: "ok";
@@ -82,9 +85,16 @@ function parseTodoEditForm(formData: FormData): ParsedTodoEditForm {
   const schedule = parseSchedule(formData);
   if (schedule.status !== "ok") return schedule;
 
+  // Issue #329 / YDR-047: メモは任意。空欄にすると未設定へ戻る。
+  const note = parseTodoNote(formData);
+  if (note.status !== "ok") {
+    return { message: INVALID_TASK_NOTE_MESSAGE, status: "error" };
+  }
+
   return {
     assigneeUserId: optionalId(formData, "assigneeUserId"),
     managedItemId: optionalId(formData, "managedItemId"),
+    note: note.value,
     occurrenceId,
     scheduledFor: schedule.value,
     status: "ok",
@@ -164,6 +174,7 @@ export async function updateTodo(
     ({ previousManagedItemId } = await updateOneTimeTodo(db, session, parsed.occurrenceId, {
       assigneeUserId: parsed.assigneeUserId,
       managedItemId: parsed.managedItemId,
+      note: parsed.note,
       scheduledFor: parsed.scheduledFor,
       title: parsed.title,
     }));
@@ -213,6 +224,7 @@ function recurringBasics(
   formData: FormData,
 ): {
   managedItemId: string | null;
+  note: string | null;
   occurrenceId: string;
   recurrenceBasis: "calendar" | "completion" | "interval";
   title: string;
@@ -232,8 +244,13 @@ function recurringBasics(
   ) {
     return { message: "繰り返し条件を正しく入力してください。", status: "error" };
   }
+  const note = parseTodoNote(formData);
+  if (note.status !== "ok") {
+    return { message: INVALID_TASK_NOTE_MESSAGE, status: "error" };
+  }
   return {
     managedItemId: optionalId(formData, "managedItemId"),
+    note: note.value,
     occurrenceId,
     recurrenceBasis,
     title,
@@ -248,6 +265,7 @@ function calendarRuleInput(
   if ("status" in schedule) return schedule;
   return {
     managedItemId: basics.managedItemId,
+    note: basics.note,
     recurrenceBasis: "calendar",
     ...schedule,
     title: basics.title,
@@ -270,6 +288,7 @@ function completionRuleInput(
   const dayMultiplier = unit === "day" || unit === "week" ? COMPLETION_UNIT_DAYS[unit] : 0;
   return {
     managedItemId: basics.managedItemId,
+    note: basics.note,
     recurrenceBasis: "completion",
     recommendedStartOffset: minimum * dayMultiplier,
     recommendedStartValue: minimum,
@@ -303,6 +322,7 @@ function intervalRuleInput(
     intervalCount: count,
     intervalUnit: unit,
     managedItemId: basics.managedItemId,
+    note: basics.note,
     recurrenceBasis: "interval",
     title: basics.title,
   };

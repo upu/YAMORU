@@ -382,7 +382,8 @@ CREATE TABLE "task_rules" (
   recommended_start_value INTEGER,
   recommended_until_value INTEGER,
   recommended_unit TEXT,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), note TEXT
+  CHECK (note IS NULL OR (length(note) BETWEEN 1 AND 1000)),
   UNIQUE (id, household_id),
   UNIQUE (id, schedule_kind),
   FOREIGN KEY (managed_item_id, household_id) REFERENCES managed_items(id, household_id) ON DELETE CASCADE,

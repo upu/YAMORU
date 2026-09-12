@@ -34,6 +34,7 @@ import managedItemTypeSuggestionsSql from "../../../../d1/migrations/0024_manage
 import userConsumablePinsLegacySql from "../../../../d1/migrations/0025_user_consumable_favorites.sql?raw";
 import userConsumablePinsSql from "../../../../d1/migrations/0026_user_consumable_pins.sql?raw";
 import manualRecurrenceSql from "../../../../d1/migrations/0027_manual_recurrence.sql?raw";
+import taskRuleNoteSql from "../../../../d1/migrations/0028_task_rule_note.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -64,6 +65,7 @@ const MIGRATIONS = [
   { name: "0025_user_consumable_favorites", sql: userConsumablePinsLegacySql },
   { name: "0026_user_consumable_pins", sql: userConsumablePinsSql },
   { name: "0027_manual_recurrence", sql: manualRecurrenceSql },
+  { name: "0028_task_rule_note", sql: taskRuleNoteSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];
@@ -120,4 +122,17 @@ export async function applyMigrationsThrough(
 // これを使い、適用範囲を各テストで持たない。
 export async function applyAllMigrations(db: D1Database): Promise<void> {
   await applyMigrations(db, MIGRATIONS.map((migration) => migration.name));
+}
+
+// lastより後のmigrationを、残り全部まとめて適用する。migrationのテストは
+// 対象migrationを当てた直後の状態を確かめるが、そのうえで現在のWorkerコード
+// (src/lib/d1/)を呼ぶ確認は現在のschemaを前提にする。対象migrationの検証を
+// 終えた後にこれを呼び、追加されたmigrationのぶんだけテストを直さずに済ませる。
+export async function applyMigrationsAfter(
+  db: D1Database,
+  last: MigrationName,
+): Promise<void> {
+  const index = MIGRATIONS.findIndex((candidate) => candidate.name === last);
+  if (index < 0) throw new Error(`未知のmigrationです: ${last}`);
+  await applyMigrations(db, MIGRATIONS.slice(index + 1).map((migration) => migration.name));
 }

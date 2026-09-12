@@ -62,6 +62,7 @@ function TodoEditSections({ id, managedItems, members, todo }: {
             managedItemId={todo.managed_item_id}
             managedItems={managedItems}
             members={members}
+            note={todo.note ?? ""}
             plannedDate={plannedDateValue(todo)}
             title={todo.title}
           />

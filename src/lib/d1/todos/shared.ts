@@ -13,7 +13,14 @@ import { calendarScheduleSpecsExpression } from "./rule-snapshot";
 // Todo(TaskRule/TaskOccurrence)の操作が共通で使う、家庭の確認・Occurrenceの
 // 取得・次回予定の算出(#280)。
 
-export type TaskBasics = { managedItemId: string | null; title: string };
+// Issue #329 / YDR-047: noteは実施時に毎回参照する手順・注意点。Occurrenceごと
+// の記録ではなくTaskRuleの一部なので、方式を問わずここに置く。メモは任意
+// なので省略でき、省略・nullはどちらも「メモ未設定」として保存する。
+export type TaskBasics = {
+  managedItemId: string | null;
+  note?: string | null;
+  title: string;
+};
 
 export type OccurrenceWithRule = {
   assignee_user_id: string | null;

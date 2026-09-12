@@ -74,6 +74,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
       firstDueAt: "2026-10-14T15:00:00.000Z",
       firstScheduledFor: "2026-10-07T15:00:00.000Z",
       managedItemId: "managed-item-id",
+      note: null,
       recurrenceBasis: "completion",
       recommendedStartOffset: 7,
       recommendedStartValue: 1,
@@ -123,6 +124,7 @@ describe("完了日基準メンテナンスTodo登録操作", () => {
 
     expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: "managed-item-id",
+      note: null,
       recurrenceBasis: "once",
       scheduledFor: "2026-10-09T15:00:00.000Z",
       title: "今回だけ点検",

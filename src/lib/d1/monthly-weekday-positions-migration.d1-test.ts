@@ -3,7 +3,11 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { applyMigrations, applyMigrationsThrough } from "./test-support/migrations";
+import {
+  applyMigrations,
+  applyMigrationsAfter,
+  applyMigrationsThrough,
+} from "./test-support/migrations";
 import { completeTask, createCalendarTask } from "./todos";
 
 const db = env.DB;
@@ -80,7 +84,10 @@ describe("0022_monthly_weekday_positions", () => {
     });
   });
 
+  // 0022のガードは後続のmigrationでも作り直される。ここは現在のWorkerコード
+  // (createCalendarTask)を呼ぶため、残りのmigrationを当ててから確かめる。
   it("最終曜日1件だけのルールもversionなしの旧Worker書き込みを拒否する", async () => {
+    await applyMigrationsAfter(db, "0022_monthly_weekday_positions");
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,

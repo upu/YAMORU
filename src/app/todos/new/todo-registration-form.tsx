@@ -22,6 +22,7 @@ import {
   IntervalFields,
   OneTimeFields,
 } from "./recurrence-fields";
+import { TodoNoteField } from "../todo-note-field";
 import styles from "./registration-notice.module.css";
 
 export type { TodoManagedItemOption };
@@ -65,6 +66,27 @@ const RECURRENCE_OPTIONS: {
     value: "manual",
   },
 ];
+
+// 繰り返し方ごとの条件入力。「必要になったら繰り返す」は条件を持たないため
+// 何も出さない(Issue #325 / YDR-046)。
+function RecurrenceConditionFields({
+  recurrenceBasis,
+}: {
+  recurrenceBasis: RecurrenceBasis;
+}) {
+  if (recurrenceBasis === "once") return <OneTimeFields />;
+  if (recurrenceBasis === "completion") {
+    return (
+      <>
+        <IntervalFields />
+        <InitialDateFields />
+      </>
+    );
+  }
+  if (recurrenceBasis === "interval") return <FixedIntervalFields />;
+  if (recurrenceBasis === "calendar") return <CalendarFields />;
+  return null;
+}
 
 function RecurrenceFields({
   recurrenceBasis,
@@ -186,15 +208,9 @@ export function TodoRegistrationForm({
         recurrenceBasis={recurrenceBasis}
         setRecurrenceBasis={setRecurrenceBasis}
       />
-      {recurrenceBasis === "once" ? <OneTimeFields /> : null}
-      {recurrenceBasis === "completion" ? (
-        <>
-          <IntervalFields />
-          <InitialDateFields />
-        </>
-      ) : null}
-      {recurrenceBasis === "interval" ? <FixedIntervalFields /> : null}
-      {recurrenceBasis === "calendar" ? <CalendarFields /> : null}
+      <RecurrenceConditionFields recurrenceBasis={recurrenceBasis} />
+      {/* Issue #329 / YDR-047: 繰り返し方によらず同じ位置へ置く。 */}
+      <TodoNoteField idPrefix="todo" />
       <ManagedItemSearch
         idPrefix="todo"
         initialManagedItemId={initialManagedItemId}

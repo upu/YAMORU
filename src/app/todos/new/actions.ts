@@ -13,6 +13,8 @@ import {
   MAX_COMPLETION_VALUE,
   MAX_INTERVAL_ANCHOR_DISTANCE_DAYS,
   MAX_INTERVAL_COUNT,
+  INVALID_TASK_NOTE_MESSAGE,
+  parseTodoNote,
   parseTodoTitle,
 } from "../todo-input-limits";
 import { parseCalendarTodo } from "./calendar-todo-input";
@@ -74,11 +76,18 @@ function parseTodoBasics(
     return { message: "繰り返し方を選択してください。", status: "error" };
   }
 
+  // Issue #329 / YDR-047: メモは任意。長さの規則は編集と共通
+  // (../todo-input-limits.ts)。
+  const note = parseTodoNote(formData);
+  if (note.status !== "ok") {
+    return { message: INVALID_TASK_NOTE_MESSAGE, status: "error" };
+  }
+
   const rawManagedItemId = formData.get("managedItemId");
   const managedItemId = typeof rawManagedItemId === "string"
     ? rawManagedItemId.trim() || null
     : null;
-  return { managedItemId, recurrenceBasis, title };
+  return { managedItemId, note: note.value, recurrenceBasis, title };
 }
 
 function parseBoundedInteger(

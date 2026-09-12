@@ -4,7 +4,11 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { applyMigrations, applyMigrationsThrough } from "./test-support/migrations";
+import {
+  applyMigrations,
+  applyMigrationsAfter,
+  applyMigrationsThrough,
+} from "./test-support/migrations";
 import { completeTask, createCalendarTask } from "./todos";
 
 const db = env.DB;
@@ -86,7 +90,11 @@ describe("0023_yearly_nth_weekday", () => {
     });
   });
 
+  // 0023で足した種類を、現在のWorkerコード(createCalendarTask)から保存できる
+  // ことを確かめる。現在のコードは現在のschemaを前提にするため、残りの
+  // migrationを当ててから呼ぶ。
   it("移行後はyearly_nth_weekdayのルールを保存できる", async () => {
+    await applyMigrationsAfter(db, "0023_yearly_nth_weekday");
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       scheduleDayOfMonth: null,

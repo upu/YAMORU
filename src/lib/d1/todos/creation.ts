@@ -152,8 +152,8 @@ async function insertTask(
         schedule_kind, schedule_day_of_week, schedule_day_of_month,
         schedule_week_of_month, schedule_month, schedule_month_end,
         interval_unit, interval_count, interval_anchor_on,
-        recommended_start_value, recommended_until_value, recommended_unit
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)`,
+        recommended_start_value, recommended_until_value, recommended_unit, note
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)`,
     ).bind(
       taskRuleId,
       householdId,
@@ -168,6 +168,7 @@ async function insertTask(
       input.recommendedStartValue ?? null,
       input.recommendedUntilValue ?? null,
       input.recommendedUnit ?? null,
+      input.note ?? null,
     ),
     ...scheduleSpecInserts(db, householdId, taskRuleId, specs ?? []),
     // 候補指定を入れた後にOccurrenceを作る。rule_snapshotが候補指定を含み

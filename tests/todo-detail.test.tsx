@@ -65,6 +65,7 @@ function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
     isMaintenance: false,
     managedItemId: "item-1",
     managedItemName: "猫の浄水器",
+    note: null,
     recurrenceBasis: "once",
     recurrenceLabel: "繰り返しなし",
     scheduledFor: "2026-09-01T15:00:00.000Z",
@@ -228,6 +229,36 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     renderDetail(todo({ dueAt: null, scheduledFor: null }));
 
     expect(screen.getByText("未定")).toBeInTheDocument();
+  });
+
+  // Issue #329 / YDR-047
+  it("メモがあれば独立した節で改行を保ったまま表示する", () => {
+    renderDetail(todo({ note: "除去剤を1本入れる。\n水だけで2回すすぐ。" }));
+
+    const section = screen.getByRole("region", { name: "メモ" });
+    expect(section).toHaveTextContent("除去剤を1本入れる。");
+    expect(section).toHaveTextContent("水だけで2回すすぐ。");
+  });
+
+  it("メモ未設定のTodoではメモの節自体を置かない", () => {
+    renderDetail(todo());
+
+    expect(screen.queryByRole("region", { name: "メモ" })).not.toBeInTheDocument();
+  });
+
+  it("完了済みTodoでも現在のメモを確認できる", () => {
+    renderDetail(todo({
+      completion: {
+        occurredAt: "2026-09-01T15:00:00.000Z",
+        performedByUserId: "user-1",
+        performerName: "ぽっぷ",
+      },
+      isCompleted: true,
+      note: "除去剤を1本入れる。",
+    }));
+
+    expect(screen.getByRole("region", { name: "メモ" }))
+      .toHaveTextContent("除去剤を1本入れる。");
   });
 
   // Issue #325 / YDR-046: 予定日を持たない方式であることは「繰り返し」の行が
