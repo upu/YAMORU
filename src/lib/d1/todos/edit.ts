@@ -170,6 +170,35 @@ function assigneeChangeStatement(
   );
 }
 
+// Issue #325 / YDR-046 / YDR-039: manualは繰り返しTodoなので、完了で生まれた
+// 次回Occurrenceをこの経路で編集することがある。undoTaskCompletionは「次回
+// Occurrenceにactivity_logsもtask_rule_changesも無いこと」を手つかずの判定に
+// 使う(YDR-015)ため、ここで変更履歴を残さないと、編集済みの次回を黙って消し、
+// 巻き戻したOccurrenceのsnapshotだけが古い名前・関連先のまま残ってしまう。
+// 他の繰り返し方式(recurring-edit.ts)と同じ形で記録し、同じ判定に載せる。
+// 一回限りTodoは完了しても次回を作らないため、この記録は要らない。
+function manualRuleChangeStatement(
+  db: D1Database,
+  householdId: string,
+  occurrence: OccurrenceWithRule,
+  actorId: string,
+): D1PreparedStatement {
+  const snapshot = taskRuleSnapshotExpression();
+  return db.prepare(
+    `INSERT INTO task_rule_changes (
+      id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
+      previous_rule_snapshot, new_rule_snapshot
+    )
+    SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
+      FROM task_occurrences o
+      JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
+      LEFT JOIN managed_items i
+        ON i.id = r.managed_item_id AND i.household_id = r.household_id
+     WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
+       AND o.rule_snapshot <> ${snapshot}`,
+  ).bind(crypto.randomUUID(), householdId, actorId, occurrence.id);
+}
+
 function oneTimeTodoStatements(
   db: D1Database,
   householdId: string,
@@ -182,7 +211,7 @@ function oneTimeTodoStatements(
     // 適用する。片方だけが通って途中状態が残ることを防ぐ(YDR-014)。
     db.prepare(
       `UPDATE task_rules SET title = ?1, managed_item_id = ?2
-        WHERE id = ?3 AND household_id = ?4 AND recurrence_basis = 'once'
+        WHERE id = ?3 AND household_id = ?4 AND recurrence_basis IN ('once', 'manual')
           AND EXISTS (
             SELECT 1 FROM task_occurrences
              WHERE id = ?5 AND household_id = ?4 AND status = 'pending'
@@ -225,6 +254,32 @@ function oneTimeTodoStatements(
   ];
 }
 
+// この画面で編集できるのは、繰り返し条件を持たないTodoだけ。
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoも繰り返し条件を持たない
+// ため、同じ画面・同じ経路で編集する。ただし予定日は方式そのものが「日付を
+// 決めない」であり、具体日と未定を往復しない(YDR-030の往復は一回限りTodoだけ
+// の規則)。
+function requireEditableOccurrence(
+  occurrence: OccurrenceWithRule,
+  input: OneTimeTodoUpdate,
+): void {
+  if (occurrence.status !== "pending") {
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
+  }
+  if (occurrence.recurrence_basis === "manual") {
+    if (input.scheduledFor !== null) {
+      throw new D1ConflictError(
+        "Manual tasks cannot have a schedule",
+        "MANUAL_TODO_HAS_NO_SCHEDULE",
+      );
+    }
+    return;
+  }
+  if (occurrence.recurrence_basis !== "once") {
+    throw new D1ConflictError("Only one-time tasks can be edited", "EDIT_REQUIRES_ONE_TIME");
+  }
+}
+
 // Issue #203: 繰り返しなしTodoの名前・関連ManagedItem・担当者・予定日を、一つの
 // batch(暗黙のトランザクション)でまとめて更新する。途中で失敗した場合は
 // TaskRule側だけが変わった状態を残さない。戻り値は変更前の関連ManagedItem
@@ -243,14 +298,13 @@ export async function updateOneTimeTodo(
   await requireManagedItem(db, householdId, input.managedItemId);
 
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "pending") {
-    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
-  }
-  if (occurrence.recurrence_basis !== "once") {
-    throw new D1ConflictError("Only one-time tasks can be edited", "EDIT_REQUIRES_ONE_TIME");
-  }
+  requireEditableOccurrence(occurrence, input);
 
   const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
+  if (occurrence.recurrence_basis === "manual") {
+    // TaskRuleの更新の後、現在のsnapshotを読み替える前に挟む。
+    statements.splice(1, 0, manualRuleChangeStatement(db, householdId, occurrence, user.userId));
+  }
   if (occurrence.assignee_user_id !== input.assigneeUserId) {
     statements.unshift(assigneeChangeStatement(db, {
       actorId: user.userId,

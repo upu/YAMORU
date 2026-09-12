@@ -7,11 +7,12 @@ tags: [yamoru, decisions, ydr, todo, recurrence, history]
 status: stable
 decision_status: Accepted
 decision_date: 2026-09-01
+superseded_by: YDR-046
 ---
 
 # YDR-039: 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する
 
-- 状態: Accepted
+- 状態: Accepted（編集画面を「今回の予定」と「次回以降の繰り返し」へ分ける点のみ、`recurrence_basis = 'manual'`について [YDR-046](ydr-046-manual-recurrence-todos.md) が置き換え。保存先の分離、スナップショット、変更履歴、取消・訂正のガードは本YDRのまま有効）
 - 決定日: 2026-09-01
 
 ## 背景
@@ -32,7 +33,7 @@ decision_date: 2026-09-01
 
 - pendingの繰り返しTodo詳細から同じ編集画面へ入り、「今回の予定」と「次回以降の繰り返し」を分けて保存する。
 - 今回の予定では、TaskOccurrenceの担当者と現在期限`due_at`だけを変更できる。本来の予定`scheduled_for`は変更しない。担当変更と延期は既存のActivityLogへ追記する。
-- 次回以降の繰り返しでは、TaskRuleの名前、関連ManagedItem、同じ繰り返し方式内の条件を変更できる。`calendar`、`completion`、`interval`の方式間は変更できない。
+- 次回以降の繰り返しでは、TaskRuleの名前、関連ManagedItem、同じ繰り返し方式内の条件を変更できる。`calendar`、`completion`、`interval`の方式間は変更できない。（`manual`は`due_at`も繰り返し条件も持たないため、[YDR-046](ydr-046-manual-recurrence-todos.md)により一つの画面・一つの保存で編集する）
 - TaskRuleの変更は現在回の`scheduled_for`と`due_at`を再計算しない。変更後に現在回を完了したとき、既存の次回計算規則が新しいTaskRuleを使って次回Occurrenceを一件だけ生成する。
 
 ### 2. 過去回と現在回の表示

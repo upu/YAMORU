@@ -33,6 +33,7 @@ import yearlyNthWeekdaySql from "../../../../d1/migrations/0023_yearly_nth_weekd
 import managedItemTypeSuggestionsSql from "../../../../d1/migrations/0024_managed_item_type_suggestions.sql?raw";
 import userConsumablePinsLegacySql from "../../../../d1/migrations/0025_user_consumable_favorites.sql?raw";
 import userConsumablePinsSql from "../../../../d1/migrations/0026_user_consumable_pins.sql?raw";
+import manualRecurrenceSql from "../../../../d1/migrations/0027_manual_recurrence.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -62,6 +63,7 @@ const MIGRATIONS = [
   { name: "0024_managed_item_type_suggestions", sql: managedItemTypeSuggestionsSql },
   { name: "0025_user_consumable_favorites", sql: userConsumablePinsLegacySql },
   { name: "0026_user_consumable_pins", sql: userConsumablePinsSql },
+  { name: "0027_manual_recurrence", sql: manualRecurrenceSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

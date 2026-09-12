@@ -11,7 +11,7 @@ import {
   resetHouseholdFixtures,
 } from "./test-support/households";
 import { applyAllMigrations } from "./test-support/migrations";
-import { createOneTimeTask, loadTodoDetail } from "./todos";
+import { createManualTask, createOneTimeTask, loadTodoDetail } from "./todos";
 
 const db = env.DB;
 
@@ -94,10 +94,29 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
         dueAt: "2026-09-10T15:00:00.000Z",
         id: await occurrenceIdForRule(ruleId),
         managedItemId: null,
+        recurrenceBasis: "once",
         scheduledFor: "2026-09-10T15:00:00.000Z",
         title: "卵を買う",
       }],
     });
+  });
+
+  // Issue #325 / YDR-046: 画面が「予定日未定」と「必要時」を区別できるよう、
+  // 結果行へ有効な繰り返し方式を含める。
+  it("必要になったら繰り返すTodoの繰り返し方式を結果へ含める", async () => {
+    await createManualTask(db, householdAMember, {
+      managedItemId: null,
+      title: "コーヒーマシーンの石灰除去",
+    });
+
+    const results = await searchAcrossHousehold(db, householdAMember, "石灰");
+
+    expect(results.todos.items).toMatchObject([{
+      dueAt: null,
+      recurrenceBasis: "manual",
+      scheduledFor: null,
+      title: "コーヒーマシーンの石灰除去",
+    }]);
   });
 
   it("消耗品の在庫状態を結果へそのまま含める", async () => {

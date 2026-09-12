@@ -77,6 +77,7 @@ describe("横断検索の画面", () => {
               dueAt: "2026-09-10",
               id: "o1",
               managedItemId: null,
+              recurrenceBasis: "once",
               scheduledFor: "2026-09-10",
               title: "卵を買う",
             }],
@@ -122,6 +123,7 @@ describe("横断検索の画面", () => {
               dueAt: null,
               id: "o1",
               managedItemId: "m1",
+              recurrenceBasis: "once",
               scheduledFor: null,
               title: "換気扇掃除",
             }],
@@ -147,8 +149,8 @@ describe("横断検索の画面", () => {
           todos: {
             hasMore: false,
             items: [
-              { dueAt: "2026-09-20", id: "o1", managedItemId: null, scheduledFor: "2026-09-10", title: "浴室掃除" },
-              { dueAt: null, id: "o2", managedItemId: null, scheduledFor: null, title: "換気扇掃除" },
+              { dueAt: "2026-09-20", id: "o1", managedItemId: null, recurrenceBasis: "once", scheduledFor: "2026-09-10", title: "浴室掃除" },
+              { dueAt: null, id: "o2", managedItemId: null, recurrenceBasis: "once", scheduledFor: null, title: "換気扇掃除" },
             ],
           },
         })}
@@ -186,6 +188,32 @@ describe("横断検索の画面", () => {
     expect(headings).toEqual(["備品", "サービス・契約", "その他"]);
   });
 
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは日付が決まって
+  // いないのではなく、日付を決めない方式そのもの。「予定日未定」と混同しない。
+  it("必要になったら繰り返すTodoは「必要時」と示し、予定日未定と区別する", () => {
+    render(
+      <SearchContent
+        {...ACTOR_PROPS}
+        hasHousehold
+        q="石灰"
+        results={results({
+          todos: {
+            hasMore: false,
+            items: [
+              { dueAt: null, id: "o1", managedItemId: null, recurrenceBasis: "manual", scheduledFor: null, title: "石灰除去" },
+              { dueAt: null, id: "o2", managedItemId: null, recurrenceBasis: "once", scheduledFor: null, title: "石灰対策の相談" },
+            ],
+          },
+        })}
+      />,
+    );
+
+    const rows = screen.getByRole("region", { name: "Todo" }).querySelectorAll("li");
+    expect(rows[0]).toHaveTextContent("必要時");
+    expect(rows[0]).not.toHaveTextContent("予定日未定");
+    expect(rows[1]).toHaveTextContent("予定日未定");
+  });
+
   it("上限に達した種類にだけ、先頭何件を出しているかを案内する", () => {
     render(
       <SearchContent
@@ -199,7 +227,7 @@ describe("横断検索の画面", () => {
           },
           todos: {
             hasMore: false,
-            items: [{ dueAt: null, id: "o1", managedItemId: null, scheduledFor: null, title: "詰め替える" }],
+            items: [{ dueAt: null, id: "o1", managedItemId: null, recurrenceBasis: "once", scheduledFor: null, title: "詰め替える" }],
           },
         })}
       />,
@@ -266,8 +294,8 @@ describe("横断検索の結果の並べ方(Issue #396)", () => {
           todos: {
             hasMore: false,
             items: [
-              { dueAt: null, id: "o1", managedItemId: null, scheduledFor: "2026-09-10", title: "卵を買う" },
-              { dueAt: null, id: "o2", managedItemId: null, scheduledFor: null, title: "卵を茹でる" },
+              { dueAt: null, id: "o1", managedItemId: null, recurrenceBasis: "once", scheduledFor: "2026-09-10", title: "卵を買う" },
+              { dueAt: null, id: "o2", managedItemId: null, recurrenceBasis: "once", scheduledFor: null, title: "卵を茹でる" },
             ],
           },
         })}

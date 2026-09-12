@@ -46,15 +46,25 @@ type CorrectOccurredAtInput = {
   previousOccurredAt: string;
 };
 
-// 訂正行の挿入自体を、Occurrenceがまだcompletedであること・(再計算が必要なら)
-// 次回Occurrenceが無操作のままpendingであることの両方をWHERE句へ埋め込んだ
-// 条件付きINSERTにする(undoStatementsと同じ構造)。どちらか崩れていれば
-// この文自体が0行のまま失敗し、後続のUPDATEも連動して不成立になる。
+// 訂正行の挿入自体を、次の三つをWHERE句へ埋め込んだ条件付きINSERTにする
+// (undoStatementsと同じ構造)。どれか崩れていればこの文自体が0行のまま失敗し、
+// 後続のUPDATEも連動して不成立になる。
+//
+// 1. 対象Occurrenceがまだcompletedであること。
+// 2. 次回Occurrenceのルールが編集されていないこと(?10)。YDR-039の3により、
+//    TaskRule変更が記録された後の実施日訂正は方式によらず拒否する。編集済みの
+//    次回を削除・再計算して利用者の変更を失わないための条件なので、日付を
+//    再計算しない方式でも外さない。
+// 3. 日付を再計算する場合だけ(?9が非NULL)、次回Occurrenceが無操作のまま
+//    pendingであること。再計算は次回のscheduled_for/due_atを書き換えるため、
+//    延期や担当変更が既に記録されている次回を黙って上書きしない。
+//    「必要になったら繰り返す」(manual)の次回は日付を持たず再計算もしないので、
+//    この条件は課さない(Issue #325 / YDR-046)。
 function insertOccurredAtCorrectionStatement(
   db: D1Database,
   input: CorrectOccurredAtInput,
 ): D1PreparedStatement {
-  const requiredNextOccurrenceId = input.next === null ? null : input.nextOccurrenceId;
+  const recalculatedNextOccurrenceId = input.next === null ? null : input.nextOccurrenceId;
   return db.prepare(
     `INSERT INTO completion_corrections (
       id, household_id, task_occurrence_id, completed_activity_log_id, actor_user_id,
@@ -64,16 +74,16 @@ function insertOccurredAtCorrectionStatement(
         SELECT 1 FROM task_occurrences
          WHERE id = ?3 AND household_id = ?2 AND status = 'completed'
       )
+        AND NOT EXISTS (
+          SELECT 1 FROM task_rule_changes c
+           WHERE c.task_occurrence_id = ?10 AND c.household_id = ?2
+        )
         AND (?9 IS NULL OR EXISTS (
           SELECT 1 FROM task_occurrences n
            WHERE n.id = ?9 AND n.household_id = ?2 AND n.status = 'pending'
              AND NOT EXISTS (
                SELECT 1 FROM activity_logs a
                 WHERE a.task_occurrence_id = n.id AND a.household_id = ?2
-             )
-             AND NOT EXISTS (
-               SELECT 1 FROM task_rule_changes c
-                WHERE c.task_occurrence_id = n.id AND c.household_id = ?2
              )
         ))`,
   ).bind(
@@ -85,7 +95,8 @@ function insertOccurredAtCorrectionStatement(
     input.idempotencyKey,
     input.previousOccurredAt,
     input.newOccurredAt,
-    requiredNextOccurrenceId,
+    recalculatedNextOccurrenceId,
+    input.nextOccurrenceId,
   );
 }
 
@@ -137,8 +148,18 @@ export async function correctCompletionOccurredAt(
   const completion = await loadActiveCompletion(db, householdId, occurrenceId);
   const effective = await resolveEffectiveCompletion(db, householdId, completion.id);
 
-  const needsRecalc = occurrence.recurrence_basis !== "once" && completion.next_task_occurrence_id !== null;
-  const next = needsRecalc ? nextOccurrence(occurrence, newOccurredAt) : null;
+  // 次回Occurrenceの予定を実施日時から計算し直すのは、その次回が日付を持つ
+  // 方式のときだけ。一回限りTodoはそもそも次回を作らず、「必要になったら
+  // 繰り返す」(manual)の次回は日付を持たないため実施日時に依存しない
+  // (Issue #325 / YDR-046)。再計算しないときは、「無操作の次回Occurrence」も
+  // 求めない。求めてしまうと、次回の担当を決めた・名前を直しただけで、
+  // 関係のない実施日の訂正まで拒否されてしまう。
+  const recalculated = completion.next_task_occurrence_id === null
+    ? null
+    : nextOccurrence(occurrence, newOccurredAt);
+  const next = recalculated !== null && recalculated.scheduledFor !== null
+    ? recalculated
+    : null;
 
   const results = await runCompletionBatch(
     db,

@@ -15,7 +15,9 @@ import { updateTodo } from "../actions";
 export type TodoEditValues = {
   assigneeUserId: string | null;
   managedItemId: string | null;
-  plannedDate: string;
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは予定日を持たない
+  // 方式そのものなので、予定日欄を出さない。そのときだけnullを渡す。
+  plannedDate: string | null;
   title: string;
 };
 
@@ -50,16 +52,20 @@ function TitleAndScheduleFields({
         type="text"
       />
 
-      <label htmlFor="todo-edit-planned-date">予定日</label>
-      <input
-        defaultValue={plannedDate}
-        id="todo-edit-planned-date"
-        name="plannedDate"
-        type="date"
-      />
-      <p className="input-help">
-        空欄にすると予定日は未定に戻ります。日付を入れると、その日に合わせてホームの期限切れ・今日・近日へ表示されます。
-      </p>
+      {plannedDate === null ? null : (
+        <>
+          <label htmlFor="todo-edit-planned-date">予定日</label>
+          <input
+            defaultValue={plannedDate}
+            id="todo-edit-planned-date"
+            name="plannedDate"
+            type="date"
+          />
+          <p className="input-help">
+            空欄にすると予定日は未定に戻ります。日付を入れると、その日に合わせてホームの期限切れ・今日・近日へ表示されます。
+          </p>
+        </>
+      )}
     </>
   );
 }

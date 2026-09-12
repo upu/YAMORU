@@ -26,7 +26,7 @@ import styles from "./registration-notice.module.css";
 
 export type { TodoManagedItemOption };
 
-type RecurrenceBasis = "calendar" | "completion" | "interval" | "once";
+type RecurrenceBasis = "calendar" | "completion" | "interval" | "manual" | "once";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -57,6 +57,13 @@ const RECURRENCE_OPTIONS: {
     value: "interval",
   },
   { help: null, label: "曜日・日付で繰り返す", value: "calendar" },
+  {
+    // Issue #325 / YDR-046: コーヒーマシーンの石灰除去など、実施時期を
+    // YAMORU側では決められない繰り返し作業のための方式。
+    help: "日付は決めず、必要になったときに実施します。完了すると次回分が自動で用意されます。",
+    label: "必要になったら繰り返す",
+    value: "manual",
+  },
 ];
 
 function RecurrenceFields({

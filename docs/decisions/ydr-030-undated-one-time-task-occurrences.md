@@ -7,12 +7,12 @@ tags: [yamoru, decisions, ydr, todo]
 status: stable
 decision_status: Accepted
 decision_date: 2026-08-24
-superseded_by: YDR-031
+superseded_by: [YDR-031, YDR-046]
 ---
 
 # YDR-030: 一回限りTodoだけ予定日未定のOccurrenceを許す
 
-- 状態: Accepted（ホーム表示に関する決定のみ [YDR-031](ydr-031-undated-todos-out-of-home.md) が置き換え。日付未定Occurrenceの持ち方、往復、延期・完了の扱い、一意制約は本YDRのまま有効）
+- 状態: Accepted（ホーム表示に関する決定のみ [YDR-031](ydr-031-undated-todos-out-of-home.md) が、両方NULLを一回限りTodoへ限定する決定のみ [YDR-046](ydr-046-manual-recurrence-todos.md) が置き換え。日付未定Occurrenceの持ち方、一回限りTodoにおける往復、延期・完了の扱い、一意制約は本YDRのまま有効）
 - 決定日: 2026-08-24
 
 ## 背景
@@ -25,7 +25,7 @@ YDR-012は`scheduled_for`を本来の予定、`due_at`を現在の期限とし�
 
 - 日付未定でも`status = 'pending'`のTaskOccurrenceを作る。
 - `scheduled_for`と`due_at`は両方NULL、または両方非NULLに限定する。
-- 両方NULLを許すのは`recurrence_basis = 'once'`のTaskRuleに属するOccurrenceだけとする。完了日基準・定例日基準では従来どおり両方を必須とする。
+- 両方NULLを許すのは`recurrence_basis = 'once'`のTaskRuleに属するOccurrenceだけとする。完了日基準・定例日基準では従来どおり両方を必須とする。（[YDR-046](ydr-046-manual-recurrence-todos.md)により置き換え。現在は`'once'`に加えて`'manual'`も両方NULLを持てる）
 - 日付未定の一回限りTodoへ予定日を設定するときは、`scheduled_for`と`due_at`を同じ具体日にする。
 - 具体日がある一回限りTodoは、両方をNULLにして予定日未定へ戻せる。
 - 日付未定中は延期を提供しない。具体日があるときの延期はYDR-012どおり`scheduled_for`を保ち、`due_at`だけを変更する。
@@ -46,5 +46,5 @@ YDR-012は`scheduled_for`を本来の予定、`due_at`を現在の期限とし�
 
 ## 見直す条件
 
-- 繰り返しTodoにも実施時期未定が必要になった。
+- 繰り返しTodoにも実施時期未定が必要になった。（[YDR-046](ydr-046-manual-recurrence-todos.md)で該当し、「必要になったら繰り返す」方式を追加した）
 - `waiting`、依存関係、自動有効化など、予定日以外の待機理由を状態として区別する必要が確認された。

@@ -97,6 +97,7 @@ describe("Todo登録ページ", () => {
     expect(screen.getByLabelText("完了した日から繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("一定の間隔で繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("曜日・日付で繰り返す")).not.toBeChecked();
+    expect(screen.getByLabelText("必要になったら繰り返す")).not.toBeChecked();
     expect(screen.getByLabelText("関連する管理対象なし")).toBeChecked();
     expect(screen.getByLabelText("予定日")).toHaveAttribute("type", "date");
     expect(screen.getByLabelText("予定日")).not.toBeRequired();
@@ -423,6 +424,29 @@ describe("Todo登録ページの一定の間隔", () => {
   });
 
   // Issue #99 / YDR-037の8: 完了日基準との違いを選択肢の補足文で示す。
+  // Issue #325 / YDR-046
+  it("必要になったら繰り返すを選ぶと、日付・間隔の入力を出さずに補足だけを示す", () => {
+    renderPage(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("必要になったら繰り返す"));
+
+    expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("最短")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("起点日")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/日付は決めず、必要になったときに実施します。完了すると次回分が自動で用意されます。/u),
+    ).toBeInTheDocument();
+    // Todo名と関連する管理対象は、他の方式と同じように入力できる。
+    expect(screen.getByLabelText("Todo名")).toBeInTheDocument();
+    expect(screen.getByLabelText("関連する管理対象なし")).toBeInTheDocument();
+  });
+
   it("完了日基準と一定の間隔の違いを選択肢の補足文で説明する", () => {
     renderPage(
       <TodoRegistrationContent

@@ -70,6 +70,17 @@ describe("Todo編集フォーム(TodoEditForm)", () => {
     expect(screen.getByLabelText("担当")).toHaveValue("");
   });
 
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは日付を持たない方式
+  // なので、予定日欄そのものを出さない。
+  it("予定日を持たないTodoでは予定日欄を出さず、名前・担当・管理対象だけを編集する", () => {
+    renderForm({ plannedDate: null, title: "コーヒーマシーンの石灰除去" });
+
+    expect(screen.queryByLabelText("予定日")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Todo名")).toHaveValue("コーヒーマシーンの石灰除去");
+    expect(screen.getByLabelText("担当")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "関連する管理対象なし" })).toBeChecked();
+  });
+
   it("担当の候補は同じ家庭のメンバーと誰でも可に限る", () => {
     renderForm();
 

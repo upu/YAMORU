@@ -53,7 +53,7 @@ describe("D1 schema生成", () => {
     expect(first).toContain("UNIQUE");
     expect(first).toContain("CHECK");
     expect(first).toContain("CREATE INDEX task_rules_household_id_idx");
-    expect(first).toContain("CREATE TRIGGER task_occurrences_undated_once_insert");
+    expect(first).toContain("CREATE TRIGGER task_occurrences_undated_once_or_manual_insert");
     expect(first).not.toContain("d1_migrations");
     expect(first).not.toContain("sqlite_sequence");
     expect(readdirSync(temporaryDirectoryParent)).toEqual([]);

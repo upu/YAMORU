@@ -68,6 +68,7 @@ function parseTodoBasics(
     recurrenceBasis !== "calendar" &&
     recurrenceBasis !== "completion" &&
     recurrenceBasis !== "interval" &&
+    recurrenceBasis !== "manual" &&
     recurrenceBasis !== "once"
   ) {
     return { message: "繰り返し方を選択してください。", status: "error" };
@@ -230,6 +231,11 @@ function parseTodo(
   const basics = parseTodoBasics(formData);
   if ("status" in basics) return basics;
   if (basics.recurrenceBasis === "once") return parseOneTimeTodo(basics, formData);
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」は日付も間隔も持たない
+  // ため、Todo名と管理対象以外に読み取る入力がない。
+  if (basics.recurrenceBasis === "manual") {
+    return { ...basics, recurrenceBasis: "manual" };
+  }
   if (basics.recurrenceBasis === "completion") {
     return parseCompletionTodo(basics, formData);
   }

@@ -41,8 +41,8 @@
 | YDR-027 | メンテナンス推奨期間の「そろそろ」表示を進捗率80%から開始する | Superseded by YDR-034(80%しきい値を維持した4状態化) | [ydr-027-maintenance-reminder-progress-ratio.md](ydr-027-maintenance-reminder-progress-ratio.md) |
 | YDR-028 | ManagedItemの大分類、詳しい種類、タグの役割を分離する | Superseded by YDR-029(初期の表示ラベルの部分のみ) | [ydr-028-managed-item-kind-item-type-tags.md](ydr-028-managed-item-kind-item-type-tags.md) |
 | YDR-029 | 大分類の表示ラベルを登録時に選びやすい短い表現へ揃える | Superseded by YDR-035 | [ydr-029-managed-item-kind-labels.md](ydr-029-managed-item-kind-labels.md) |
-| YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
-| YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Accepted | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
+| YDR-030 | 一回限りTodoだけ予定日未定のOccurrenceを許す | Superseded by YDR-031(ホーム表示先の部分のみ)、YDR-046(一回限りTodoへの限定の部分のみ) | [ydr-030-undated-one-time-task-occurrences.md](ydr-030-undated-one-time-task-occurrences.md) |
+| YDR-031 | 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う | Superseded by YDR-046(manualへの予定日設定の部分のみ) | [ydr-031-undated-todos-out-of-home.md](ydr-031-undated-todos-out-of-home.md) |
 | YDR-032 | 毎月の定例日指定に「月末」を固定日1〜31とは別の意味として追加する | Accepted | [ydr-032-monthly-day-month-end.md](ydr-032-monthly-day-month-end.md) |
 | YDR-033 | ManagedItemの開始時期をstarted_onへ段階移行し、大分類ごとの言葉で表示する | Accepted | [ydr-033-managed-item-started-on.md](ydr-033-managed-item-started-on.md) |
 | YDR-034 | メンテナンスTodoを推奨期間の進み具合に応じた4状態でホームへ表示する | Accepted | [ydr-034-maintenance-home-progress-states.md](ydr-034-maintenance-home-progress-states.md) |
@@ -50,13 +50,14 @@
 | YDR-036 | ManagedItemの大分類を備品、サービス・契約の2択にする | Accepted | [ydr-036-merge-service-obligation-kinds.md](ydr-036-merge-service-obligation-kinds.md) |
 | YDR-037 | 固定間隔の繰り返しを起点日と間隔日数が決める候補列として定義する | Accepted | [ydr-037-fixed-interval-recurrence.md](ydr-037-fixed-interval-recurrence.md) |
 | YDR-038 | 完了日基準Todoの月・年単位を対象月の月末へ補正する | Accepted | [ydr-038-completion-calendar-intervals.md](ydr-038-completion-calendar-intervals.md) |
-| YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Accepted | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
+| YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Superseded by YDR-046(manualの編集画面の分割の部分のみ) | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
 | YDR-040 | 複数候補を持つ定例日ルールを候補指定の和集合として定義する | Accepted | [ydr-040-multi-candidate-calendar-rules.md](ydr-040-multi-candidate-calendar-rules.md) |
 | YDR-041 | 詳しい種類のAI提案を明示操作の入力補助に限定し、提案と採用結果を家庭内へ記録する | Accepted | [ydr-041-ai-item-type-suggestion.md](ydr-041-ai-item-type-suggestion.md) |
 | YDR-042 | 横断検索を名前一致で対象へ到達する常設機能として定義し、下部ナビゲーションの4項目目に置く | Superseded by YDR-043(検索結果の操作部分のみ) | [ydr-042-cross-cutting-search.md](ydr-042-cross-cutting-search.md) |
 | YDR-043 | 横断検索の結果から既存の在庫変更とTodo完了を行えるようにする | Superseded by YDR-044(「お気に入り」の名称部分のみ) | [ydr-043-cross-search-quick-actions.md](ydr-043-cross-search-quick-actions.md) |
 | YDR-044 | よく使う消耗品を「ピン留め」と呼び、DB名を段階移行する | Accepted | [ydr-044-consumable-pinning-terminology.md](ydr-044-consumable-pinning-terminology.md) |
 | YDR-045 | 通常UIを1系統のコンパクト表示に統一し、初心者向けの説明は初回ヒントとヘルプへ置く | Accepted | [ydr-045-compact-ui-with-first-run-hints.md](ydr-045-compact-ui-with-first-run-hints.md) |
+| YDR-046 | 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す | Accepted | [ydr-046-manual-recurrence-todos.md](ydr-046-manual-recurrence-todos.md) |
 
 ## 新しい意思決定の追加
 

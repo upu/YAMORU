@@ -25,6 +25,9 @@ export type CrossSearchTodo = {
   id: string;
   // 完了後に関連する管理対象の表示も更新するため、現在回のsnapshotに残る関連先を返す。
   managedItemId: string | null;
+  // Issue #325 / YDR-046: 予定日未定には「日付がまだ決まっていない」(once)と
+  // 「日付を決めない方式」(manual)があり、結果行の言い回しが変わる。
+  recurrenceBasis: string;
   scheduledFor: string | null;
   title: string;
 };
@@ -74,6 +77,9 @@ const EFFECTIVE_TODO_TITLE = `CASE WHEN json_type(o.rule_snapshot, '$.title') IS
 const EFFECTIVE_TODO_MANAGED_ITEM_ID = `CASE
         WHEN json_type(o.rule_snapshot, '$.managedItemId') IS NULL THEN r.managed_item_id
         ELSE json_extract(o.rule_snapshot, '$.managedItemId') END`;
+const EFFECTIVE_TODO_RECURRENCE_BASIS = `CASE
+        WHEN json_type(o.rule_snapshot, '$.recurrenceBasis') IS NULL THEN r.recurrence_basis
+        ELSE json_extract(o.rule_snapshot, '$.recurrenceBasis') END`;
 
 // 未完了のOccurrenceだけを対象にする。実施済みは件数が増え続け、「探して到達
 // する」操作ではなく「履歴を探す」操作になるため、初期対象へ含めない(YDR-042)。
@@ -82,6 +88,7 @@ const EFFECTIVE_TODO_MANAGED_ITEM_ID = `CASE
 const TODO_SEARCH_SQL = `SELECT o.id,
             ${EFFECTIVE_TODO_TITLE} AS title,
             ${EFFECTIVE_TODO_MANAGED_ITEM_ID} AS managedItemId,
+            ${EFFECTIVE_TODO_RECURRENCE_BASIS} AS recurrenceBasis,
             o.scheduled_for AS scheduledFor,
             o.due_at AS dueAt
        FROM task_occurrences o

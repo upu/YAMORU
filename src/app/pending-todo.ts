@@ -31,7 +31,8 @@ export type PendingTodoCategory =
   | "reminder"
   // 完了日基準Todoの推奨期間前。対応開始前のためホームには出さない(YDR-034)。
   | "before-window"
-  // 一回限りTodoの予定日未定(YDR-030)
+  // 予定日未定。一回限りTodo(YDR-030)と「必要になったら繰り返す」Todo
+  // (YDR-046)の両方がここに入る。どちらもホームには出さない。
   | "undated";
 
 export type PendingTodoEntry = {
@@ -82,26 +83,52 @@ function pendingTodoItemBase(row: PendingOccurrenceRow): Pick<
   };
 }
 
+// ホーム・Todo一覧のメタ文で使う繰り返し方の呼び名。登録フォームの選択肢と
+// 同じ言い回しにそろえる(Issue #99 / YDR-037の8)。完了日基準は推奨期間の
+// 文言(buildMaintenanceEntry)を使うためここには現れないが、
+// RecurrenceBasisを網羅する型にして方式追加時の記入漏れを防ぐ。
+const STRICT_RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
+  calendar: "曜日・日付で繰り返す",
+  completion: "完了した日から繰り返す",
+  interval: "一定の間隔で繰り返す",
+  manual: "必要になったら繰り返す",
+  once: "繰り返しなし",
+};
+
+// Issue #325 / YDR-046: 予定日未定Todoには「一回限りで日付がまだ決まって
+// いない」ものと「必要になったら繰り返す」ものがある。前者は日付が決まれば
+// 期限のあるTodoへ戻るが、後者は日付を持たないことが方式そのものなので、
+// バッジと補足を分けて区別できるようにする。
+const UNDATED_BADGES: Record<"manual" | "once", string> = {
+  manual: "必要時",
+  once: "未定",
+};
+
 function buildUndatedEntry(
   row: PendingOccurrenceRow,
   recurrenceBasis: RecurrenceBasis,
 ): PendingTodoEntry {
   const deadlineKind = toDeadlineKind(row.task_rules.deadline_kind);
-  if (recurrenceBasis !== "once" || deadlineKind !== "strict") {
+  if (
+    (recurrenceBasis !== "once" && recurrenceBasis !== "manual") ||
+    deadlineKind !== "strict"
+  ) {
     throw new Error("予定日未定を利用できないTodoです。");
   }
   return {
     category: "undated",
     item: {
       ...pendingTodoItemBase(row),
-      badge: "未定",
-      // Issue #243: リスト表示のバッジがすでに「未定」を示すため、
+      badge: UNDATED_BADGES[recurrenceBasis],
+      // Issue #243: リスト表示のバッジがすでに「未定」「必要時」を示すため、
       // listScheduleは日付を持たず重複させない。
       listSchedule: { kind: "undated" },
-      // Issue #267: カード表示のバッジ(「未定」)ですでに予定日未定であることが
-      // 伝わるため、「予定日: 未定 ・ 繰り返しなし」の文章は重ねて出さない
-      // (TodoCardは空文字のmetaを描画しない)。
-      meta: "",
+      // Issue #267: 一回限りTodoではカード表示のバッジ(「未定」)で予定日未定
+      // であることが伝わるため、「予定日: 未定 ・ 繰り返しなし」の文章は
+      // 重ねて出さない(TodoCardは空文字のmetaを描画しない)。「必要になったら
+      // 繰り返す」はバッジだけでは繰り返すことが伝わらないため、繰り返し方
+      // だけを添える。
+      meta: recurrenceBasis === "manual" ? STRICT_RECURRENCE_LABELS.manual : "",
       tone: "upcoming",
     },
     sortKey: null,
@@ -146,17 +173,6 @@ function buildMaintenanceEntry(
     sortKey: dueAt,
   };
 }
-
-// ホーム・Todo一覧のメタ文で使う繰り返し方の呼び名。登録フォームの選択肢と
-// 同じ言い回しにそろえる(Issue #99 / YDR-037の8)。完了日基準は推奨期間の
-// 文言(buildMaintenanceEntry)を使うためここには現れないが、
-// RecurrenceBasisを網羅する型にして方式追加時の記入漏れを防ぐ。
-const STRICT_RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
-  calendar: "曜日・日付で繰り返す",
-  completion: "完了した日から繰り返す",
-  interval: "一定の間隔で繰り返す",
-  once: "繰り返しなし",
-};
 
 function toStrictCategory(
   state: StrictDisplayState,

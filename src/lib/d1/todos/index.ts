@@ -5,7 +5,7 @@
 export { claimTaskOccurrenceAssignee, postponeTaskOccurrence, setOneTimeTaskSchedule, setTaskOccurrenceAssignee } from "./assignment";
 export { completeTask, undoTaskCompletion } from "./completion";
 export { correctCompletionOccurredAt, correctCompletionPerformer } from "./corrections";
-export { type CalendarTaskInput, type IntervalTaskInput, type MaintenanceTaskInput, type OneTimeTaskInput, createCalendarTask, createIntervalTask, createMaintenanceTask, createOneTimeTask } from "./creation";
+export { type CalendarTaskInput, type IntervalTaskInput, type MaintenanceTaskInput, type ManualTaskInput, type OneTimeTaskInput, createCalendarTask, createIntervalTask, createMaintenanceTask, createManualTask, createOneTimeTask } from "./creation";
 export {
   type OneTimeTodoUpdate,
   type TodoDetailRow,

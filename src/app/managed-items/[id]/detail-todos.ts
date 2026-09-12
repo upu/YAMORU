@@ -45,6 +45,8 @@ export const RECURRENCE_LABELS: Record<RecurrenceBasis, string> = {
   completion: "繰り返し",
   // Issue #99 / YDR-037: 固定間隔。具体的な間隔はTodo詳細で表示する。
   interval: "一定の間隔で繰り返す",
+  // Issue #325 / YDR-046: 予定日を持たず、完了するたびに次回分が用意される。
+  manual: "必要になったら繰り返す",
   once: "繰り返しなし",
 };
 
@@ -138,15 +140,21 @@ export function buildPendingTodo(
   }
   const deadlineKind = toDeadlineKind(rule.deadline_kind);
   const recurrenceBasis = toRecurrenceBasis(rule.recurrence_basis);
-  if (recurrenceBasis !== "once" || deadlineKind !== "strict") {
+  // Issue #325 / YDR-046: 予定日未定のOccurrenceを持てるのは、一回限りTodoと
+  // 「必要になったら繰り返す」Todoだけ。
+  if (
+    (recurrenceBasis !== "once" && recurrenceBasis !== "manual") ||
+    deadlineKind !== "strict"
+  ) {
     throw new Error("予定日未定を利用できないTodoです。");
   }
+  const isManual = recurrenceBasis === "manual";
   return {
     assigneeUserId: occurrence.assignee_user_id,
-    badge: "未定",
+    badge: isManual ? "必要時" : "未定",
     dueAt: null,
     id: occurrence.id,
-    meta: "予定日: 未定",
+    meta: isManual ? RECURRENCE_LABELS.manual : "予定日: 未定",
     recurrenceBasis,
     scheduledFor: null,
     title: occurrence.title_snapshot ?? rule.title,
@@ -154,14 +162,20 @@ export function buildPendingTodo(
   };
 }
 
+// 予定日の昇順で並べ、予定日未定(scheduledFor = null)はTodo一覧(/todos)と
+// 同じく末尾へ置く(Issue #325 / YDR-046)。空文字へ寄せて比較すると、日付の
+// あるTodoより前へ出てしまう。
 export function buildPendingTodos(taskRules: TaskRuleRow[], nowIso: string): PendingTodoData[] {
   return taskRules
     .flatMap((rule) => rule.task_occurrences
       .filter((occurrence) => occurrence.status === "pending")
       .map((occurrence) => buildPendingTodo(rule, occurrence, nowIso)))
-    .sort((left, right) =>
-      (left.scheduledFor ?? "").localeCompare(right.scheduledFor ?? "")
-    );
+    .sort((left, right) => {
+      if (left.scheduledFor === null || right.scheduledFor === null) {
+        return Number(left.scheduledFor === null) - Number(right.scheduledFor === null);
+      }
+      return left.scheduledFor.localeCompare(right.scheduledFor);
+    });
 }
 
 // Issue #240: 「直近の完了」の各行に実施者を表示するため、TaskRuleごとの
