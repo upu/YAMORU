@@ -4,6 +4,7 @@ const {
   createCalendarTaskMock,
   createIntervalTaskMock,
   createMaintenanceTaskMock,
+  createManualTaskMock,
   createOneTimeTaskMock,
   getD1ContextMock,
   revalidatePathMock,
@@ -11,6 +12,7 @@ const {
   createCalendarTaskMock: vi.fn(),
   createIntervalTaskMock: vi.fn(),
   createMaintenanceTaskMock: vi.fn(),
+  createManualTaskMock: vi.fn(),
   createOneTimeTaskMock: vi.fn(),
   getD1ContextMock: vi.fn(),
   revalidatePathMock: vi.fn(),
@@ -21,6 +23,7 @@ vi.mock("../src/lib/d1/todos", () => ({
   createCalendarTask: createCalendarTaskMock,
   createIntervalTask: createIntervalTaskMock,
   createMaintenanceTask: createMaintenanceTaskMock,
+  createManualTask: createManualTaskMock,
   createOneTimeTask: createOneTimeTaskMock,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
@@ -86,6 +89,7 @@ beforeEach(() => {
   createCalendarTaskMock.mockResolvedValue("task-rule-id");
   createIntervalTaskMock.mockResolvedValue("task-rule-id");
   createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
+  createManualTaskMock.mockResolvedValue("task-rule-id");
   createOneTimeTaskMock.mockResolvedValue("task-rule-id");
 });
 
@@ -125,6 +129,36 @@ describe("専用ページのTodo登録操作", () => {
       registered: {
         homeNotice: "予定日が決まるまでホームには表示されません。Todo一覧で確認できます。",
         schedule: "予定日: 未定",
+      },
+      status: "success",
+    });
+  });
+
+  // Issue #325 / YDR-046
+  it("必要になったら繰り返すTodoは、日付の入力を読まずに登録する", async () => {
+    const result = await createTodo(
+      INITIAL_STATE,
+      todoForm({
+        managedItemId: "item-1",
+        recurrenceBasis: "manual",
+        title: "コーヒーマシーンの石灰除去",
+      }),
+    );
+
+    // 予定日欄(plannedDate)に値が残っていても、manualでは読まない。
+    expect(createManualTaskMock).toHaveBeenCalledWith("db", "session", {
+      managedItemId: "item-1",
+      recurrenceBasis: "manual",
+      title: "コーヒーマシーンの石灰除去",
+    });
+    expect(createOneTimeTaskMock).not.toHaveBeenCalled();
+    expect(revalidatePathMock).toHaveBeenCalledWith("/todos");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/managed-items/item-1");
+    expect(result).toEqual({
+      message: "Todoを登録しました。",
+      registered: {
+        homeNotice: "ホームには表示されません。必要になったらTodo一覧から実施できます。",
+        schedule: "予定日: 必要になったとき",
       },
       status: "success",
     });

@@ -96,11 +96,14 @@ export async function requireHouseholdUser(
   }
 }
 
+// Issue #325 / YDR-046: 「必要になったら繰り返す」(manual)の次回は日付を
+// 持たないため、dueAt / scheduledForはnullになりうる。日付を持つ方式では
+// これまでどおり両方が非nullになる(YDR-030のNULLペア規則)。
 type NextOccurrence = {
   completionCalendarVersion: 1 | null;
-  dueAt: string;
+  dueAt: string | null;
   id: string;
-  scheduledFor: string;
+  scheduledFor: string | null;
 };
 
 function nextCompletionOccurrence(
@@ -201,6 +204,12 @@ export function nextOccurrence(
 ): NextOccurrence | null {
   if (occurrence.recurrence_basis === "once") return null;
   const id = crypto.randomUUID();
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」は実施時期を暦から決め
+  // られない。完了日にも起点日にも依らず、次回も予定日未定のOccurrenceを
+  // 1件だけ作る。
+  if (occurrence.recurrence_basis === "manual") {
+    return { completionCalendarVersion: null, dueAt: null, id, scheduledFor: null };
+  }
   if (occurrence.recurrence_basis === "completion") {
     return nextCompletionOccurrence(occurrence, occurredAt, id);
   }

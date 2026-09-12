@@ -63,6 +63,10 @@ export type TodoDetailData = {
 };
 
 function TodoScheduleRows({ todo }: { todo: TodoDetailData }) {
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは予定日を持たないこと
+  // が方式そのもので、それは「繰り返し」の行がすでに伝える。「予定日: 未定」を
+  // 重ねて出さない(#395の「残した項目だけを並べる」と同じ考え方)。
+  if (todo.recurrenceBasis === "manual") return null;
   // 予定日と期限が同じTodoでは、同じ日付を二度並べない。延期(YDR-012)や
   // 完了日基準の推奨期間(YDR-017)で二つがずれているときだけ、期限側も見せる。
   const showDueAt = todo.dueAt !== null && todo.dueAt !== todo.scheduledFor;
@@ -288,6 +292,9 @@ export function TodoDetailContent({
 function buildRecurrenceLabel(row: TodoDetailRow): string {
   const basis = toRecurrenceBasis(row.recurrence_basis);
   if (basis === "once") return "繰り返しなし";
+  // Issue #325 / YDR-046: 具体的な条件を持たないため、方式の呼び名がそのまま
+  // 表示になる(登録フォームの選択肢と同じ言い回し)。
+  if (basis === "manual") return "必要になったら繰り返す";
   if (basis === "completion") {
     return describeCompletionRecurrence(
       row.recommended_start_offset,

@@ -87,6 +87,34 @@ describe("Todoの編集(updateTodo)", () => {
     );
   });
 
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoの編集フォームは予定日欄
+  // 自体を持たない。欄がなくても「予定日なし」として保存へ進む。
+  it("予定日欄がないフォームも未定として渡す", async () => {
+    const formData = editForm();
+    formData.delete("plannedDate");
+
+    await submit(formData);
+
+    expect(updateOneTimeTodoMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({ scheduledFor: null }),
+    );
+  });
+
+  it("必要になったら繰り返すTodoへ予定日を与えようとしたら案内を返す", async () => {
+    updateOneTimeTodoMock.mockRejectedValue(d1Error("MANUAL_TODO_HAS_NO_SCHEDULE"));
+
+    const result = await submit(editForm());
+
+    expect(result).toEqual({
+      message: "必要になったら繰り返すTodoには予定日を設定できません。",
+      status: "error",
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
   it("担当と管理対象の空欄は未設定として渡す", async () => {
     await submit(editForm());
 

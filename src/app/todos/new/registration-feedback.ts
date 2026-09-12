@@ -42,12 +42,19 @@ export type TodoRegistrationState = MaintenanceTodoActionState & {
 export type RegisteredTodoSummary = {
   // ホームにまだ出ないTodoにだけ添える案内。出るTodoでは冗長なためnull。
   homeNotice: string | null;
-  // 「次回: 9月15日」「推奨期間: 9月8日から」「予定日: 未定」。
+  // 「次回: 9月15日」「推奨期間: 9月8日から」「予定日: 未定」
+  // 「予定日: 必要になったとき」。
   schedule: string;
 };
 
-function describeSchedule(entry: PendingTodoEntry): string {
+function describeSchedule(
+  entry: PendingTodoEntry,
+  saved: RegisteredTodoSchedule,
+): string {
   const schedule: TodoListSchedule | undefined = entry.item.listSchedule;
+  // Issue #325 / YDR-046: 「必要になったら繰り返す」は日付が決まっていない
+  // のではなく、日付を決めない方式なので「未定」とは案内しない。
+  if (saved.recurrenceBasis === "manual") return "予定日: 必要になったとき";
   if (schedule === undefined || schedule.kind === "undated") return "予定日: 未定";
   if (schedule.kind === "range") {
     // Issue #348は一覧の期間表記だけを変える。登録直後の案内は従来どおり、
@@ -91,7 +98,9 @@ function describeHomeNotice(
 ): string | null {
   if (isHomePendingCategory(entry.category)) return null;
   if (entry.category === "undated") {
-    return "予定日が決まるまでホームには表示されません。Todo一覧で確認できます。";
+    return saved.recurrenceBasis === "manual"
+      ? "ホームには表示されません。必要になったらTodo一覧から実施できます。"
+      : "予定日が決まるまでホームには表示されません。Todo一覧で確認できます。";
   }
   const appearsOn = entry.category === "before-window"
     ? describeBeforeWindowNotice(saved.scheduledFor)
@@ -141,6 +150,6 @@ export function summarizeRegisteredTodo(
   }
   return {
     homeNotice: describeHomeNotice(entry, saved),
-    schedule: describeSchedule(entry),
+    schedule: describeSchedule(entry, saved),
   };
 }

@@ -48,10 +48,14 @@ function optionalId(formData: FormData, field: string): string | null {
 
 // 予定日は空欄を「未定」として受け取る(YDR-030)。日付の解釈はTodo登録・
 // 予定日変更と同じくAsia/Tokyoの暦日に揃える。
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoの編集フォームは予定日欄
+// 自体を持たない。欄がないことも空欄と同じ「予定日なし」として受け取り、
+// 方式との整合(manualに日付を与えないこと)はD1層が確かめる。
 function parseSchedule(
   formData: FormData,
 ): { status: "ok"; value: string | null } | MaintenanceTodoActionState {
   const raw = formData.get("plannedDate");
+  if (raw === null) return { status: "ok", value: null };
   if (typeof raw !== "string") {
     return { message: "予定日を正しく入力してください。", status: "error" };
   }
@@ -114,6 +118,10 @@ const EDIT_ERROR_RESPONSES: TodoErrorResponses = {
     status: "error",
   },
   MANAGED_ITEM_NOT_FOUND: MANAGED_ITEM_NOT_FOUND_ERROR,
+  MANUAL_TODO_HAS_NO_SCHEDULE: {
+    message: "必要になったら繰り返すTodoには予定日を設定できません。",
+    status: "error",
+  },
   OCCURRENCE_NOT_FOUND: OCCURRENCE_NOT_FOUND_ERROR,
   OCCURRENCE_NOT_PENDING: STATE_CHANGED_ERROR,
   OCCURRENCE_SCHEDULE_TAKEN: {

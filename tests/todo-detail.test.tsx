@@ -230,6 +230,21 @@ describe("未完了Todoの詳細(TodoDetailContent)", () => {
     expect(screen.getByText("未定")).toBeInTheDocument();
   });
 
+  // Issue #325 / YDR-046: 予定日を持たない方式であることは「繰り返し」の行が
+  // 伝えるため、「予定日: 未定」を重ねて出さない。
+  it("必要になったら繰り返すTodoは繰り返し方だけを示し、予定日の行を出さない", () => {
+    renderDetail(todo({
+      dueAt: null,
+      recurrenceBasis: "manual",
+      recurrenceLabel: "必要になったら繰り返す",
+      scheduledFor: null,
+    }));
+
+    expect(screen.getByText("必要になったら繰り返す")).toBeInTheDocument();
+    expect(screen.queryByText("予定日")).not.toBeInTheDocument();
+    expect(screen.queryByText("未定")).not.toBeInTheDocument();
+  });
+
   it("延期して期限が予定日とずれているときだけ現在の期限を表示する", () => {
     const { unmount } = renderDetail(todo());
     expect(screen.queryByText("現在の期限")).not.toBeInTheDocument();

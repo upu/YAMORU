@@ -387,7 +387,7 @@ CREATE TABLE "task_rules" (
   UNIQUE (id, schedule_kind),
   FOREIGN KEY (managed_item_id, household_id) REFERENCES managed_items(id, household_id) ON DELETE CASCADE,
   CHECK (title = trim(title) AND length(title) BETWEEN 1 AND 100),
-  CHECK (recurrence_basis IN ('completion', 'once', 'calendar', 'interval')),
+  CHECK (recurrence_basis IN ('completion', 'once', 'calendar', 'interval', 'manual')),
   CHECK (deadline_kind IN ('maintenance', 'strict')),
   CHECK (unresolved_policy = 'carry_over'),
   CHECK (schedule_month_end IN (0, 1)),
@@ -397,6 +397,9 @@ CREATE TABLE "task_rules" (
     AND (recurrence_basis = 'interval') = (interval_anchor_on IS NOT NULL)),
   CHECK ((recurrence_basis = 'completion' AND deadline_kind = 'maintenance' AND schedule_kind IS NULL)
     OR (recurrence_basis = 'once' AND deadline_kind = 'strict' AND recommended_start_offset = 0 AND recommended_until_offset = 0 AND schedule_kind IS NULL)
+    OR (recurrence_basis = 'manual' AND deadline_kind = 'strict' AND recommended_start_offset = 0 AND recommended_until_offset = 0
+      AND schedule_kind IS NULL AND schedule_day_of_week IS NULL AND schedule_day_of_month IS NULL
+      AND schedule_week_of_month IS NULL AND schedule_month IS NULL AND schedule_month_end = 0)
     OR (recurrence_basis = 'calendar' AND deadline_kind = 'strict' AND recommended_start_offset = 0 AND recommended_until_offset = 0
       AND ((schedule_kind = 'weekly' AND schedule_day_of_week BETWEEN 1 AND 7 AND schedule_day_of_month IS NULL AND schedule_week_of_month IS NULL AND schedule_month IS NULL)
         OR (schedule_kind = 'monthly_day' AND schedule_day_of_week IS NULL AND schedule_day_of_month BETWEEN 1 AND 31 AND schedule_week_of_month IS NULL AND schedule_month IS NULL)
@@ -632,6 +635,34 @@ BEGIN
   SELECT RAISE(ABORT, 'calendar-aware Worker is required for month/year completion recurrence');
 END;
 
+-- trigger: task_occurrences_manual_requires_undated_insert
+CREATE TRIGGER task_occurrences_manual_requires_undated_insert
+BEFORE INSERT ON task_occurrences
+WHEN NEW.scheduled_for IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'manual recurrence requires an undated occurrence')
+   WHERE EXISTS (
+     SELECT 1 FROM task_rules r
+      WHERE r.id = NEW.task_rule_id
+        AND r.household_id = NEW.household_id
+        AND r.recurrence_basis = 'manual'
+   );
+END;
+
+-- trigger: task_occurrences_manual_requires_undated_update
+CREATE TRIGGER task_occurrences_manual_requires_undated_update
+BEFORE UPDATE OF scheduled_for, due_at, task_rule_id, household_id ON task_occurrences
+WHEN NEW.scheduled_for IS NOT NULL
+BEGIN
+  SELECT RAISE(ABORT, 'manual recurrence requires an undated occurrence')
+   WHERE EXISTS (
+     SELECT 1 FROM task_rules r
+      WHERE r.id = NEW.task_rule_id
+        AND r.household_id = NEW.household_id
+        AND r.recurrence_basis = 'manual'
+   );
+END;
+
 -- trigger: task_occurrences_schedule_spec_insert
 CREATE TRIGGER task_occurrences_schedule_spec_insert
 BEFORE INSERT ON task_occurrences
@@ -652,31 +683,31 @@ BEGIN
   SELECT RAISE(ABORT, 'multi-spec calendar rules require a schedule-spec-aware Worker');
 END;
 
--- trigger: task_occurrences_undated_once_insert
-CREATE TRIGGER task_occurrences_undated_once_insert
+-- trigger: task_occurrences_undated_once_or_manual_insert
+CREATE TRIGGER task_occurrences_undated_once_or_manual_insert
 BEFORE INSERT ON task_occurrences
 WHEN NEW.scheduled_for IS NULL
 BEGIN
-  SELECT RAISE(ABORT, 'undated occurrence requires once recurrence')
+  SELECT RAISE(ABORT, 'undated occurrence requires once or manual recurrence')
    WHERE NOT EXISTS (
      SELECT 1 FROM task_rules r
       WHERE r.id = NEW.task_rule_id
         AND r.household_id = NEW.household_id
-        AND r.recurrence_basis = 'once'
+        AND r.recurrence_basis IN ('once', 'manual')
    );
 END;
 
--- trigger: task_occurrences_undated_once_update
-CREATE TRIGGER task_occurrences_undated_once_update
+-- trigger: task_occurrences_undated_once_or_manual_update
+CREATE TRIGGER task_occurrences_undated_once_or_manual_update
 BEFORE UPDATE OF scheduled_for, due_at, task_rule_id, household_id ON task_occurrences
 WHEN NEW.scheduled_for IS NULL
 BEGIN
-  SELECT RAISE(ABORT, 'undated occurrence requires once recurrence')
+  SELECT RAISE(ABORT, 'undated occurrence requires once or manual recurrence')
    WHERE NOT EXISTS (
      SELECT 1 FROM task_rules r
       WHERE r.id = NEW.task_rule_id
         AND r.household_id = NEW.household_id
-        AND r.recurrence_basis = 'once'
+        AND r.recurrence_basis IN ('once', 'manual')
    );
 END;
 
@@ -759,17 +790,31 @@ BEGIN
   SELECT RAISE(ABORT, 'invalid completion calendar interval');
 END;
 
--- trigger: task_rules_keep_undated_occurrences_once
-CREATE TRIGGER task_rules_keep_undated_occurrences_once
+-- trigger: task_rules_keep_undated_occurrences_once_or_manual
+CREATE TRIGGER task_rules_keep_undated_occurrences_once_or_manual
 BEFORE UPDATE OF recurrence_basis ON task_rules
-WHEN NEW.recurrence_basis <> 'once'
+WHEN NEW.recurrence_basis NOT IN ('once', 'manual')
 BEGIN
-  SELECT RAISE(ABORT, 'undated occurrence requires once recurrence')
+  SELECT RAISE(ABORT, 'undated occurrence requires once or manual recurrence')
    WHERE EXISTS (
      SELECT 1 FROM task_occurrences o
       WHERE o.task_rule_id = OLD.id
         AND o.household_id = OLD.household_id
         AND o.scheduled_for IS NULL
+   );
+END;
+
+-- trigger: task_rules_manual_requires_undated_occurrences
+CREATE TRIGGER task_rules_manual_requires_undated_occurrences
+BEFORE UPDATE OF recurrence_basis ON task_rules
+WHEN NEW.recurrence_basis = 'manual'
+BEGIN
+  SELECT RAISE(ABORT, 'manual recurrence requires an undated occurrence')
+   WHERE EXISTS (
+     SELECT 1 FROM task_occurrences o
+      WHERE o.task_rule_id = OLD.id
+        AND o.household_id = OLD.household_id
+        AND o.scheduled_for IS NOT NULL
    );
 END;
 

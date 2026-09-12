@@ -182,7 +182,7 @@ function oneTimeTodoStatements(
     // 適用する。片方だけが通って途中状態が残ることを防ぐ(YDR-014)。
     db.prepare(
       `UPDATE task_rules SET title = ?1, managed_item_id = ?2
-        WHERE id = ?3 AND household_id = ?4 AND recurrence_basis = 'once'
+        WHERE id = ?3 AND household_id = ?4 AND recurrence_basis IN ('once', 'manual')
           AND EXISTS (
             SELECT 1 FROM task_occurrences
              WHERE id = ?5 AND household_id = ?4 AND status = 'pending'
@@ -225,6 +225,32 @@ function oneTimeTodoStatements(
   ];
 }
 
+// この画面で編集できるのは、繰り返し条件を持たないTodoだけ。
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoも繰り返し条件を持たない
+// ため、同じ画面・同じ経路で編集する。ただし予定日は方式そのものが「日付を
+// 決めない」であり、具体日と未定を往復しない(YDR-030の往復は一回限りTodoだけ
+// の規則)。
+function requireEditableOccurrence(
+  occurrence: OccurrenceWithRule,
+  input: OneTimeTodoUpdate,
+): void {
+  if (occurrence.status !== "pending") {
+    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
+  }
+  if (occurrence.recurrence_basis === "manual") {
+    if (input.scheduledFor !== null) {
+      throw new D1ConflictError(
+        "Manual tasks cannot have a schedule",
+        "MANUAL_TODO_HAS_NO_SCHEDULE",
+      );
+    }
+    return;
+  }
+  if (occurrence.recurrence_basis !== "once") {
+    throw new D1ConflictError("Only one-time tasks can be edited", "EDIT_REQUIRES_ONE_TIME");
+  }
+}
+
 // Issue #203: 繰り返しなしTodoの名前・関連ManagedItem・担当者・予定日を、一つの
 // batch(暗黙のトランザクション)でまとめて更新する。途中で失敗した場合は
 // TaskRule側だけが変わった状態を残さない。戻り値は変更前の関連ManagedItem
@@ -243,12 +269,7 @@ export async function updateOneTimeTodo(
   await requireManagedItem(db, householdId, input.managedItemId);
 
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.status !== "pending") {
-    throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
-  }
-  if (occurrence.recurrence_basis !== "once") {
-    throw new D1ConflictError("Only one-time tasks can be edited", "EDIT_REQUIRES_ONE_TIME");
-  }
+  requireEditableOccurrence(occurrence, input);
 
   const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
   if (occurrence.assignee_user_id !== input.assigneeUserId) {

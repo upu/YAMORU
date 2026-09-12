@@ -10,6 +10,7 @@ import {
   createCalendarTask,
   createIntervalTask,
   createMaintenanceTask,
+  createManualTask,
   createOneTimeTask,
 } from "../../../lib/d1/todos";
 import { calendarScheduleWithNulls } from "../calendar-schedule-input";
@@ -21,13 +22,19 @@ import type { RegisteredTodoSchedule } from "./registration-feedback";
 
 export type TodoBasics = {
   managedItemId: string | null;
-  recurrenceBasis: "calendar" | "completion" | "interval" | "once";
+  recurrenceBasis: "calendar" | "completion" | "interval" | "manual" | "once";
   title: string;
 };
 
 export type OneTimeTodoInput = TodoBasics & {
   recurrenceBasis: "once";
   scheduledFor: string | null;
+};
+
+// Issue #325 / YDR-046: 「必要になったら繰り返す」。予定日・間隔・候補指定の
+// いずれも持たず、登録時は予定日未定のOccurrenceを1件だけ作る。
+export type ManualTodoInput = TodoBasics & {
+  recurrenceBasis: "manual";
 };
 
 export type CompletionTodoInput = TodoBasics & {
@@ -75,6 +82,7 @@ export type ParsedTodoInput =
   | CalendarTodoInput
   | CompletionTodoInput
   | IntervalTodoInput
+  | ManualTodoInput
   | OneTimeTodoInput;
 
 async function saveCalendarTodo(
@@ -107,6 +115,10 @@ export async function saveTodo(
       dueAt: input.scheduledFor,
       scheduledFor: input.scheduledFor,
     };
+  }
+  if (input.recurrenceBasis === "manual") {
+    await createManualTask(db, session, input);
+    return { ...basics, deadlineKind: "strict", dueAt: null, scheduledFor: null };
   }
   if (input.recurrenceBasis === "completion") {
     await createMaintenanceTask(db, session, input);

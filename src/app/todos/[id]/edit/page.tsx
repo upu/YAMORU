@@ -15,6 +15,28 @@ import {
 import { recurringRuleValues } from "./recurring-todo-edit-values";
 import { TodoEditForm } from "./todo-edit-form";
 
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは、繰り返し条件を
+// 持たない点で一回限りTodoと同じ形の編集になる。違いは予定日を扱わないこと
+// だけなので、同じフォームを予定日欄なしで使う。
+function isUndatableBasis(recurrenceBasis: string): boolean {
+  return recurrenceBasis === "once" || recurrenceBasis === "manual";
+}
+
+function describeEditableFields(recurrenceBasis: string): string {
+  if (recurrenceBasis === "manual") {
+    return "Todo名、担当、関連する管理対象を変更できます。実施する時期は決めずに、必要になったときに完了します。";
+  }
+  if (recurrenceBasis === "once") {
+    return "Todo名、予定日、担当、関連する管理対象を変更できます。";
+  }
+  return "今回の担当・期限と、今後の繰り返しを分けて変更できます。";
+}
+
+function plannedDateValue(todo: TodoDetailRow): string | null {
+  if (todo.recurrence_basis === "manual") return null;
+  return todo.scheduled_for === null ? "" : formatTokyoDateInput(todo.scheduled_for);
+}
+
 function TodoEditSections({ id, managedItems, members, todo }: {
   id: string;
   managedItems: TodoManagedItemOption[];
@@ -29,11 +51,9 @@ function TodoEditSections({ id, managedItems, members, todo }: {
       <header className="detail-hero">
         <p className="detail-kicker">EDIT TODO</p>
         <h1>{todo.title}を編集</h1>
-        <p>{todo.recurrence_basis === "once"
-          ? "Todo名、予定日、担当、関連する管理対象を変更できます。"
-          : "今回の担当・期限と、今後の繰り返しを分けて変更できます。"}</p>
+        <p>{describeEditableFields(todo.recurrence_basis)}</p>
       </header>
-      {todo.recurrence_basis === "once" ? (
+      {isUndatableBasis(todo.recurrence_basis) ? (
         <section aria-labelledby="todo-edit-section-title" className="detail-card">
           <h2 id="todo-edit-section-title">Todoを編集</h2>
           <TodoEditForm
@@ -42,7 +62,7 @@ function TodoEditSections({ id, managedItems, members, todo }: {
             managedItemId={todo.managed_item_id}
             managedItems={managedItems}
             members={members}
-            plannedDate={todo.scheduled_for === null ? "" : formatTokyoDateInput(todo.scheduled_for)}
+            plannedDate={plannedDateValue(todo)}
             title={todo.title}
           />
         </section>

@@ -66,6 +66,22 @@ function onceRow(
   };
 }
 
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは常に予定日未定。
+function manualRow(id: string, title = "コーヒーマシーンの石灰除去"): PendingOccurrenceRow {
+  return {
+    assignee_user_id: null,
+    due_at: null,
+    id,
+    scheduled_for: null,
+    task_rules: {
+      deadline_kind: "strict",
+      managed_items: { id: "item-1", name: "コーヒーマシーン" },
+      recurrence_basis: "manual",
+      title,
+    },
+  };
+}
+
 function maintenanceRow(id: string, scheduledFor: string, dueAt: string): PendingOccurrenceRow {
   return {
     assignee_user_id: null,
@@ -127,6 +143,25 @@ describe("未完了Todoの並び(buildTodoListItems)", () => {
     // Issue #267: バッジの「未定」ですでに意味が伝わるため、metaの文章は
     // 重ねて出さない(TodoCardは空文字のmetaを描画しない)。
     expect(items[2].meta).toBe("");
+  });
+
+  // Issue #325 / YDR-046
+  it("必要になったら繰り返すTodoも予定日未定として末尾に含め、「未定」と区別する", () => {
+    const items = buildTodoListItems(
+      [
+        manualRow("manual"),
+        onceRow("undated", null, "通知書が届いたら申請"),
+        onceRow("today", "2026-08-11T15:00:00.000Z"),
+      ],
+      NOW,
+    );
+
+    expect(items.map((item) => item.id)).toEqual(["today", "manual", "undated"]);
+    const manual = items.find((item) => item.id === "manual");
+    expect(manual?.badge).toBe("必要時");
+    // バッジだけでは繰り返すことが伝わらないため、繰り返し方だけを添える。
+    expect(manual?.meta).toBe("必要になったら繰り返す");
+    expect(items.find((item) => item.id === "undated")?.badge).toBe("未定");
   });
 
   it("管理対象に紐づかないTodoもリンクなしで含める", () => {

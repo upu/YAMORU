@@ -66,7 +66,15 @@ export function toDeadlineKind(value: string): DeadlineKind {
 }
 
 // Issue #99 / YDR-037: "interval"は「起点日からN日ごと・N週ごと」の固定間隔。
-export const RECURRENCE_BASES = ["calendar", "completion", "interval", "once"] as const;
+// Issue #325 / YDR-046: "manual"は「必要になったら繰り返す」。予定日を持たず、
+// 完了するたびに次の予定日未定Occurrenceが1件作られる。
+export const RECURRENCE_BASES = [
+  "calendar",
+  "completion",
+  "interval",
+  "manual",
+  "once",
+] as const;
 
 export type RecurrenceBasis = (typeof RECURRENCE_BASES)[number];
 

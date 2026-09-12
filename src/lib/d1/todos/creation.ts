@@ -12,9 +12,13 @@ import { type TaskBasics, requireManagedItem } from "./shared";
 import { legacyCalendarColumnValues } from "./calendar-columns";
 import { taskRuleSnapshotExpression } from "./rule-snapshot";
 
-// Todoの新規作成(一回限り・完了日基準・定例日基準・固定間隔)。
+// Todoの新規作成(一回限り・完了日基準・定例日基準・固定間隔・必要時)。
 
 export type OneTimeTaskInput = TaskBasics & { scheduledFor: string | null };
+
+// Issue #325 / YDR-046: 「必要になったら繰り返す」。実施時期を日付で決め
+// られないため、条件として持つ値はTodo名と関連する管理対象だけになる。
+export type ManualTaskInput = TaskBasics;
 
 type CompletionIntervalInput =
   | {
@@ -194,6 +198,26 @@ export async function createOneTimeTask(
     recurrenceBasis: "once",
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
+  });
+}
+
+// Issue #325 / YDR-046: 登録時に予定日未定のOccurrenceを1件だけ作る。以降の
+// 回は完了のたびにcompletion.tsが同じ形で作り、ここでは先の回を作らない
+// (YDR-016)。
+export async function createManualTask(
+  db: D1Database,
+  session: D1Session,
+  input: ManualTaskInput,
+): Promise<string> {
+  const householdId = await requireCurrentHouseholdId(db, session);
+  return insertTask(db, householdId, {
+    ...input,
+    deadlineKind: "strict",
+    dueAt: null,
+    recurrenceBasis: "manual",
+    recommendedStartOffset: 0,
+    recommendedUntilOffset: 0,
+    scheduledFor: null,
   });
 }
 
