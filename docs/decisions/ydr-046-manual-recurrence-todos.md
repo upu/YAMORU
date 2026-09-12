@@ -2,19 +2,21 @@
 type: Decision
 ydr_id: YDR-046
 title: 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す
-description: 実施時期を暦から決められない繰り返し作業をrecurrence_basis = 'manual'として追加し、予定日未定のOccurrenceを完了のたびに1件ずつ作る。YDR-030の「NULLペアは一回限りTodoだけ」という決定だけを置き換える
+description: 実施時期を暦から決められない繰り返し作業をrecurrence_basis = 'manual'として追加し、予定日未定のOccurrenceを完了のたびに1件ずつ作る。YDR-030の「NULLペアは一回限りTodoだけ」と、YDR-039の編集画面の二分割だけをmanualについて置き換える
 tags: [yamoru, decisions, ydr, todo]
 status: stable
 decision_status: Accepted
 decision_date: 2026-09-12
-supersedes: YDR-030
+supersedes: [YDR-030, YDR-039]
 ---
 
 # YDR-046: 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す
 
 - 状態: Accepted
 - 決定日: 2026-09-12
-- 置き換える決定: [YDR-030](ydr-030-undated-one-time-task-occurrences.md)(「両方NULLを許すのは`recurrence_basis = 'once'`のTaskRuleに属するOccurrenceだけ」という限定のみ。NULLペアの持ち方、一回限りTodoにおける具体日と未定の往復、日付未定中は延期を提供しないこと、未定のまま完了できること、二種類の一意制約の扱いは変更しない)
+- 置き換える決定:
+  - [YDR-030](ydr-030-undated-one-time-task-occurrences.md)(「両方NULLを許すのは`recurrence_basis = 'once'`のTaskRuleに属するOccurrenceだけ」という限定のみ。NULLペアの持ち方、一回限りTodoにおける具体日と未定の往復、日付未定中は延期を提供しないこと、未定のまま完了できること、二種類の一意制約の扱いは変更しない)
+  - [YDR-039](ydr-039-safe-recurring-todo-edit.md)(「編集画面を『今回の予定』と『次回以降の繰り返し』へ分けて保存する」という点のみ、manualに限って置き換える。保存先の分離、現在回のスナップショット更新、変更履歴、完了取消・実施日訂正のガードはすべてYDR-039のまま維持する)
 
 ## 背景
 
@@ -39,6 +41,20 @@ YDR-030は見直す条件として「繰り返しTodoにも実施時期未定が
 - 一覧・カードのバッジは「必要時」とし、一回限りTodoの「未定」と区別する。「未定」は日付がまだ決まっていない状態、「必要時」は日付を決めない方式そのものを指す。
 - `waiting`のような新しいTodo状態は追加しない。予定日未定であることは、これまでどおり`scheduled_for`と`due_at`がNULLであることで表す(YDR-030・YDR-031の見直し条件のまま)。
 - 繰り返し方式そのものの変更は、既存の方式と同じく提供しない。
+- manualのTodoの編集は、一つの画面・一つの保存で行う。Todo名、関連する管理対象、担当をまとめて変更する。
+
+## YDR-039との関係
+
+[YDR-039](ydr-039-safe-recurring-todo-edit.md)は、繰り返しTodoの編集画面を「今回の予定」(TaskOccurrenceの担当と現在期限`due_at`)と「次回以降の繰り返し」(TaskRuleの名前、関連ManagedItem、同じ方式内の条件)へ分けて保存すると定めている。この二分割は、ルールの編集が現在回の予定を動かしていないことを利用者が確かめられるようにするためのものであり、同項は対象の方式として`calendar`、`completion`、`interval`を挙げている。
+
+manualは`due_at`も繰り返し条件も持たない。分割すると「今回の予定」側に残るのは担当だけになり、しかも担当はTodo詳細の担当パネルからその場で変更できる([YDR-020](ydr-020-assignee-performer-actor.md)、[Issue #392](https://github.com/upu/YAMORU/issues/392))。つまり分割しても空に近い半分ができるだけで、動いていないことを確かめる対象が存在しない。そこでmanualに限り、一つの画面・一つの保存で編集する。
+
+置き換えるのは画面の分割だけである。次の点はYDR-039のまま維持する。
+
+- 保存先の分離。担当はTaskOccurrence、名前・関連ManagedItem・メモはTaskRuleへ保存する。
+- 現在回の`rule_snapshot`を新しい値へそろえ、過去の完了回のスナップショットは更新しない。
+- TaskRuleの変更を`task_rule_changes`へ追記する。
+- 完了により生成された次回OccurrenceへTaskRule変更が記録された後は、元Occurrenceの完了取消と実施日訂正を拒否する。
 
 ## 今回決めないこと
 

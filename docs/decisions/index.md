@@ -50,7 +50,7 @@
 | YDR-036 | ManagedItemの大分類を備品、サービス・契約の2択にする | Accepted | [ydr-036-merge-service-obligation-kinds.md](ydr-036-merge-service-obligation-kinds.md) |
 | YDR-037 | 固定間隔の繰り返しを起点日と間隔日数が決める候補列として定義する | Accepted | [ydr-037-fixed-interval-recurrence.md](ydr-037-fixed-interval-recurrence.md) |
 | YDR-038 | 完了日基準Todoの月・年単位を対象月の月末へ補正する | Accepted | [ydr-038-completion-calendar-intervals.md](ydr-038-completion-calendar-intervals.md) |
-| YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Accepted | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
+| YDR-039 | 繰り返しTodoの現在回、次回以降、過去回を分けて安全に編集する | Superseded by YDR-046(manualの編集画面の分割の部分のみ) | [ydr-039-safe-recurring-todo-edit.md](ydr-039-safe-recurring-todo-edit.md) |
 | YDR-040 | 複数候補を持つ定例日ルールを候補指定の和集合として定義する | Accepted | [ydr-040-multi-candidate-calendar-rules.md](ydr-040-multi-candidate-calendar-rules.md) |
 | YDR-041 | 詳しい種類のAI提案を明示操作の入力補助に限定し、提案と採用結果を家庭内へ記録する | Accepted | [ydr-041-ai-item-type-suggestion.md](ydr-041-ai-item-type-suggestion.md) |
 | YDR-042 | 横断検索を名前一致で対象へ到達する常設機能として定義し、下部ナビゲーションの4項目目に置く | Superseded by YDR-043(検索結果の操作部分のみ) | [ydr-042-cross-cutting-search.md](ydr-042-cross-cutting-search.md) |

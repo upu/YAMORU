@@ -20,6 +20,9 @@ status: stable
 | 必要になったら繰り返すTodo(`manual`)の登録・完了・編集 | `src/app/todos/new/actions.ts`、`src/app/todos/[id]/edit/page.tsx` | `src/lib/d1/todos/creation.ts`(`createManualTask`)、`src/lib/d1/todos/shared.ts`(`nextOccurrence`)、`src/lib/d1/todos/edit.ts` |
 | 繰り返し条件の入力解釈・制約値(登録と編集で共通) | `src/app/todos/calendar-schedule-input.ts`(定例日条件とエラー識別子)、`src/app/todos/todo-input-limits.ts`(Todo名の長さ、完了日基準・固定間隔の上限) | - |
 | 1回だけのTodo・必要時Todoの編集 | `src/app/todos/[id]/actions.ts`(`updateTodo`) | `src/lib/d1/todos/edit.ts` |
+
+必要時Todo(`manual`)は現在期限も繰り返し条件も持たないため、繰り返しTodoの「今回の予定 / 次回以降」の二分割を使わず、一回限りTodoと同じ一つの画面・一つの保存で編集する([YDR-046](../decisions/ydr-046-manual-recurrence-todos.md))。保存先の分離、現在回のスナップショット更新、`task_rule_changes`への追記、完了取消・実施日訂正のガードは[YDR-039](../decisions/ydr-039-safe-recurring-todo-edit.md)のまま。
+
 | 繰り返しTodoの現在回・次回以降の編集 | `src/app/todos/[id]/actions.ts`(`updateRecurringOccurrence`、`updateRecurringRule`)、`src/app/todos/[id]/edit/recurring-todo-edit-values.ts` | `src/lib/d1/todos/recurring-edit.ts`、`src/lib/d1/todos/rule-snapshot.ts` |
 | 完了・完了取消 | `src/features/todos/actions/completion.ts`(`completeMaintenanceTask`、`undoMaintenanceTaskCompletion`)、UIは`src/features/todos/components/complete-todo-panel.tsx` | `src/lib/d1/todos/completion.ts` |
 | 実施日時・実施者の訂正 | `src/features/todos/actions/correction.ts`(`correctCompletionOccurredAt`、`correctCompletionPerformer`)、UIは`src/features/todos/components/correction-panel.tsx` | `src/lib/d1/todos/corrections.ts` |
@@ -58,6 +61,7 @@ D1層が投げる業務エラーは`src/lib/d1/errors.ts`の`D1ErrorCode`(識別
 - 有効: YDR-004、YDR-006、YDR-012、YDR-013、YDR-014、YDR-015、YDR-016、YDR-020、YDR-021、YDR-026、YDR-031、YDR-032、YDR-037、YDR-038、YDR-039、YDR-040、YDR-046
 - 部分的に置き換えられている(範囲に注意):
   - [YDR-030](../decisions/ydr-030-undated-one-time-task-occurrences.md)は[YDR-031](../decisions/ydr-031-undated-todos-out-of-home.md)と[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)が部分的に置き換えた。YDR-031が置き換えたのはホームの表示先、YDR-046が置き換えたのは「両方NULLは一回限りTodoだけ」という限定(現在は`manual`も許す)である。NULLペアの扱い、一回限りTodoにおける具体日と未定の往復、未定中は延期を提供しないこと、未定のまま完了できることはYDR-030の記述がそのまま継続する。
+  - [YDR-039](../decisions/ydr-039-safe-recurring-todo-edit.md)は[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)が部分的に置き換えた。置き換えたのは`manual`における編集画面の二分割だけで、保存先の分離・スナップショット・変更履歴・取消と訂正のガードはYDR-039のまま有効である。
   - [YDR-010](../decisions/ydr-010-single-pending-occurrence-per-task-rule.md)と[YDR-017](../decisions/ydr-017-strict-deadline-vs-maintenance-recommended-window.md)は過去の経緯として読む。推奨期間の現在の表示規則は[YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md)。
 
 ## 検証方法
