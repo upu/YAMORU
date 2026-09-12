@@ -78,6 +78,28 @@ describe("ManagedItem詳細の予定日未定Todo", () => {
       .toMatchObject([{ badge: "未定", meta: "予定日: 未定", recurrenceBasis: "once" }]);
   });
 
+  // Issue #325 / YDR-046: 予定日未定はTodo一覧と同じく末尾へ置く。
+  it("予定日未定のTodoを日付があるTodoの後ろへ並べる", () => {
+    const dated: TaskRuleRow = {
+      deadline_kind: "strict",
+      recurrence_basis: "once",
+      task_occurrences: [{
+        activity_logs: [],
+        assignee_user_id: null,
+        due_at: "2026-09-30T15:00:00.000Z",
+        id: "occurrence-dated",
+        scheduled_for: "2026-09-30T15:00:00.000Z",
+        status: "pending",
+      }],
+      title: "点検",
+    };
+
+    expect(
+      buildPendingTodos([undatedRule("manual"), dated], "2026-09-12T00:00:00.000Z")
+        .map((todo) => todo.id),
+    ).toEqual(["occurrence-dated", "occurrence-manual"]);
+  });
+
   it("予定日未定を許さない方式では失敗させる", () => {
     expect(() => buildPendingTodos([undatedRule("calendar")], "2026-09-12T00:00:00.000Z"))
       .toThrow("予定日未定を利用できないTodoです。");

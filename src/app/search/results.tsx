@@ -11,6 +11,7 @@ import { CROSS_SEARCH_LIMIT } from "../../lib/d1/cross-search";
 import type { HouseholdMemberOption } from "../../lib/d1/profiles";
 import { CompleteTodoPanel } from "../../features/todos/components/complete-todo-panel";
 import { QuickStockStatusControl } from "../consumables/stock-status-control";
+import { toRecurrenceBasis } from "../task-schedule";
 import { formatTokyoShortMonthDay } from "../time-zone";
 import styles from "./search-results.module.css";
 
@@ -58,7 +59,11 @@ function MoreResultsNote({ hasMore, unit }: { hasMore: boolean; unit: string }) 
 // Todoの補助情報。予定日と期限が異なる(メンテナンスの推奨期間)ときは範囲で
 // 示す。行はTodo詳細への導線なので、状態語(期限切れ・そろそろ)まではここで
 // 判定せず、日付だけを出す(Todo一覧の行 #243 と同じ考え方)。
+// Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは日付が決まっていない
+// のではなく、日付を決めない方式そのものなので「予定日未定」とは言わない。
+// 一覧・カードのバッジ(「必要時」)と同じ言葉にそろえる。
 function describeTodoSchedule(todo: CrossSearchTodo): string {
+  if (toRecurrenceBasis(todo.recurrenceBasis) === "manual") return "必要時";
   if (todo.scheduledFor === null) return "予定日未定";
   const from = formatTokyoShortMonthDay(todo.scheduledFor);
   if (todo.dueAt === null || todo.dueAt === todo.scheduledFor) return from;

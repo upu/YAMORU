@@ -162,14 +162,20 @@ export function buildPendingTodo(
   };
 }
 
+// 予定日の昇順で並べ、予定日未定(scheduledFor = null)はTodo一覧(/todos)と
+// 同じく末尾へ置く(Issue #325 / YDR-046)。空文字へ寄せて比較すると、日付の
+// あるTodoより前へ出てしまう。
 export function buildPendingTodos(taskRules: TaskRuleRow[], nowIso: string): PendingTodoData[] {
   return taskRules
     .flatMap((rule) => rule.task_occurrences
       .filter((occurrence) => occurrence.status === "pending")
       .map((occurrence) => buildPendingTodo(rule, occurrence, nowIso)))
-    .sort((left, right) =>
-      (left.scheduledFor ?? "").localeCompare(right.scheduledFor ?? "")
-    );
+    .sort((left, right) => {
+      if (left.scheduledFor === null || right.scheduledFor === null) {
+        return Number(left.scheduledFor === null) - Number(right.scheduledFor === null);
+      }
+      return left.scheduledFor.localeCompare(right.scheduledFor);
+    });
 }
 
 // Issue #240: 「直近の完了」の各行に実施者を表示するため、TaskRuleごとの
