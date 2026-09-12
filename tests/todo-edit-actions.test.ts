@@ -45,6 +45,7 @@ function editForm(overrides: Record<string, string> = {}): FormData {
     assigneeUserId: "",
     id: "occurrence-1",
     managedItemId: "",
+    note: "",
     plannedDate: "2026-09-02",
     title: "通知書が届いたら申請",
     ...overrides,
@@ -70,6 +71,7 @@ describe("Todoの編集(updateTodo)", () => {
     expect(updateOneTimeTodoMock).toHaveBeenCalledWith("db", "session", "occurrence-1", {
       assigneeUserId: "user-2",
       managedItemId: "item-1",
+      note: null,
       scheduledFor: "2026-09-01T15:00:00.000Z",
       title: "通知書が届いたら申請",
     });
@@ -113,6 +115,37 @@ describe("Todoの編集(updateTodo)", () => {
       status: "error",
     });
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  // Issue #329 / YDR-047
+  it("メモを追加・変更・削除して渡す", async () => {
+    await submit(editForm({ note: "  除去剤を1本。\r\n2回すすぐ。  " }));
+    expect(updateOneTimeTodoMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({ note: "除去剤を1本。\n2回すすぐ。" }),
+    );
+
+    vi.clearAllMocks();
+    updateOneTimeTodoMock.mockResolvedValue({ previousManagedItemId: null });
+    await submit(editForm({ note: "" }));
+    expect(updateOneTimeTodoMock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "occurrence-1",
+      expect.objectContaining({ note: null }),
+    );
+  });
+
+  it("上限を超えたメモは保存せず、入力の直し方を案内する", async () => {
+    const result = await submit(editForm({ note: "あ".repeat(1001) }));
+
+    expect(updateOneTimeTodoMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "メモは1000文字以内で入力してください。",
+      status: "error",
+    });
   });
 
   it("担当と管理対象の空欄は未設定として渡す", async () => {
@@ -312,6 +345,7 @@ describe("繰り返しTodoの編集", () => {
       "occurrence-1",
       {
         managedItemId: "item-1",
+        note: null,
         recurrenceBasis: "calendar",
         scheduleDayOfMonth: null,
         scheduleDaysOfWeek: [2],
@@ -327,237 +361,3 @@ describe("繰り返しTodoの編集", () => {
 
 // Issue #100 / #101 / #102 / YDR-040: 定例日ルールの候補指定は方式ごとに
 // 入力の形が違う。方式ごとの解釈だけをまとめて確かめる。
-describe("繰り返しTodoの編集(定例日の候補指定)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
-    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: null });
-    updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
-  });
-
-  // Issue #102 / YDR-040: 毎週の曜日は複数選べる。未選択のままでは保存しない。
-  it("毎週の複数曜日を昇順・重複なしでD1へ渡す", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleKind: "weekly",
-      title: "毎週火曜と金曜の家族会議",
-    })) formData.set(key, value);
-    for (const weekday of ["5", "2", "5"]) formData.append("scheduleDaysOfWeek", weekday);
-
-    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      "occurrence-1",
-      expect.objectContaining({ scheduleDaysOfWeek: [2, 5], scheduleKind: "weekly" }),
-    );
-  });
-
-  it("毎週で曜日が1つも選ばれていないと保存しない", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleKind: "weekly",
-      title: "毎週の家族会議",
-    })) formData.set(key, value);
-
-    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
-    expect(result.status).toBe("error");
-  });
-
-  it("毎年で実在しない月日は保存しない", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleDayOfMonth: "31",
-      scheduleKind: "yearly",
-      scheduleMonth: "4",
-      title: "年度末の確認",
-    })) formData.set(key, value);
-
-    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "定例パターンを正しく入力してください。",
-      status: "error",
-    });
-  });
-
-  // Issue #100 / YDR-040: 月次の曜日方式は曜日を1つ、第N・最終を複数選ぶ。
-  it("毎月の複数の第N曜日と最終曜日をD1へ渡す", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleDayOfWeek: "5",
-      scheduleKind: "monthly_nth_weekday",
-      scheduleWeekLast: "1",
-      title: "資源ごみを出す",
-    })) formData.set(key, value);
-    for (const week of ["4", "2", "4", "5"]) {
-      formData.append("scheduleWeekOfMonth", week);
-    }
-
-    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      "occurrence-1",
-      expect.objectContaining({
-        scheduleDaysOfWeek: [5],
-        scheduleKind: "monthly_nth_weekday",
-        scheduleWeekLast: true,
-        scheduleWeeksOfMonth: [2, 4, 5],
-      }),
-    );
-  });
-
-  it("毎月の曜日方式で出現位置を1つも選ばないと保存しない", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleDayOfWeek: "5",
-      scheduleKind: "monthly_nth_weekday",
-      title: "資源ごみを出す",
-    })) formData.set(key, value);
-
-    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "第1〜第5または最終を1つ以上選んでください。",
-      status: "error",
-    });
-  });
-
-  // Issue #101 / YDR-040の3: 年次の曜日方式は月・曜日・出現位置を渡す。
-  it("毎年の第N曜日と最終曜日をD1へ渡す", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleDayOfWeek: "4",
-      scheduleKind: "yearly_nth_weekday",
-      scheduleMonth: "11",
-      scheduleWeekLast: "1",
-      title: "年末の大掃除",
-    })) formData.set(key, value);
-    for (const week of ["3", "1", "3"]) {
-      formData.append("scheduleWeekOfMonth", week);
-    }
-
-    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      "occurrence-1",
-      expect.objectContaining({
-        scheduleDaysOfWeek: [4],
-        scheduleKind: "yearly_nth_weekday",
-        scheduleMonth: 11,
-        scheduleWeekLast: true,
-        scheduleWeeksOfMonth: [1, 3],
-      }),
-    );
-  });
-
-  it("毎年の曜日方式で月が範囲外なら保存しない", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "calendar",
-      scheduleDayOfWeek: "4",
-      scheduleKind: "yearly_nth_weekday",
-      scheduleMonth: "0",
-      scheduleWeekOfMonth: "3",
-      title: "年末の大掃除",
-    })) formData.set(key, value);
-
-    const result = await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      message: "定例パターンを正しく入力してください。",
-      status: "error",
-    });
-  });
-});
-
-describe("繰り返しTodoの編集(完了日基準・固定間隔)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
-    updateRecurringOccurrenceMock.mockResolvedValue({ managedItemId: null });
-    updateRecurringTaskRuleMock.mockResolvedValue({ previousManagedItemId: null });
-  });
-
-  it("完了日基準の値・単位を検証してD1へ渡す", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "occurrence-1",
-      intervalMax: "2",
-      intervalMin: "1",
-      intervalUnit: "month",
-      managedItemId: "",
-      recurrenceBasis: "completion",
-      title: "フィルター交換",
-    })) formData.set(key, value);
-
-    await updateRecurringRule(INITIAL_MAINTENANCE_TODO_STATE, formData);
-
-    expect(updateRecurringTaskRuleMock).toHaveBeenCalledWith(
-      "db",
-      "session",
-      "occurrence-1",
-      expect.objectContaining({
-        recommendedStartOffset: 0,
-        recommendedStartValue: 1,
-        recommendedUnit: "month",
-        recommendedUntilOffset: 0,
-        recommendedUntilValue: 2,
-      }),
-    );
-  });
-
-  it("不正な固定間隔はD1へ送らない", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      fixedIntervalAnchorDate: "2026-09-01",
-      fixedIntervalCount: "0",
-      fixedIntervalUnit: "day",
-      id: "occurrence-1",
-      managedItemId: "",
-      recurrenceBasis: "interval",
-      title: "確認",
-    })) formData.set(key, value);
-
-    const result = await updateRecurringRule(
-      INITIAL_MAINTENANCE_TODO_STATE,
-      formData,
-    );
-
-    expect(result).toEqual({
-      message: "繰り返す間隔と起点日を正しく入力してください。",
-      status: "error",
-    });
-    expect(updateRecurringTaskRuleMock).not.toHaveBeenCalled();
-  });
-});

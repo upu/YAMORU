@@ -18,6 +18,7 @@ const TOKYO_2026_08_04 = new Date("2026-08-03T15:00:00.000Z");
 function weeklyInput(daysOfWeek: number[], title = "毎週の家族会議") {
   return {
     managedItemId: null,
+    note: null,
     scheduleDayOfMonth: null,
     scheduleDaysOfWeek: daysOfWeek,
     scheduleKind: "weekly",
@@ -263,6 +264,7 @@ describe("複数曜日ルールの編集(updateRecurringTaskRule)", () => {
 
     await updateRecurringTaskRule(db, memberA, occurrence.id, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [2, 6],
@@ -290,6 +292,7 @@ describe("複数曜日ルールの編集(updateRecurringTaskRule)", () => {
     const occurrence = await pendingOccurrence(ruleId);
     const rule = {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar" as const,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [4, 1],
@@ -323,6 +326,7 @@ describe("複数曜日ルールの編集(updateRecurringTaskRule)", () => {
 
     await updateRecurringTaskRule(db, memberA, occurrence.id, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [3],
@@ -352,6 +356,7 @@ describe("複数曜日ルールの編集(updateRecurringTaskRule)", () => {
 
     await expect(updateRecurringTaskRule(db, memberB, occurrence.id, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [2],

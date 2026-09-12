@@ -124,6 +124,7 @@ describe("定例日基準Todoの登録操作", () => {
 
     expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [3],
@@ -190,6 +191,7 @@ describe("定例日基準Todoの登録操作", () => {
 
     expect(createCalendarTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [],

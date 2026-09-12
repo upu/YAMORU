@@ -9,6 +9,7 @@ import {
   ManagedItemSearch,
   type TodoManagedItemOption,
 } from "../../managed-item-search";
+import { TodoNoteField } from "../../todo-note-field";
 import { WEEKDAY_OPTIONS, WeekdayCheckboxes } from "../../weekday-checkboxes";
 import { WeekPositionCheckboxes } from "../../week-position-checkboxes";
 import { updateRecurringOccurrence, updateRecurringRule } from "../actions";
@@ -21,8 +22,11 @@ export type CalendarScheduleKind =
   | "yearly"
   | "yearly_nth_weekday";
 
+// Issue #329 / YDR-047: メモは方式によらず「今後の繰り返し」側で編集する。
+// 次回以降のOccurrenceも同じTaskRuleのメモを参照する。
 type CalendarRuleValues = {
   managedItemId: string | null;
+  note: string;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
   // Issue #100 / #101 / #102 / YDR-040: 毎週は複数曜日、月次・年次の曜日方式は
@@ -39,6 +43,7 @@ type CalendarRuleValues = {
 
 type CompletionRuleValues = {
   managedItemId: string | null;
+  note: string;
   recurrenceBasis: "completion";
   recommendedStartValue: number;
   recommendedUnit: "day" | "month" | "week" | "year";
@@ -51,6 +56,7 @@ type IntervalRuleValues = {
   intervalCount: number;
   intervalUnit: "day" | "week";
   managedItemId: string | null;
+  note: string;
   recurrenceBasis: "interval";
   title: string;
 };
@@ -353,13 +359,14 @@ function RecurringRuleForm({ id, managedItems, rule }: {
   return (
     <section aria-labelledby="recurring-rule-title" className="detail-card">
       <h2 id="recurring-rule-title">今後の繰り返し</h2>
-      <p className="detail-note">Todo名、関連する管理対象、繰り返し条件を変更します。現在回の予定と期限は変わりません。過去の完了記録は変わりません。</p>
+      <p className="detail-note">Todo名、メモ、関連する管理対象、繰り返し条件を変更します。現在回の予定と期限は変わりません。過去の完了記録は変わりません。</p>
       <form action={action} className="auth-form maintenance-todo-form">
         <input name="id" type="hidden" value={id} />
         <input name="recurrenceBasis" type="hidden" value={rule.recurrenceBasis} />
         <label htmlFor="recurring-rule-name">Todo名</label>
         <input defaultValue={rule.title} id="recurring-rule-name" maxLength={100} name="title" required type="text" />
         <RuleFields rule={rule} />
+        <TodoNoteField defaultValue={rule.note} idPrefix="recurring-rule" />
         <ManagedItemSearch idPrefix="recurring-rule" initialManagedItemId={rule.managedItemId} managedItems={managedItems} />
         <SubmitButton />
         <FormFeedback state={state} />

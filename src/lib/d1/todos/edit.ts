@@ -23,6 +23,10 @@ export type TodoDetailRow = {
   interval_unit: string | null;
   managed_item_id: string | null;
   managed_item_name: string | null;
+  // Issue #329 / YDR-047: 実施時に毎回参照する手順・注意点。未設定はnull。
+  // 実施時点の記録ではなく現在の手順なので、rule_snapshotではなく今の
+  // TaskRuleの値をそのまま読む。
+  note: string | null;
   // 現在有効な実施日時・実施者。完了ログがない間はnull。
   occurred_at: string | null;
   performed_by_user_id: string | null;
@@ -55,6 +59,7 @@ const TODO_DETAIL_SQL = `WITH completion AS (
         LIMIT 1
      )
      SELECT o.id, o.task_rule_id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
+            r.note,
             CASE WHEN json_type(o.rule_snapshot, '$.title') IS NULL
               THEN r.title ELSE json_extract(o.rule_snapshot, '$.title') END AS title,
             CASE WHEN json_type(o.rule_snapshot, '$.recurrenceBasis') IS NULL
@@ -122,6 +127,7 @@ export async function loadTodoDetail(
 export type OneTimeTodoUpdate = {
   assigneeUserId: string | null;
   managedItemId: string | null;
+  note: string | null;
   scheduledFor: string | null;
   title: string;
 };
@@ -210,7 +216,7 @@ function oneTimeTodoStatements(
     // TaskRuleとTaskOccurrenceのどちらの更新も、同じpending条件を満たすときだけ
     // 適用する。片方だけが通って途中状態が残ることを防ぐ(YDR-014)。
     db.prepare(
-      `UPDATE task_rules SET title = ?1, managed_item_id = ?2
+      `UPDATE task_rules SET title = ?1, managed_item_id = ?2, note = ?6
         WHERE id = ?3 AND household_id = ?4 AND recurrence_basis IN ('once', 'manual')
           AND EXISTS (
             SELECT 1 FROM task_occurrences
@@ -222,6 +228,7 @@ function oneTimeTodoStatements(
       occurrence.task_rule_id,
       householdId,
       occurrence.id,
+      input.note,
     ),
     // 予定日は変えたときだけ書き換える。延期でdue_atだけを動かしたTodo
     // (YDR-012)の期限を、名前や担当だけの編集で巻き戻さない。予定日を変えた

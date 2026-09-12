@@ -22,6 +22,8 @@ import type { RegisteredTodoSchedule } from "./registration-feedback";
 
 export type TodoBasics = {
   managedItemId: string | null;
+  // Issue #329 / YDR-047: 実施するときに毎回参照する手順・注意点。未設定はnull。
+  note: string | null;
   recurrenceBasis: "calendar" | "completion" | "interval" | "manual" | "once";
   title: string;
 };

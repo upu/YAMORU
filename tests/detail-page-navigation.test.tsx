@@ -38,6 +38,7 @@ const TODO: TodoDetailData = {
   isMaintenance: false,
   managedItemId: null,
   managedItemName: null,
+  note: null,
   recurrenceBasis: "once",
   recurrenceLabel: "繰り返しなし",
   scheduledFor: "2026-09-02",
