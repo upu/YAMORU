@@ -262,6 +262,7 @@ MVP後に追加を検討する概念は、Consumable、StockMovement、ShoppingI
 - 完了日基準のTodoは実施日時から次回を計算する。家族共有MVP（Phase 2まで）ではスキップを提供せず、Phase 3で固定日基準のスキップだけを追加する。
 - TaskOccurrenceは変更しない本来の予定日時`scheduled_for`と、延期可能な現在の期限`due_at`を分けて保持する。
 - 一回限りTodoは`scheduled_for`と`due_at`を両方NULLにした予定日未定のOccurrenceを持てる。後から同じ具体日を両方へ設定でき、具体日から未定へ戻す場合も両方をNULLにする。
+- 「必要になったら繰り返す」Todo(`recurrence_basis = 'manual'`)も同じNULLペアで予定日未定のOccurrenceを持つ。こちらは日付を決めないこと自体が方式なので、具体日と未定を往復せず、常に両方NULLのままとする。完了すると次の予定日未定Occurrenceを1件だけ作る。詳細は[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)を参照。
 - 同じ予定枠の重複防止は`(task_rule_id, scheduled_for)`の一意制約で担保する。
 - 「1件を持ち越す」の未解決Todo重複防止は、`status = 'pending'`の行だけを対象とする`task_rule_id`の部分一意制約で担保する。
 - ActivityLogは実際の実施日時`occurred_at`と、サーバーが付与する記録日時`recorded_at`を分ける。完了日基準の次回は`occurred_at`から計算し、固定日基準では前述の暦上の候補判定に`occurred_at`を使う。
@@ -649,7 +650,7 @@ YAMORUには家族構成、所有物、契約、税金、写真、説明書な�
 - 完了取消は、自動生成された次回Todoが未変更の場合だけ許可する。
 - アプリ開封履歴は蓄積しない。必要なら最終利用日時だけを上書き保持する。
 - AIは初期版の必須要素にしない。
-- 一回限りTodoだけ予定日未定を許し、日付が決まった後も具体日と未定を往復できる。
+- 予定日未定(`scheduled_for`と`due_at`が両方NULL)を許すのは、一回限りTodoと「必要になったら繰り返す」Todoに限る。一回限りTodoは日付が決まった後も具体日と未定を往復できる([YDR-030](../decisions/ydr-030-undated-one-time-task-occurrences.md))。「必要になったら繰り返す」Todoは往復せず常に予定日未定で、完了のたびに次の予定日未定Occurrenceを1件作る([YDR-046](../decisions/ydr-046-manual-recurrence-todos.md))。
 - 予定日未定Todoはホームの区分にも「件の予定」にも含めず、Todo一覧とTodo詳細で確認・設定する。予定日を決めれば日付に応じてホームへ戻る。
 - ホームは「いま対応すること」、Todo一覧は「未完了Todoすべて」として役割を分ける。7日より先の予定と完了日基準Todoの推奨期間前は、ホームではなくTodo一覧で確認する。
 - Todoを確認・編集する正規の場所はTodo詳細とする。ホームとTodo一覧のTodo名からは同じTodo詳細へ、管理対象名からは管理対象の詳細へ移動する。完了済みTodoも同じ詳細画面で扱い、実施記録の訂正と完了取消はそこへ集約する。
