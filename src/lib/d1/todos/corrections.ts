@@ -137,8 +137,18 @@ export async function correctCompletionOccurredAt(
   const completion = await loadActiveCompletion(db, householdId, occurrenceId);
   const effective = await resolveEffectiveCompletion(db, householdId, completion.id);
 
-  const needsRecalc = occurrence.recurrence_basis !== "once" && completion.next_task_occurrence_id !== null;
-  const next = needsRecalc ? nextOccurrence(occurrence, newOccurredAt) : null;
+  // 次回Occurrenceの予定を実施日時から計算し直すのは、その次回が日付を持つ
+  // 方式のときだけ。一回限りTodoはそもそも次回を作らず、「必要になったら
+  // 繰り返す」(manual)の次回は日付を持たないため実施日時に依存しない
+  // (Issue #325 / YDR-046)。再計算しないときは、「無操作の次回Occurrence」も
+  // 求めない。求めてしまうと、次回の担当を決めた・名前を直しただけで、
+  // 関係のない実施日の訂正まで拒否されてしまう。
+  const recalculated = completion.next_task_occurrence_id === null
+    ? null
+    : nextOccurrence(occurrence, newOccurredAt);
+  const next = recalculated !== null && recalculated.scheduledFor !== null
+    ? recalculated
+    : null;
 
   const results = await runCompletionBatch(
     db,

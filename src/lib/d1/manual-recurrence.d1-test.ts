@@ -7,9 +7,11 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { applyAllMigrations } from "./test-support/migrations";
 import {
   completeTask,
+  correctCompletionOccurredAt,
   createManualTask,
   postponeTaskOccurrence,
   setOneTimeTaskSchedule,
+  setTaskOccurrenceAssignee,
   undoTaskCompletion,
   updateOneTimeTodo,
 } from "./todos";
@@ -270,6 +272,43 @@ describe("必要になったら繰り返すTodoの完了(completeTask)", () => {
       "SELECT id FROM task_occurrences WHERE id = ?1",
     ).bind(nextId).first()).resolves.toBeNull();
     expect(await occurrenceCounts(ruleId)).toEqual({ pending: 1, total: 1 });
+  });
+
+  // Issue #325 / YDR-046: manualの次回Occurrenceは日付を持たず、実施日時にも
+  // 依存しない。次回に手を付けていても、実施日の訂正は妨げられない。
+  it("次回Occurrenceへ担当を決めた後でも、実施日を訂正できる", async () => {
+    const ruleId = await createDescaleTask();
+    const occurrenceId = await pendingOccurrenceId(ruleId);
+    const nextId = requireOccurrenceId(await completeTask(db, memberA, {
+      idempotencyKey: "descale-correct",
+      occurredAt: "2026-03-10T02:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    }));
+    await setTaskOccurrenceAssignee(db, memberA, nextId, "user-a");
+
+    await correctCompletionOccurredAt(
+      db,
+      memberA,
+      occurrenceId,
+      "descale-correct-date",
+      "2026-03-08T02:00:00.000Z",
+    );
+
+    await expect(db.prepare(
+      `SELECT new_occurred_at FROM completion_corrections
+        WHERE task_occurrence_id = ?1`,
+    ).bind(occurrenceId).first()).resolves.toEqual({
+      new_occurred_at: "2026-03-08T02:00:00.000Z",
+    });
+    // 次回Occurrenceは日付を持たないまま、担当もそのまま残る。
+    await expect(db.prepare(
+      "SELECT scheduled_for, due_at, assignee_user_id FROM task_occurrences WHERE id = ?1",
+    ).bind(nextId).first()).resolves.toEqual({
+      assignee_user_id: "user-a",
+      due_at: null,
+      scheduled_for: null,
+    });
   });
 
   it("他家庭のOccurrenceは完了できない", async () => {
