@@ -218,6 +218,60 @@ describe("必要になったら繰り返すTodoの完了(completeTask)", () => {
     ).bind(nextId).first()).resolves.toBeNull();
   });
 
+  // Issue #325 / YDR-046 / YDR-015: 完了で生まれた次回Occurrenceを編集した後に
+  // 元の完了を取り消すと、編集済みの次回が黙って消える形になってはいけない。
+  it("次回Occurrenceを編集した後は、元の完了取消が編集を失わない", async () => {
+    const ruleId = await createDescaleTask();
+    const occurrenceId = await pendingOccurrenceId(ruleId);
+    const nextId = requireOccurrenceId(await completeTask(db, memberA, {
+      idempotencyKey: "descale-edit-then-undo",
+      occurredAt: "2026-03-10T02:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    }));
+
+    // 担当は変えずに名前だけを直す(担当を変えたときの履歴に頼らない)。
+    await updateOneTimeTodo(db, memberA, nextId, {
+      assigneeUserId: null,
+      managedItemId: null,
+      note: null,
+      scheduledFor: null,
+      title: "石灰除去(手順を見直した)",
+    });
+
+    await expect(undoTaskCompletion(db, memberA, occurrenceId, "descale-undo-after-edit"))
+      .rejects.toThrow("Next occurrence has been modified");
+
+    await expect(db.prepare(
+      `SELECT status, json_extract(rule_snapshot, '$.title') AS title
+         FROM task_occurrences WHERE id = ?1`,
+    ).bind(nextId).first()).resolves.toEqual({
+      status: "pending",
+      title: "石灰除去(手順を見直した)",
+    });
+    await expect(db.prepare(
+      "SELECT status FROM task_occurrences WHERE id = ?1",
+    ).bind(occurrenceId).first()).resolves.toEqual({ status: "completed" });
+  });
+
+  it("次回Occurrenceを編集していなければ、これまでどおり完了を取り消せる", async () => {
+    const ruleId = await createDescaleTask();
+    const occurrenceId = await pendingOccurrenceId(ruleId);
+    const nextId = requireOccurrenceId(await completeTask(db, memberA, {
+      idempotencyKey: "descale-plain-undo",
+      occurredAt: "2026-03-10T02:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    }));
+
+    await undoTaskCompletion(db, memberA, occurrenceId, "descale-plain-undo-key");
+
+    await expect(db.prepare(
+      "SELECT id FROM task_occurrences WHERE id = ?1",
+    ).bind(nextId).first()).resolves.toBeNull();
+    expect(await occurrenceCounts(ruleId)).toEqual({ pending: 1, total: 1 });
+  });
+
   it("他家庭のOccurrenceは完了できない", async () => {
     const ruleId = await createManualTask(db, memberB, {
       managedItemId: "item-b",
