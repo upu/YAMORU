@@ -311,6 +311,38 @@ describe("必要になったら繰り返すTodoの完了(completeTask)", () => {
     });
   });
 
+  // YDR-039の3: 生成された次回Occurrenceのルールを編集した後の実施日訂正は、
+  // 方式によらず拒否する(編集済みの次回を失わないため)。
+  it("次回Occurrenceのルールを編集した後は、実施日を訂正できない", async () => {
+    const ruleId = await createDescaleTask();
+    const occurrenceId = await pendingOccurrenceId(ruleId);
+    const nextId = requireOccurrenceId(await completeTask(db, memberA, {
+      idempotencyKey: "descale-correct-blocked",
+      occurredAt: "2026-03-10T02:00:00.000Z",
+      occurrenceId,
+      performedByUserId: null,
+    }));
+    await updateOneTimeTodo(db, memberA, nextId, {
+      assigneeUserId: null,
+      managedItemId: null,
+      note: null,
+      scheduledFor: null,
+      title: "石灰除去(手順を見直した)",
+    });
+
+    await expect(correctCompletionOccurredAt(
+      db,
+      memberA,
+      occurrenceId,
+      "descale-correct-blocked-date",
+      "2026-03-08T02:00:00.000Z",
+    )).rejects.toThrow("Next occurrence has been modified");
+
+    await expect(db.prepare(
+      "SELECT count(*) AS total FROM completion_corrections WHERE task_occurrence_id = ?1",
+    ).bind(occurrenceId).first<{ total: number }>()).resolves.toEqual({ total: 0 });
+  });
+
   it("他家庭のOccurrenceは完了できない", async () => {
     const ruleId = await createManualTask(db, memberB, {
       managedItemId: "item-b",
