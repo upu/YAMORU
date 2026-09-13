@@ -10,8 +10,11 @@ export type RecurringOccurrenceUpdate = {
   dueAt: string;
 };
 
+// Issue #329 / YDR-047: メモは方式によらずTaskRuleの一部なので、三つの
+// 方式すべてが同じ形で持つ。未設定はnull。
 type CalendarRuleUpdate = {
   managedItemId: string | null;
+  note: string | null;
   recurrenceBasis: "calendar";
   scheduleDayOfMonth: number | null;
   // Issue #100 / #101 / #102 / YDR-040: 毎週は複数曜日、月次・年次の曜日方式は
@@ -29,6 +32,7 @@ type CalendarRuleUpdate = {
 
 type CompletionRuleUpdate = {
   managedItemId: string | null;
+  note: string | null;
   recurrenceBasis: "completion";
   recommendedStartOffset: number;
   recommendedStartValue: number;
@@ -43,6 +47,7 @@ type IntervalRuleUpdate = {
   intervalCount: number;
   intervalUnit: "day" | "week";
   managedItemId: string | null;
+  note: string | null;
   recurrenceBasis: "interval";
   title: string;
 };
@@ -95,7 +100,8 @@ function recurringRuleUpdateStatement(
             schedule_kind = ?11, schedule_day_of_week = ?12,
             schedule_day_of_month = ?13, schedule_week_of_month = ?14,
             schedule_month = ?15, schedule_month_end = ?16,
-            interval_unit = ?17, interval_count = ?18, interval_anchor_on = ?19
+            interval_unit = ?17, interval_count = ?18, interval_anchor_on = ?19,
+            note = ?21
       WHERE id = ?3 AND household_id = ?4 AND recurrence_basis = ?5
         AND EXISTS (
           SELECT 1 FROM task_occurrences
@@ -109,6 +115,7 @@ function recurringRuleUpdateStatement(
     input.recurrenceBasis,
     ...recurringRuleValues(input),
     occurrence.id,
+    input.note,
   );
 }
 

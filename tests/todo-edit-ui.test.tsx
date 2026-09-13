@@ -35,6 +35,7 @@ function renderForm(overrides: Partial<Parameters<typeof TodoEditForm>[0]> = {})
       managedItemId={null}
       managedItems={MANAGED_ITEMS}
       members={MEMBERS}
+      note=""
       plannedDate=""
       title="通知書が届いたら申請"
       {...overrides}
@@ -81,6 +82,17 @@ describe("Todo編集フォーム(TodoEditForm)", () => {
     expect(screen.getByRole("radio", { name: "関連する管理対象なし" })).toBeChecked();
   });
 
+  // Issue #329 / YDR-047
+  it("保存済みのメモを初期値として表示し、未設定は空欄にする", () => {
+    const { unmount } = renderForm({ note: "除去剤を1本。\n2回すすぐ。" });
+    expect(screen.getByLabelText("メモ(任意)"))
+      .toHaveValue("除去剤を1本。\n2回すすぐ。");
+    unmount();
+
+    renderForm();
+    expect(screen.getByLabelText("メモ(任意)")).toHaveValue("");
+  });
+
   it("担当の候補は同じ家庭のメンバーと誰でも可に限る", () => {
     renderForm();
 
@@ -122,6 +134,35 @@ describe("Todo編集フォーム(TodoEditForm)", () => {
 });
 
 describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
+  // Issue #329 / YDR-047: 繰り返しTodoのメモは「今後の繰り返し」側で編集する。
+  it("繰り返しTodoでは今後の繰り返し側にだけメモ欄を置く", () => {
+    render(
+      <RecurringTodoEditForms
+        id="occurrence-1"
+        managedItems={MANAGED_ITEMS}
+        members={MEMBERS}
+        occurrence={{
+          assigneeUserId: null,
+          dueDate: "2026-09-20",
+          scheduledDate: "2026-09-07",
+        }}
+        rule={{
+          intervalAnchorOn: "2026-09-01",
+          intervalCount: 2,
+          intervalUnit: "week",
+          managedItemId: null,
+          note: "毎回ここを確認する",
+          recurrenceBasis: "interval",
+          title: "水槽の水換え",
+        }}
+      />,
+    );
+
+    const notes = screen.getAllByLabelText("メモ(任意)");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toHaveValue("毎回ここを確認する");
+  });
+
   it("今回の担当・現在期限と、今後のルールを混同しない二つの領域で表示する", () => {
     render(
       <RecurringTodoEditForms
@@ -135,6 +176,7 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
         }}
         rule={{
           managedItemId: "item-1",
+          note: "",
           recurrenceBasis: "calendar",
           scheduleDayOfMonth: null,
           scheduleDaysOfWeek: [1, 4],
@@ -180,6 +222,7 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
           intervalCount: 2,
           intervalUnit: "week",
           managedItemId: null,
+          note: "",
           recurrenceBasis: "interval",
           title: "隔週の確認",
         }}
@@ -204,6 +247,7 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
         }}
         rule={{
           managedItemId: null,
+          note: "",
           recurrenceBasis: "calendar",
           scheduleDayOfMonth: null,
           scheduleDaysOfWeek: [5],
@@ -241,6 +285,7 @@ describe("繰り返しTodo編集フォーム(RecurringTodoEditForms)", () => {
         }}
         rule={{
           managedItemId: null,
+          note: "",
           recurrenceBasis: "calendar",
           scheduleDayOfMonth: null,
           scheduleDaysOfWeek: [4],

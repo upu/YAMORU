@@ -10,11 +10,14 @@ import {
   ManagedItemSearch,
   type TodoManagedItemOption,
 } from "../../managed-item-search";
+import { TodoNoteField } from "../../todo-note-field";
 import { updateTodo } from "../actions";
 
 export type TodoEditValues = {
   assigneeUserId: string | null;
   managedItemId: string | null;
+  // Issue #329 / YDR-047: 保存済みのメモ。未設定は空文字で初期表示する。
+  note: string;
   // Issue #325 / YDR-046: 「必要になったら繰り返す」Todoは予定日を持たない
   // 方式そのものなので、予定日欄を出さない。そのときだけnullを渡す。
   plannedDate: string | null;
@@ -108,6 +111,7 @@ export function TodoEditForm({
   managedItemId,
   managedItems,
   members,
+  note,
   plannedDate,
   title,
 }: TodoEditValues & {
@@ -127,6 +131,8 @@ export function TodoEditForm({
       <TitleAndScheduleFields plannedDate={plannedDate} title={title} />
 
       <AssigneeField assigneeUserId={assigneeUserId} members={members} />
+
+      <TodoNoteField defaultValue={note} idPrefix="todo-edit" />
 
       <ManagedItemSearch
         idPrefix="todo-edit"

@@ -1502,6 +1502,14 @@ h1 {
   margin-bottom: 0;
 }
 
+/* Issue #329 / YDR-047: Todo詳細のメモ。入力された改行をそのまま見せ、
+   長い行は折り返す。Markdownは解釈しないため、装飾は行わない。 */
+.todo-note-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .todo-fieldset {
   display: grid;
   gap: 8px;

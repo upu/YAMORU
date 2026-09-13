@@ -64,6 +64,7 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
   it("同じルール内容を再送しても競合扱いせず、変更履歴を増やさない", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -76,6 +77,7 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
 
     await expect(updateRecurringTaskRule(db, memberA, occurrenceId, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
@@ -95,6 +97,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
   it("今回の担当・現在期限だけを変更し、本来の予定とルールは維持する", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: "item-a",
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -129,6 +132,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
   it("定例ルールを変更しても現在回の予定は保ち、完了後の次回から新条件を使う", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -142,6 +146,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
 
     await updateRecurringTaskRule(db, memberA, occurrenceId, {
       managedItemId: "item-a",
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 1,
       scheduleDaysOfWeek: [],
@@ -177,6 +182,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
   it("過去の完了回は後からルールを変えても当時の名前・関連先・繰り返し条件を返す", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: "item-a",
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -195,6 +201,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
 
     await updateRecurringTaskRule(db, memberA, nextId as string, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: 1,
       scheduleDaysOfWeek: [],
@@ -249,6 +256,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
   it("不正な周期条件ではルール本体・現在回snapshot・変更履歴をまとめてロールバックする", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -267,6 +275,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
 
     await expect(updateRecurringTaskRule(db, memberA, occurrenceId, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [8],
@@ -296,6 +305,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       firstDueAt: "2026-09-28T15:00:00.000Z",
       firstScheduledFor: "2026-09-14T15:00:00.000Z",
       managedItemId: null,
+      note: null,
       recommendedStartOffset: 14,
       recommendedUntilOffset: 28,
       title: "フィルター交換",
@@ -305,6 +315,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
 
     await updateRecurringTaskRule(db, memberA, occurrenceId, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "completion",
       recommendedStartOffset: 7,
       recommendedStartValue: 1,
@@ -336,6 +347,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       firstDueAt: "2026-10-27T15:00:00.000Z",
       firstScheduledFor: "2026-09-29T15:00:00.000Z",
       managedItemId: null,
+      note: null,
       recommendedStartOffset: 28,
       recommendedUntilOffset: 56,
       title: "フィルター交換",
@@ -350,6 +362,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
 
     await updateRecurringTaskRule(db, memberA, nextId as string, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "completion",
       recommendedStartOffset: 14,
       recommendedStartValue: 2,
@@ -379,6 +392,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       intervalCount: 2,
       intervalUnit: "week",
       managedItemId: null,
+      note: null,
       title: "隔週の確認",
     });
     const occurrenceId = await occurrenceIdForRule(ruleId);
@@ -388,6 +402,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
       intervalCount: 10,
       intervalUnit: "day",
       managedItemId: null,
+      note: null,
       recurrenceBasis: "interval",
       title: "10日ごとの確認",
     });
@@ -405,6 +420,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
   it("他家庭のTodo・管理対象・担当者を現在回やルールへ指定できない", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -421,6 +437,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
     })).rejects.toThrow("Assignee not found");
     await expect(updateRecurringTaskRule(db, memberA, occurrenceId, {
       managedItemId: "item-b",
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [2],
@@ -432,6 +449,7 @@ describe("繰り返しTodo編集の取消・方式・家庭境界(Issue #265)", 
     })).rejects.toThrow("Managed item not found");
     await expect(updateRecurringTaskRule(db, memberB, occurrenceId, {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "calendar",
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [2],

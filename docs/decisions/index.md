@@ -58,6 +58,7 @@
 | YDR-044 | よく使う消耗品を「ピン留め」と呼び、DB名を段階移行する | Accepted | [ydr-044-consumable-pinning-terminology.md](ydr-044-consumable-pinning-terminology.md) |
 | YDR-045 | 通常UIを1系統のコンパクト表示に統一し、初心者向けの説明は初回ヒントとヘルプへ置く | Accepted | [ydr-045-compact-ui-with-first-run-hints.md](ydr-045-compact-ui-with-first-run-hints.md) |
 | YDR-046 | 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す | Accepted | [ydr-046-manual-recurrence-todos.md](ydr-046-manual-recurrence-todos.md) |
+| YDR-047 | Todoのメモを実施ごとの記録ではなくTaskRuleの手順として持つ | Accepted | [ydr-047-todo-note-on-task-rule.md](ydr-047-todo-note-on-task-rule.md) |
 
 ## 新しい意思決定の追加
 

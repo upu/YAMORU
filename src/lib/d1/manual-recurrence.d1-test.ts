@@ -122,6 +122,7 @@ describe("必要になったら繰り返すTodoの登録(createManualTask)", () 
   it("他家庭の管理対象へは作成できず、他家庭のTaskRuleも作らない", async () => {
     await expect(createManualTask(db, memberA, {
       managedItemId: "item-b",
+      note: null,
       title: "Cross-household manual",
     })).rejects.toThrow("Managed item not found");
 
@@ -346,6 +347,7 @@ describe("必要になったら繰り返すTodoの完了(completeTask)", () => {
   it("他家庭のOccurrenceは完了できない", async () => {
     const ruleId = await createManualTask(db, memberB, {
       managedItemId: "item-b",
+      note: null,
       title: "B manual",
     });
     const occurrenceId = await pendingOccurrenceId(ruleId);
@@ -379,6 +381,7 @@ describe("必要になったら繰り返すTodoの予定日と編集", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: "user-a",
       managedItemId: null,
+      note: null,
       scheduledFor: null,
       title: "石灰除去(手順を見ながら)",
     });
@@ -404,6 +407,7 @@ describe("必要になったら繰り返すTodoの予定日と編集", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-09-20T00:00:00.000Z",
       title: "石灰除去",
     })).rejects.toThrow("Manual tasks cannot have a schedule");
@@ -420,6 +424,7 @@ describe("必要になったら繰り返すTodoの予定日と編集", () => {
     await expect(updateOneTimeTodo(db, memberB, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: null,
       title: "Hijacked",
     })).rejects.toThrow("Occurrence not found");

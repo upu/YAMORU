@@ -30,6 +30,7 @@ async function occurrenceIdForRule(ruleId) {
 async function createHouseholdATodo(overrides = {}) {
   const ruleId = await createOneTimeTask(db, memberA, {
     managedItemId: null,
+    note: null,
     scheduledFor: "2026-09-01T15:00:00.000Z",
     title: "申請する",
     ...overrides,
@@ -76,6 +77,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: "user-a2",
       managedItemId: "item-a",
+      note: null,
       scheduledFor: "2026-10-01T15:00:00.000Z",
       title: "申請書を出す",
     })).resolves.toEqual({ previousManagedItemId: null });
@@ -95,6 +97,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: null,
       title: "申請する",
     });
@@ -106,6 +109,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-11-01T15:00:00.000Z",
       title: "申請する",
     });
@@ -122,6 +126,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-09-01T15:00:00.000Z",
       title: "名前だけ変える",
     });
@@ -139,6 +144,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-09-01T15:00:00.000Z",
       title: "名前だけ変える",
     });
@@ -149,6 +155,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: "user-a2",
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-09-01T15:00:00.000Z",
       title: "名前だけ変える",
     });
@@ -167,6 +174,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
   it("家庭BのTodoは家庭Aのセッションから編集できない", async () => {
     const ruleId = await createOneTimeTask(db, memberB, {
       managedItemId: null,
+      note: null,
       scheduledFor: "2026-09-01T15:00:00.000Z",
       title: "B household todo",
     });
@@ -175,6 +183,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: null,
       title: "Hacked",
     })).rejects.toThrow("Occurrence not found");
@@ -191,6 +200,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: "item-b",
+      note: null,
       scheduledFor: "2026-12-01T15:00:00.000Z",
       title: "書き換えた名前",
     })).rejects.toThrow("Managed item not found");
@@ -208,6 +218,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: "user-b",
       managedItemId: "item-a",
+      note: null,
       scheduledFor: "2026-12-01T15:00:00.000Z",
       title: "書き換えた名前",
     })).rejects.toThrow("Assignee not found");
@@ -223,6 +234,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
   it("繰り返しTodoの内容は編集できず、名前も変わらない", async () => {
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
+      note: null,
       scheduleDayOfMonth: null,
       scheduleDaysOfWeek: [1],
       scheduleKind: "weekly",
@@ -236,6 +248,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: null,
+      note: null,
       scheduledFor: null,
       title: "書き換えた名前",
     })).rejects.toThrow("Only one-time tasks can be edited");
@@ -256,6 +269,7 @@ describe("Todo編集の家庭間分離と原子性", () => {
     await expect(updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
       managedItemId: "item-a",
+      note: null,
       scheduledFor: null,
       title: "書き換えた名前",
     })).rejects.toThrow("Occurrence is not pending");
@@ -333,6 +347,7 @@ describe("Todo詳細の取得(loadTodoDetail)", () => {
       firstDueAt: "2026-10-27T15:00:00.000Z",
       firstScheduledFor: "2026-09-29T15:00:00.000Z",
       managedItemId: null,
+      note: null,
       recommendedStartOffset: 28,
       recommendedUntilOffset: 56,
       title: "フィルター交換",

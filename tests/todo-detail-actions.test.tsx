@@ -67,6 +67,7 @@ function todo(overrides: Partial<TodoDetailData> = {}): TodoDetailData {
     isMaintenance: false,
     managedItemId: "item-1",
     managedItemName: "猫の浄水器",
+    note: null,
     recurrenceBasis: "once",
     recurrenceLabel: "繰り返しなし",
     scheduledFor: "2026-09-01T15:00:00.000Z",

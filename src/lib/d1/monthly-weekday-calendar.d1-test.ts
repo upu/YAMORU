@@ -17,6 +17,7 @@ function monthlyWeekdayInput(
 ) {
   return {
     managedItemId: null,
+    note: null,
     scheduleDayOfMonth: null,
     scheduleDaysOfWeek: [dayOfWeek],
     scheduleKind: "monthly_nth_weekday",

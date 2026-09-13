@@ -424,6 +424,25 @@ describe("Todo登録ページの一定の間隔", () => {
   });
 
   // Issue #99 / YDR-037の8: 完了日基準との違いを選択肢の補足文で示す。
+  // Issue #329 / YDR-047
+  it("繰り返し方を変えてもメモ欄は同じ位置に残る", () => {
+    renderPage(
+      <TodoRegistrationContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        initialManagedItemId={null}
+        managedItems={ITEMS}
+      />,
+    );
+
+    const note = screen.getByLabelText("メモ(任意)");
+    expect(note.tagName).toBe("TEXTAREA");
+    expect(note).toHaveAttribute("placeholder", "手順・注意点など");
+    expect(note).toHaveValue("");
+
+    fireEvent.click(screen.getByLabelText("曜日・日付で繰り返す"));
+    expect(screen.getByLabelText("メモ(任意)")).toBeInTheDocument();
+  });
+
   // Issue #325 / YDR-046
   it("必要になったら繰り返すを選ぶと、日付・間隔の入力を出さずに補足だけを示す", () => {
     renderPage(

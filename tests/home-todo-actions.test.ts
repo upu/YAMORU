@@ -50,6 +50,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
 
     expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: null,
+      note: null,
       recurrenceBasis: "once",
       scheduledFor: "2026-10-09T15:00:00.000Z",
       title: "家族会議",
@@ -70,6 +71,7 @@ describe("専用ページの一回限りTodo登録操作", () => {
 
     expect(createOneTimeTaskMock).toHaveBeenCalledWith("db", "session", {
       managedItemId: "managed-item-id",
+      note: null,
       recurrenceBasis: "once",
       scheduledFor: "2026-10-09T15:00:00.000Z",
       title: "今回だけ点検",
