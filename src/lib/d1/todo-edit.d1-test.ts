@@ -120,8 +120,11 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
   });
 
   it("予定日を変えない編集では、延期した期限を巻き戻さない", async () => {
+    // postponeTaskOccurrenceは新しい期限が実行時点の現在時刻より未来である
+    // ことを要求するため、固定リテラルではなく実行時に動的な未来日時を使う。
     const { occurrenceId } = await createHouseholdATodo();
-    await postponeTaskOccurrence(db, memberA, occurrenceId, "2026-09-20T15:00:00.000Z");
+    const postponedDueAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    await postponeTaskOccurrence(db, memberA, occurrenceId, postponedDueAt);
 
     await updateOneTimeTodo(db, memberA, occurrenceId, {
       assigneeUserId: null,
@@ -132,7 +135,7 @@ describe("繰り返しなしTodoの編集(updateOneTimeTodo)", () => {
     });
 
     await expect(readTodo(occurrenceId)).resolves.toMatchObject({
-      due_at: "2026-09-20T15:00:00.000Z",
+      due_at: postponedDueAt,
       scheduled_for: "2026-09-01T15:00:00.000Z",
       title: "名前だけ変える",
     });

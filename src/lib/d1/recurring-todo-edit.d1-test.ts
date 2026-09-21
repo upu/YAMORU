@@ -95,6 +95,11 @@ describe("繰り返しTodoの安全な編集(Issue #265)", () => {
 
 describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)", () => {
   it("今回の担当・現在期限だけを変更し、本来の予定とルールは維持する", async () => {
+    // 初回予定はcreateCalendarTaskの実行日に左右されるため固定日時で作る。
+    // 更新先の期限はupdateRecurringOccurrenceが実行時点の現在時刻より
+    // 未来であることを要求するため、実行時に動的な未来日時で計算する
+    // (どちらも固定リテラルにすると、実行日次第で両者が一致したり、
+    // 更新先が過去日になったりして壊れる)。
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: "item-a",
       note: null,
@@ -105,18 +110,19 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "毎週の家族会議",
-    });
+    }, new Date("2026-08-24T00:00:00.000Z"));
     const occurrenceId = await occurrenceIdForRule(ruleId);
     const before = await readTodo(occurrenceId);
+    const newDueAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
     await expect(updateRecurringOccurrence(db, memberA, occurrenceId, {
       assigneeUserId: "user-a2",
-      dueAt: "2026-09-20T15:00:00.000Z",
+      dueAt: newDueAt,
     })).resolves.toEqual({ managedItemId: "item-a" });
 
     await expect(readTodo(occurrenceId)).resolves.toMatchObject({
       assignee_user_id: "user-a2",
-      due_at: "2026-09-20T15:00:00.000Z",
+      due_at: newDueAt,
       scheduled_for: before?.scheduled_for,
       title: "毎週の家族会議",
     });
