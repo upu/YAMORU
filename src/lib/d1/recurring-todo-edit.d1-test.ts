@@ -136,6 +136,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
   });
 
   it("定例ルールを変更しても現在回の予定は保ち、完了後の次回から新条件を使う", async () => {
+    // 次回予定は元のscheduled_forにも依存するため、初回生成日も固定する。
     const ruleId = await createCalendarTask(db, memberA, {
       managedItemId: null,
       note: null,
@@ -146,7 +147,7 @@ describe("繰り返しTodo編集の現在回・将来回・過去回(Issue #265)
       scheduleMonthEnd: false,
       scheduleWeekOfMonth: null,
       title: "毎週の家族会議",
-    });
+    }, new Date("2026-08-24T00:00:00.000Z"));
     const occurrenceId = await occurrenceIdForRule(ruleId);
     const before = await readTodo(occurrenceId);
 
