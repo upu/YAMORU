@@ -162,6 +162,8 @@ describe("承認とtoken", () => {
     const token = await tokenOf(required);
     expect(typeof token).toBe("string");
     await expectCommandError(service().commit(principal, commitInput(required, `${String(token)}x`)), "confirmation_required");
+    // 復号できない長さのtokenも、一時的な失敗ではなく確認が必要として返す。
+    await expectCommandError(service().commit(principal, commitInput(required, "A".repeat(17))), "confirmation_required");
     await expectCommandError(service().commit(principal, commitInput(required)), "confirmation_required");
     const committed = await service().commit(principal, commitInput(required, token));
     expect(committed).toMatchObject({ result: { due_on: "2026-10-14" }, status: "succeeded" });

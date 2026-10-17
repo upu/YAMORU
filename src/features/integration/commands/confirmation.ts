@@ -106,9 +106,15 @@ function base64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
 }
 
+// 復号できない値は、誤ったtokenとして扱う(一時的な失敗にしない)。
 function fromBase64url(value: string): Uint8Array<ArrayBuffer> | null {
   if (!/^[A-Za-z0-9_-]{16,128}$/u.test(value)) return null;
-  const binary = atob(value.replaceAll("-", "+").replaceAll("_", "/"));
+  let binary: string;
+  try {
+    binary = atob(value.replaceAll("-", "+").replaceAll("_", "/"));
+  } catch {
+    return null;
+  }
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
