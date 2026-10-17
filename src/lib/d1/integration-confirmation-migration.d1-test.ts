@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { applyMigrationsAfter, applyMigrationsThrough } from "./test-support/migrations";
 
-// #437 / YDR-062: 0043は受付記録へ追加確認の列とtriggerを足すだけのexpand
+// #437 / YDR-062: 0045は受付記録へ追加確認の列とtriggerを足すだけのexpand
 // migration。既存の受付記録と旧Workerの書き込みを確認不要のまま保ち、承認の
 // 無い確認必須の操作は成功にできないことを確かめる。
 const CLIENT = "https://client.example.test/oauth/client.json";
@@ -19,10 +19,10 @@ function legacyInsert(db: D1Database, id: string, operationId: string) {
   return db.prepare(LEGACY_INSERT).bind(id, CLIENT, operationId, `preview-${id}`, `integration:${id}`, NOW, LATER);
 }
 
-describe("追加確認のmigration(0043_integration_command_confirmation)", () => {
+describe("追加確認のmigration(0045_integration_command_confirmation)", () => {
   it("既存の受付記録と旧Workerの書き込みを確認不要のまま保ち、承認の無い成功を拒否する", async () => {
     const db = env.DB;
-    await applyMigrationsThrough(db, "0042_notification_outbox_sources");
+    await applyMigrationsThrough(db, "0044_notification_event_body_retention");
     await db.batch([
       db.prepare("INSERT INTO users(id,email) VALUES ('a','a@example.com')"),
       db.prepare("INSERT INTO households(id,name) VALUES ('ha','A')"),
@@ -32,7 +32,7 @@ describe("追加確認のmigration(0043_integration_command_confirmation)", () =
         VALUES ('conn', 'ha', 'a', ?1, 'Example', 'household.read household.write', 'https://y.example.test/mcp', 'https://y.example.test', 0, ?2, '2026-11-17T00:00:00.000Z')`).bind(CLIENT, NOW),
       legacyInsert(db, "op-old", "00000000-0000-4000-8000-000000000001"),
     ]);
-    await applyMigrationsAfter(db, "0042_notification_outbox_sources");
+    await applyMigrationsAfter(db, "0044_notification_event_body_retention");
 
     await expect(db.prepare(
       "SELECT id, created_at, confirmation_state, confirmation_status, subject_key FROM integration_operations WHERE id = 'op-old'",

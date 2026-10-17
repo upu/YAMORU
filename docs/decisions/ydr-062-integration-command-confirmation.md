@@ -55,7 +55,7 @@ supersedes: [YDR-054]
 
 ## 結果と見直す条件
 
-- `integration_operations`へ列とtriggerを足す(migration 0043、追加だけのexpand migration)。旧Workerは新しい列を書かず、すべて確認不要の操作として動く。旧Workerへ戻した期間に確認必須の操作が残っていても、triggerが承認なしの成功を拒否する。
+- `integration_operations`へ列とtriggerを足す(migration 0045、追加だけのexpand migration)。旧Workerは新しい列を書かず、すべて確認不要の操作として動く。旧Workerへ戻した期間に確認必須の操作が残っていても、triggerが承認なしの成功を拒否する。
 - 24時間を過ぎた古い連鎖は追わない。会話の間隔として不足する事例が出たら延長を検討する。
 - 意味のある差分の判定はpreviewの構造に依存する。previewへ利用者に無関係な時刻や世代を足すときは、`meaningful_digest`から除くか、この決定を見直す。
 - 新しいエラーコード`confirmation_required`(未承認・token不備、確定させない)と`confirmation_denied`(本人が拒否、確定)を追加する。

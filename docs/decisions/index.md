@@ -74,6 +74,7 @@
 | YDR-060 | 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する | Accepted | [ydr-060-event-subscription-boundary.md](ydr-060-event-subscription-boundary.md) |
 | YDR-061 | 通知時の元対象を保持し、詳細と再送防止の保存期限を分ける | Accepted | [ydr-061-notification-source-and-retention.md](ydr-061-notification-source-and-retention.md) |
 | YDR-062 | 古いpreviewの作り直しで意味のある差分が出た変更だけ、本人の追加確認を必須にする | Accepted | [ydr-062-integration-command-confirmation.md](ydr-062-integration-command-confirmation.md) |
+| YDR-063 | 通知の宛先集合と結果を購読の世代ごとに保持する | Accepted | [ydr-063-notification-recipient-results.md](ydr-063-notification-recipient-results.md) |
 
 ## 新しい意思決定の追加
 
