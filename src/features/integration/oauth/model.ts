@@ -22,7 +22,13 @@ import {
   rotateRefreshToken,
   type IssuedTokenHashes,
 } from "../../../lib/d1/oauth-connections";
-import { formatScopes, normalizeScopes, parseStoredScopes, type IntegrationScope } from "../scopes";
+import {
+  formatScopes,
+  normalizeScopes,
+  parseStoredScopes,
+  REQUIRED_SCOPE,
+  type IntegrationScope,
+} from "../scopes";
 import type { OAuthConfig } from "./config";
 import { generateSecret, hashSecret, SECRET_PREFIXES } from "./secrets";
 
@@ -189,7 +195,13 @@ function refreshTokenModel({ config, db, now = () => new Date() }: OAuthModelDep
     },
 
     async revokeToken(token: OAuth2Server.RefreshToken) {
-      return rotateRefreshToken(db, await hashSecret(token.refreshToken), now().toISOString());
+      const at = now().toISOString();
+      if (await rotateRefreshToken(db, await hashSecret(token.refreshToken), at)) return true;
+      // 同じrefresh tokenで同時に交換され、もう一方が先にローテーションした。
+      // どちらが正規の利用者か区別できないため、再提示と同じく接続ごと失効させる。
+      const { connectionId } = grantUser(token.user);
+      if (connectionId !== undefined) await revokeConnection(db, connectionId, "token_reuse_detected", at);
+      return false;
     },
   };
 }
@@ -198,7 +210,9 @@ function saveTokenModel({ config, db, now = () => new Date() }: OAuthModelDepend
   return {
     async saveToken(token: OAuth2Server.Token, client: OAuth2Server.Client, user: OAuth2Server.User) {
       const owner = grantUser(user);
-      const scopes = formatScopes(scopeArray(token.scope));
+      // refreshでは要求に応じてscopeを縮められるが、読み取りは常に含める。
+      const scopeList = normalizeScopes([REQUIRED_SCOPE, ...scopeArray(token.scope)]);
+      const scopes = formatScopes(scopeList);
       const hashes = await tokenHashes(token);
       const at = now().toISOString();
       const saved = owner.connectionId === undefined
@@ -216,7 +230,7 @@ function saveTokenModel({ config, db, now = () => new Date() }: OAuthModelDepend
           }, hashes)
         : await issueRotatedTokens(db, owner.connectionId, scopes, hashes, at);
       if (!saved) throw new OAuth2Server.InvalidGrantError("Invalid grant: connection is no longer valid");
-      return { ...token, client, user };
+      return { ...token, client, scope: scopeList, user };
     },
   };
 }

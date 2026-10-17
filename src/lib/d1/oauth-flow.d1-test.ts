@@ -3,6 +3,7 @@ import * as oauth from "oauth4webapi";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authenticateBearerRequest, verifyAccessToken } from "../../features/integration/oauth/bearer";
+import { createOAuthModel } from "../../features/integration/oauth/model";
 import { handleTokenRequest } from "../../features/integration/oauth/token-endpoint";
 import { householdAMember, resetHouseholdFixtures } from "./test-support/households";
 import { applyAllMigrations } from "./test-support/migrations";
@@ -210,6 +211,34 @@ describe("refresh tokenのローテーション", () => {
     expect(narrowed.scope).toBe("household.read");
     expect((await connectionRow())?.scopes).toBe("household.read");
     expect((await verifyAccessToken({ config, db }, narrowed.access_token, ["household.write"])).ok).toBe(false);
+    // 縮める前に発行した、より広いaccess tokenも期限を待たずに使えなくなる。
+    expect(await verifyAccessToken({ config, db }, first.access_token, [])).toEqual({ error: "invalid_token", ok: false });
+  });
+
+  it("refreshで読み取りを外すことはできず、常に含める", async () => {
+    const first = await connect(db, memberA);
+    const response = await oauth.refreshTokenGrantRequest(
+      await discoverTestServer(), testClient, oauth.None(), first.refresh_token ?? "",
+      {
+        [oauth.customFetch]: (url: string, init: RequestInit) => handleTokenRequest(new Request(url, init), { config, db }),
+        additionalParameters: { resource: config.resource, scope: "household.write" },
+      },
+    );
+    const rotated = await oauth.processRefreshTokenResponse(await discoverTestServer(), testClient, response);
+    expect(rotated.scope).toBe("household.read household.write");
+    expect((await connectionRow())?.scopes).toBe("household.read household.write");
+  });
+
+  it("同じrefresh tokenの交換が競合し、ローテーションに負けた側は接続ごと失効させる", async () => {
+    const first = await connect(db, memberA);
+    const model = createOAuthModel({ config, db });
+    // 2つの要求がどちらもローテーション前の状態を読んだ後に、順にローテーションを試みる。
+    const winner = await model.getRefreshToken(first.refresh_token ?? "");
+    const loser = await model.getRefreshToken(first.refresh_token ?? "");
+    if (winner === false || loser === false) throw new Error("refresh tokenを読めません");
+    expect(await model.revokeToken(winner)).toBe(true);
+    expect(await model.revokeToken(loser)).toBe(false);
+    expect((await connectionRow())?.revoked_reason).toBe("token_reuse_detected");
   });
 
   it("refreshでscopeを広げることはできない", async () => {
