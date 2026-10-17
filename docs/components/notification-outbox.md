@@ -15,6 +15,7 @@ status: draft
 | 接続ごとの走査、量の上限、回復 | `notifications/scheduler.ts`、`src/lib/d1/notification-scheduler.ts` |
 | 配信の一意性、lease世代、開始前の判定 | `src/lib/d1/notification-outbox.ts` |
 | 複数宛先の固定、結果・再試行・中断の分離 | `notification-event-dispatch.ts`、`notification-recipient-state.ts` |
+| 固定した本文の署名付きPOSTとjob内の並列処理 | `notifications/event-delivery.ts`、`event-job.ts` |
 | 元のOccurrence・消耗品の保持と保存期限 | migration `0042`、`src/lib/d1/notification-outbox-retention.ts` |
 | 最新の時刻・設定の可否 | `src/lib/d1/notification-policy.ts`、[個人の通知](notifications.md) |
 | 受領・不明結果と履歴の同時保存 | `notification-outbox.ts` → `notification-deliveries.ts` |
@@ -47,5 +48,7 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 複数購読先への実送信、日次まとめ、定期取得のclaim/ack、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
 0044はbatchの終端時刻を旧SQLにも対応するtriggerで同期し、本文が残る終端記録だけの期限索引で100件ずつ清掃する。本文破棄後のunknown/failed証拠は以後の対象検索から外れる。`notification-event-body-retention-migration.d1-test.ts`と配信テストのquery plan検査で、時刻保持・旧更新・全取消・索引利用を確認する。
+
+[YDR-064](../decisions/ydr-064-signed-notification-event-jobs.md)の送信jobは宛先の開始→署名付きPOST一回→同じtokenで結果保存をつなぐ。HTTPは二宛先まで並行、DB遷移はjob内で直列化し、保存失敗でPOSTを繰り返さない。通知方式も本文に固定し、変更後に古い方式の本文を送らない。旧形式の方式省略は個別を意味する。`notification-event-delivery.test.ts`は署名・応答分類、`notification-event-job.d1-test.ts`は実D1と架空transportの統合の入口。jobはschedulerへ未接続で、runtimeのproviderは引き続き無効である。
 
 参照: [OpenNext custom worker](https://opennext.js.org/cloudflare/howtos/custom-worker)、[Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)、[MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。

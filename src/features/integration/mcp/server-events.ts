@@ -6,7 +6,7 @@ import { EventSubscriptionError } from "../notifications/event-errors";
 import { WebhookEndpointError } from "../notifications/webhook-transport";
 import { createEventSubscriptionService } from "../notifications/event-subscriptions";
 import { eventFilterSchema } from "../notifications/event-filter";
-export const attentionEventPayloadSchema = z.strictObject({ delivery_id: z.string(), candidate_ids: z.array(z.string()).min(1).max(1), observed_at: z.iso.datetime(),
+export const attentionEventPayloadSchema = z.strictObject({ delivery_id: z.string(), candidate_ids: z.array(z.string()).min(1).max(1), observed_at: z.iso.datetime(), notification_mode: z.enum(["daily", "individual"]).optional(),
   source: z.strictObject({ kind: z.enum(["todo_occurrence", "consumable"]), entity_id: z.string(), todo_rule_id: z.string().nullable() }) });
 function eventDefinition() {
   return { name: "attention.ready", title: "家の用事のお知らせ", delivery: ["webhook"],
