@@ -53,6 +53,8 @@ describe("実施日時", () => {
     // Pythonなどが出力するマイクロ秒も受け付け、ミリ秒へ揃える。
     expect(occurredValue({ occurred_at: "2026-10-12T09:30:00.123456+09:00" }, "payload", NOW))
       .toEqual({ datePrecision: "instant", occurredAt: "2026-10-12T00:30:00.123Z" });
+    expect(occurredValue({ occurred_at: "2026-10-11T10:00+14:00" }, "payload", NOW))
+      .toEqual({ datePrecision: "instant", occurredAt: "2026-10-10T20:00:00.000Z" });
     expect(occurredValue({}, "payload", NOW)).toBeNull();
   });
 
@@ -66,7 +68,7 @@ describe("実施日時", () => {
     expect(errorOf(() => occurredValue({ occurred_at: "2026-10-12 03:00" }, "payload", NOW)).fieldErrors)
       .toEqual({ "payload.occurred_at": "datetime_required" });
     // Dateが翌月や翌日へ繰り越して解釈する値も、別の日時として記録しない。
-    for (const value of ["2026-02-30T12:00:00Z", "2026-10-11T24:00Z", "2026-10-11T10:60Z", "2026-10-11T10:00+24:00"]) {
+    for (const value of ["2026-02-30T12:00:00Z", "2026-10-11T24:00Z", "2026-10-11T10:60Z", "2026-10-11T10:00+15:00", "2026-10-11T10:00+14:01"]) {
       expect(errorOf(() => occurredValue({ occurred_at: value }, "payload", NOW)).fieldErrors)
         .toEqual({ "payload.occurred_at": "datetime_required" });
     }

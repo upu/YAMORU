@@ -91,6 +91,9 @@ function parseOccurredOn(value: unknown, field: string, now: Date): OccurredValu
   return { datePrecision: "day", occurredAt };
 }
 
+// 実在する時差は-12:00〜+14:00。それより大きい値は打ち間違いとして拒否する。
+const MAX_OFFSET_MINUTES = 14 * 60;
+
 // Dateは2月30日などを翌月へ繰り越して解釈するため、暦日と時刻の各部分が
 // 実在する値であることを先に確かめる。
 function isRealInstant(match: RegExpExecArray): boolean {
@@ -98,7 +101,7 @@ function isRealInstant(match: RegExpExecArray): boolean {
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   return date.getUTCFullYear() === Number(year) && date.getUTCMonth() === Number(month) - 1 &&
     date.getUTCDate() === Number(day) && Number(hour) < 24 && Number(minute) < 60 && Number(second) < 60 &&
-    Number(offsetHour) < 24 && Number(offsetMinute) < 60;
+    Number(offsetMinute) < 60 && Number(offsetHour) * 60 + Number(offsetMinute) <= MAX_OFFSET_MINUTES;
 }
 
 function parseOccurredAt(value: unknown, field: string, now: Date): OccurredValue {
