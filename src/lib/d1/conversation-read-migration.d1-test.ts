@@ -3,12 +3,12 @@ import { expect, it } from "vitest";
 import { applyMigrationsThrough, applyMigrationsAfter } from "./test-support/migrations";
 import { resetHouseholdFixtures } from "./test-support/households";
 
-it("0030の行を保持し、旧SQL・別名の家庭制約・cascade・rollbackを保証する", async () => {
+it("0031までの行を保持し、旧SQL・別名の家庭制約・cascade・rollbackを保証する", async () => {
   const db = env.DB;
-  await applyMigrationsThrough(db, "0030_occurrence_hard_deadline");
+  await applyMigrationsThrough(db, "0031_oauth_connections");
   await resetHouseholdFixtures(db);
   const original = await db.prepare("SELECT * FROM managed_items WHERE id='item-a'").first();
-  await applyMigrationsAfter(db, "0030_occurrence_hard_deadline");
+  await applyMigrationsAfter(db, "0031_oauth_connections");
   expect(await db.prepare("SELECT * FROM managed_items WHERE id='item-a'").first()).toEqual(original);
   const version = async () => {
     const row = await db.prepare("SELECT version FROM household_read_versions WHERE household_id='household-a'").first<{ version: number }>();
