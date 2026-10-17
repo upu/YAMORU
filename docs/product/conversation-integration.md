@@ -151,7 +151,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `managed_item.update` | ManagedItem対象/revisionと既存Webで編集可能な`changes` | 家庭内の管理対象を変更。削除/アーカイブを含めない。#437 |
 | `todo.create` | `title, recurrence`、任意`managed_item_id, note, assignee_id`。recurrenceは`one_time / manual / completion / calendar / interval`の型別入力 | Ruleと最初のOccurrenceを一括作成。#437 |
 | `managed_item_with_todo.create` | 上記2つのpayload。Todoは作成対象へ関連付け | 2つの独立commitにせず全成功/全取消。#437 |
-| `todo.update` | `edit_scope(current_occurrence/future_rule/manual_combined), changes`、対象revision。manual_combinedは`rule_changes`と`occurrence_changes`を受け取り、一方または両方を指定可。繰返し方式そのものの変更は不可 | 暦を持つ繰り返しは現在回と次回以降を分離。manualは[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)どおりRuleの名前・関連対象・メモ、現在Occurrenceの担当・snapshot・変更履歴を一つのpreview/commitで全成功/全取消にする。過去回は変更しない。#437 |
+| `todo.update` | `edit_scope(current_occurrence/future_rule/manual_combined/one_time_combined), changes`、対象revision。combinedは`rule_changes`と`occurrence_changes`を受け取り、一方または両方を指定可。繰返し方式そのものの変更は不可 | 暦を持つ繰り返しは現在回と次回以降を分離。manualは[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)、one_timeは既存`updateOneTimeTodo`に従い、Ruleと現在Occurrenceを一つのpreview/commitで全成功/全取消にする。過去回は変更しない。#437 |
 | `todo.complete` | Occurrence対象、`occurred_on`または`occurred_at`の一方、任意`performer_id`。日時省略は「今」としてprepare時刻へ固定しpreviewに明示 | 完了履歴、現在状態、次回を一括更新。#437 |
 | `todo.correct` | `completion_log_id, changes`。changesは`occurred_on`・`performer_id`の一方または両方を含む空でないオブジェクト | 全項目を一つのpreview/commitで追記訂正。日時訂正は次回未変更ガード。入力検証・revision確認・訂正履歴・現在値・次回更新を全成功/全取消とし、項目別commitへ分割しない。#437 |
 | `todo.undo` | `completion_log_id`、対象revision | 次回が未変更のときのみ完了取消。#437 |
@@ -165,6 +165,8 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 recurrenceの値は既存の入力検証と暦規則を再利用する。one_timeは予定暦日または未定、manualは日付なし、completionは日/月/年と推奨範囲・初回予定、calendarは曜日/月日等の構造化候補列、intervalは起点暦日と日/週の間隔を必要とする。自然言語から未指定の初回予定や期間を創作しない。必達日の保存/更新規則は#51のYDRを共通入力へ反映し、未対応の間はcapabilitiesで返して黙って捨てない。
 
 台帳削除・アーカイブ、任意の過去履歴削除、消費予測、数量管理、繰返し方式変更は本契約に含めない。消耗品の追加登録/名称等の編集は既存Webを案内し、v0.21.0の会話変更は観測・補充・訂正へ限定する。
+
+`todo.update`はサーバーが対象の方式とedit_scopeの組み合わせを検証する。`calendar/completion/interval`にはcurrent_occurrence/future_rule、`manual`にはmanual_combined、`one_time`にはone_time_combinedを使い、別方式のscopeを拒否する。combinedのRule側は名前・関連対象・メモ、Occurrence側は担当とし、one_timeのみ予定日（具体日または未定）も受け付ける。manualへ日付を設定しない。Rule/Occurrence双方のrevisionを同じ原子的処理で検証し、現在snapshot、既存の編集履歴、receiptを同じ成功条件へ束縛する。one_timeの予定日変更時は既存Webと同じscheduled_for/due_at更新規則を使い、延期とは区別する。#437では一回限りの名前・担当・予定日の同時変更に競合/途中失敗を注入し、すべて変更されないことを検証する。
 
 ### 冪等性・競合・確認
 
