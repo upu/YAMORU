@@ -90,9 +90,11 @@ it("権限不足の再認証案内・大きな入力・未知のmethodを区別�
   expect((await rpc("server/discover", {}, { "content-type": "text/plain" })).status).toBe(415);
 });
 it("検証済み送信providerを渡した場合だけEventsを公開し、Mcp-Nameなしの購読を本人のgrantで保存する", async () => {
+  expect(await tool("connection_get", {})).toMatchObject({ structuredContent: { capabilities: { events: false, notification_delivery: false } } });
   expect(await (await rpc("server/discover")).json()).not.toMatchObject({ result: { capabilities: { events: {} } } });
   expect((await rpc("events/list")).status).toBe(404);
   events = { providerId: "fictional-test-provider", transport: { post: async (_url, request) => Response.json(JSON.parse(request.body) as unknown) } };
+  expect(await tool("connection_get", {})).toMatchObject({ structuredContent: { capabilities: { events: true, notification_delivery: false } } });
   const access = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
   expect(await (await rpc("server/discover", {}, {}, access)).json()).toMatchObject({ result: { capabilities: { events: {} } } });
   const list = await rpc("events/list", {}, {}, access);

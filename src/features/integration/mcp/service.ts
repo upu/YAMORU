@@ -24,7 +24,7 @@ async function connection(context: McpContext, principal: IntegrationPrincipal) 
   return { schema_version: 1, request_id: crypto.randomUUID(), as_of: (context.now?.() ?? new Date()).toISOString(),
     connection_management_url: `${context.config.issuer}/settings/integrations`, user_id: principal.userId, household_id: principal.householdId, connection_id: principal.connectionId,
     client_id: principal.clientId, site_origin: context.config.issuer, ...row, scopes: [...principal.scopes], status: "active",
-    capabilities: { supported_commands: [...COMMAND_NAMES], events: false, notification_delivery: false, transport_protocols: [...MCP_SUPPORTED_VERSIONS],
+    capabilities: { supported_commands: [...COMMAND_NAMES], events: Boolean(context.events), notification_delivery: false, transport_protocols: [...MCP_SUPPORTED_VERSIONS],
       unsupported_commands: ["todo.update", "todo.reschedule", "managed_item.update"].filter((name) => !(COMMAND_NAMES as readonly string[]).includes(name)) } };
 }
 export function createMcpToolService(context: McpContext) {
