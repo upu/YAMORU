@@ -154,6 +154,16 @@ describe("authorization code + PKCE", () => {
     expect(response.status).toBe(404);
   });
 
+  it("上限(8KB)を超える本文は読み切らずに拒否する", async () => {
+    const response = await handleTokenRequest(new Request(`${config.issuer}/oauth/token`, {
+      body: `grant_type=authorization_code&code=${"x".repeat(9 * 1024)}`,
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    }), { config, db });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_request", error_description: "Request body is too large" });
+  });
+
   it("同じ名前のパラメーターが重複した要求を拒否する", async () => {
     const response = await handleTokenRequest(new Request(`${config.issuer}/oauth/token`, {
       body: "grant_type=authorization_code&grant_type=refresh_token",
@@ -185,6 +195,21 @@ describe("refresh tokenのローテーション", () => {
     expect((await connectionRow())?.revoked_reason).toBe("token_reuse_detected");
     expect((await verifyAccessToken({ config, db }, rotated.access_token, [])).ok).toBe(false);
     expect(await tokenError(await refresh(db, rotated.refresh_token ?? ""))).toBe("invalid_grant");
+  });
+
+  it("refreshでscopeを縮めたら、接続の許可範囲も縮めて表示する", async () => {
+    const first = await connect(db, memberA);
+    const response = await oauth.refreshTokenGrantRequest(
+      await discoverTestServer(), testClient, oauth.None(), first.refresh_token ?? "",
+      {
+        [oauth.customFetch]: (url: string, init: RequestInit) => handleTokenRequest(new Request(url, init), { config, db }),
+        additionalParameters: { resource: config.resource, scope: "household.read" },
+      },
+    );
+    const narrowed = await oauth.processRefreshTokenResponse(await discoverTestServer(), testClient, response);
+    expect(narrowed.scope).toBe("household.read");
+    expect((await connectionRow())?.scopes).toBe("household.read");
+    expect((await verifyAccessToken({ config, db }, narrowed.access_token, ["household.write"])).ok).toBe(false);
   });
 
   it("refreshでscopeを広げることはできない", async () => {

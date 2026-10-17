@@ -5,6 +5,7 @@
 import OAuth2Server from "@node-oauth/oauth2-server";
 
 import type { OAuthConfig } from "./config";
+import { declaresTooLargeBody, readTextWithLimit } from "./limited-body";
 import { logOAuthEvent } from "./log";
 import { createOAuthModel } from "./model";
 import { createOAuthServer } from "./server";
@@ -38,11 +39,10 @@ export async function readFormBody(request: Request): Promise<Map<string, string
   if (contentType.split(";")[0].trim().toLowerCase() !== "application/x-www-form-urlencoded") {
     return oauthErrorResponse(400, "invalid_request", "Content-Type must be application/x-www-form-urlencoded");
   }
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > MAX_BODY_BYTES) {
-    return oauthErrorResponse(400, "invalid_request", "Request body is too large");
-  }
-  const text = new TextDecoder().decode(bytes);
+  const text = declaresTooLargeBody(request.headers, MAX_BODY_BYTES)
+    ? null
+    : await readTextWithLimit(request.body, MAX_BODY_BYTES);
+  if (text === null) return oauthErrorResponse(400, "invalid_request", "Request body is too large");
   const values = new Map<string, string>();
   for (const [name, value] of new URLSearchParams(text)) {
     if (values.has(name)) return oauthErrorResponse(400, "invalid_request", `Duplicate parameter: ${name}`);

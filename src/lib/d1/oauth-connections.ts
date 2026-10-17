@@ -99,6 +99,8 @@ export async function createConnectionFromCode(
 }
 
 // refresh tokenのローテーションで新しいtokenを発行し、接続の期限を延ばす。
+// refreshでscopeを縮めた場合は、以後そのscopeしか得られないため、接続の
+// scopeも同じ値へ更新する(接続管理画面が実際より広い権限を示さないように)。
 export async function issueRotatedTokens(
   db: D1Database,
   connectionId: string,
@@ -110,9 +112,9 @@ export async function issueRotatedTokens(
     db.prepare("DELETE FROM oauth_tokens WHERE connection_id = ?1 AND expires_at <= ?2")
       .bind(connectionId, now),
     db.prepare(
-      `UPDATE oauth_connections SET expires_at = ?2
+      `UPDATE oauth_connections SET expires_at = ?2, scopes = ?3
         WHERE id = ?1 AND revoked_at IS NULL`,
-    ).bind(connectionId, tokens.refresh.expiresAt),
+    ).bind(connectionId, tokens.refresh.expiresAt, scopes),
     insertTokenStatement(db, connectionId, "access", tokens.access, scopes, now),
     insertTokenStatement(db, connectionId, "refresh", tokens.refresh, scopes, now),
   ]);

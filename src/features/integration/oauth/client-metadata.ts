@@ -8,6 +8,7 @@
 
 import { getOAuthClient, upsertOAuthClient, type StoredOAuthClient } from "../../../lib/d1/oauth-clients";
 import type { OAuthConfig } from "./config";
+import { declaresTooLargeBody, readTextWithLimit } from "./limited-body";
 
 export type ClientResolution =
   | { client: StoredOAuthClient; ok: true }
@@ -89,30 +90,6 @@ export function parseClientMetadata(
   };
 }
 
-async function readLimitedText(response: Response): Promise<string | null> {
-  if (response.body === null) return null;
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > METADATA_MAX_BYTES) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(bytes);
-}
-
 export async function fetchClientMetadata(clientId: string, fetchImpl: FetchLike): Promise<unknown> {
   try {
     const response = await fetchImpl(clientId, {
@@ -122,8 +99,9 @@ export async function fetchClientMetadata(clientId: string, fetchImpl: FetchLike
       signal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
     });
     if (response.status !== 200) return null;
-    const text = await readLimitedText(response);
-    return text === null ? null : JSON.parse(text);
+    if (declaresTooLargeBody(response.headers, METADATA_MAX_BYTES)) return null;
+    const text = await readTextWithLimit(response.body, METADATA_MAX_BYTES);
+    return text === null || text === "" ? null : JSON.parse(text);
   } catch {
     return null;
   }

@@ -9,6 +9,7 @@ import { isValidClientIdUrl, parseClientMetadata } from "../src/features/integra
 import { parseAllowedClientIds, resolveOAuthConfig } from "../src/features/integration/oauth/config";
 import { authorizationServerMetadata, protectedResourceMetadata } from "../src/features/integration/oauth/metadata";
 import { grantedScopes } from "../src/features/integration/oauth/authorize";
+import { declaresTooLargeBody, readTextWithLimit } from "../src/features/integration/oauth/limited-body";
 
 const CLIENT_ID = "https://client.example.test/oauth/client.json";
 const REDIRECT_URI = "https://client.example.test/callback";
@@ -185,5 +186,21 @@ describe("bearer token", () => {
     expect(extractBearerToken(new Request("https://y.test/mcp", { headers: { authorization: "Bearer ymr_at_abc" } }))).toBe("ymr_at_abc");
     expect(extractBearerToken(new Request("https://y.test/mcp?access_token=ymr_at_abc"))).toBeNull();
     expect(extractBearerToken(new Request("https://y.test/mcp", { headers: { authorization: "Basic abc" } }))).toBeNull();
+  });
+});
+
+describe("本文の上限", () => {
+  it("上限を超えた時点で読むのをやめ、nullを返す", async () => {
+    const small = new Response("a".repeat(10)).body;
+    const large = new Response("a".repeat(11)).body;
+    await expect(readTextWithLimit(small, 10)).resolves.toBe("a".repeat(10));
+    await expect(readTextWithLimit(large, 10)).resolves.toBeNull();
+    await expect(readTextWithLimit(null, 10)).resolves.toBe("");
+  });
+
+  it("Content-Lengthが上限を超えると宣言する要求は本文を読まずに判定できる", () => {
+    expect(declaresTooLargeBody(new Headers({ "content-length": "8193" }), 8192)).toBe(true);
+    expect(declaresTooLargeBody(new Headers({ "content-length": "8192" }), 8192)).toBe(false);
+    expect(declaresTooLargeBody(new Headers(), 8192)).toBe(false);
   });
 });
