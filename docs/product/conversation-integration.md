@@ -75,7 +75,7 @@ flowchart TD
 | `household.read` | 同じ家庭の対象・予定・履歴・在庫を読む |
 | `household.write` | 許可された家庭の登録・変更・完了・訂正。readを併せて要求 |
 | `notifications.manage` | 本人の設定・スヌーズ・配信履歴。readを併せて要求 |
-| `events.subscribe` | 本人向け通知候補の購読。readを併せて要求 |
+| `events.subscribe` | 本人向け通知候補の購読と、定期取得経路の配信確保・結果報告。readを併せて要求 |
 
 scopeは家庭メンバーのOwner/Member区分ではない。読み取りだけの外部接続を選べる。Tool・購読・結果再取得・配信の各入口でscope、現在所属、対象の家庭、接続の失効を検証する。他家庭のIDは存在の有無を明かさず`not_found`。operation/preview/cursorも本人・家庭・接続に束縛する。
 
@@ -86,7 +86,7 @@ HTTPS上のMCP resourceとauthorization serverを分けて定義する。YAMORU�
 - authorization code + PKCE S256、完全一致の登録済みredirect URI、一回限り・短命のcode、CSRF対策、resource/audience束縛を必須にする。productionとpreviewのissuer/resourceは別にする。
 - metadata discovery、clientの識別/登録、scope challengeを接続先と検証する。CIMDを第一候補とし、必要なら検証した事前登録clientまたはDCRを使う。URLからmetadataを取得するときもSSRF対策を行う。
 - grantは本人・家庭・client・scope・失効状態を保持。access tokenは短命、refreshはローテーションと再使用検知を備える。tokenの形式にかかわらずissuer、audience、期限、scopeと現在のgrantを毎回確認する。
-- 同意画面には接続先、家庭名、読める/変更できる範囲を表示する。秘密は専用の認証フローで扱い、会話・Issue・ログへ貼らせない。ブラウザーCookie、D1鍵、管理API鍵を渡さない。
+- 同意画面には接続先、家庭名、読める/変更できる範囲を表示する。`events.subscribe`は通知の受信に加え、定期取得時に候補を確保して案内結果を報告できる権限だと説明する。通知設定の変更権限だけでは配信を確保できない。秘密は専用の認証フローで扱い、会話・Issue・ログへ貼らせない。ブラウザーCookie、D1鍵、管理API鍵を渡さない。
 - 解除時にgrant・refresh・preview・購読を無効化し、未送信候補を止める。再接続は新grantとして同意を取り直す。解除前の履歴は残し、過去の通知への返答で操作を再開しない。
 
 方式の根拠は[OpenAIの認証仕様](https://developers.openai.com/plugins/build/auth)と[MCP認可仕様](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)。上記はYAMORUが満たす設計要件であり、このアカウントでの接続成功を示さない。
@@ -146,7 +146,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `managed_item_with_todo.create` | 上記2つのpayload。Todoは作成対象へ関連付け | 2つの独立commitにせず全成功/全取消。#437 |
 | `todo.update` | `edit_scope(current_occurrence/future_rule), changes`、対象revision。繰返し方式そのものの変更は不可 | 現在回と次回以降を混同しない編集と履歴。#437 |
 | `todo.complete` | Occurrence対象、`occurred_on`または`occurred_at`の一方、任意`performer_id`。日時省略は「今」としてprepare時刻へ固定しpreviewに明示 | 完了履歴、現在状態、次回を一括更新。#437 |
-| `todo.correct` | `completion_log_id, field(occurred_on/performer_id), value` | 一度に一項目を追記訂正。日時訂正は次回未変更ガード。#437 |
+| `todo.correct` | `completion_log_id, changes`。changesは`occurred_on`・`performer_id`の一方または両方を含む空でないオブジェクト | 全項目を一つのpreview/commitで追記訂正。日時訂正は次回未変更ガード。入力検証・revision確認・訂正履歴・現在値・次回更新を全成功/全取消とし、項目別commitへ分割しない。#437 |
 | `todo.undo` | `completion_log_id`、対象revision | 次回が未変更のときのみ完了取消。#437 |
 | `todo.reschedule` | `new_due_on`、対象Occurrence/revision | 今回の期限を変更。本来の予定・必達日は変更しない。必要時Todoは拒否。#437 |
 | `stock.observe` | Consumable対象、`observed_on, status(available/low/out)` | 観測履歴と現在の在庫表示。補充日は不変。#438 |
@@ -237,7 +237,7 @@ MCP Events非対応時は、別途設定した定期実行主体が`attention_ge
 | `notification.claim` | `candidate_ids`（最大50）と各revision | 現在配信可能なものを一意に確保し、`delivery_id, lease_token, lease_expires_at, candidates, skipped_reasons`を返す。leaseは5分。prepareでは確保しない |
 | `notification.ack` | `delivery_id, lease_token, outcome(reported/unknown)` | 確保した本人/接続/lease世代を検証し、配信履歴を更新。重複ackは同じ結果、別outcomeは競合 |
 
-これらもprepare/commitと操作IDの契約に従い、本人の`notifications.manage`を要する。家庭の業務データを変更しない。ackのreportedはクライアントの案内報告であり既読ではない。lease切れの送信不明は同じunknown規則で扱う。自動実行主体を確保できない場合、通知完成を主張せず#442/#444を未完了として残す。
+これらもprepare/commitと操作IDの契約に従い、本人の`events.subscribe`と`household.read`を要する。`notifications.manage`だけの接続はprepare/commitとも拒否する。claim/ackは本人・家庭・接続・有効な配信設定とleaseへ束縛し、別接続宛ての配信を確保・報告できない。家庭の業務データを変更しない。ackのreportedはクライアントの案内報告であり既読ではない。lease切れの送信不明は同じunknown規則で扱う。自動実行主体を確保できない場合、通知完成を主張せず#442/#444を未完了として残す。
 
 返答は`delivery_id/candidate_id/occurrence_id`から現在対象を解決する。通知に複数件ある「やった」はどれか確認する。通知の期限切れ/接続失効では変更せず、現在の候補を案内する。新しいOccurrenceへ暗黙に付け替えない。自己発行イベントで繰り返し完了や通知ループを起こさない。
 
@@ -264,12 +264,12 @@ SQL名・制約・index・移行テストは担当Issueの実装と同時に決�
 | #51 | 必達日の永続化と表示。6節 | 目安との併存、必達日前/当日/超過、延期/訂正/取消、旧データの回帰 |
 | #435 | 2〜4節、6節。共通読み取りとprojection | Web/API一致、候補の曖昧さ・別名、家庭境界、ページング、日付境界 |
 | #436 | 3節、8節。認証・接続管理 | PKCE/metadata/resource/scope/期限、他家庭、解除後操作・配信停止、実認証の証拠 |
-| #437 | 5〜6節。共通commandとreceipt | 同ID同内容/別内容、応答喪失、同時完了、古いpreview、旧Web更新、後続更新と取消、複合作成の途中失敗 |
+| #437 | 5〜6節。共通commandとreceipt | 同ID同内容/別内容、応答喪失、同時完了、古いpreview、旧Web更新、後続更新と取消、複合作成の途中失敗。実施日と実施者の同時訂正で一項目の検証失敗/競合が起きても全項目が未変更 |
 | #438 | 在庫の観測/補充/訂正 | 二重補充、過去日/同日競合、観測のみで補充日不変、未知情報の保存、家庭境界 |
 | #439 | OAuth付きMCPアダプタ | 実dotで読み取り→登録→取得→完了→次回確認、再接続、切断・権限不足・データ内の命令文 |
 | #440 | 7節の候補生成 | 空/多数/日付経過、必達日と目安、差分削除、安定順序、完了等の除外 |
 | #441 | 本人設定と履歴 | 静かな時間・DST・スヌーズ・mute・設定変更、他人へ非干渉、既読を捏造しない |
-| #442 | scheduler/outbox/MCP Events | 次節E1〜E8、二重イベント、順序逆転、lease失効、再起動、unknown、定期照合と代替方式の実証 |
+| #442 | scheduler/outbox/MCP Events | 次節E1〜E8、二重イベント、順序逆転、lease失効、再起動、unknown、定期照合と代替方式の実証。設定変更権限のみ/別接続/解除済み設定によるclaim/ackを拒否し、配信状態が不変 |
 | #443 | 通知返答とcommandの対応 | 「やった/昨日/明日教えて/予定変更」、曖昧な複数件、古い通知、家族の同時完了 |
 | #444 | 初回接続・復旧導線と全体E2E | 実接続記録と模擬テストを区別し、全合格条件を最終headで照合 |
 
