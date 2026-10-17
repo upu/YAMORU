@@ -38,6 +38,7 @@ import taskRuleNoteSql from "../../../../d1/migrations/0028_task_rule_note.sql?r
 import managedItemTagsSql from "../../../../d1/migrations/0029_managed_item_tags.sql?raw";
 import hardDeadlineSql from "../../../../d1/migrations/0030_occurrence_hard_deadline.sql?raw";
 import oauthConnectionsSql from "../../../../d1/migrations/0031_oauth_connections.sql?raw";
+import integrationOperationsSql from "../../../../d1/migrations/0033_integration_operations.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -72,6 +73,7 @@ const MIGRATIONS = [
   { name: "0029_managed_item_tags", sql: managedItemTagsSql },
   { name: "0030_occurrence_hard_deadline", sql: hardDeadlineSql },
   { name: "0031_oauth_connections", sql: oauthConnectionsSql },
+  { name: "0033_integration_operations", sql: integrationOperationsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

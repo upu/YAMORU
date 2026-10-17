@@ -1,0 +1,209 @@
+import type { BusinessEvidence } from "./todos/command-plans";
+
+// 外部command(#437)の受付記録(integration_operations)。previewを作った時点で
+// 行を作り、commitの成功は業務更新と同じbatchの最後の文で記録する。
+// 設計はdocs/product/conversation-integration.md 5節とYDR-054。
+
+export type IntegrationOperationStatus = "expired" | "prepared" | "rejected" | "succeeded";
+
+export type IntegrationOperation = {
+  businessKey: string;
+  clientId: string;
+  command: string;
+  connectionId: string;
+  createdAt: string;
+  expiresAt: string;
+  fingerprint: string;
+  householdId: string;
+  id: string;
+  normalizedCommand: string;
+  operationId: string;
+  preview: string;
+  previewId: string;
+  reasonCode: string | null;
+  requestHash: string;
+  resolvedAt: string | null;
+  result: string | null;
+  status: IntegrationOperationStatus;
+  userId: string;
+};
+
+type OperationRow = {
+  business_key: string;
+  client_id: string;
+  command: string;
+  connection_id: string;
+  created_at: string;
+  expires_at: string;
+  fingerprint: string;
+  household_id: string;
+  id: string;
+  normalized_command: string;
+  operation_id: string;
+  preview: string;
+  preview_id: string;
+  reason_code: string | null;
+  request_hash: string;
+  resolved_at: string | null;
+  result: string | null;
+  status: IntegrationOperationStatus;
+  user_id: string;
+};
+
+function fromRow(row: OperationRow): IntegrationOperation {
+  return {
+    businessKey: row.business_key,
+    clientId: row.client_id,
+    command: row.command,
+    connectionId: row.connection_id,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    fingerprint: row.fingerprint,
+    householdId: row.household_id,
+    id: row.id,
+    normalizedCommand: row.normalized_command,
+    operationId: row.operation_id,
+    preview: row.preview,
+    previewId: row.preview_id,
+    reasonCode: row.reason_code,
+    requestHash: row.request_hash,
+    resolvedAt: row.resolved_at,
+    result: row.result,
+    status: row.status,
+    userId: row.user_id,
+  };
+}
+
+// 接続ごとの操作IDで引く。接続は本人・家庭・clientを含むため、別の利用者や
+// 別の接続(再接続後を含む)の操作は見えない。
+export async function findIntegrationOperation(
+  db: D1Database,
+  connectionId: string,
+  operationId: string,
+): Promise<IntegrationOperation | null> {
+  const row = await db.prepare(
+    "SELECT * FROM integration_operations WHERE connection_id = ?1 AND operation_id = ?2",
+  ).bind(connectionId, operationId).first<OperationRow>();
+  return row === null ? null : fromRow(row);
+}
+
+export type PreparedOperationInput = Omit<
+  IntegrationOperation,
+  "reasonCode" | "resolvedAt" | "result" | "status"
+>;
+
+// previewを保存する。同じ接続・操作IDの行がすでにあれば(同時のprepare)何も
+// せずfalseを返し、呼び出し側は保存済みの行と照合する。接続が失効していれば
+// 保存しない。
+export async function insertPreparedOperation(
+  db: D1Database,
+  input: PreparedOperationInput,
+): Promise<boolean> {
+  const result = await db.prepare(
+    `INSERT INTO integration_operations (
+      id, household_id, user_id, client_id, connection_id, operation_id, command,
+      request_hash, fingerprint, preview_id, normalized_command, preview, status,
+      business_key, created_at, expires_at
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'prepared', ?13, ?14, ?15
+      WHERE EXISTS (
+        SELECT 1 FROM oauth_connections c
+         WHERE c.id = ?5 AND c.household_id = ?2 AND c.user_id = ?3 AND c.client_id = ?4
+           AND c.revoked_at IS NULL
+      )
+      ON CONFLICT (connection_id, operation_id) DO NOTHING`,
+  ).bind(
+    input.id,
+    input.householdId,
+    input.userId,
+    input.clientId,
+    input.connectionId,
+    input.operationId,
+    input.command,
+    input.requestHash,
+    input.fingerprint,
+    input.previewId,
+    input.normalizedCommand,
+    input.preview,
+    input.businessKey,
+    input.createdAt,
+    input.expiresAt,
+  ).run();
+  return result.meta.changes > 0;
+}
+
+// 未実行の操作を、期限切れまたは拒否として確定させる。すでに確定していれば
+// 何もしない(同時のcommitが先に成功した場合など)。
+export async function resolveOperationWithoutCommit(
+  db: D1Database,
+  id: string,
+  status: "expired" | "rejected",
+  reasonCode: string,
+  at: string,
+): Promise<boolean> {
+  const result = await db.prepare(
+    `UPDATE integration_operations SET status = ?2, reason_code = ?3, resolved_at = ?4
+      WHERE id = ?1 AND status = 'prepared'`,
+  ).bind(id, status, reasonCode, at).run();
+  return result.meta.changes > 0;
+}
+
+// 接続が今も書き込みに使えるか。失効・家庭からの離脱・パスワード変更・
+// household.writeの除外のいずれでもfalseになる。
+const ACTIVE_WRITE_CONNECTION = `EXISTS (
+  SELECT 1 FROM oauth_connections c
+    JOIN users u ON u.id = c.user_id
+    JOIN household_members m ON m.household_id = c.household_id AND m.user_id = c.user_id
+   WHERE c.id = integration_operations.connection_id
+     AND c.household_id = integration_operations.household_id
+     AND c.revoked_at IS NULL
+     AND u.session_version = c.user_session_version
+     AND (' ' || c.scopes || ' ') LIKE '% household.write %'
+)`;
+
+export async function isWriteConnectionActive(db: D1Database, operationRowId: string): Promise<boolean> {
+  const row = await db.prepare(
+    `SELECT ${ACTIVE_WRITE_CONNECTION} AS active FROM integration_operations WHERE id = ?1`,
+  ).bind(operationRowId).first<{ active: number }>();
+  return row?.active === 1;
+}
+
+function evidenceCondition(evidence: BusinessEvidence, parameter: number): string {
+  // tableはコード内の定数だけを取り、利用者の入力を埋め込まない。
+  return `EXISTS (SELECT 1 FROM ${evidence.table} b
+    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ?${String(parameter)})`;
+}
+
+// commitのbatchの最後に置く文。次のすべてを満たすときだけstatusを
+// 'succeeded'へ進め、満たさなければstatusをNULLに評価してNOT NULL制約で
+// batch全体(業務の更新を含む)を取り消す。
+// 1. 操作がまだpreparedであること(同じ操作の二重実行を防ぐ)
+// 2. previewの期限内であること
+// 3. 接続が書き込みに使えること(batchの直前に解除された場合を含む)
+// 4. 業務の記録(evidence)がすべて存在すること(条件付き更新が0件だった場合)
+export function commitReceiptStatement(
+  db: D1Database,
+  input: { at: string; evidence: BusinessEvidence[]; id: string; result: string },
+): D1PreparedStatement {
+  if (input.evidence.length === 0) throw new Error("commit requires business evidence");
+  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + 4));
+  return db.prepare(
+    `UPDATE integration_operations
+        SET status = CASE
+              WHEN status = 'prepared' AND expires_at > ?2
+                AND ${ACTIVE_WRITE_CONNECTION}
+                AND ${conditions.join("\n                AND ")}
+              THEN 'succeeded'
+            END,
+            result = ?3,
+            resolved_at = ?2
+      WHERE id = ?1`,
+  ).bind(input.id, input.at, input.result, ...input.evidence.map((evidence) => evidence.idempotencyKey));
+}
+
+// commitReceiptStatementが条件を満たさずにbatchを取り消したときのD1のエラーか。
+// 取消後の処理は確定した状態を読み直して理由を決めるため、この判定には依存しない。
+// 取消の仕組み自体をテストで確かめるために使う。
+export function isCommitReceiptRejection(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : "";
+  return message.includes("NOT NULL constraint failed: integration_operations.status");
+}

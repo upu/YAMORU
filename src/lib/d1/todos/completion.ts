@@ -18,10 +18,12 @@ async function findCompletionReplay(
   ).bind(householdId, idempotencyKey).first();
 }
 
-type CompletionStatementsInput = {
+export type CompletionStatementsInput = {
   actorId: string;
   householdId: string;
   idempotencyKey: string;
+  // 追加するcompletedログのID。外部command(#437)は結果へ載せるため事前に決める。
+  logId: string;
   next: ReturnType<typeof nextOccurrence>;
   occurredAt: string;
   occurrence: OccurrenceWithRule;
@@ -60,11 +62,11 @@ function nextOccurrenceStatement(
   );
 }
 
-function completionStatements(
+export function completionStatements(
   db: D1Database,
   input: CompletionStatementsInput,
 ): D1PreparedStatement[] {
-  const logId = crypto.randomUUID();
+  const { logId } = input;
   const statements = [
     db.prepare(
       `INSERT INTO activity_logs (
@@ -174,6 +176,7 @@ export async function completeTask(
       actorId: user.userId,
       householdId,
       idempotencyKey: input.idempotencyKey,
+      logId: crypto.randomUUID(),
       next,
       occurredAt,
       occurrence,
@@ -249,17 +252,21 @@ export async function resolveEffectiveCompletion(
   };
 }
 
-function undoStatements(
+export type UndoStatementsInput = {
+  actorId: string;
+  householdId: string;
+  idempotencyKey: string;
+  // 追加するcompletion_undoneログのID。
+  logId: string;
+  nextOccurrenceId: string | null;
+  occurrenceId: string;
+};
+
+export function undoStatements(
   db: D1Database,
-  input: {
-    actorId: string;
-    householdId: string;
-    idempotencyKey: string;
-    nextOccurrenceId: string | null;
-    occurrenceId: string;
-  },
+  input: UndoStatementsInput,
 ): D1PreparedStatement[] {
-  const logId = crypto.randomUUID();
+  const { logId } = input;
   const log = db.prepare(
     `INSERT INTO activity_logs (
       id, household_id, task_occurrence_id, action, actor_user_id,
@@ -339,6 +346,7 @@ export async function undoTaskCompletion(
     actorId: user.userId,
     householdId,
     idempotencyKey,
+    logId: crypto.randomUUID(),
     nextOccurrenceId: completion.next_task_occurrence_id,
     occurrenceId,
   });

@@ -135,6 +135,53 @@ CREATE TABLE households (
   CHECK (name = trim(name) AND length(name) BETWEEN 1 AND 100)
 );
 
+-- table: integration_operations
+CREATE TABLE integration_operations (
+  id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL REFERENCES oauth_clients(id),
+  connection_id TEXT NOT NULL REFERENCES oauth_connections(id) ON DELETE CASCADE,
+
+
+  operation_id TEXT NOT NULL,
+
+
+  command TEXT NOT NULL,
+
+
+  request_hash TEXT NOT NULL,
+
+  fingerprint TEXT NOT NULL,
+  preview_id TEXT NOT NULL UNIQUE,
+
+  normalized_command TEXT NOT NULL,
+
+
+  preview TEXT NOT NULL,
+  status TEXT NOT NULL,
+
+  reason_code TEXT,
+
+
+  business_key TEXT NOT NULL UNIQUE,
+
+  result TEXT,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  resolved_at TEXT,
+  UNIQUE (connection_id, operation_id),
+  CHECK (status IN ('prepared', 'succeeded', 'rejected', 'expired')),
+  CHECK (length(operation_id) = 36),
+  CHECK (length(command) BETWEEN 1 AND 64),
+  CHECK (json_valid(normalized_command) AND json_valid(preview)),
+  CHECK (result IS NULL OR json_valid(result)),
+  CHECK ((status = 'prepared') = (resolved_at IS NULL)),
+  CHECK ((status IN ('rejected', 'expired')) = (reason_code IS NOT NULL)),
+  CHECK (status <> 'succeeded' OR result IS NOT NULL),
+  CHECK (expires_at > created_at)
+);
+
 -- table: invitation_claims
 CREATE TABLE invitation_claims (
   id TEXT PRIMARY KEY,
@@ -648,6 +695,10 @@ CREATE UNIQUE INDEX household_members_source_id_idx
 
 -- index: household_members_user_id_idx
 CREATE INDEX household_members_user_id_idx ON household_members(user_id);
+
+-- index: integration_operations_household_created_idx
+CREATE INDEX integration_operations_household_created_idx
+  ON integration_operations(household_id, created_at DESC);
 
 -- index: invitation_claims_expires_at_idx
 CREATE INDEX invitation_claims_expires_at_idx ON invitation_claims(expires_at);

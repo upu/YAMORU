@@ -40,10 +40,11 @@
 | 画面の見た目(CSS)の置き場所 | `src/app/globals.css`(全体基盤と共有ルール)、部品ごとの`*.module.css` | 変更した画面のテスト・E2E | [スタイル](styles.md) |
 | 外部クライアントの認可(OAuth)・同意画面・接続管理 | `src/features/integration/oauth/`、`src/app/oauth/authorize/`、`src/app/settings/integrations/` → `src/lib/d1/oauth-connections.ts` | `tests/integration-oauth-request.test.ts`、`tests/integration-connections-ui.test.tsx`、`src/lib/d1/oauth-flow.d1-test.ts`、`src/lib/d1/oauth-connections-authorization.d1-test.ts` | [外部連携](integration.md) |
 | 外部クライアントのaccess token検証(MCPなど外部入口の共通) | `src/features/integration/oauth/bearer.ts`、`src/features/integration/principal.ts` | `src/lib/d1/oauth-flow.d1-test.ts` | [外部連携](integration.md) |
+| 外部クライアントの変更操作(prepare/commit・受付記録。Todoの完了・訂正・取消) | `src/features/integration/commands/service.ts` → `src/lib/d1/integration-operations.ts`、`src/lib/d1/todos/command-plans.ts` | `tests/integration-command-input.test.ts`、`src/lib/d1/integration-commands.d1-test.ts`、`src/lib/d1/integration-history-commands.d1-test.ts` | [外部連携](integration.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 
 ## まだ実装していない領域
 
-会話連携・認証付きMCP・リマインドは[会話連携設計](../product/conversation-integration.md)に契約と既存コードへの接続先を定義している。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。MCPのTool・共通操作・通知(#435、#437〜#444)はまだ実装しておらず、公開APIや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
+会話連携・認証付きMCP・リマインドは[会話連携設計](../product/conversation-integration.md)に契約と既存コードへの接続先を定義している。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作の共通基盤(#437の第1段階)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の共通操作・通知(#435、#437の残り、#438〜#444)はまだ実装しておらず、公開APIや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
 
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。

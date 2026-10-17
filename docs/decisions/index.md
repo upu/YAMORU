@@ -64,6 +64,7 @@
 | YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
 | YDR-051 | 必達日を各回の予定・目安とは独立した暦日として持つ | Accepted（YDR-031/046のホーム除外を部分置換） | [ydr-051-occurrence-hard-deadline.md](ydr-051-occurrence-hard-deadline.md) |
 | YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
+| YDR-054 | 外部commandの受付記録を業務更新と同じD1 batchで確定させる | Accepted | [ydr-054-integration-command-receipts.md](ydr-054-integration-command-receipts.md) |
 
 ## 新しい意思決定の追加
 

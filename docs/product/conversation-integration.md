@@ -19,6 +19,8 @@ stale_after: 2026-11-17
 
 #436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
 
+#437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。対象のrevision(`expected_revision`)、追加確認(`confirmation_url`)、登録・編集のcommandは未実装で、外部へ公開する入口(#439)も無い。
+
 ## 1. 家庭での操作とToolの対応
 
 発話はすべて架空の例。対象名や会話の文脈だけでIDを確定できないときは検索候補を示す。
