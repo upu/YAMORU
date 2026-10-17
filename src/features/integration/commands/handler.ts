@@ -1,4 +1,5 @@
 import { d1ErrorCode, type D1ErrorCode } from "../../../lib/d1/errors";
+import type { RevisionPlacement } from "../../../lib/d1/integration-operations";
 import type { BusinessStatements } from "../../../lib/d1/todos/command-plans";
 import { tokyoDate } from "./input";
 import { CommandError, type CommandPreview, type CommandTarget, type NormalizedCommand } from "./contract";
@@ -20,6 +21,8 @@ export type CommandExecution = BusinessStatements & {
   // 結果に書き込み後のrevisionを付ける対象。続けて訂正・取消するときの
   // expected_revisionに使える。
   revisionEntity: { id: string; kind: "managed_item" | "todo_occurrence" };
+  // 複数の対象を作る操作で、結果の中の各対象にもrevisionを付ける位置。
+  revisionPlacements?: RevisionPlacement[];
 };
 
 export type CommandPlan = {

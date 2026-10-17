@@ -308,6 +308,7 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
         id: operation.id,
         result: canonicalJson(execution.result),
         revisionEntity: execution.revisionEntity,
+        revisionPlacements: execution.revisionPlacements,
       }),
     ]);
   } catch (error) {

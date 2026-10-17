@@ -25,7 +25,10 @@ type Prepared = { fingerprint: string; operation_id: string; preview_id: string 
 type Service = ReturnType<typeof commandService>;
 type Committed = { result: Record<string, unknown> & { managed_item_id: string } };
 type CombinedCommitted = {
-  result: { managed_item: { managed_item_id: string }; todo: { first_occurrence: { id: string }; todo_rule_id: string } };
+  result: {
+    managed_item: { managed_item_id: string; revision: string };
+    todo: { first_occurrence: { id: string }; revision: string; todo_rule_id: string };
+  };
 };
 
 let principal: IntegrationPrincipal;
@@ -187,6 +190,19 @@ describe("managed_item_with_todo.create", () => {
       managed_item_id: committed.result.managed_item.managed_item_id,
       name: "エアコン",
     });
+
+    // 作った管理対象・Todoのどちらにも、続けて使えるrevisionを返す。
+    const occurrenceId = committed.result.todo.first_occurrence.id;
+    expect(committed.result.managed_item.revision)
+      .toEqual(expect.stringContaining(`"managed_item","${committed.result.managed_item.managed_item_id}"`));
+    expect(committed.result.todo.revision).toEqual(expect.stringContaining(`"todo_occurrence","${occurrenceId}"`));
+    await expect(prepare(service, {
+      command: "todo.complete",
+      expected_revision: committed.result.todo.revision,
+      operation_id: crypto.randomUUID(),
+      payload: { occurred_on: "2026-10-12" },
+      target: { id: occurrenceId, kind: "todo_occurrence" },
+    })).resolves.toMatchObject({ affected_entities: [{ id: occurrenceId, kind: "todo_occurrence" }] });
   });
 
   it("Todoの登録が実行時に失敗すれば、管理対象も作らない", async () => {

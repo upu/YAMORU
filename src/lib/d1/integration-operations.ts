@@ -261,7 +261,19 @@ function evidenceValue(evidence: BusinessEvidence): string {
 //
 // 結果には、業務の更新で進んだ後の対象のrevision(読み取りToolと同じ
 // `[1, kind, id, epoch, version]`のJSON文字列)を`revision`として加える。
+// 複数の対象を作る操作は、それぞれの結果の位置(path)にも同じ形で加える。
 // 書き込み後の世代はbatchの中でしか分からないため、この文で読み取って保存する。
+export type RevisionPlacement = { id: string; kind: string; path: string };
+
+const REVISION_PATH = /^\$(?:\.[a-z_]+)+$/u;
+
+function revisionValue(kindParameter: number): string {
+  return `(SELECT '[1,' || json_quote(?${String(kindParameter)}) || ',' || json_quote(?${String(kindParameter + 1)})
+                || ',' || json_quote(v.epoch) || ',' || v.version || ']'
+                FROM household_read_versions v
+               WHERE v.household_id = integration_operations.household_id)`;
+}
+
 export function commitReceiptStatement(
   db: D1Database,
   input: {
@@ -270,10 +282,16 @@ export function commitReceiptStatement(
     id: string;
     result: string;
     revisionEntity: { id: string; kind: string };
+    revisionPlacements?: RevisionPlacement[];
   },
 ): D1PreparedStatement {
   if (input.evidence.length === 0) throw new Error("commit requires business evidence");
-  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + 6));
+  const placements = [{ ...input.revisionEntity, path: "$.revision" }, ...(input.revisionPlacements ?? [])];
+  if (placements.some(({ path }) => !REVISION_PATH.test(path))) throw new Error("invalid revision path");
+  // ?4から、placementごとに(path, kind, id)の3つを使う。
+  const assignments = placements.map((_, index) => `?${String(4 + index * 3)}, ${revisionValue(5 + index * 3)}`);
+  const evidenceStart = 4 + placements.length * 3;
+  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + evidenceStart));
   return db.prepare(
     `UPDATE integration_operations
         SET status = CASE
@@ -282,19 +300,14 @@ export function commitReceiptStatement(
                 AND ${conditions.join("\n                AND ")}
               THEN 'succeeded'
             END,
-            result = json_set(?3, '$.revision', (
-              SELECT '[1,' || json_quote(?4) || ',' || json_quote(?5) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
-                FROM household_read_versions v
-               WHERE v.household_id = integration_operations.household_id
-            )),
+            result = json_set(?3, ${assignments.join(", ")}),
             resolved_at = ?2
       WHERE id = ?1`,
   ).bind(
     input.id,
     input.at,
     input.result,
-    input.revisionEntity.kind,
-    input.revisionEntity.id,
+    ...placements.flatMap(({ id, kind, path }) => [path, kind, id]),
     ...input.evidence.map(evidenceValue),
   );
 }

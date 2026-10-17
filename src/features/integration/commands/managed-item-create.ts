@@ -135,6 +135,11 @@ export const managedItemWithTodoCreateHandler: CommandHandler = {
           evidence: [...item.evidence, ...todo.evidence],
           result: { managed_item: item.result, recorded_at: recordedAt, todo: todo.result },
           revisionEntity: { id: item.itemId, kind: "managed_item" as const },
+          // 続けて管理対象・Todoのどちらへ操作するときも、expected_revisionに使える。
+          revisionPlacements: [
+            { id: item.itemId, kind: "managed_item", path: "$.managed_item.revision" },
+            { id: todo.occurrenceId, kind: "todo_occurrence", path: "$.todo.revision" },
+          ],
           statements: [...item.statements, ...todo.statements],
         };
       },

@@ -47,7 +47,7 @@ status: stable
 - 外部commandが書いた履歴(activity_logs・completion_corrections)は、idempotency_keyから受付記録を引いて接続元(`client_id`)を履歴の読み取りへ返す(`operationClientExpression`)。業務テーブルへ接続元の列は足していない。
 - `todo.create`は、繰り返し条件の解釈と保存形(`*TaskInsert`・`taskInsertStatements`)をWebの登録と共有し、外部向けに別の暦計算や検証を持たない。完了日基準の初回は前回の実施日(`last_completed_on`)か最初の目安の始まり(`first_scheduled_on`)を必須とし、無ければ`missing_required`で聞き返す。定例日・固定間隔の初回はprepare時刻(`reference_at`)を基準に決める。
 - `managed_item.create`は、名前・詳しい種類・外部リンク・メモ・商品情報・開始時期の規則(`form-input.ts`・`started-on.ts`)と保存の文をWebの登録と共有する。タグは既存タグのIDだけを受け付け、他の家庭のタグIDはbatchの前に`invalid_input`にする(Webは複合外部キー違反で取り消す)。
-- `managed_item_with_todo.create`は、管理対象とTodoの文を一つのbatchへ載せ、両方の行を受付記録の成功条件にする。Todo側の入力は`todo.create`と同じ解析を通し、関連先は作る管理対象に固定する(`managed_item_id`は受け付けない)。
+- `managed_item_with_todo.create`は、管理対象とTodoの文を一つのbatchへ載せ、両方の行を受付記録の成功条件にする。Todo側の入力は`todo.create`と同じ解析を通し、関連先は作る管理対象に固定する(`managed_item_id`は受け付けない)。結果の`managed_item`・`todo`にもそれぞれのrevisionを付け、続く操作の`expected_revision`に使えるようにする。
 - 「今」や「昨日」はprepare時に固定し、commitでは保存した正規化commandからpreviewを計算し直して、一致したときだけ実行する。同じ操作IDの再送は保存した結果を返す。
 - 家庭の世代は保守的で、previewから実行までに家族が無関係なものを更新しても再確認(`stale_preview`)になる。
 
