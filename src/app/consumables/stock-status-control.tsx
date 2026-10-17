@@ -1,16 +1,14 @@
 "use client";
 
-import { type ReactNode, useActionState } from "react";
+import { type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { ConsumableStockStatus } from "../../lib/d1/consumables";
 import {
-  type ConsumableStockActionState,
   updateConsumableStockStatus,
 } from "./stock-actions";
 import { stockStatusLabel } from "./stock-status";
-
-const INITIAL_STATE: ConsumableStockActionState = { message: "", status: "idle" };
+import { useStockAction } from "./use-stock-action";
 
 /* Issue #359: 表示密度を優先する場所では、語の代わりに○△×を出して横幅を詰める。
    記号はaria-hiddenにして読み上げ用の語を必ず残す。
@@ -98,13 +96,15 @@ function StockStatusForm({
   consumableId,
   label,
   stockStatus,
+  stockRevision,
 }: {
   appearance?: StockStatusAppearance;
   consumableId: string;
   label?: string;
   stockStatus: ConsumableStockStatus;
+  stockRevision?: number;
 }) {
-  const [state, formAction] = useActionState(updateConsumableStockStatus, INITIAL_STATE);
+  const [state, formAction] = useStockAction(updateConsumableStockStatus, stockRevision);
   return (
     <>
       <form action={formAction}>
@@ -125,11 +125,13 @@ export function QuickStockStatusControl({
   consumableId,
   label,
   stockStatus,
+  stockRevision,
 }: {
   appearance?: StockStatusAppearance;
   consumableId: string;
   label: string;
   stockStatus: ConsumableStockStatus;
+  stockRevision?: number;
 }) {
   return (
     <StockStatusForm
@@ -137,6 +139,7 @@ export function QuickStockStatusControl({
       consumableId={consumableId}
       label={label}
       stockStatus={stockStatus}
+      stockRevision={stockRevision}
     />
   );
 }
@@ -147,16 +150,18 @@ export function StockStatusControl({
   children,
   consumableId,
   stockStatus,
+  stockRevision,
 }: {
   children?: ReactNode;
   consumableId: string;
   stockStatus: ConsumableStockStatus;
+  stockRevision?: number;
 }) {
   return (
     <section aria-labelledby="consumable-stock-title" className="detail-card">
       <h2 id="consumable-stock-title">在庫と補充</h2>
       <p className="stock-status-current">現在: {stockStatusLabel(stockStatus)}</p>
-      <StockStatusForm consumableId={consumableId} stockStatus={stockStatus} />
+      <StockStatusForm consumableId={consumableId} stockStatus={stockStatus} stockRevision={stockRevision} />
       {children}
     </section>
   );

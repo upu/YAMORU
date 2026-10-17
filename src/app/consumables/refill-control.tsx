@@ -1,17 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
 import { useFormStatus } from "react-dom";
 
 import type { ConsumableRefill } from "../../lib/d1/consumables";
-import { formatTokyoDate } from "../time-zone";
+import { stockOccurredLabel } from "./stock-history-labels";
 import {
-  type ConsumableRefillActionState,
   recordConsumableRefill,
 } from "./refill-actions";
 import styles from "./refill-control.module.css";
-
-const INITIAL_STATE: ConsumableRefillActionState = { message: "", status: "idle" };
+import { useStockAction } from "./use-stock-action";
 
 function RefillButton() {
   const { pending } = useFormStatus();
@@ -23,17 +21,19 @@ function RefillButton() {
 }
 
 function refillDateLabel(refilledOn: string): string {
-  return formatTokyoDate(`${refilledOn}T00:00:00+09:00`);
+  return stockOccurredLabel(refilledOn, null);
 }
 
 export function ConsumableRefillControl({
   consumableId,
   refills,
+  stockRevision,
 }: {
   consumableId: string;
   refills: ConsumableRefill[];
+  stockRevision?: number;
 }) {
-  const [state, formAction] = useActionState(recordConsumableRefill, INITIAL_STATE);
+  const [state, formAction] = useStockAction(recordConsumableRefill, stockRevision);
   return (
     // Issue #395: 補充は在庫を「ある」へ戻す操作なので、独立したカードを持たず
     // 在庫カードの中に置く。カード1枚分の枠と見出しが減り、在庫の状態・変更・
@@ -62,6 +62,7 @@ export function ConsumableRefillControl({
           </ul>
         </>
       )}
+      <p><Link href={`/consumables/${encodeURIComponent(consumableId)}/history`}>在庫・補充の履歴と訂正</Link></p>
     </div>
   );
 }

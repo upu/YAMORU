@@ -7,6 +7,9 @@ export const COMMAND_NAMES = [
   "managed_item_with_todo.create",
   "notification.configure",
   "notification.snooze",
+  "stock.observe",
+  "stock.refill",
+  "stock.correct",
   "todo.complete",
   "todo.correct",
   "todo.create",
@@ -21,7 +24,7 @@ export function isCommandName(value: unknown): value is CommandName {
 // previewの有効期間(5節「previewは10分有効」)。
 export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
-export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" };
+export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" | "consumable" };
 
 // 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。
 export type NormalizedCommand = {

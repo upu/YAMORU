@@ -7,6 +7,7 @@ import {
   type ConsumableStockStatus,
 } from "../../lib/d1/consumables";
 import { getD1Context } from "../../lib/d1/context";
+import { stockWriteMessage, stockWriteOptions } from "./stock-write-input";
 
 export type ConsumableStockActionState = {
   message: string;
@@ -32,10 +33,12 @@ export async function updateConsumableStockStatus(
 
   try {
     const { db, session } = await getD1Context();
-    await updateConsumableStockStatusInD1(db, session, id, stockStatus);
-  } catch {
+    const options = stockWriteOptions(formData);
+    if (options) await updateConsumableStockStatusInD1(db, session, id, stockStatus, options);
+    else await updateConsumableStockStatusInD1(db, session, id, stockStatus);
+  } catch (error) {
     return {
-      message: "在庫状態を更新できませんでした。時間をおいて再度お試しください。",
+      message: stockWriteMessage(error, "在庫状態を更新できませんでした。時間をおいて再度お試しください。"),
       status: "error",
     };
   }

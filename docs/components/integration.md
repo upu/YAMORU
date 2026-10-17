@@ -55,6 +55,8 @@ status: stable
 
 個人設定の読み取りと`notification.configure` / `notification.snooze`の入口・権限・配信との境界は[個人の通知](notifications.md)を参照する。
 
+`stock.observe` / `stock.refill` / `stock.correct`の入口は`src/features/integration/commands/stock.ts`。Webと同じplanとbatch文を使う。観測と補充の区別・訂正・旧schemaとの互換性は[消耗品](consumables.md)と[YDR-057](../decisions/ydr-057-stock-observation-and-refill-history.md)、実D1検証は`stock-commands.d1-test.ts`を参照する。
+
 - 有効: [YDR-049](../decisions/ydr-049-conversation-command-boundary.md)、[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、[YDR-054](../decisions/ydr-054-integration-command-receipts.md)、[YDR-015](../decisions/ydr-015-occurrence-state-activitylog-history-safe-undo.md)、[YDR-026](../decisions/ydr-026-completion-correction-events.md)、[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)
 
 ## 検証方法

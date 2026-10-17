@@ -26,6 +26,7 @@ function PinnedConsumable({ pin }: { pin: ConsumableSummary }) {
         consumableId={pin.id}
         label={`${pin.name}の在庫状態を変更`}
         stockStatus={pin.stockStatus}
+        stockRevision={pin.stockRevision}
       />
     </article>
   );

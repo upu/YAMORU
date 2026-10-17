@@ -51,6 +51,7 @@ describe("Consumableの補充記録操作", () => {
       "session",
       "consumable-1",
       "2026-09-02",
+      { operationId: expect.any(String) as unknown, current: true },
     );
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
     expect(revalidatePathMock).toHaveBeenCalledWith("/consumables");

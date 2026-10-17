@@ -4,10 +4,12 @@ import {
   type D1Session,
 } from "./authorization";
 import { D1NotFoundError } from "./errors";
+import { recordStock, type StockWriteOptions } from "./consumable-stock-history";
 
 export type ConsumableStockStatus = "available" | "low" | "out";
 
 export type ConsumableSummary = {
+  stockRevision?: number;
   id: string;
   name: string;
   stockStatus: ConsumableStockStatus;
@@ -55,6 +57,7 @@ export type ConsumableWriteInput = ConsumableAttributesInput & {
 };
 
 export type ConsumableDetail = {
+  stockRevision?: number;
   externalUrl: string | null;
   id: string;
   isPinned: boolean;
@@ -74,6 +77,7 @@ type ConsumableRelatedTaskRuleRow = ConsumableTaskRuleOption & {
 };
 
 type ConsumableRow = {
+  stock_revision: number;
   external_url: string | null;
   id: string;
   name: string;
@@ -142,7 +146,7 @@ async function loadConsumableRow(
   id: string,
 ): Promise<ConsumableRow | null> {
   return db.prepare(
-    `SELECT id, name, note, product_code, external_url, stock_status
+    `SELECT id, name, note, product_code, external_url, stock_status, stock_revision
        FROM consumables WHERE id = ?1 AND household_id = ?2`,
   ).bind(id, householdId).first<ConsumableRow>();
 }
@@ -192,10 +196,10 @@ function loadConsumableRefills(
   id: string,
 ) {
   return db.prepare(
-    `SELECT id, refilled_on AS refilledOn, recorded_at AS recordedAt
-       FROM consumable_refills
-      WHERE consumable_id = ?1 AND household_id = ?2
-      ORDER BY refilled_on DESC, recorded_at DESC, id DESC`,
+    `SELECT r.refill_id AS id, c.occurred_on AS refilledOn, r.recorded_at AS recordedAt
+       FROM consumable_stock_current c JOIN consumable_stock_events r ON r.id=c.record_id
+      WHERE c.consumable_id = ?1 AND c.household_id = ?2 AND c.kind='refill' AND c.voided=0
+      ORDER BY c.occurred_on DESC, r.recorded_at DESC, r.refill_id DESC LIMIT 50`,
   ).bind(id, householdId).all<ConsumableRefill>();
 }
 
@@ -228,6 +232,7 @@ export async function getConsumable(
     productCode: row.product_code,
     refills: refills.results,
     stockStatus: row.stock_status,
+    stockRevision: row.stock_revision,
     taskRules: taskRules.results.map((taskRule) => ({
       id: taskRule.id,
       managedItemName: taskRule.managedItemName,
@@ -247,27 +252,9 @@ export async function recordConsumableRefill(
   session: D1Session,
   id: string,
   refilledOn: string,
+  options?: StockWriteOptions & { current?: boolean },
 ): Promise<void> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  if (await loadConsumableRow(db, householdId, id) === null) {
-    throw new D1NotFoundError("消耗品が見つかりません。");
-  }
-  const refillId = crypto.randomUUID();
-  // D1のbatchは一つのトランザクションとして扱われる。履歴追加が制約違反で
-  // 失敗した場合も、現在の在庫状態だけを「ある」へ変えない。
-  await db.batch([
-    db.prepare(
-      `UPDATE consumables
-          SET stock_status = 'available',
-              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-        WHERE id = ?1 AND household_id = ?2`,
-    ).bind(id, householdId),
-    db.prepare(
-      `INSERT INTO consumable_refills (
-        id, household_id, consumable_id, refilled_on
-      ) VALUES (?1, ?2, ?3, ?4)`,
-    ).bind(refillId, householdId, id, refilledOn),
-  ]);
+  await recordStock(db, session, id, { kind: "refill", ...(options?.current ? { at: "now" } : { on: refilledOn }) }, options ?? { operationId: crypto.randomUUID() });
 }
 
 export async function updateConsumable(
@@ -351,16 +338,9 @@ export async function updateConsumableStockStatus(
   session: D1Session,
   id: string,
   stockStatus: ConsumableStockStatus,
+  options?: StockWriteOptions,
 ): Promise<void> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  const result = await db.prepare(
-    `UPDATE consumables
-        SET stock_status = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      WHERE id = ?2 AND household_id = ?3`,
-  ).bind(stockStatus, id, householdId).run();
-  if (result.meta.changes === 0) {
-    throw new D1NotFoundError("消耗品が見つかりません。");
-  }
+  await recordStock(db, session, id, { kind: "observation", at: "now", status: stockStatus }, options ?? { operationId: crypto.randomUUID() });
 }
 
 export async function listShoppingCandidates(
