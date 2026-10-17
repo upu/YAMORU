@@ -41,6 +41,7 @@ import oauthConnectionsSql from "../../../../d1/migrations/0031_oauth_connection
 import integrationOperationsSql from "../../../../d1/migrations/0033_integration_operations.sql?raw";
 
 import conversationReadSql from "../../../../d1/migrations/0032_conversation_reads.sql?raw";
+import attentionSql from "../../../../d1/migrations/0034_attention_candidates.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -77,6 +78,7 @@ const MIGRATIONS = [
   { name: "0031_oauth_connections", sql: oauthConnectionsSql },
   { name: "0032_conversation_reads", sql: conversationReadSql },
   { name: "0033_integration_operations", sql: integrationOperationsSql },
+  { name: "0034_attention_candidates", sql: attentionSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

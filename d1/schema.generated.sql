@@ -28,6 +28,44 @@ CREATE TABLE "activity_logs" (
   CHECK ((action = 'completed') = (performed_by_user_id IS NOT NULL))
 );
 
+-- table: attention_candidates
+CREATE TABLE attention_candidates (
+ id TEXT PRIMARY KEY,
+ household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+ occurrence_id TEXT,
+ consumable_id TEXT,
+ source_key TEXT NOT NULL,
+ payload TEXT NOT NULL CHECK(json_valid(payload)),
+ sort_key TEXT NOT NULL,
+ revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0),
+ generated_at TEXT NOT NULL,
+ evaluated_on TEXT NOT NULL,
+ UNIQUE(household_id,source_key),
+ CHECK((occurrence_id IS NOT NULL)+(consumable_id IS NOT NULL)=1),
+ CHECK(source_key=CASE WHEN occurrence_id IS NOT NULL THEN 'todo_occurrence:'||occurrence_id ELSE 'consumable:'||consumable_id END),
+ FOREIGN KEY(occurrence_id,household_id) REFERENCES task_occurrences(id,household_id) ON DELETE CASCADE,
+ FOREIGN KEY(consumable_id,household_id) REFERENCES consumables(id,household_id) ON DELETE CASCADE
+);
+
+-- table: attention_changes
+CREATE TABLE attention_changes (
+ sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+ household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+ candidate_id TEXT NOT NULL,
+ recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+-- table: attention_guards
+CREATE TABLE attention_guards (id TEXT PRIMARY KEY, valid INTEGER NOT NULL CHECK(valid=1));
+
+-- table: attention_refresh
+CREATE TABLE attention_refresh (
+ household_id TEXT PRIMARY KEY REFERENCES households(id) ON DELETE CASCADE,
+ epoch TEXT NOT NULL,
+ version INTEGER NOT NULL,
+ evaluated_on TEXT NOT NULL
+);
+
 -- table: completion_corrections
 CREATE TABLE "completion_corrections" (
   id TEXT PRIMARY KEY,
@@ -690,6 +728,15 @@ CREATE UNIQUE INDEX aliases_todo_occurrence_id ON entity_aliases(household_id,to
 -- index: aliases_todo_rule_id
 CREATE UNIQUE INDEX aliases_todo_rule_id ON entity_aliases(household_id,todo_rule_id,alias) WHERE todo_rule_id IS NOT NULL;
 
+-- index: attention_candidates_order
+CREATE INDEX attention_candidates_order ON attention_candidates(household_id,sort_key);
+
+-- index: attention_changes_candidate
+CREATE INDEX attention_changes_candidate ON attention_changes(household_id,candidate_id,sequence);
+
+-- index: attention_changes_household_sequence
+CREATE INDEX attention_changes_household_sequence ON attention_changes(household_id,sequence);
+
 -- index: completion_corrections_completed_log_idx
 CREATE INDEX completion_corrections_completed_log_idx
   ON completion_corrections(completed_activity_log_id, corrected_at DESC, id DESC);
@@ -839,6 +886,24 @@ CREATE INDEX user_consumable_favorites_household_user_idx
 CREATE INDEX user_consumable_pins_household_user_idx
   ON user_consumable_pins(household_id, user_id, pinned_at DESC);
 
+-- view: attention_eligibility
+CREATE VIEW attention_eligibility AS
+SELECT *, CASE WHEN kind='consumable' THEN CASE WHEN stock_status IN ('low','out') THEN '0000-01-01' END
+ WHEN status='pending' THEN nullif(min(coalesce(must_complete_by,'9999-12-31'),
+   coalesce(date(CASE WHEN deadline_kind='maintenance' THEN scheduled_for ELSE due_at END,'+9 hours'),'9999-12-31')), '9999-12-31') END AS eligible_on
+FROM attention_sources;
+
+-- view: attention_sources
+CREATE VIEW attention_sources AS
+SELECT o.household_id, 'todo_occurrence' AS kind, o.id,
+ CASE WHEN json_type(o.rule_snapshot,'$.title') IS NULL THEN r.title ELSE json_extract(o.rule_snapshot,'$.title') END AS name,
+ o.status, o.assignee_user_id,
+ CASE WHEN json_type(o.rule_snapshot,'$.deadlineKind') IS NULL THEN r.deadline_kind ELSE json_extract(o.rule_snapshot,'$.deadlineKind') END AS deadline_kind,
+ o.scheduled_for, o.due_at, o.must_complete_by, NULL AS stock_status
+FROM task_occurrences o JOIN task_rules r ON r.id=o.task_rule_id AND r.household_id=o.household_id
+UNION ALL
+SELECT household_id,'consumable',id,name,'pending',NULL,NULL,NULL,NULL,NULL,stock_status FROM consumables;
+
 -- trigger: aliases_limit_insert
 CREATE TRIGGER aliases_limit_insert BEFORE INSERT ON entity_aliases
  WHEN (SELECT count(*) FROM entity_aliases a WHERE a.household_id=NEW.household_id AND a.id<>NEW.id AND
@@ -850,6 +915,42 @@ CREATE TRIGGER aliases_limit_update BEFORE UPDATE ON entity_aliases
  WHEN (SELECT count(*) FROM entity_aliases a WHERE a.household_id=NEW.household_id AND a.id<>NEW.id AND
  (a.managed_item_id=NEW.managed_item_id OR a.todo_rule_id=NEW.todo_rule_id OR a.todo_occurrence_id=NEW.todo_occurrence_id OR a.consumable_id=NEW.consumable_id)) >= 10
  BEGIN SELECT RAISE(ABORT,'At most ten aliases per entity'); END;
+
+-- trigger: attention_delete
+CREATE TRIGGER attention_delete AFTER DELETE ON attention_candidates BEGIN
+ INSERT INTO attention_changes(household_id,candidate_id) SELECT OLD.household_id,OLD.id WHERE EXISTS(SELECT 1 FROM households WHERE id=OLD.household_id);
+END;
+
+-- trigger: attention_insert
+CREATE TRIGGER attention_insert AFTER INSERT ON attention_candidates BEGIN
+ INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
+END;
+
+-- trigger: attention_occurrence_resolved
+CREATE TRIGGER attention_occurrence_resolved AFTER UPDATE ON task_occurrences BEGIN
+ DELETE FROM attention_candidates WHERE occurrence_id=NEW.id AND household_id=OLD.household_id
+ AND NOT EXISTS (SELECT 1 FROM attention_eligibility s WHERE s.household_id=attention_candidates.household_id
+   AND s.kind='todo_occurrence' AND s.id=NEW.id AND s.eligible_on<=max(attention_candidates.evaluated_on,date('now','+9 hours')));
+END;
+
+-- trigger: attention_rule_resolved
+CREATE TRIGGER attention_rule_resolved AFTER UPDATE ON task_rules BEGIN
+ DELETE FROM attention_candidates WHERE household_id=OLD.household_id
+ AND occurrence_id IN (SELECT id FROM task_occurrences WHERE task_rule_id=NEW.id AND household_id=OLD.household_id)
+ AND NOT EXISTS (SELECT 1 FROM attention_eligibility s WHERE s.household_id=attention_candidates.household_id
+   AND s.kind='todo_occurrence' AND s.id=attention_candidates.occurrence_id AND s.eligible_on<=max(attention_candidates.evaluated_on,date('now','+9 hours')));
+END;
+
+-- trigger: attention_stock_resolved
+CREATE TRIGGER attention_stock_resolved AFTER UPDATE ON consumables BEGIN
+ DELETE FROM attention_candidates WHERE consumable_id=NEW.id AND household_id=OLD.household_id
+ AND (NEW.stock_status='available' OR NEW.household_id<>OLD.household_id);
+END;
+
+-- trigger: attention_update
+CREATE TRIGGER attention_update AFTER UPDATE OF payload ON attention_candidates WHEN OLD.payload<>NEW.payload BEGIN
+ INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
+END;
 
 -- trigger: protect_deadline_from_completion_correction
 CREATE TRIGGER protect_deadline_from_completion_correction
