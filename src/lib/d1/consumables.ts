@@ -283,7 +283,7 @@ export async function updateConsumable(
             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
       WHERE id = ?5 AND household_id = ?6`,
   ).bind(input.name, input.note, input.productCode, input.externalUrl, id, householdId).run();
-  if (result.meta.changes !== 1) {
+  if (result.meta.changes === 0) {
     throw new D1NotFoundError("消耗品が見つかりません。");
   }
 }
@@ -358,7 +358,7 @@ export async function updateConsumableStockStatus(
         SET stock_status = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
       WHERE id = ?2 AND household_id = ?3`,
   ).bind(stockStatus, id, householdId).run();
-  if (result.meta.changes !== 1) {
+  if (result.meta.changes === 0) {
     throw new D1NotFoundError("消耗品が見つかりません。");
   }
 }

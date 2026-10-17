@@ -333,7 +333,7 @@ export async function updateOneTimeTodo(
     }
     throw error;
   }
-  if ((results[results.length - 1]?.meta.changes ?? 0) !== 1) {
+  if ((results[results.length - 1]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
   return { previousManagedItemId: occurrence.managed_item_id };

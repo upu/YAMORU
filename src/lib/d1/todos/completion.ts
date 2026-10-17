@@ -180,7 +180,7 @@ export async function completeTask(
       performerId,
     }),
   );
-  return (results[0]?.meta.changes ?? 0) === 1
+  return (results[0]?.meta.changes ?? 0) > 0
     ? next?.id ?? null
     : resolveCompletionConflict(db, householdId, input, performerId);
 }
@@ -351,7 +351,7 @@ export async function undoTaskCompletion(
     }
     throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   }
-  if ((results[0]?.meta.changes ?? 0) !== 1) {
+  if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Next occurrence has been modified", "NEXT_OCCURRENCE_MODIFIED");
   }
   return occurrenceId;

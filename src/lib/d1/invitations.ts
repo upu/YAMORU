@@ -170,7 +170,7 @@ export async function registerInvitedUser(
   if (
     results[0].meta.changes !== 1 ||
     results[1].meta.changes !== 1 ||
-    results[2].meta.changes !== 1 ||
+    results[2].meta.changes === 0 ||
     results[3].meta.changes !== 1
   ) {
     throw new D1ConflictError("Invitation is invalid");

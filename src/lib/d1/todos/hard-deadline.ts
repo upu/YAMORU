@@ -23,5 +23,5 @@ export async function setTaskHardDeadline(
       AND EXISTS(SELECT 1 FROM task_deadline_changes WHERE id=?4 AND household_id=?3)`)
       .bind(mustCompleteBy, occurrenceId, householdId, changeId),
   ]);
-  if (results[0].meta.changes !== 1) throw new D1ConflictError("Hard deadline changed", "HARD_DEADLINE_CHANGED");
+  if (results[0].meta.changes === 0) throw new D1ConflictError("Hard deadline changed", "HARD_DEADLINE_CHANGED");
 }
