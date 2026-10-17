@@ -68,6 +68,44 @@ export function interruptBeforeBatch(db: D1Database, interruption: () => Promise
   });
 }
 
+// 指定したSQLを含む文の実行(run)の直前に、別の処理を一度だけ割り込ませる。
+// 読み取りの後、受付記録の保存までの間に家族が更新した場合を再現する。
+export function interruptBeforeStatement(
+  db: D1Database,
+  sqlFragment: string,
+  interruption: () => Promise<void>,
+): D1Database {
+  let pending = true;
+  const wrap = (statement: D1PreparedStatement): D1PreparedStatement => new Proxy(statement, {
+    get(target, property, receiver) {
+      if (property === "bind") return (...values: unknown[]) => wrap(target.bind(...values));
+      if (property === "run") {
+        return async () => {
+          if (pending) {
+            pending = false;
+            await interruption();
+          }
+          return target.run();
+        };
+      }
+      const value: unknown = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  });
+  return new Proxy(db, {
+    get(target, property, receiver) {
+      if (property === "prepare") {
+        return (sql: string) => {
+          const statement = target.prepare(sql);
+          return sql.includes(sqlFragment) ? wrap(statement) : statement;
+        };
+      }
+      const value: unknown = Reflect.get(target, property, receiver);
+      return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  });
+}
+
 export async function expectCommandError(
   promise: Promise<unknown>,
   code: CommandErrorCode,

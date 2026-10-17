@@ -128,7 +128,8 @@ export type PreparedOperationInput = Omit<
 
 // previewを保存する。同じ接続・操作IDの行がすでにあれば(同時のprepare)何も
 // せずfalseを返し、呼び出し側は保存済みの行と照合する。接続が失効していれば
-// 保存しない。
+// 保存しない。previewを読み取ったときの家庭の世代が保存の時点でも変わって
+// いないことを同じ文で確かめ、古い世代の受付記録を残さない。
 export async function insertPreparedOperation(
   db: D1Database,
   input: PreparedOperationInput,
@@ -144,6 +145,10 @@ export async function insertPreparedOperation(
          WHERE c.id = ?5 AND c.household_id = ?2 AND c.user_id = ?3 AND c.client_id = ?4
            AND c.revoked_at IS NULL
       )
+        AND EXISTS (
+          SELECT 1 FROM household_read_versions v
+           WHERE v.household_id = ?2 AND v.epoch = ?16 AND v.version = ?17
+        )
       ON CONFLICT (connection_id, operation_id) DO NOTHING`,
   ).bind(
     input.id,

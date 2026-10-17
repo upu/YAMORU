@@ -175,7 +175,7 @@ async function planAndSave(
   request: Request,
   parsed: ReturnType<typeof parsePrepareRequest>,
   requestHash: string,
-): Promise<void> {
+): Promise<HouseholdRevision> {
   const expected = parsed.expectedRevision === undefined ? null : parseExpectedRevision(parsed.expectedRevision);
   const { db } = request.deps;
   const { householdId } = request.principal;
@@ -188,6 +188,7 @@ async function planAndSave(
   if (!sameRevision(revision, await currentRevision(db, householdId))) throw new CommandError("temporarily_unavailable");
   if (expected !== null) checkExpectedRevision(expected, revision, plan.preview);
   await createOperation(request, { normalized, operationId: parsed.operationId, plan, requestHash, revision });
+  return revision;
 }
 
 async function prepare(request: Request, input: unknown): Promise<Record<string, unknown>> {
@@ -203,16 +204,20 @@ async function prepare(request: Request, input: unknown): Promise<Record<string,
   const { connectionId } = request.principal;
   const existing = await findIntegrationOperation(db, connectionId, parsed.operationId);
   if (existing !== null) return replayPrepare(existing, requestHash, request.now);
+  let revision: HouseholdRevision;
   try {
-    await planAndSave(request, parsed, requestHash);
+    revision = await planAndSave(request, parsed, requestHash);
   } catch (error) {
     if (error instanceof CommandError) throw error.withOperation(parsed.operationId);
     throw error;
   }
   // 同じ操作IDで同時にprepareされた場合も、保存された一件と照合する。
   const saved = await findIntegrationOperation(db, connectionId, parsed.operationId);
-  if (saved === null) throw new CommandError("connection_revoked", { operationId: parsed.operationId });
-  return replayPrepare(saved, requestHash, request.now);
+  if (saved !== null) return replayPrepare(saved, requestHash, request.now);
+  // 保存の直前に家族が更新した場合は何も残っていないので、同じ操作IDで再試行できる。
+  const latest = await currentRevision(db, request.principal.householdId);
+  const code = sameRevision(latest, revision) ? "connection_revoked" : "temporarily_unavailable";
+  throw new CommandError(code, { operationId: parsed.operationId });
 }
 
 async function reload(request: Request, operation: IntegrationOperation): Promise<IntegrationOperation> {

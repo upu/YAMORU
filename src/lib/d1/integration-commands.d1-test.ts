@@ -16,6 +16,7 @@ import {
   familyCompletes,
   familyMember,
   interruptBeforeBatch,
+  interruptBeforeStatement,
   testClock,
 } from "./test-support/integration-commands";
 import { applyAllMigrations } from "./test-support/migrations";
@@ -309,6 +310,19 @@ describe("家庭の世代(revision)", () => {
       operation_id: crypto.randomUUID(),
       payload: { completion_log_id: result.completion_log_id },
     })).resolves.toMatchObject({ status: "prepared" });
+  });
+
+  it("previewの保存の直前に家庭の世代が進めば保存せず、同じ操作IDで再試行できる", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const request = completeRequest(occurrenceId);
+    const racing = interruptBeforeStatement(db, "INSERT INTO integration_operations", async () => {
+      await db.prepare("UPDATE managed_items SET name = '名前だけ変更' WHERE id = 'item-a'").run();
+    });
+
+    await expectCommandError(commandService(racing).prepare(principal, request), "temporarily_unavailable");
+    await expect(countRows(db, "SELECT count(*) AS count FROM integration_operations")).resolves.toBe(0);
+    const retried = await prepare(commandService(db), request);
+    await expect(commandService(db).commit(principal, commitRequest(retried))).resolves.toMatchObject({ status: "succeeded" });
   });
 
   it("確認の後に家族が無関係なものを更新しても、保守的に再確認を求める", async () => {
