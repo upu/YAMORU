@@ -24,12 +24,13 @@
 | Todoの完了・完了取消・実施記録の訂正 | `src/features/todos/actions/completion.ts`、`src/features/todos/actions/correction.ts` → `src/lib/d1/todos/completion.ts`、`src/lib/d1/todos/corrections.ts` | `tests/complete-maintenance-task-actions.test.ts`、`tests/undo-maintenance-task-completion-actions.test.ts`、`tests/correct-completion-actions.test.ts`、`tests/todo-detail-actions.test.tsx` | [Todo](todos.md) |
 | Todoの担当・延期・予定日の変更(画面共通の操作) | `src/features/todos/actions/assignee.ts`、`src/features/todos/actions/schedule.ts`、UIは`src/features/todos/components/` | `tests/task-occurrence-assignee-actions.test.ts`、`tests/postpone-task-occurrence-actions.test.ts`、`tests/schedule-task-occurrence-actions.test.ts`、`tests/assignee-panel.test.tsx`、`tests/todo-detail-actions.test.tsx` | [Todo](todos.md) |
 | 繰り返し条件と次回予定の計算 | `src/lib/d1/calendar.ts`、`src/lib/d1/calendar-schedule-specs.ts` | `tests/d1-calendar.test.ts`、`src/lib/d1/interval-recurrence.d1-test.ts`、`src/lib/d1/monthly-weekday-calendar.d1-test.ts` | [Todo](todos.md) |
-| 期限・推奨期間の表示状態(そろそろ等) | `src/app/task-schedule.ts`、`src/app/pending-todo.ts` | `tests/task-schedule.test.ts` | [ホーム](home.md) |
+| 期限・推奨期間の表示状態(そろそろ等) | `src/features/todos/projection/task-schedule.ts`、`src/features/todos/projection/pending-todo.ts`（app側はre-export） | `tests/task-schedule.test.ts` | [ホーム](home.md) |
 | 台帳(備品・サービス・契約)の登録・編集・分類 | `src/app/managed-items/actions.ts` → `src/lib/d1/managed-items.ts` | `tests/managed-item-actions.test.ts`、`src/lib/d1/managed-item-classification.d1-test.ts` | [台帳](managed-items.md) |
 | 台帳のタグ(作成・付与・解除・表示) | `src/app/managed-items/tag-input.ts`、`src/app/managed-items/tag-fields.tsx` → `src/lib/d1/tags.ts` | `tests/managed-item-tags-ui.test.tsx`、`src/lib/d1/managed-item-tags.d1-test.ts` | [台帳](managed-items.md) |
 | 詳しい種類のAI提案 | `src/app/managed-items/item-type-suggestion-actions.ts` → `src/lib/managed-items/item-type-suggestion.ts`、`src/lib/d1/item-type-suggestions.ts` | `tests/managed-item-type-suggestion-actions.test.ts`、`src/lib/d1/managed-item-type-suggestions.d1-test.ts` | [台帳](managed-items.md) |
 | 消耗品の在庫状態 | `src/app/consumables/stock-actions.ts` → `src/lib/d1/consumables.ts`の`updateConsumableStockStatus` | `tests/consumable-stock-actions.test.ts`、`src/lib/d1/consumable-stock.d1-test.ts` | [消耗品](consumables.md) |
 | 消耗品の登録・補充記録・関連・ピン留め | `src/app/consumables/actions.ts`、`src/app/consumables/refill-actions.ts`、`src/app/consumables/relation-actions.ts`、`src/app/consumables/pin-actions.ts` | `tests/consumable-actions.test.ts`、`tests/consumable-refill-actions.test.ts`、`src/lib/d1/consumable-pins.d1-test.ts` | [消耗品](consumables.md) |
+| 会話向け候補検索・詳細・履歴・revision | `src/features/integration/read.ts` → `src/lib/d1/conversation-read.ts` | `src/lib/d1/conversation-read.d1-test.ts`、`tests/conversation-read.test.ts` | [会話読み取り](conversation-read.md) |
 | 横断検索(下部ナビの「検索」) | `src/app/search/page.tsx` → `src/lib/d1/cross-search.ts` | `tests/search-ui.test.tsx`、`src/lib/d1/cross-search.d1-test.ts`、`e2e/cross-search.spec.ts` | [検索](search.md) |
 | 画面内検索(Todo一覧・台帳の絞り込み) | `src/lib/d1/text-search.ts`、`src/lib/d1/home.ts`、`src/app/managed-items/search-href.ts` | `tests/managed-items-search-ui.test.tsx`、`src/lib/d1/todo-filters.d1-test.ts` | [検索](search.md) |
 | ログイン・パスワード | `src/auth.ts`、`src/app/login/actions.ts`、`src/app/account/password-actions.ts` → `src/lib/d1/authentication.ts` | `tests/auth-actions.test.ts`、`tests/password-change-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts` | [認証・家庭・招待](household-access.md) |
@@ -45,6 +46,6 @@
 
 ## まだ実装していない領域
 
-会話連携・認証付きMCP・リマインドは[会話連携設計](../product/conversation-integration.md)に契約と既存コードへの接続先を定義している。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作の共通基盤(#437の第1段階)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の共通操作・通知(#435、#437の残り、#438〜#444)はまだ実装しておらず、公開APIや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
+会話向けの共通読み取り(#435)は[会話読み取り](conversation-read.md)に実装入口を示す。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作の共通基盤(#437の第1段階)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の変更操作・通知(#437の残り、#438〜#444)はまだ実装しておらず、[会話連携設計](../product/conversation-integration.md)に契約と接続先を定義している。共通読み取りと変更操作の実装は、公開MCPや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
 
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。

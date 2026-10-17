@@ -80,3 +80,5 @@ npm run typecheck
 ```
 
 「必要になったら繰り返す」方式を変える場合は`src/lib/d1/manual-recurrence.d1-test.ts`(登録・完了・編集・家庭間分離)と`src/lib/d1/manual-recurrence-migration.d1-test.ts`(0027の再作成とDB制約)を先に確認する。メモを変える場合は`src/lib/d1/task-rule-note.d1-test.ts`(保存・引き継ぎ・家庭間分離)と`src/lib/d1/task-rule-note-migration.d1-test.ts`(0028の列追加とDB制約)を先に確認する。登録・編集で共通の入力解釈を変える場合は`tests/todo-calendar-schedule-input.test.ts`(境界値)と`tests/todo-recurrence-shared-input.test.ts`(両actionの受理・拒否と維持した文言の差)を先に確認する。暦計算だけを変える場合は`tests/d1-calendar.test.ts`と`tests/task-schedule.test.ts`、保存や家庭間分離を変える場合は`src/lib/d1/`配下の`*.d1-test.ts`(`todos-authorization`、`recurring-todo-edit`、`interval-recurrence`、`completion-calendar-interval`など)を先に確認する。画面操作の回帰は`e2e/todo-list.spec.ts`、`e2e/todo-edit.spec.ts`、`e2e/todo-completed-detail.spec.ts`で確認する。
+
+会話向け読み取りとWebの状態分類は`src/features/todos/projection/`を共用する。`src/app/pending-todo.ts`、`task-schedule.ts`、`time-zone.ts`は互換re-export。詳細は[会話読み取り](conversation-read.md)。

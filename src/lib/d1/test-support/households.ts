@@ -17,7 +17,8 @@ export const nonMember = { email: "o@example.com", userId: "user-outsider" };
 // どちらにも属さないuser-outsiderを1人作る。テストごとに呼び出す。
 export async function resetHouseholdFixtures(db: D1Database): Promise<void> {
   await db.batch([
-    db.prepare("DELETE FROM integration_operations"),
+    // integration_operations(0033)は接続の削除にcascadeで追従する。0033より前の
+    // migrationだけを当てたDBでも呼ばれるため、ここでは名指ししない。
     db.prepare("DELETE FROM oauth_tokens"),
     db.prepare("DELETE FROM oauth_authorization_codes"),
     db.prepare("DELETE FROM oauth_connections"),
