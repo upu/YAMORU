@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
+import type { Tag } from "../../lib/d1/tags";
 import { createManagedItem } from "./actions";
 import {
   defaultKindCode,
@@ -12,6 +13,7 @@ import {
 import type { ManagedItemClassificationOptions } from "./model";
 import { ManagedItemOptionalAttributeFields } from "./optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "./state";
+import { ManagedItemTagFields } from "./tag-fields";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -55,10 +57,12 @@ export function ManagedItemForm({
   classificationOptions,
   customItemTypeOptions,
   nowIso,
+  tagOptions = [],
 }: {
   classificationOptions: ManagedItemClassificationOptions;
   customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
   nowIso?: string;
+  tagOptions?: Tag[];
 }) {
   const [state, formAction] = useActionState(
     createManagedItem,
@@ -79,6 +83,8 @@ export function ManagedItemForm({
         kindCode={kindCode}
         onKindCodeChange={setKindCode}
       />
+
+      <ManagedItemTagFields idPrefix="managed-item" tagOptions={tagOptions} />
 
       <label htmlFor="managed-item-external-url">外部リンク（任意）</label>
       {/* Issue #393: 何を入れる欄かはラベルとplaceholderで示せるため、補足文は

@@ -9,10 +9,12 @@ import { AssigneePanel } from "../../../features/todos/components/assignee-panel
 import { CompleteTodoPanel } from "../../../features/todos/components/complete-todo-panel";
 import { PostponePanel } from "../../../features/todos/components/postpone-panel";
 import { SchedulePanel } from "../../../features/todos/components/schedule-panel";
+import type { Tag } from "../../../lib/d1/tags";
 import { ClassificationBadges } from "../classification-badges";
 import { EditIcon } from "../../edit-icon";
 import { startedOnLabel } from "../model";
 import { formatStartedOn } from "../started-on";
+import { TagBadges } from "../tag-badges";
 import { formatTokyoDate } from "../../time-zone";
 import {
   RECURRENCE_LABELS,
@@ -254,10 +256,12 @@ export function ManagedItemHeader({
   itemTypeLabel,
   kindLabel,
   name,
+  tags = [],
 }: {
   itemTypeLabel: string | null;
   kindLabel: string;
   name: string;
+  tags?: Tag[];
 }) {
   return (
     <header className="detail-hero">
@@ -266,6 +270,9 @@ export function ManagedItemHeader({
         <h1>{name}</h1>
         <ClassificationBadges itemTypeLabel={itemTypeLabel} kindLabel={kindLabel} />
       </div>
+      {/* Issue #226: タグは分類とは別の概念なので、分類のバッジ列に混ぜず
+      見出しの下へ別の一覧として置く(YDR-028、YDR-048)。 */}
+      <TagBadges tags={tags} />
     </header>
   );
 }

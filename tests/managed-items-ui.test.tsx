@@ -26,6 +26,14 @@ function classificationBadgeTexts(scope: HTMLElement): (string | null)[] {
     .map((badge) => badge.textContent);
 }
 
+// Issue #226: タグは分類とは別の一覧(名前「タグ」)として読み上げる。
+function tagBadgeTexts(scope: HTMLElement): (string | null)[] {
+  const badges = within(scope).getByRole("list", { name: "タグ" });
+  return within(badges)
+    .getAllByRole("listitem")
+    .map((badge) => badge.textContent);
+}
+
 const REGISTERED_ITEM: ManagedItemSummary = {
   id: "item-1",
   itemTypeLabel: "ペット用品",
@@ -211,6 +219,35 @@ describe("家の台帳一覧", () => {
     const list = screen.getByRole("region", { name: "登録済みの管理対象" });
     expect(classificationBadgeTexts(list)).toEqual(["大分類: 備品"]);
   });
+
+  it("Issue #226: 付与済みタグを分類とは別の一覧で表示し、タグのない行には出さない", () => {
+    render(
+      <ManagedItemsContent
+        household={{ id: "household-1", name: "テスト家庭" }}
+        items={[
+          {
+            ...REGISTERED_ITEM,
+            tags: [{ id: "tag-1", name: "子どもA" }, { id: "tag-2", name: "ペット" }],
+          },
+          { ...REGISTERED_ITEM, id: "item-2", name: "タグのない対象", tags: [] },
+        ]}
+      />,
+    );
+
+    const rowOf = (name: string): HTMLElement => {
+      const row = screen.getByRole("link", { name }).closest("li");
+      if (row === null) throw new Error(`行が見つかりません: ${name}`);
+      return row;
+    };
+    const tagged = rowOf("猫の浄水器");
+    const untagged = rowOf("タグのない対象");
+    expect(classificationBadgeTexts(tagged)).toEqual([
+      "大分類: 備品",
+      "詳しい種類: ペット用品",
+    ]);
+    expect(tagBadgeTexts(tagged)).toEqual(["#タグ: 子どもA", "#タグ: ペット"]);
+    expect(within(untagged).queryByRole("list", { name: "タグ" })).not.toBeInTheDocument();
+  });
 });
 
 describe("登録済みManagedItem詳細", () => {
@@ -329,6 +366,35 @@ describe("登録済みManagedItem詳細", () => {
 
     expect(classificationBadgeTexts(document.body)).toEqual(["大分類: 備品"]);
     expect(screen.queryByText(/詳しい種類/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "タグ" })).not.toBeInTheDocument();
+  });
+
+  it("Issue #226: 付与済みタグを見出しの下に、分類のバッジとは別の一覧で表示する", () => {
+    render(
+      <ManagedItemDetailContent
+        item={{
+          ...REGISTERED_ITEM,
+          actorName: "家族A",
+          currentUserId: "user-1",
+          externalLinks: [],
+          members: [],
+          note: null,
+          pendingTodos: [],
+          kindCode: "asset",
+          productInfo: null,
+          recentCompletions: [],
+          startedOn: null,
+          tags: [{ id: "tag-1", name: "子どもA" }],
+        }}
+      />,
+    );
+
+    const header = screen.getByRole("banner");
+    expect(classificationBadgeTexts(header)).toEqual([
+      "大分類: 備品",
+      "詳しい種類: ペット用品",
+    ]);
+    expect(tagBadgeTexts(header)).toEqual(["#タグ: 子どもA"]);
   });
 
   it("保存データが壊れていても危険なスキームをリンク表示しない", () => {

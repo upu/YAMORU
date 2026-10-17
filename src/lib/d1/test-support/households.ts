@@ -18,6 +18,8 @@ export const nonMember = { email: "o@example.com", userId: "user-outsider" };
 export async function resetHouseholdFixtures(db: D1Database): Promise<void> {
   await db.batch([
     db.prepare("DELETE FROM managed_item_type_suggestions"),
+    db.prepare("DELETE FROM managed_item_tags"),
+    db.prepare("DELETE FROM tags"),
     db.prepare("DELETE FROM user_consumable_pins"),
     db.prepare("DELETE FROM task_rule_consumables"),
     db.prepare("DELETE FROM managed_item_consumables"),

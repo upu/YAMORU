@@ -1,5 +1,6 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
 import { D1NotFoundError } from "./errors";
+import { buildManagedItemTagStatements, type ManagedItemTagInput } from "./tags";
 import { likeSearchPattern } from "./text-search";
 
 // Issue #218: 台帳一覧の検索・絞り込み。大分類(kindCode)・詳しい種類
@@ -215,11 +216,14 @@ async function requireActiveClassification(
   return definition;
 }
 
+// Issue #226: tagsを省略した呼び出し(タグを扱わない既存の経路)は、付与済み
+// タグに触れない。指定した場合は、その内容へ付け替える(空なら全て外す)。
 type ManagedItemWriteInput = ManagedItemClassificationInput
   & ManagedItemOptionalAttributes
   & {
     externalUrl: string | null;
     name: string;
+    tags?: ManagedItemTagInput;
   };
 
 export async function createManagedItem(
@@ -248,6 +252,9 @@ export async function createManagedItem(
     .bind(itemId, householdId, input.kindCode, input.itemTypeCode, input.customItemType)];
   if (input.externalUrl !== null) statements.push(db.prepare("INSERT INTO external_links (id, household_id, managed_item_id, url) VALUES (?1, ?2, ?3, ?4)")
     .bind(crypto.randomUUID(), householdId, itemId, input.externalUrl));
+  if (input.tags !== undefined) {
+    statements.push(...buildManagedItemTagStatements(db, householdId, itemId, input.tags));
+  }
   await db.batch(statements);
   return itemId;
 }
@@ -304,6 +311,8 @@ export async function getManagedItemForEdit(
 // 書き込みで表す)。
 // 外部リンクは既存行を消してから(未設定ならそのまま、設定ありなら)1件だけ
 // 挿入し直すことで、追加・変更・未設定化のいずれも同じ経路で扱う。
+// Issue #226のタグの付け替えも同じbatchへ入れ、外部リンクと同じく既存の関連を
+// 消してから付け直す。
 // createManagedItemと同じくdb.batch()で一括実行し、対象が自家庭に無ければ
 // (Not Found)部分更新を残さない。
 export async function updateManagedItem(
@@ -351,6 +360,9 @@ export async function updateManagedItem(
         SELECT ?1, ?2, ?3, ?4
         WHERE EXISTS (SELECT 1 FROM managed_items WHERE id = ?3 AND household_id = ?2)`,
     ).bind(crypto.randomUUID(), householdId, id, input.externalUrl));
+  }
+  if (input.tags !== undefined) {
+    statements.push(...buildManagedItemTagStatements(db, householdId, id, input.tags));
   }
   const results = await db.batch(statements);
   if ((results[0]?.meta.changes ?? 0) !== 1) {

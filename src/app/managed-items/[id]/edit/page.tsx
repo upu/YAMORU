@@ -8,6 +8,7 @@ import {
   listHouseholdCustomItemTypes,
   listManagedItemClassificationOptions,
 } from "../../../../lib/d1/managed-items";
+import { listHouseholdTags, listTagsForManagedItem } from "../../../../lib/d1/tags";
 import { ManagedItemEditForm } from "./managed-item-edit-form";
 
 // Issue #40: 自家庭のManagedItemの名前・種類・外部リンクを編集する専用画面。
@@ -23,10 +24,14 @@ export default async function ManagedItemEditPage({
   // Issue #288: 編集画面でも、同じ家庭で使用中の自由入力の詳しい種類を入力
   // 補助の候補として渡す。getManagedItemForEditと同じく家庭への所属を必要と
   // するため、まとめて取得してよい。
-  const [item, classificationOptions, customItemTypeOptions] = await Promise.all([
+  // Issue #226: タグの選択肢(家庭内の全タグ)と付与済みタグも同じく家庭への
+  // 所属を必要とする。
+  const [item, classificationOptions, customItemTypeOptions, tagOptions, itemTags] = await Promise.all([
     getManagedItemForEdit(db, session, id),
     listManagedItemClassificationOptions(db),
     listHouseholdCustomItemTypes(db, session),
+    listHouseholdTags(db, session),
+    listTagsForManagedItem(db, session, id),
   ]);
 
   if (item === null) notFound();
@@ -42,7 +47,7 @@ export default async function ManagedItemEditPage({
       <header className="detail-hero">
         <p className="detail-kicker">EDIT</p>
         <h1>{item.name}を編集</h1>
-        <p>名前、種類、外部リンク、任意の記録を変更できます。</p>
+        <p>名前、種類、タグ、外部リンク、任意の記録を変更できます。</p>
       </header>
 
       <section aria-labelledby="managed-item-edit-title" className="detail-card">
@@ -60,6 +65,8 @@ export default async function ManagedItemEditPage({
           nowIso={new Date().toISOString()}
           productInfo={item.productInfo}
           startedOn={item.startedOn}
+          tagIds={itemTags.map((tag) => tag.id)}
+          tagOptions={tagOptions}
         />
       </section>
     </main>
