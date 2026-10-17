@@ -18,11 +18,11 @@ beforeEach(async () => {
   await registerTestClient(db);
   token = (await connect(db, { householdId: "household-a", userId: "user-a" })).access_token;
 });
-async function rpc(method: string, params: Record<string, unknown>, accessToken = token) {
+async function rpc(method: string, params: Record<string, unknown>, accessToken = token, now?: () => Date) {
   return handleMcpRequest(new Request(testOAuthConfig.resource, { method: "POST", headers: {
     authorization: `Bearer ${accessToken}`, "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25",
   }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }),
-  { db, config: testOAuthConfig, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters" });
+  { db, config: testOAuthConfig, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters", now });
 }
 type ToolResult = { isError?: boolean; structuredContent: Record<string, unknown> };
 async function tool(name: string, args: Record<string, unknown>, accessToken = token): Promise<ToolResult> {
@@ -155,9 +155,10 @@ it("巨大・不正なJSONとbatchを拒否し、本文や秘密をエラーへ�
   }
 });
 it("prepare上限をHTTP 429とRetry-Afterで返し、照合用の読み取り枠は残す", async () => {
-  const window = Math.floor(Date.now() / 60_000) * 60_000;
+  const now = new Date();
+  const window = Math.floor(now.getTime() / 60_000) * 60_000;
   await db.prepare("INSERT INTO integration_mcp_rate_windows VALUES('user-a','prepare',?,20)").bind(window).run();
-  const response = await rpc("tools/call", { name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create", payload: { title: "must not be created", recurrence: { type: "manual" } } } });
+  const response = await rpc("tools/call", { name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create", payload: { title: "must not be created", recurrence: { type: "manual" } } } }, token, () => now);
   expect(response.status).toBe(429);
   expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
   expect(await response.json()).toMatchObject({ error: { data: { code: "rate_limited", retryable: true } } });
