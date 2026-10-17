@@ -33,7 +33,7 @@ function isCorrectionReplay(
   return true;
 }
 
-type CorrectOccurredAtInput = {
+export type CorrectOccurredAtInput = {
   actorId: string;
   completedActivityLogId: string;
   correctionId: string;
@@ -104,7 +104,7 @@ function insertOccurredAtCorrectionStatement(
   );
 }
 
-function correctOccurredAtStatements(
+export function correctOccurredAtStatements(
   db: D1Database,
   input: CorrectOccurredAtInput,
 ): D1PreparedStatement[] {
@@ -185,6 +185,45 @@ export async function correctCompletionOccurredAt(
   }
 }
 
+export type CorrectPerformerInput = {
+  actorId: string;
+  completedActivityLogId: string;
+  correctionId: string;
+  householdId: string;
+  idempotencyKey: string;
+  newPerformerId: string;
+  occurrenceId: string;
+  previousOccurredAt: string;
+  previousPerformerId: string | null;
+};
+
+// 実施者の訂正行を、対象Occurrenceがまだcompletedであることを条件に追加する。
+export function performerCorrectionStatement(
+  db: D1Database,
+  input: CorrectPerformerInput,
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO completion_corrections (
+      id, household_id, task_occurrence_id, completed_activity_log_id, actor_user_id,
+      idempotency_key, previous_occurred_at, previous_performed_by_user_id, new_performed_by_user_id
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+      WHERE EXISTS (
+        SELECT 1 FROM task_occurrences
+         WHERE id = ?3 AND household_id = ?2 AND status = 'completed'
+      )`,
+  ).bind(
+    input.correctionId,
+    input.householdId,
+    input.occurrenceId,
+    input.completedActivityLogId,
+    input.actorId,
+    input.idempotencyKey,
+    input.previousOccurredAt,
+    input.previousPerformerId,
+    input.newPerformerId,
+  );
+}
+
 // #148: 完了済みOccurrenceの実施者を訂正する。実施者はスケジューリングに
 // 影響しないため、次回Occurrenceの再計算は行わない(YDR-020)。
 export async function correctCompletionPerformer(
@@ -206,26 +245,17 @@ export async function correctCompletionPerformer(
   const effective = await resolveEffectiveCompletion(db, householdId, completion.id);
 
   const results = await db.batch([
-    db.prepare(
-      `INSERT INTO completion_corrections (
-        id, household_id, task_occurrence_id, completed_activity_log_id, actor_user_id,
-        idempotency_key, previous_occurred_at, previous_performed_by_user_id, new_performed_by_user_id
-      ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
-        WHERE EXISTS (
-          SELECT 1 FROM task_occurrences
-           WHERE id = ?3 AND household_id = ?2 AND status = 'completed'
-        )`,
-    ).bind(
-      crypto.randomUUID(),
+    performerCorrectionStatement(db, {
+      actorId: user.userId,
+      completedActivityLogId: completion.id,
+      correctionId: crypto.randomUUID(),
       householdId,
-      occurrenceId,
-      completion.id,
-      user.userId,
       idempotencyKey,
-      effective.occurredAt,
-      effective.performedByUserId,
       newPerformerId,
-    ),
+      occurrenceId,
+      previousOccurredAt: effective.occurredAt,
+      previousPerformerId: effective.performedByUserId,
+    }),
   ]);
   if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");

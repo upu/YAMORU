@@ -1,6 +1,7 @@
 import { requireHouseholdMembership } from "../../lib/d1/authorization";
 import { D1ForbiddenError, D1UnauthorizedError } from "../../lib/d1/errors";
-import { readEntityRelations, readEntityRows, readHistoryRows, readHouseholdVersion, type EntityRow, type ReadVersion } from "../../lib/d1/conversation-read";
+import { tokyoDateFromIso } from "../../lib/d1/calendar";
+import { readEntityRelations, readEntityRows, readHistoryRows, readHouseholdVersion, type EntityRow, type HistoryRow, type ReadVersion } from "../../lib/d1/conversation-read";
 import { ENTITY_KINDS, ReadError, kindInput, limitInput, matchEntity, normalizeEntityText, objectInput, stringInput, toWireValue, type EntityKind, type MatchReason, type ReadPrincipal } from "./read-contract";
 import { createReadCursor, cursorScope } from "./read-cursor";
 import { entityProjection, entitySummary } from "./read-projection";
@@ -89,8 +90,17 @@ async function historyPage(deps: ReadDependencies, context: ReadContext, value: 
   const after = await cursor.decode(value.cursor, scope, context.now);
   const rows = await readHistoryRows(deps.db, context.principal.householdId, kind, id, after, limit + 1);
   const page = rows.slice(0, limit);
-  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, occurred_on: row.occurred_on, date_precision: row.occurred_on === null ? "unknown" : "day", recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: null, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
+  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, ...historyDate(row), recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: row.client_id, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
     next_cursor: rows.length > limit ? await cursor.encode(scope, page[page.length - 1].key, context.now) : null };
+}
+
+// 補充日など日付だけの記録はday。外部commandで記録した完了・訂正は、
+// 受付記録に残る指定時の精度を使う。精度が分からない旧来の記録はunknown。
+function historyDate(row: HistoryRow): { date_precision: string; occurred_on: string | null } {
+  if (row.occurred_on !== null) return { date_precision: "day", occurred_on: row.occurred_on };
+  const precision = row.date_precision ?? "unknown";
+  const day = precision === "day" && row.occurred_at !== null ? tokyoDateFromIso(row.occurred_at) : null;
+  return { date_precision: precision, occurred_on: day };
 }
 
 export function createHouseholdReader(deps: ReadDependencies) {

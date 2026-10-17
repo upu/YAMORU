@@ -107,7 +107,7 @@ export async function requireHouseholdUser(
 // Issue #325 / YDR-046: 「必要になったら繰り返す」(manual)の次回は日付を
 // 持たないため、dueAt / scheduledForはnullになりうる。日付を持つ方式では
 // これまでどおり両方が非nullになる(YDR-030のNULLペア規則)。
-type NextOccurrence = {
+export type NextOccurrence = {
   completionCalendarVersion: 1 | null;
   dueAt: string | null;
   id: string;

@@ -38,6 +38,7 @@ import taskRuleNoteSql from "../../../../d1/migrations/0028_task_rule_note.sql?r
 import managedItemTagsSql from "../../../../d1/migrations/0029_managed_item_tags.sql?raw";
 import hardDeadlineSql from "../../../../d1/migrations/0030_occurrence_hard_deadline.sql?raw";
 import oauthConnectionsSql from "../../../../d1/migrations/0031_oauth_connections.sql?raw";
+import integrationOperationsSql from "../../../../d1/migrations/0033_integration_operations.sql?raw";
 
 import conversationReadSql from "../../../../d1/migrations/0032_conversation_reads.sql?raw";
 import attentionSql from "../../../../d1/migrations/0034_attention_candidates.sql?raw";
@@ -76,6 +77,7 @@ const MIGRATIONS = [
   { name: "0030_occurrence_hard_deadline", sql: hardDeadlineSql },
   { name: "0031_oauth_connections", sql: oauthConnectionsSql },
   { name: "0032_conversation_reads", sql: conversationReadSql },
+  { name: "0033_integration_operations", sql: integrationOperationsSql },
   { name: "0034_attention_candidates", sql: attentionSql },
 ] as const;
 
