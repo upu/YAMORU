@@ -252,6 +252,17 @@ describe("revocation endpoint", () => {
     expect((await revokeRequest({ client_id: TEST_CLIENT_ID, token: "ymr_rt_unknown" })).status).toBe(200);
   });
 
+  it("期限を過ぎたtokenでは接続を失効させない", async () => {
+    const tokens = await connect(db, memberA);
+    const later = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const response = await handleRevocationRequest(new Request(`${config.issuer}/oauth/revoke`, {
+      body: new URLSearchParams({ client_id: TEST_CLIENT_ID, token: tokens.access_token }),
+      method: "POST",
+    }), { config, db, now: () => later });
+    expect(response.status).toBe(200);
+    expect((await connectionState()).revoked_reason).toBeNull();
+  });
+
   it("refreshで得たtokenも同じ接続として失効する", async () => {
     const first = await connect(db, memberA);
     const rotated = await oauth.processRefreshTokenResponse(

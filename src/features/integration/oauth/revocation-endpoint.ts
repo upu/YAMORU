@@ -33,8 +33,9 @@ export async function handleRevocationRequest(
   const found = await findAnyToken(db, token);
   // RFC 7009 2.2: 不明・失効済みのtokenでも200を返し、存在を明かさない。
   // 別のクライアントへ発行されたtokenは、そのクライアントだけが失効できる。
-  if (found?.clientId === clientId && found.revokedAt === null) {
-    const now = (dependencies.now ?? (() => new Date()))().toISOString();
+  // 期限を過ぎたtokenでは失効させない(期限切れの秘密が接続を切る手段として残らないように)。
+  const now = (dependencies.now ?? (() => new Date()))().toISOString();
+  if (found?.clientId === clientId && found.revokedAt === null && found.expiresAt > now) {
     await revokeConnection(db, found.connectionId, "client_revoked", now);
     logOAuthEvent({ clientId, connectionId: found.connectionId, event: "connection_revoked", reason: "client_revoked" });
   }

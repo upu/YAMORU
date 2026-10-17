@@ -7,6 +7,7 @@ import OAuth2Server from "@node-oauth/oauth2-server";
 import type { OAuthConfig } from "./config";
 import { declaresTooLargeBody, readTextWithLimit } from "./limited-body";
 import { logOAuthEvent } from "./log";
+import { refreshRequestExceedsGrant } from "./refresh-scope";
 import { createOAuthModel } from "./model";
 import { createOAuthServer } from "./server";
 
@@ -67,6 +68,23 @@ function loggableClientId(config: OAuthConfig, clientId: string | undefined): st
   return clientId !== undefined && config.allowedClientIds.includes(clientId) ? clientId : undefined;
 }
 
+// ライブラリへ渡す前に断る要求。resourceが別のサーバー(RFC 8707)、または
+// refreshで付与範囲の外のscopeを求めるもの(refresh-scope.ts)。
+async function rejectBeforeLibrary(
+  config: OAuthConfig,
+  db: D1Database,
+  body: ReadonlyMap<string, string>,
+): Promise<Response | null> {
+  const resource = body.get("resource");
+  if (resource !== undefined && resource !== config.resource) {
+    return oauthErrorResponse(400, "invalid_target", "The requested resource is not served by this server");
+  }
+  if (await refreshRequestExceedsGrant(db, body)) {
+    return oauthErrorResponse(400, "invalid_scope", "Invalid scope: Unable to add extra scopes");
+  }
+  return null;
+}
+
 // 5xxの説明文には内部エラー(SQL等)が入り得るため、外へ返さない。
 function responseBody(response: OAuth2Server.Response): unknown {
   if ((response.status ?? 500) >= 500) return { error: "server_error" };
@@ -81,10 +99,8 @@ export async function handleTokenRequest(
   if (config === null) return notFoundResponse();
   const body = await readFormBody(request);
   if (body instanceof Response) return body;
-  const resource = body.get("resource");
-  if (resource !== undefined && resource !== config.resource) {
-    return oauthErrorResponse(400, "invalid_target", "The requested resource is not served by this server");
-  }
+  const rejected = await rejectBeforeLibrary(config, dependencies.db, body);
+  if (rejected !== null) return rejected;
   const server = createOAuthServer(createOAuthModel({ ...dependencies, config }));
   const response = new OAuth2Server.Response();
   const loggedClientId = loggableClientId(config, body.get("client_id"));

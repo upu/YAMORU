@@ -311,6 +311,11 @@ describe("refresh tokenのローテーション", () => {
       },
     );
     expect(await tokenError(response)).toBe("invalid_scope");
+    // 断られた要求でrefresh tokenはローテーションされず、正しい要求で再試行できる。
+    expect((await connectionRow())?.revoked_reason).toBeNull();
+    const retried = await refresh(db, first.refresh_token ?? "");
+    expect(retried.status).toBe(200);
+    expect((await connectionRow())?.revoked_reason).toBeNull();
   });
 });
 
