@@ -16,6 +16,7 @@ export const COMMAND_NAMES = [
   "todo.create",
   "todo.reschedule",
   "todo.undo",
+  "todo.update",
 ] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 

@@ -37,6 +37,7 @@ import { notificationConfigureHandler } from "./notification-configure";
 import { notificationSnoozeHandler } from "./notification-snooze";
 import { stockCorrectHandler, stockObserveHandler, stockRefillHandler } from "./stock";
 import { todoRescheduleHandler } from "./todo-reschedule";
+import { todoUpdateHandler } from "./todo-update";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
@@ -58,6 +59,7 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.create": todoCreateHandler,
   "todo.reschedule": todoRescheduleHandler,
   "todo.undo": todoUndoHandler,
+  "todo.update": todoUpdateHandler,
   "notification.configure": notificationConfigureHandler,
   "notification.snooze": notificationSnoozeHandler,
 };

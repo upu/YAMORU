@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の8つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。`todo.update`と追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
+利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・編集(`todo.update`)・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の9つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
 
 ## 主要入口
 
@@ -28,12 +28,12 @@ status: stable
 | access tokenの検証とPrincipal | `src/features/integration/oauth/bearer.ts`、`src/features/integration/principal.ts` |
 | 接続管理画面 | `src/app/settings/integrations/` → `src/lib/d1/oauth-connection-list.ts` |
 | 変更操作の入口(prepare/commit/operation_get) | `src/features/integration/commands/service.ts` |
-| 変更操作の入力・エラー契約、command別の処理 | `src/features/integration/commands/contract.ts`、`input.ts`、`todo-complete.ts`、`todo-history.ts`、`todo-create.ts`・`todo-create-input.ts`、`managed-item-create.ts`・`managed-item-update.ts`・`managed-item-input.ts`、`todo-reschedule.ts` |
+| 変更操作の入力・エラー契約、command別の処理 | `src/features/integration/commands/contract.ts`、`input.ts`、`todo-complete.ts`、`todo-history.ts`、`todo-create.ts`・`todo-create-input.ts`、`managed-item-create.ts`・`managed-item-update.ts`・`managed-item-input.ts`、`todo-reschedule.ts`、`todo-update.ts`・`todo-update-input.ts` |
 | 管理対象の入力規則(Webの登録と外部commandで共通) | `src/app/managed-items/form-input.ts`、`started-on.ts` → 保存の文は`src/lib/d1/managed-items.ts`の`managedItemInsertStatements`、commandの確認は`src/lib/d1/managed-item-commands.ts` |
 | 繰り返し条件の入力規則(Webの登録と外部commandで共通) | `src/app/todos/recurrence-input.ts`、`src/app/todos/calendar-schedule-input.ts` → 保存形は`src/lib/d1/todos/creation.ts`の`*TaskInsert` |
 | 受付記録の保存と、世代の確認・成功を確定させる文 | `src/lib/d1/integration-operations.ts` |
 | 家庭の世代と`expected_revision`の照合 | `src/features/integration/commands/revision.ts` → `src/lib/d1/conversation-read.ts` |
-| commandのpreview用の読み取りと業務更新の文 | `src/lib/d1/todos/command-plans.ts` → `completion.ts`、`corrections.ts`。延期は`command-edits.ts` → `assignment.ts` |
+| commandのpreview用の読み取りと業務更新の文 | `src/lib/d1/todos/command-plans.ts` → `completion.ts`、`corrections.ts`。延期・編集は`command-edits.ts` → `assignment.ts`、`recurring-edit.ts`、`edit.ts`、`hard-deadline.ts` |
 
 ## 重要な不変条件
 
@@ -48,6 +48,7 @@ status: stable
 - `todo.create`は、繰り返し条件の解釈と保存形(`*TaskInsert`・`taskInsertStatements`)をWebの登録と共有し、外部向けに別の暦計算や検証を持たない。完了日基準の初回は前回の実施日(`last_completed_on`)か最初の目安の始まり(`first_scheduled_on`)を必須とし、無ければ`missing_required`で聞き返す。定例日・固定間隔の初回はprepare時刻(`reference_at`)を基準に決める。
 - `managed_item.create`は、名前・詳しい種類・外部リンク・メモ・商品情報・開始時期の規則(`form-input.ts`・`started-on.ts`)と保存の文をWebの登録と共有する。タグは既存タグのIDだけを受け付け、他の家庭のタグIDはbatchの前に`invalid_input`にする(Webは複合外部キー違反で取り消す)。
 - `todo.reschedule`はWebの延期(`requirePostponable`・`postponeStatements`)と同じ判定・文を使い、今回の期限だけを動かす。延期の履歴にidempotency_keyを付け、受付記録の成功条件にする。必要時・予定日未定のTodoは拒否する。
+- `todo.update`は対象の方式に合う`edit_scope`だけを受け付ける(暦を持つ方式は`current_occurrence`・`future_rule`、必要時は`manual_combined`、一回限りは`one_time_combined`)。指定した項目だけを現在の値へ重ね、Webの編集(`recurringOccurrenceStatements`・`recurringRuleStatements`・`oneTimeEditStatements`・`hardDeadlineStatements`)と同じ文で保存する。方式そのものは変えない。期限は変えたときだけ「今日より後・本来の予定日以降」を確かめ、名前だけの変更では繰り返し条件に触れない(`RuleBasicsUpdate`)。受付記録の成功は、変えた項目が変更後の値を持ち、現在回がpendingであることを条件にする。
 - `managed_item.update`は指定した項目だけを現在の値へ重ね、Webの編集と同じ文(`managedItemUpdateStatements`)で保存する。分類(大分類・詳しい種類)のどれかを変えると、指定しなかった詳しい種類は未設定にする。更新は条件付きのため、batchの後に管理対象が編集後の値を持つこと(値を照合する証跡)を受付記録の成功条件にする。
 - `managed_item_with_todo.create`は、管理対象とTodoの文を一つのbatchへ載せ、両方の行を受付記録の成功条件にする。Todo側の入力は`todo.create`と同じ解析を通し、関連先は作る管理対象に固定する(`managed_item_id`は受け付けない)。結果の`managed_item`・`todo`にもそれぞれのrevisionを付け、続く操作の`expected_revision`に使えるようにする。
 - 「今」や「昨日」はprepare時に固定し、commitでは保存した正規化commandからpreviewを計算し直して、一致したときだけ実行する。同じ操作IDの再送は保存した結果を返す。
@@ -66,7 +67,7 @@ status: stable
 ```
 npm test -- tests/integration-oauth-request.test.ts tests/integration-connections-ui.test.tsx tests/auth-boundary.test.ts tests/integration-command-input.test.ts
 npm run test:d1 -- src/lib/d1/oauth-flow.d1-test.ts src/lib/d1/oauth-connections-authorization.d1-test.ts src/lib/d1/oauth-clients.d1-test.ts src/lib/d1/oauth-connections-migration.d1-test.ts
-npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts
+npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-update-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts
 ```
 
 D1テストは検証済みのOAuthクライアントライブラリ`oauth4webapi`をクライアント役にして流れ全体を確かめる。これは実際の接続先との接続確認(設計のE1)の代わりにはならない。変更操作のテストは、確認と実行の間に家族の更新や接続の解除を割り込ませ(`interruptBeforeBatch`)、業務データと受付記録が全成功か全取消になることを確かめる。
