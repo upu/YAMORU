@@ -84,6 +84,17 @@ function fromRow(row: OperationRow): IntegrationOperation {
   };
 }
 
+// 業務の記録(activity_logs・completion_corrections)のidempotency_keyから、
+// それを書いた外部commandの接続元(client_id)を引くSQL式。Webからの記録はNULL。
+// 訂正は項目ごとに`<business_key>:occurred_at`・`:performer`のキーを使う。
+export function operationClientExpression(alias: string): string {
+  return `(SELECT io.client_id FROM integration_operations io
+    WHERE io.household_id = ${alias}.household_id
+      AND ${alias}.idempotency_key LIKE 'integration:%'
+      AND (io.business_key = ${alias}.idempotency_key
+        OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer')))`;
+}
+
 // 接続ごとの操作IDで引く。接続は本人・家庭・clientを含むため、別の利用者や
 // 別の接続(再接続後を含む)の操作は見えない。
 export async function findIntegrationOperation(

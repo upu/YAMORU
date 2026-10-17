@@ -85,7 +85,13 @@ describe("todo.complete", () => {
     const committed = await service.commit(principal, commitRequest(prepared));
     expect(committed).toMatchObject({
       replayed: false,
-      result: { occurred_on: "2026-10-12", occurrence_id: occurrenceId, performer_id: "user-a", undo_available: true },
+      result: {
+        detail_url: `/todos/${occurrenceId}`,
+        occurred_on: "2026-10-12",
+        occurrence_id: occurrenceId,
+        performer_id: "user-a",
+        undo_available: true,
+      },
       status: "succeeded",
     });
     await expect(completedLogs(occurrenceId)).resolves.toBe(1);

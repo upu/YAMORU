@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { IntegrationPrincipal } from "../../features/integration/principal";
+import { createHouseholdReader } from "../../features/integration/read";
 import { commitReceiptStatement, isCommitReceiptRejection } from "./integration-operations";
 import { correctCompletionPerformer } from "./todos";
 import { householdAMember, resetHouseholdFixtures } from "./test-support/households";
@@ -18,6 +19,7 @@ import {
   familyRedoesCompletion,
   interruptBeforeBatch,
 } from "./test-support/integration-commands";
+import { TEST_CLIENT_ID } from "./test-support/oauth";
 import { applyAllMigrations } from "./test-support/migrations";
 
 // 完了記録への後からの操作(todo.undo・todo.correct、#437)を実D1で確かめる。
@@ -255,6 +257,33 @@ describe("todo.correct", () => {
     const outsider = await expectCommandError(correct({ performer_id: "user-b" }), "invalid_input");
     expect(outsider.fieldErrors).toEqual({ "payload.changes.performer_id": "performer_not_in_household" });
     await expect(corrections()).resolves.toBe(0);
+  });
+});
+
+describe("履歴での接続元", () => {
+  it("外部commandによる完了と訂正は接続元を示し、Webからの記録と区別できる", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const { completionLogId, nextOccurrenceId } = await completeByCommand(service, occurrenceId);
+    await run(service, {
+      command: "todo.correct",
+      payload: { changes: { occurred_on: "2026-10-11", performer_id: familyMember.userId }, completion_log_id: completionLogId },
+    });
+    await familyCompletes(db, nextOccurrenceId, "2026-10-13T03:00:00.000Z");
+
+    const reader = createHouseholdReader({
+      authorize: () => Promise.resolve(principal),
+      cursorSecret: "test-only-secret-with-at-least-32-bytes",
+      db,
+    });
+    const own = await reader.historyList({ id: occurrenceId, kind: "todo_occurrence" });
+    expect(own.records.map((record) => [record.kind, record.client_id]).sort()).toEqual([
+      ["completed", TEST_CLIENT_ID],
+      ["completion_corrected", TEST_CLIENT_ID],
+      ["completion_corrected", TEST_CLIENT_ID],
+    ]);
+    const next = await reader.historyList({ id: nextOccurrenceId, kind: "todo_occurrence" });
+    expect(next.records.map((record) => [record.kind, record.client_id])).toEqual([["completed", null]]);
   });
 });
 

@@ -48,6 +48,11 @@ export function performerNotFound(field: string): CommandError {
   return new CommandError("invalid_input", { fieldErrors: { [field]: "performer_not_in_household" } });
 }
 
+// 結果から利用者が開ける詳細画面。読み取りToolのdetail_urlと同じ相対パス。
+export function todoDetailUrl(occurrenceId: string): string {
+  return `/todos/${encodeURIComponent(occurrenceId)}`;
+}
+
 // 外部へ返す繰り返し方式の名前。DBの'once'は契約上one_timeと呼ぶ。
 export function recurrenceName(basis: string): string {
   return basis === "once" ? "one_time" : basis;

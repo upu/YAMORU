@@ -89,7 +89,7 @@ async function historyPage(deps: ReadDependencies, context: ReadContext, value: 
   const after = await cursor.decode(value.cursor, scope, context.now);
   const rows = await readHistoryRows(deps.db, context.principal.householdId, kind, id, after, limit + 1);
   const page = rows.slice(0, limit);
-  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, occurred_on: row.occurred_on, date_precision: row.occurred_on === null ? "unknown" : "day", recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: null, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
+  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, occurred_on: row.occurred_on, date_precision: row.occurred_on === null ? "unknown" : "day", recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: row.client_id, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
     next_cursor: rows.length > limit ? await cursor.encode(scope, page[page.length - 1].key, context.now) : null };
 }
 

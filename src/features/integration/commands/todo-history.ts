@@ -7,7 +7,14 @@ import {
   type UndoPlan,
 } from "../../../lib/d1/todos/command-plans";
 import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
-import { mapD1Error, performerNotFound, scheduleView, type CommandContext, type CommandHandler } from "./handler";
+import {
+  mapD1Error,
+  performerNotFound,
+  scheduleView,
+  todoDetailUrl,
+  type CommandContext,
+  type CommandHandler,
+} from "./handler";
 import { completionLogTarget, idValue, objectValue, occurredValue, tokyoDate } from "./input";
 
 // 完了記録への後からの操作。todo.correctは実施日時・実施者を追記型で訂正し、
@@ -63,6 +70,7 @@ export const todoUndoHandler: CommandHandler = {
           logId,
         });
         const result = {
+          detail_url: todoDetailUrl(undo.occurrence.id),
           occurrence_id: undo.occurrence.id,
           recorded_at: recordedAt,
           removed_next_occurrence_id: undo.next?.id ?? null,
@@ -154,6 +162,7 @@ export const todoCorrectHandler: CommandHandler = {
         const effect = correctionScheduleEffect(correction);
         const result = {
           completion_log_id: correction.effective.completionLogId,
+          detail_url: todoDetailUrl(correction.occurrence.id),
           next_occurrence: effect.next_occurrence === null ? null : { id: effect.next_occurrence.id, ...effect.next_occurrence.to },
           occurred_at: changes.occurred_at ?? correction.effective.occurredAt,
           occurred_on: tokyoDate(changes.occurred_at ?? correction.effective.occurredAt),

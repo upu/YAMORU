@@ -42,6 +42,7 @@ status: stable
 - 生のcode・tokenはD1にもログにも残さない。保存はSHA-256だけ。ログは`logOAuthEvent`を通し、ID・理由コードだけを出す。
 - 接続管理は本人の接続だけを扱う。同じ家庭の家族でも他人の接続を見たり解除したりできない。
 - 変更操作は、業務の更新と受付記録の成功を同じD1 batchへ載せる。最初の`revisionGuardStatement`がpreview時の家庭の世代を、最後の`commitReceiptStatement`が条件(未確定・期限内・接続が有効・業務の記録が存在・取消/訂正の対象が最新の完了)を確かめ、満たさなければbatch全体を取り消す([YDR-054](../decisions/ydr-054-integration-command-receipts.md))。業務の更新はWeb操作と同じ条件付きSQL(`completionStatements`等)を使い、外部向けに判定を複製しない。
+- 外部commandが書いた履歴(activity_logs・completion_corrections)は、idempotency_keyから受付記録を引いて接続元(`client_id`)を履歴の読み取りへ返す(`operationClientExpression`)。業務テーブルへ接続元の列は足していない。
 - 「今」や「昨日」はprepare時に固定し、commitでは保存した正規化commandからpreviewを計算し直して、一致したときだけ実行する。同じ操作IDの再送は保存した結果を返す。
 - 家庭の世代は保守的で、previewから実行までに家族が無関係なものを更新しても再確認(`stale_preview`)になる。
 

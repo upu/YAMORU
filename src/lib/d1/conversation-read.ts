@@ -1,5 +1,6 @@
 import type { EntityKind } from "../../features/integration/read-contract";
 import { effectiveOccurrenceField as effective, taskRuleSnapshotExpression } from "./todos/rule-snapshot";
+import { operationClientExpression } from "./integration-operations";
 
 export type EntityRow = {
   kind: EntityKind; id: string; name: string; related_name: string | null;
@@ -76,7 +77,7 @@ export async function readEntityRelations(db: D1Database, householdId: string, k
 export type HistoryRow = {
   id: string; kind: string; occurrence_id: string | null; occurred_at: string | null;
   occurred_on: string | null; recorded_at: string; actor_user_id: string | null;
-  performer_user_id: string | null; corrects_id: string | null; data: string; key: string;
+  performer_user_id: string | null; corrects_id: string | null; client_id: string | null; data: string; key: string;
 };
 
 // Corrections remain independent events. Completion rows expose both original and effective values.
@@ -91,6 +92,7 @@ export async function readHistoryRows(db: D1Database, householdId: string, kind:
   ), history AS (
     SELECT l.id,l.action AS kind,l.task_occurrence_id AS occurrence_id,${effectiveTime} AS occurred_at,NULL AS occurred_on,
       l.recorded_at,l.actor_user_id,${effectivePerformer} AS performer_user_id,NULL AS corrects_id,
+      ${operationClientExpression("l")} AS client_id,
       json_object('original_occurred_at',l.occurred_at,'original_performer_user_id',l.performed_by_user_id,
         'previous_due_at',l.previous_due_at,'new_due_at',l.new_due_at,
         'previous_assignee_user_id',l.previous_assignee_user_id,'new_assignee_user_id',l.new_assignee_user_id,
@@ -99,18 +101,19 @@ export async function readHistoryRows(db: D1Database, householdId: string, kind:
     FROM activity_logs l WHERE l.household_id=?1 AND l.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
     SELECT c.id,'completion_corrected',c.task_occurrence_id,c.new_occurred_at,NULL,c.corrected_at,c.actor_user_id,c.new_performed_by_user_id,c.completed_activity_log_id,
+      ${operationClientExpression("c")},
       json_object('previous_occurred_at',c.previous_occurred_at,'previous_performer_user_id',c.previous_performed_by_user_id)
     FROM completion_corrections c WHERE c.household_id=?1 AND c.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT c.id,'rule_changed',c.task_occurrence_id,NULL,NULL,c.changed_at,c.actor_user_id,NULL,NULL,
+    SELECT c.id,'rule_changed',c.task_occurrence_id,NULL,NULL,c.changed_at,c.actor_user_id,NULL,NULL,NULL,
       json_object('previous_rule',json(c.previous_rule_snapshot),'new_rule',json(c.new_rule_snapshot))
     FROM task_rule_changes c WHERE c.household_id=?1 AND c.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT d.id,'hard_deadline_changed',d.task_occurrence_id,NULL,NULL,d.recorded_at,d.actor_user_id,NULL,NULL,
+    SELECT d.id,'hard_deadline_changed',d.task_occurrence_id,NULL,NULL,d.recorded_at,d.actor_user_id,NULL,NULL,NULL,
       json_object('previous_date',d.previous_date,'new_date',d.new_date)
     FROM task_deadline_changes d WHERE d.household_id=?1 AND d.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT f.id,'refilled',NULL,NULL,f.refilled_on,f.recorded_at,NULL,NULL,NULL,json('{}') FROM consumable_refills f
+    SELECT f.id,'refilled',NULL,NULL,f.refilled_on,f.recorded_at,NULL,NULL,NULL,NULL,json('{}') FROM consumable_refills f
     WHERE f.household_id=?1 AND ?2='consumable' AND f.consumable_id=?3
   ) SELECT *,recorded_at||':'||kind||':'||id AS key FROM history
     WHERE (?4='' OR (recorded_at||':'||kind||':'||id)<?4) ORDER BY key DESC LIMIT ?5`;

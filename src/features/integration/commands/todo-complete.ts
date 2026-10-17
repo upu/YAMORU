@@ -10,6 +10,7 @@ import {
   performerNotFound,
   recurrenceName,
   scheduleView,
+  todoDetailUrl,
   type CommandContext,
   type CommandHandler,
 } from "./handler";
@@ -103,9 +104,10 @@ async function plan(context: CommandContext, normalized: NormalizedCommand) {
       const result = {
         completion_log_id: logId,
         date_precision: payload.date_precision,
+        detail_url: todoDetailUrl(occurrenceId),
         next_occurrence: completion.next === null
           ? null
-          : { id: completion.next.id, ...scheduleView(completion.next) },
+          : { detail_url: todoDetailUrl(completion.next.id), id: completion.next.id, ...scheduleView(completion.next) },
         occurred_at: payload.occurred_at,
         occurred_on: tokyoDate(payload.occurred_at),
         occurrence_id: occurrenceId,
