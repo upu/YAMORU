@@ -113,6 +113,6 @@ export async function readHistoryRows(db: D1Database, householdId: string, kind:
     SELECT f.id,'refilled',NULL,NULL,f.refilled_on,f.recorded_at,NULL,NULL,NULL,json('{}') FROM consumable_refills f
     WHERE f.household_id=?1 AND ?2='consumable' AND f.consumable_id=?3
   ) SELECT *,recorded_at||':'||kind||':'||id AS key FROM history
-    WHERE (recorded_at||':'||kind||':'||id)>?4 ORDER BY key LIMIT ?5`;
+    WHERE (?4='' OR (recorded_at||':'||kind||':'||id)<?4) ORDER BY key DESC LIMIT ?5`;
   return (await db.prepare(sql).bind(householdId, kind, id, after, limit).all<HistoryRow>()).results;
 }

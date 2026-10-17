@@ -130,6 +130,25 @@ it("補充の実施者やclientを捏造せず、在庫と補充暦日を返す"
   expect((await reader().historyList({ kind: "consumable", id: "c" })).records[0]).toMatchObject({ occurred_on: "2026-10-10", occurred_at: null, actor_user_id: null, performer_user_id: null, client_id: null });
 });
 
+it("履歴は記録日時の新しい順で、同時刻も重複・欠落なく古いページへ進む", async () => {
+  await db.prepare("INSERT INTO consumables(id,household_id,name) VALUES ('c','household-a','洗剤')").run();
+  await db.batch([
+    db.prepare("INSERT INTO consumable_refills(id,household_id,consumable_id,refilled_on,recorded_at) VALUES ('f0','household-a','c','2026-10-10','2026-10-10T00:00:00.000Z')"),
+    db.prepare("INSERT INTO consumable_refills(id,household_id,consumable_id,refilled_on,recorded_at) VALUES ('f1','household-a','c','2026-10-09','2026-10-11T00:00:00.000Z')"),
+    db.prepare("INSERT INTO consumable_refills(id,household_id,consumable_id,refilled_on,recorded_at) VALUES ('f2','household-a','c','2026-10-08','2026-10-11T00:00:00.000Z')"),
+  ]);
+  const request = { kind: "consumable", id: "c", limit: 1 };
+  const first = await reader().historyList(request);
+  expect(first.records.map((record) => record.id)).toEqual(["f2"]);
+  expect(first.next_cursor).not.toBeNull();
+  const second = await reader().historyList({ ...request, cursor: first.next_cursor });
+  expect(second.records.map((record) => record.id)).toEqual(["f1"]);
+  expect(second.next_cursor).not.toBeNull();
+  const last = await reader().historyList({ ...request, cursor: second.next_cursor });
+  expect(last.records.map((record) => record.id)).toEqual(["f0"]);
+  expect(last.next_cursor).toBeNull();
+});
+
 it("snapshotの明示nullを現在Ruleの関連先で埋めず、関連の展開も上限を守る", async () => {
   const ruleId = await createOneTimeTask(db, householdAMember, { title: "家全体の掃除", managedItemId: null, scheduledFor: null });
   const occurrence = await db.prepare("SELECT id FROM task_occurrences WHERE task_rule_id=?").bind(ruleId).first<{ id: string }>();
