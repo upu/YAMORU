@@ -52,3 +52,5 @@ npm run typecheck
 ```
 
 取得条件を変える場合は`src/lib/d1/cross-search.d1-test.ts`と`src/lib/d1/todo-filters.d1-test.ts`、画面回帰は`e2e/cross-search.spec.ts`で確認する。結果が縦に詰まっていることと、320px・390pxで長い名前でも崩れないことは`e2e/cross-search-compact-layout.spec.ts`が確認する。
+
+会話向け候補検索は[会話読み取り](conversation-read.md)の別入口を使う。名称・別名・関連名の一致理由、曖昧な複数候補、上限付き継続取得を返し、既存Web検索の対象規則は維持する。

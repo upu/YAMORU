@@ -13,6 +13,11 @@
 export const CALENDAR_SCHEDULE_SPEC_ORDER =
   "s.month, s.day_of_month, s.week_of_month, s.week_last, s.day_of_week";
 
+// A JSON null is an explicit snapshot value; only an absent key falls back to today's Rule.
+export function effectiveOccurrenceField(key: string, fallback: string): string {
+  return `CASE WHEN json_type(o.rule_snapshot,'$.${key}') IS NULL THEN ${fallback} ELSE json_extract(o.rule_snapshot,'$.${key}') END`;
+}
+
 export function calendarScheduleSpecsExpression(ruleAlias = "r"): string {
   return `(SELECT json_group_array(json_object(
     'kind', s.schedule_kind,
