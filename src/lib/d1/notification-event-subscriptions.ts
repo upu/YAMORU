@@ -6,7 +6,7 @@ import { canonicalJson } from "../../features/integration/commands/contract";
 const databaseNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const activeNow = NOTIFICATION_CONNECTION_ACTIVE.replaceAll("?4", databaseNow);
 export type EventSubscriptionRow = { id: string; household_id: string; user_id: string; connection_id: string; event_name: string; filters: string; callback_origin: string; callback_hash: string;
-  key_fingerprint: string | null; provider_id: string | null; encrypted_destination: string | null; state: "active" | "revoked" | "expired"; revision: number; verified_at: string | null; expires_at: string };
+  key_fingerprint: string | null; provider_id: string | null; encrypted_destination: string | null; state: "active" | "revoked" | "expired"; revision: number; lifecycle: string; verified_at: string | null; expires_at: string };
 export type EventSubscriptionIdentity = { id: string; filter: EventFilter; callbackHash: string };
 export async function authorizeEventOwner(db: D1Database, p: IntegrationPrincipal, now: Date) {
   if (!p.scopes.includes("household.read") || !p.scopes.includes("events.subscribe")) throw new EventSubscriptionError("insufficient_scope");
