@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、Todoの完了・訂正・取消の3 commandだけを持ち、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。登録・編集と追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
+利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、Todoの登録・完了・訂正・取消の4 commandを持ち、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。管理対象の登録、編集系(`todo.update`・`todo.reschedule`・`managed_item.update`)、追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
 
 ## 主要入口
 
@@ -28,7 +28,8 @@ status: stable
 | access tokenの検証とPrincipal | `src/features/integration/oauth/bearer.ts`、`src/features/integration/principal.ts` |
 | 接続管理画面 | `src/app/settings/integrations/` → `src/lib/d1/oauth-connection-list.ts` |
 | 変更操作の入口(prepare/commit/operation_get) | `src/features/integration/commands/service.ts` |
-| 変更操作の入力・エラー契約、command別の処理 | `src/features/integration/commands/contract.ts`、`input.ts`、`todo-complete.ts`、`todo-history.ts` |
+| 変更操作の入力・エラー契約、command別の処理 | `src/features/integration/commands/contract.ts`、`input.ts`、`todo-complete.ts`、`todo-history.ts`、`todo-create.ts`・`todo-create-input.ts` |
+| 繰り返し条件の入力規則(Webの登録と外部commandで共通) | `src/app/todos/recurrence-input.ts`、`src/app/todos/calendar-schedule-input.ts` → 保存形は`src/lib/d1/todos/creation.ts`の`*TaskInsert` |
 | 受付記録の保存と、世代の確認・成功を確定させる文 | `src/lib/d1/integration-operations.ts` |
 | 家庭の世代と`expected_revision`の照合 | `src/features/integration/commands/revision.ts` → `src/lib/d1/conversation-read.ts` |
 | commandのpreview用の読み取りと業務更新の文 | `src/lib/d1/todos/command-plans.ts` → `completion.ts`、`corrections.ts` |
@@ -43,6 +44,7 @@ status: stable
 - 接続管理は本人の接続だけを扱う。同じ家庭の家族でも他人の接続を見たり解除したりできない。
 - 変更操作は、業務の更新と受付記録の成功を同じD1 batchへ載せる。最初の`revisionGuardStatement`がpreview時の家庭の世代を、最後の`commitReceiptStatement`が条件(未確定・期限内・接続が有効・業務の記録が存在・取消/訂正の対象が最新の完了)を確かめ、満たさなければbatch全体を取り消す([YDR-054](../decisions/ydr-054-integration-command-receipts.md))。業務の更新はWeb操作と同じ条件付きSQL(`completionStatements`等)を使い、外部向けに判定を複製しない。
 - 外部commandが書いた履歴(activity_logs・completion_corrections)は、idempotency_keyから受付記録を引いて接続元(`client_id`)を履歴の読み取りへ返す(`operationClientExpression`)。業務テーブルへ接続元の列は足していない。
+- `todo.create`は、繰り返し条件の解釈と保存形(`*TaskInsert`・`taskInsertStatements`)をWebの登録と共有し、外部向けに別の暦計算や検証を持たない。完了日基準の初回は前回の実施日(`last_completed_on`)か最初の目安の始まり(`first_scheduled_on`)を必須とし、無ければ`missing_required`で聞き返す。定例日・固定間隔の初回はprepare時刻(`reference_at`)を基準に決める。
 - 「今」や「昨日」はprepare時に固定し、commitでは保存した正規化commandからpreviewを計算し直して、一致したときだけ実行する。同じ操作IDの再送は保存した結果を返す。
 - 家庭の世代は保守的で、previewから実行までに家族が無関係なものを更新しても再確認(`stale_preview`)になる。
 
@@ -55,7 +57,7 @@ status: stable
 ```
 npm test -- tests/integration-oauth-request.test.ts tests/integration-connections-ui.test.tsx tests/auth-boundary.test.ts tests/integration-command-input.test.ts
 npm run test:d1 -- src/lib/d1/oauth-flow.d1-test.ts src/lib/d1/oauth-connections-authorization.d1-test.ts src/lib/d1/oauth-clients.d1-test.ts src/lib/d1/oauth-connections-migration.d1-test.ts
-npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts
+npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts
 ```
 
 D1テストは検証済みのOAuthクライアントライブラリ`oauth4webapi`をクライアント役にして流れ全体を確かめる。これは実際の接続先との接続確認(設計のE1)の代わりにはならない。変更操作のテストは、確認と実行の間に家族の更新や接続の解除を割り込ませ(`interruptBeforeBatch`)、業務データと受付記録が全成功か全取消になることを確かめる。

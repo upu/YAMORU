@@ -2,21 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  addTokyoCalendarDate,
-  type CompletionIntervalUnit,
-} from "../../../lib/d1/calendar";
 import type { MaintenanceTodoActionState } from "../../../features/todos/state";
 import {
-  COMPLETION_UNIT_DAYS,
   INVALID_TASK_TITLE_MESSAGE,
-  MAX_COMPLETION_VALUE,
-  MAX_INTERVAL_ANCHOR_DISTANCE_DAYS,
-  MAX_INTERVAL_COUNT,
   INVALID_TASK_NOTE_MESSAGE,
   parseTodoNote,
   parseTodoTitle,
 } from "../todo-input-limits";
+import {
+  completionFirstWindow,
+  intervalCondition,
+  isCompletionUnit,
+  recommendedOffsets,
+  type RecommendedOffsets,
+} from "../recurrence-input";
 import { parseCalendarTodo } from "./calendar-todo-input";
 import {
   type RegisteredTodoSchedule,
@@ -31,10 +30,7 @@ import {
   type TodoBasics,
   saveTodo,
 } from "./save-todo";
-import {
-  getTokyoDayDistance,
-  tokyoDateToUtcIso,
-} from "../../time-zone";
+import { tokyoDateToUtcIso } from "../../time-zone";
 
 const INVALID_OFFSETS: MaintenanceTodoActionState = {
   message: "次回の目安は0以上の整数で、短い方を長い方以下にしてください。",
@@ -49,13 +45,6 @@ const INVALID_INTERVAL: MaintenanceTodoActionState = {
   status: "error",
 };
 
-type RecommendedOffsets = {
-  recommendedStartOffset: number;
-  recommendedStartValue: number;
-  recommendedUnit: CompletionIntervalUnit;
-  recommendedUntilOffset: number;
-  recommendedUntilValue: number;
-};
 function isInvalidHardDeadline(value: FormDataEntryValue | null): boolean {
   return value !== null && value !== "" && (typeof value !== "string" || tokyoDateToUtcIso(value) === null);
 }
@@ -116,32 +105,12 @@ function parseIntervalTodo(
   formData: FormData,
   now: Date,
 ): IntervalTodoInput | MaintenanceTodoActionState {
-  const unit = formData.get("fixedIntervalUnit");
-  if (unit !== "day" && unit !== "week") return INVALID_INTERVAL;
-
-  const count = parseBoundedInteger(
-    formData.get("fixedIntervalCount"),
-    1,
-    MAX_INTERVAL_COUNT[unit],
-  );
-  if (count === null) return INVALID_INTERVAL;
-
+  const count = parseBoundedInteger(formData.get("fixedIntervalCount"), 1, Number.MAX_SAFE_INTEGER);
   const anchorOn = formData.get("fixedIntervalAnchorDate");
-  if (typeof anchorOn !== "string") return INVALID_INTERVAL;
-  const anchorIso = tokyoDateToUtcIso(anchorOn);
-  if (anchorIso === null) return INVALID_INTERVAL;
-  const distance = getTokyoDayDistance(now.toISOString(), anchorIso);
-  if (Math.abs(distance) > MAX_INTERVAL_ANCHOR_DISTANCE_DAYS) {
-    return INVALID_INTERVAL;
-  }
-
-  return {
-    ...basics,
-    intervalAnchorOn: anchorOn,
-    intervalCount: count,
-    intervalUnit: unit,
-    recurrenceBasis: "interval",
-  };
+  if (count === null || typeof anchorOn !== "string") return INVALID_INTERVAL;
+  // 間隔の上限と起点日の範囲は、外部commandと共通の規則(../recurrence-input.ts)。
+  const condition = intervalCondition(formData.get("fixedIntervalUnit"), count, anchorOn, now);
+  return condition === null ? INVALID_INTERVAL : { ...basics, ...condition, recurrenceBasis: "interval" };
 }
 
 function parseOneTimeTodo(
@@ -170,33 +139,10 @@ function parseRecommendedOffsets(
   const intervalMin = parseOffset(formData.get("intervalMin"));
   const intervalMax = parseOffset(formData.get("intervalMax"));
   const rawUnit = formData.get("intervalUnit");
-  if (
-    intervalMin === null ||
-    intervalMax === null ||
-    (rawUnit !== "day" && rawUnit !== "week" && rawUnit !== "month" && rawUnit !== "year")
-  ) {
+  if (intervalMin === null || intervalMax === null || !isCompletionUnit(rawUnit)) {
     return INVALID_OFFSETS;
   }
-
-  const maximum = MAX_COMPLETION_VALUE[rawUnit];
-  if (
-    intervalMin > intervalMax ||
-    intervalMax > maximum
-  ) {
-    return INVALID_OFFSETS;
-  }
-  // 旧日数列は既存Workerとの互換性のため残す。日・週は従来値を保存できるが、
-  // 月・年は固定日数へ換算しないため0を互換用の番兵値とし、新しい値・単位列を正にする。
-  const multiplier = rawUnit === "day" || rawUnit === "week"
-    ? COMPLETION_UNIT_DAYS[rawUnit]
-    : 0;
-  return {
-    recommendedStartOffset: intervalMin * multiplier,
-    recommendedStartValue: intervalMin,
-    recommendedUnit: rawUnit,
-    recommendedUntilOffset: intervalMax * multiplier,
-    recommendedUntilValue: intervalMax,
-  };
+  return recommendedOffsets(rawUnit, intervalMin, intervalMax) ?? INVALID_OFFSETS;
 }
 
 function parseCompletionTodo(
@@ -213,31 +159,13 @@ function parseCompletionTodo(
 
   const anchorDate = formData.get("anchorDate");
   if (typeof anchorDate !== "string") return INVALID_WINDOW;
-  const startValue = mode === "previous_completion"
-    ? offsets.recommendedStartValue
-    : 0;
-  const dueValue = mode === "previous_completion"
-    ? offsets.recommendedUntilValue
-    : offsets.recommendedUntilValue - offsets.recommendedStartValue;
-  let firstScheduledFor: string | null = null;
-  let firstDueAt: string | null = null;
-  try {
-    firstScheduledFor = tokyoDateToUtcIso(
-      addTokyoCalendarDate(anchorDate, startValue, offsets.recommendedUnit),
-    );
-    firstDueAt = tokyoDateToUtcIso(
-      addTokyoCalendarDate(anchorDate, dueValue, offsets.recommendedUnit),
-    );
-  } catch {
-    return INVALID_WINDOW;
-  }
-  if (firstScheduledFor === null || firstDueAt === null) return INVALID_WINDOW;
+  const window = completionFirstWindow(offsets, mode, anchorDate);
+  if (window === null) return INVALID_WINDOW;
 
   return {
     ...basics,
     ...offsets,
-    firstDueAt,
-    firstScheduledFor,
+    ...window,
     recurrenceBasis: "completion",
   };
 }

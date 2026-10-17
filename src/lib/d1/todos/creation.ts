@@ -94,6 +94,7 @@ function intervalValues(
 function occurrenceInsert(
   db: D1Database,
   input: {
+    assigneeUserId: string | null;
     dueAt: string | null;
     householdId: string;
     occurrenceId: string;
@@ -107,11 +108,12 @@ function occurrenceInsert(
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version, schedule_spec_version, rule_snapshot, must_complete_by
+      completion_calendar_version, schedule_spec_version, rule_snapshot, must_complete_by,
+      assignee_user_id
     )
     SELECT ?1, ?2, ?3, ?4, ?5, ?6,
            CASE WHEN r.recurrence_basis = 'calendar' THEN 1 END,
-           ${snapshot}, ?7
+           ${snapshot}, ?7, ?8
       FROM task_rules r
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id
@@ -124,29 +126,36 @@ function occurrenceInsert(
     input.dueAt,
     input.completionCalendarVersion,
     input.mustCompleteBy,
+    input.assigneeUserId,
   );
 }
 
-async function insertTask(
+// 登録するTodoの保存形。方式ごとの初回予定はここへ入る前に決める。
+export type TaskInsert = TaskBasics & CompletionIntervalInput & {
+  // 外部command(#437)で登録と同時に決める担当。Webの登録画面では使わない。
+  assigneeUserId?: string | null;
+  deadlineKind: string;
+  dueAt: string | null;
+  interval?: IntervalTaskInput;
+  recurrenceBasis: string;
+  recommendedStartOffset: number;
+  recommendedUntilOffset: number;
+  scheduleSpecs?: readonly StoredCalendarSpec[];
+  scheduledFor: string | null;
+};
+
+// TaskRule・候補指定・最初のOccurrenceを作る文。外部commandは受付記録と同じ
+// batchへ載せるため、IDを外から渡して文だけを受け取る。
+export function taskInsertStatements(
   db: D1Database,
   householdId: string,
-  input: TaskBasics & CompletionIntervalInput & {
-    deadlineKind: string;
-    dueAt: string | null;
-    interval?: IntervalTaskInput;
-    recurrenceBasis: string;
-    recommendedStartOffset: number;
-    recommendedUntilOffset: number;
-    scheduleSpecs?: readonly StoredCalendarSpec[];
-    scheduledFor: string | null;
-  },
-): Promise<string> {
-  await requireManagedItem(db, householdId, input.managedItemId);
-  const taskRuleId = crypto.randomUUID();
-  const occurrenceId = crypto.randomUUID();
+  input: TaskInsert,
+  ids: { occurrenceId: string; taskRuleId: string },
+): D1PreparedStatement[] {
+  const { occurrenceId, taskRuleId } = ids;
   const specs = input.scheduleSpecs;
   const interval = input.interval;
-  await db.batch([
+  return [
     db.prepare(
       `INSERT INTO task_rules (
         id, household_id, managed_item_id, title, recurrence_basis,
@@ -176,6 +185,7 @@ async function insertTask(
     // 候補指定を入れた後にOccurrenceを作る。rule_snapshotが候補指定を含み
     // (YDR-039 / YDR-040)、0021のロールアウトガードも候補指定の件数を見るため。
     occurrenceInsert(db, {
+      assigneeUserId: input.assigneeUserId ?? null,
       mustCompleteBy: input.mustCompleteBy ?? null,
       completionCalendarVersion:
         input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null,
@@ -185,36 +195,37 @@ async function insertTask(
       scheduledFor: input.scheduledFor,
       taskRuleId,
     }),
-  ]);
+  ];
+}
+
+async function insertTask(
+  db: D1Database,
+  householdId: string,
+  input: TaskInsert,
+): Promise<string> {
+  await requireManagedItem(db, householdId, input.managedItemId);
+  const taskRuleId = crypto.randomUUID();
+  await db.batch(taskInsertStatements(db, householdId, input, { occurrenceId: crypto.randomUUID(), taskRuleId }));
   return taskRuleId;
 }
 
-export async function createOneTimeTask(
-  db: D1Database,
-  session: D1Session,
-  input: OneTimeTaskInput,
-): Promise<string> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  return insertTask(db, householdId, {
+// 方式ごとの保存形。Webの登録と外部commandが同じ規則で初回予定を決める。
+export function oneTimeTaskInsert(input: OneTimeTaskInput): TaskInsert {
+  return {
     ...input,
     deadlineKind: "strict",
     dueAt: input.scheduledFor,
     recurrenceBasis: "once",
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
-  });
+  };
 }
 
 // Issue #325 / YDR-046: 登録時に予定日未定のOccurrenceを1件だけ作る。以降の
 // 回は完了のたびにcompletion.tsが同じ形で作り、ここでは先の回を作らない
 // (YDR-016)。
-export async function createManualTask(
-  db: D1Database,
-  session: D1Session,
-  input: ManualTaskInput,
-): Promise<string> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  return insertTask(db, householdId, {
+export function manualTaskInsert(input: ManualTaskInput): TaskInsert {
+  return {
     ...input,
     deadlineKind: "strict",
     dueAt: null,
@@ -222,57 +233,39 @@ export async function createManualTask(
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
     scheduledFor: null,
-  });
+  };
 }
 
-export async function createMaintenanceTask(
-  db: D1Database,
-  session: D1Session,
-  input: MaintenanceTaskInput,
-): Promise<string> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  return insertTask(db, householdId, {
+export function maintenanceTaskInsert(input: MaintenanceTaskInput): TaskInsert {
+  return {
     ...input,
     deadlineKind: "maintenance",
     dueAt: input.firstDueAt,
     recurrenceBasis: "completion",
     scheduledFor: input.firstScheduledFor,
-  });
+  };
 }
 
-export async function createCalendarTask(
-  db: D1Database,
-  session: D1Session,
-  input: CalendarTaskInput,
-  now = new Date(),
-): Promise<string> {
-  const householdId = await requireCurrentHouseholdId(db, session);
-  const specs = calendarSpecsFromInput(input);
+export function calendarTaskInsert(input: CalendarTaskInput, now: Date): TaskInsert {
   const first = calendarFirstScheduledFor(calendarScheduleFromInput(input), now);
-  return insertTask(db, householdId, {
+  return {
     ...input,
     deadlineKind: "strict",
     dueAt: first,
     recurrenceBasis: "calendar",
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
-    scheduleSpecs: specs,
+    scheduleSpecs: calendarSpecsFromInput(input),
     scheduledFor: first,
-  });
+  };
 }
 
 // 初回のOccurrenceは、登録日の暦日を含め、それ以降で最初の候補にする
 // (YDR-037の2)。起点日が過去でも、飛ばした候補はさかのぼって作らない
 // (YDR-016)。
-export async function createIntervalTask(
-  db: D1Database,
-  session: D1Session,
-  input: IntervalTaskInput,
-  now = new Date(),
-): Promise<string> {
-  const householdId = await requireCurrentHouseholdId(db, session);
+export function intervalTaskInsert(input: IntervalTaskInput, now: Date): TaskInsert {
   const first = intervalFirstScheduledFor(input, now);
-  return insertTask(db, householdId, {
+  return {
     ...input,
     deadlineKind: "strict",
     dueAt: first,
@@ -281,5 +274,47 @@ export async function createIntervalTask(
     recommendedStartOffset: 0,
     recommendedUntilOffset: 0,
     scheduledFor: first,
-  });
+  };
+}
+
+export async function createOneTimeTask(
+  db: D1Database,
+  session: D1Session,
+  input: OneTimeTaskInput,
+): Promise<string> {
+  return insertTask(db, await requireCurrentHouseholdId(db, session), oneTimeTaskInsert(input));
+}
+
+export async function createManualTask(
+  db: D1Database,
+  session: D1Session,
+  input: ManualTaskInput,
+): Promise<string> {
+  return insertTask(db, await requireCurrentHouseholdId(db, session), manualTaskInsert(input));
+}
+
+export async function createMaintenanceTask(
+  db: D1Database,
+  session: D1Session,
+  input: MaintenanceTaskInput,
+): Promise<string> {
+  return insertTask(db, await requireCurrentHouseholdId(db, session), maintenanceTaskInsert(input));
+}
+
+export async function createCalendarTask(
+  db: D1Database,
+  session: D1Session,
+  input: CalendarTaskInput,
+  now = new Date(),
+): Promise<string> {
+  return insertTask(db, await requireCurrentHouseholdId(db, session), calendarTaskInsert(input, now));
+}
+
+export async function createIntervalTask(
+  db: D1Database,
+  session: D1Session,
+  input: IntervalTaskInput,
+  now = new Date(),
+): Promise<string> {
+  return insertTask(db, await requireCurrentHouseholdId(db, session), intervalTaskInsert(input, now));
 }
