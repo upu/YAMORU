@@ -14,6 +14,7 @@ status: draft
 |---|---|
 | 接続ごとの走査、量の上限、回復 | `notifications/scheduler.ts`、`src/lib/d1/notification-scheduler.ts` |
 | 配信の一意性、lease世代、開始前の判定 | `src/lib/d1/notification-outbox.ts` |
+| 元のOccurrence・消耗品の保持と保存期限 | migration `0042`、`src/lib/d1/notification-outbox-retention.ts` |
 | 最新の時刻・設定の可否 | `src/lib/d1/notification-policy.ts`、[個人の通知](notifications.md) |
 | 受領・不明結果と履歴の同時保存 | `notification-outbox.ts` → `notification-deliveries.ts` |
 | 購読の本人境界・暗号化・解除競合 | `notifications/event-subscriptions.ts`、`src/lib/d1/notification-event-subscriptions.ts` |
@@ -29,6 +30,8 @@ status: draft
 0041は本人・家庭・接続の複合FKを持つ購読表だけを追加する。callback URLと署名鍵を所有者・client・購読IDに結び付けて暗号化し、解除・失効時には暗号文を消す。更新はrevisionで照合し、確認中の解除や遅い鍵更新で復活・上書きしない。詳細は[YDR-060](../decisions/ydr-060-event-subscription-boundary.md)。
 
 `notification-event-subscriptions*.d1-test.ts`は認可・上限・TTL・解除競合・鍵更新・中断・更新DBの互換性、`notification-event-crypto.test.ts`は別所有者への暗号文移動と署名移行、`notification-webhook-transport.test.ts`はDNS再検証・private混在・redirect拒否を確認する。
+
+0042と[YDR-061](../decisions/ydr-061-notification-source-and-retention.md)は通知時の元entity IDとTodo rule IDを候補から独立して保持する。候補の解消・元実体の削除後も次回へ読み替えず、既に候補が消えた過去行は推測でbackfillしない。詳細とsourceは終端から90日後に順次削除するが、unknown/failedのID・状態・試行数は保持して自動再送を防ぐ。pendingなど非終端の記録は削除しない。`notification-outbox-context*.d1-test.ts`が元の回・消耗品・旧SQL・全取消・cascade・期限と100件の上限の入口。
 
 現在は永続走査、送信管理と購読の基盤である。2026版のevents/list・subscribe・unsubscribeは明示的な送信providerの注入時だけ公開する。runtimeはproviderを設定しておらず、外部向けEventsは無効である。`createPinnedWebhookTransport`はDNS resolverと接続先IP・元hostのTLSを維持するconnectorを必須にし、通常のfetchで代用しない。テストの架空providerは実環境の証拠ではない。
 
