@@ -253,16 +253,30 @@ function withHardDeadline(entry: PendingTodoEntry, date: string | null | undefin
   const iso = tokyoDateToUtcIso(date);
   if (!iso) throw new Error("必達日が不正です。");
   const distance = getTokyoDayDistance(nowIso, iso);
+  const previousBadge = entry.item.badge;
+  const previousScheduleState = describeScheduleState(entry);
   entry.item.mustCompleteBy = date;
+  entry.item.hardDeadlineToday = distance === 0;
   entry.item.meta = [entry.item.meta, `必達日: ${formatTokyoMonthDay(iso)}`].filter(Boolean).join(" ・ ");
   if (distance <= 0) applyReachedHardDeadline(entry, distance, iso);
   else promoteUpcomingDeadline(entry, distance, iso);
+  if (entry.item.badge !== previousBadge) {
+    entry.item.scheduleState = previousScheduleState;
+    entry.item.meta = `${previousScheduleState} ・ ${entry.item.meta}`;
+  }
   return entry;
 }
 
+function describeScheduleState(entry: PendingTodoEntry): string {
+  if (entry.item.badge) return entry.item.badge;
+  if (entry.category === "overdue") return STRICT_DISPLAY_COPY.overdue.badge;
+  if (entry.category === "today") return STRICT_DISPLAY_COPY["due-today"].badge;
+  return STRICT_DISPLAY_COPY.upcoming.badge;
+}
+
 function applyReachedHardDeadline(entry: PendingTodoEntry, distance: number, iso: string) {
-  // 必達日が今日でも、予定日がすでに過ぎたTodoの警告を弱めない。
-  if (distance === 0 && entry.category === "overdue") {
+  // 必達日が今日でも、予定日や推奨期間がすでに過ぎた警告を弱めない。
+  if (distance === 0 && (entry.category === "overdue" || entry.item.tone === "caution")) {
     entry.item.meta += "（今日）";
     return;
   }

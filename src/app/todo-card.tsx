@@ -10,6 +10,9 @@ import type { TodoListSchedule, TodoTone } from "./task-schedule";
 // 置き、画面側は「どのTodoを、どの順序で並べるか」だけを決める。
 export type TodoCardItem = {
   mustCompleteBy?: string;
+  hardDeadlineToday?: boolean;
+  // 必達日のバッジを優先しても、元の予定・推奨期間の状態を併記する。
+  scheduleState?: string;
   // pending Todoにだけ設定する。未設定(誰でも可)はnull。
   assigneeUserId?: string | null;
   badge?: string;

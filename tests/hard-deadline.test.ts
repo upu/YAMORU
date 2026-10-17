@@ -11,6 +11,22 @@ function row(id: string, deadline: string | null): PendingOccurrenceRow {
 }
 
 describe("必達日と目安の独立した表示", () => {
+  it("推奨期間超過なら、必達日が今日でも既存の警告を隠さない", () => {
+    const late = { ...row("late", "2026-10-17"), due_at: "2026-10-15T15:00:00.000Z", scheduled_for: "2026-10-01T15:00:00.000Z" };
+    const [entry] = buildPendingTodoEntries([late], "2026-10-17T00:00:00.000Z");
+    expect(entry.category).toBe("reminder");
+    expect(entry.item.tone).toBe("caution");
+    expect(entry.item.badge).toBe("推奨期間超過");
+    expect(entry.item.meta).toContain("必達日: 10月17日（今日）");
+  });
+  it("必達日超過を優先しても、元の推奨期間超過をカードと一覧用データに残す", () => {
+    const late = { ...row("late", "2026-10-16"), due_at: "2026-10-15T15:00:00.000Z", scheduled_for: "2026-10-01T15:00:00.000Z" };
+    const [entry] = buildPendingTodoEntries([late], "2026-10-17T00:00:00.000Z");
+    expect(entry.category).toBe("overdue");
+    expect(entry.item.badge).toBe("必達日超過");
+    expect(entry.item.scheduleState).toBe("推奨期間超過");
+    expect(entry.item.meta).toContain("推奨期間超過");
+  });
   it("予定が期限切れなら、必達日が今日でも期限切れを隠さない", () => {
     const strict = { ...row("late", "2026-10-17"),
       scheduled_for: "2026-10-15T15:00:00.000Z", due_at: "2026-10-15T15:00:00.000Z",
