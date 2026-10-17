@@ -11,6 +11,15 @@ function row(id: string, deadline: string | null): PendingOccurrenceRow {
 }
 
 describe("必達日と目安の独立した表示", () => {
+  it("予定が期限切れなら、必達日が今日でも期限切れを隠さない", () => {
+    const strict = { ...row("late", "2026-10-17"),
+      scheduled_for: "2026-10-15T15:00:00.000Z", due_at: "2026-10-15T15:00:00.000Z",
+      task_rules: { ...row("late", null).task_rules, recurrence_basis: "once", deadline_kind: "strict" } };
+    const [entry] = buildPendingTodoEntries([strict], "2026-10-17T00:00:00.000Z");
+    expect(entry.category).toBe("overdue");
+    expect(entry.item.tone).toBe("urgent");
+    expect(entry.item.meta).toContain("必達日: 10月17日（今日）");
+  });
   it("東京の暦日で当日と超過を分け、推奨期間前でも必達日を表示する", () => {
     const [today] = buildPendingTodoEntries([row("a", "2026-10-17")], "2026-10-16T15:00:00.000Z");
     expect(today.category).toBe("today");
