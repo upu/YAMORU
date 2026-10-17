@@ -18,10 +18,19 @@ it("通知権限だけでprepare/commitでき、同じIDの再送は同じ結果
   const preview = await service.prepare(principal, input);
   expect((await getNotificationSettings(db, householdAMember)).revision).toBe(0);
   const first = await service.commit(principal, commitInput(preview));
+  expect(preview.diff.after).toMatchObject({ connection_id: "connection-a", digest_time: "10:00", time_zone: "Asia/Tokyo" });
+  expect(first.result.settings).not.toHaveProperty("connectionId");
   expect(first).toMatchObject({ status: "succeeded", result: { settings_revision: 1, shared_schedule_changed: false } });
   expect(await service.commit(principal, commitInput(preview))).toMatchObject({ replayed: true, result: first.result });
   expect((await getNotificationSettings(db, householdAMember)).settings.digestTime).toBe("10:00");
   await expect(service.prepare(principal, { ...input, payload: { ...input.payload, digest_time: "11:00" } })).rejects.toMatchObject({ code: "idempotency_conflict" });
+});
+it("attentionの再取得前に元の内容が変わった候補のrevisionを拒否する", async () => {
+  const { candidate, occurrenceId } = await notificationCandidate(db);
+  await db.prepare("UPDATE task_occurrences SET rule_snapshot=json_set(rule_snapshot,'$.title','更新後の用事') WHERE id=?").bind(occurrenceId).run();
+  await expect(service.prepare(principal, { operation_id: crypto.randomUUID(), command: "notification.snooze", payload: {
+    candidate_id: candidate.candidate_id, candidate_revision: candidate.revision, until: "2026-10-18T00:00:00.000Z",
+  } })).rejects.toMatchObject({ code: "stale_preview" });
 });
 it("設定の競合、権限不足、解除と期限切れを拒否し、設定を部分保存しない", async () => {
   await expect(service.prepare({ ...principal, scopes: ["household.read", "household.write"] }, request())).rejects.toMatchObject({ code: "insufficient_scope" });
@@ -38,7 +47,11 @@ it("候補revisionを確認して本人だけスヌーズし、再送や完了�
   const { candidate } = await notificationCandidate(db);
   const input = { operation_id: crypto.randomUUID(), command: "notification.snooze", payload: { candidate_id: candidate.candidate_id, candidate_revision: candidate.revision, until: "2026-10-18T00:00:00.000Z" } };
   const preview = await service.prepare(principal, input);
-  await service.commit(principal, commitInput(preview));
+  expect(preview.normalized_command.payload).toMatchObject({ until: input.payload.until });
+  expect(preview.diff.after).toEqual({ muted: false, until: input.payload.until });
+  const committed = await service.commit(principal, commitInput(preview));
+  expect(committed.result).toMatchObject({ until: input.payload.until });
+  expect(committed.result).not.toHaveProperty("snoozedUntil");
   await service.commit(principal, commitInput(preview));
   expect(await getCandidateControl(db, principal, candidate.candidate_id)).toMatchObject({ revision: 1, snoozedUntil: "2026-10-18T00:00:00.000Z" });
   await expect(service.prepare(principal, { ...input, operation_id: crypto.randomUUID(), payload: { ...input.payload, candidate_revision: "old" } })).rejects.toMatchObject({ code: "stale_preview" });

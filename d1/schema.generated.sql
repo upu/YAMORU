@@ -39,7 +39,7 @@ CREATE TABLE attention_candidates (
  sort_key TEXT NOT NULL,
  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0),
  generated_at TEXT NOT NULL,
- evaluated_on TEXT NOT NULL,
+ evaluated_on TEXT NOT NULL, first_detected_at TEXT,
  UNIQUE(household_id,source_key),
  CHECK((occurrence_id IS NOT NULL)+(consumable_id IS NOT NULL)=1),
  CHECK(source_key=CASE WHEN occurrence_id IS NOT NULL THEN 'todo_occurrence:'||occurrence_id ELSE 'consumable:'||consumable_id END),
@@ -987,6 +987,13 @@ CREATE TRIGGER aliases_limit_update BEFORE UPDATE ON entity_aliases
  WHEN (SELECT count(*) FROM entity_aliases a WHERE a.household_id=NEW.household_id AND a.id<>NEW.id AND
  (a.managed_item_id=NEW.managed_item_id OR a.todo_rule_id=NEW.todo_rule_id OR a.todo_occurrence_id=NEW.todo_occurrence_id OR a.consumable_id=NEW.consumable_id)) >= 10
  BEGIN SELECT RAISE(ABORT,'At most ten aliases per entity'); END;
+
+-- trigger: attention_candidates_first_detected
+CREATE TRIGGER attention_candidates_first_detected
+AFTER INSERT ON attention_candidates WHEN NEW.first_detected_at IS NULL
+BEGIN
+  UPDATE attention_candidates SET first_detected_at = NEW.generated_at WHERE id = NEW.id;
+END;
 
 -- trigger: attention_delete
 CREATE TRIGGER attention_delete AFTER DELETE ON attention_candidates BEGIN

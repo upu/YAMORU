@@ -8,12 +8,14 @@ import { requireHouseholdMembership } from "./authorization";
 export type NotificationDecision = { state: "ready" | "deferred" | "cancelled" | "suppressed"; reason: string; nextAt: string | null };
 const decision = (state: NotificationDecision["state"], reason: string, nextAt: string | null = null): NotificationDecision => ({ state, reason, nextAt });
 export async function currentNotificationCandidate(db: D1Database, householdId: string, candidateId: string, now: Date) {
-  const row = await db.prepare(`SELECT s.*,c.generated_at FROM attention_candidates c JOIN attention_sources s
+  const row = await db.prepare(`SELECT s.*,c.generated_at,c.first_detected_at,c.payload,c.revision FROM attention_candidates c JOIN attention_eligibility s
     ON s.household_id=c.household_id AND c.source_key=s.kind||':'||s.id WHERE c.id=? AND c.household_id=?`)
-    .bind(candidateId, householdId).first<AttentionSource & { generated_at: string }>();
+    .bind(candidateId, householdId).first<AttentionSource & { generated_at: string; first_detected_at: string | null; eligible_on: string; payload: string; revision: number }>();
   if (!row) return null;
   const payload = projectAttention(row, now);
-  return payload ? { ...payload, generatedAt: row.generated_at } : null;
+  if (!payload) return null;
+  const eligibleSince = row.kind === "todo_occurrence" ? new Date(`${row.eligible_on}T00:00:00+09:00`).toISOString() : row.first_detected_at ?? row.generated_at;
+  return { ...payload, eligibleSince, revision: row.revision, projectionCurrent: JSON.stringify(payload) === row.payload };
 }
 async function previousDeliveries(db: D1Database, principal: IntegrationPrincipal, candidateId: string) {
   return db.prepare(`SELECT COUNT(*) AS count, MAX(recorded_at) AS lastAt, MAX(outcome='unknown') AS uncertain
@@ -50,5 +52,5 @@ export async function evaluateNotification(db: D1Database, principal: Integratio
   if (!candidate) return decision("suppressed", "candidate_resolved");
   const repeat = repeated(settings, candidate.priority === "high", await previousDeliveries(db, principal, candidateId));
   if (repeat?.blocked) return decision("suppressed", repeat.blocked);
-  return scheduled(settings, control, repeat?.due ?? new Date(candidate.generatedAt), now);
+  return scheduled(settings, control, repeat?.due ?? new Date(candidate.eligibleSince), now);
 }

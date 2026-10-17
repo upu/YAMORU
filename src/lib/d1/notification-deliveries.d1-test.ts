@@ -6,6 +6,8 @@ import { saveNotificationSettings, setCandidateControl } from "./notification-se
 import { recordDelivery, evaluateNotification, listDeliveries, pruneDeliveryHistory, deliveryRecordStatements } from "./notification-deliveries";
 import { DEFAULT_SETTINGS } from "../../features/integration/notifications/contract";
 import { createNotificationReader } from "../../features/integration/notifications/service";
+import { createAttentionReader } from "../../features/integration/attention/service";
+import { createHouseholdAMaintenanceTask } from "./test-support/households";
 const db = env.DB;
 const session = { userId: principal.userId };
 beforeAll(() => applyAllMigrations(db));
@@ -51,12 +53,43 @@ it("読み取りは本人・接続・scopeで束縛したcursorを返し、解�
   const first = await api.deliveryList({ limit: 1 });
   expect(first.items).toHaveLength(1);
   const second = await api.deliveryList({ limit: 1, cursor: first.next_cursor });
-  expect(second.items[0].deliveryId).not.toBe(first.items[0].deliveryId);
+  expect(second.items[0].delivery_id).not.toBe(first.items[0].delivery_id);
+  expect(first.items[0]).not.toHaveProperty("candidateName");
+  expect((await api.notificationSettingsGet()).settings).toMatchObject({ connection_id: "connection-a", time_zone: "Asia/Tokyo", repeat_policy: { normal_hours: 24 } });
   await expect(api.deliveryList({ limit: 2, cursor: first.next_cursor })).rejects.toMatchObject({ code: "invalid_cursor" });
   const denied = createNotificationReader({ ...deps, authorize: async () => ({ ...principal, scopes: ["household.read"] }) });
   await expect(denied.notificationSettingsGet()).rejects.toMatchObject({ code: "insufficient_scope" });
   await db.prepare("UPDATE oauth_connections SET revoked_at=?,revoked_reason='user_revoked' WHERE id=?").bind(now.toISOString(), principal.connectionId).run();
   await expect(api.deliveryList()).rejects.toThrow();
+});
+it("日次まとめを過ぎた初回検出・内容更新でも既に期限を迎えた候補を翌日へ送らない", async () => {
+  await saveNotificationSettings(db, session, { ...DEFAULT_SETTINGS, enabled: true, connectionId: principal.connectionId }, 0, now);
+  const { occurrenceId } = await createHouseholdAMaintenanceTask(db);
+  const ten = new Date("2026-10-17T01:00:00Z");
+  const reader = createAttentionReader({ db, authorize: async () => principal, now: () => ten, cursorSecret: "notification-test-secret-with-32-bytes" });
+  const first = (await reader.attentionGet({})).candidates[0];
+  expect((await evaluateNotification(db, principal, first.candidate_id, ten)).state).toBe("ready");
+  await db.prepare("UPDATE task_occurrences SET rule_snapshot=json_set(rule_snapshot,'$.title','更新後') WHERE id=?").bind(occurrenceId).run();
+  await reader.attentionGet({});
+  expect((await evaluateNotification(db, principal, first.candidate_id, ten)).state).toBe("ready");
+});
+it("在庫候補の名前更新でも初回検出時刻を保ち、解消後の再発は新しい区間になる", async () => {
+  await saveNotificationSettings(db, session, { ...DEFAULT_SETTINGS, enabled: true, connectionId: principal.connectionId }, 0, now);
+  await db.prepare("INSERT INTO consumables(id,household_id,name,stock_status) VALUES('stock','household-a','洗剤','low')").run();
+  let clock = new Date("2026-10-16T23:00:00Z");
+  const reader = createAttentionReader({ db, authorize: async () => principal, now: () => clock, cursorSecret: "notification-test-secret-with-32-bytes" });
+  const first = (await reader.attentionGet({})).candidates[0];
+  clock = new Date("2026-10-17T01:00:00Z");
+  await db.prepare("UPDATE consumables SET name='新しい洗剤' WHERE id='stock'").run();
+  await reader.attentionGet({});
+  expect((await evaluateNotification(db, principal, first.candidate_id, clock)).state).toBe("ready");
+  expect(await db.prepare("SELECT generated_at,first_detected_at FROM attention_candidates WHERE id=?").bind(first.candidate_id).first())
+    .toEqual({ generated_at: clock.toISOString(), first_detected_at: "2026-10-16T23:00:00.000Z" });
+  await db.prepare("UPDATE consumables SET stock_status='available' WHERE id='stock'").run();
+  await db.prepare("UPDATE consumables SET stock_status='low' WHERE id='stock'").run();
+  const next = (await reader.attentionGet({})).candidates[0];
+  expect(next.candidate_id).not.toBe(first.candidate_id);
+  expect(await evaluateNotification(db, principal, next.candidate_id, clock)).toMatchObject({ state: "deferred", nextAt: "2026-10-18T00:00:00.000Z" });
 });
 it("高い優先度の再通知は本人が選んだ48時間を守り、不明結果の上書きを原子的に拒否する", async () => {
   const { candidate: c, occurrenceId } = await enabled();

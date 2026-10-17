@@ -26,6 +26,8 @@ status: stable
 
 prepareでは書き込まず本人への差分を示し、commit時に設定・候補・休止のrevisionを再確認する。変更SQLとreceiptは同じD1 batchであり、直前の競合でも両方を取り消す。時刻previewはprepareの基準時刻へ固定し、実際の配信可否は送信時に読み直す。
 
+会話APIの設定・preview・結果・履歴は`notifications/wire.ts`でsnake_caseへ変換する。設定は入力と同じquiet_hours/repeat_policyの構造、休止はuntil、履歴はdelivery_id/candidate_id/candidate_name/connection_id/outcome/reason/recorded_atを返す。候補の元データをライブで投影し、キャッシュのpayloadと異なる場合も古いcandidate_revisionとして拒否する。
+
 ## #442への引き継ぎ
 
 この実装は配信を開始しない。画面にも準備中と表示する。MCP adapter・outbox・lease・定期実行・実接続検証を実装した後で表示を更新する。
@@ -39,6 +41,6 @@ prepareでは書き込まず本人への差分を示し、commit時に設定・�
 
 ## 不変条件と検証
 
-根拠は[YDR-050](../decisions/ydr-050-conversation-reminders.md)と[YDR-056](../decisions/ydr-056-personal-notification-policy.md)。0035は追加だけで既存の行・時刻を変えない。fixtureは家庭/利用者/接続のcascadeで掃除するため旧migrationでも使える。
+根拠は[YDR-050](../decisions/ydr-050-conversation-reminders.md)と[YDR-056](../decisions/ydr-056-personal-notification-policy.md)。0035・0036は追加だけで既存の列・時刻を変えない。0036は候補の初回検出時刻を保持し、内容更新で日次まとめを翌日に動かさない。Todoは候補になる日付、在庫は初回検出時刻を初回配信の起点にする。fixtureは家庭/利用者/接続のcascadeで掃除するため旧migrationでも使える。
 
 `tests/notification-*.test.*`は既定値・DST・表示、`src/lib/d1/notification-*.d1-test.ts`は本人境界・古いrevision・再送・解除・重複抑止・更新DB、`e2e/notification-settings.spec.ts`は保存・休止/解除・共有期限不変を検証する。自動テストは実dotへの通知到達の証拠ではない。

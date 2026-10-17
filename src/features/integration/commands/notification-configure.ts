@@ -1,6 +1,7 @@
 import { getNotificationSettings, notificationSettingsStatement, usableNotificationConnection } from "../../../lib/d1/notification-settings";
 import { parseSettings, NotificationError } from "../notifications/contract";
 import { nextNotificationTime } from "../notifications/schedule";
+import { settingsToWire } from "../notifications/wire";
 import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
 import type { CommandContext, CommandHandler, CommandPlan } from "./handler";
 import { objectValue } from "./input";
@@ -34,12 +35,12 @@ async function plan(context: CommandContext, normalized: NormalizedCommand): Pro
   const reference = new Date(String(normalized.payload.reference_at));
   const nextAt = nextNotificationTime(settings, reference, reference);
   return {
-    preview: { affected_entities: [{ kind: "notification_settings", id: context.userId }], diff: { before: current.settings, after: settings, settings_revision: current.revision }, schedule_effect: { shared_schedule_changed: false, next_allowed_at: nextAt } },
+    preview: { affected_entities: [{ kind: "notification_settings", id: context.userId }], diff: { before: settingsToWire(current.settings), after: settingsToWire(settings), settings_revision: current.revision }, schedule_effect: { shared_schedule_changed: false, next_allowed_at: nextAt } },
     build: ({ businessKey, recordedAt }) => ({
       statements: [notificationSettingsStatement(context.db, context, settings, current.revision, new Date(recordedAt), businessKey)],
       evidence: [{ table: "notification_settings", idempotencyKey: businessKey }],
       revisionEntity: { kind: "notification_settings", id: context.userId },
-      result: { settings, settings_revision: current.revision + 1, next_allowed_at: nextAt, shared_schedule_changed: false },
+      result: { settings: settingsToWire(settings), settings_revision: current.revision + 1, next_allowed_at: nextAt, shared_schedule_changed: false },
     }),
   };
 }

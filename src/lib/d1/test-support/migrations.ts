@@ -43,6 +43,7 @@ import integrationOperationsSql from "../../../../d1/migrations/0033_integration
 import conversationReadSql from "../../../../d1/migrations/0032_conversation_reads.sql?raw";
 import attentionSql from "../../../../d1/migrations/0034_attention_candidates.sql?raw";
 import notificationSql from "../../../../d1/migrations/0035_notification_settings.sql?raw";
+import notificationIntervalsSql from "../../../../d1/migrations/0036_notification_candidate_intervals.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -81,6 +82,7 @@ const MIGRATIONS = [
   { name: "0033_integration_operations", sql: integrationOperationsSql },
   { name: "0034_attention_candidates", sql: attentionSql },
   { name: "0035_notification_settings", sql: notificationSql },
+  { name: "0036_notification_candidate_intervals", sql: notificationIntervalsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

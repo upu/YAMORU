@@ -12,8 +12,15 @@ it("追加migrationは既存行・旧SQLを保ち、家庭FK・cascade・rollbac
   await resetNotificationFixtures(db);
   const { candidate: c, occurrenceId } = await notificationCandidate(db);
   const before = await db.prepare("SELECT * FROM task_occurrences WHERE id=?").bind(occurrenceId).first();
+  const candidateBefore = await db.prepare("SELECT * FROM attention_candidates WHERE id=?").bind(c.candidate_id).first();
   await applyMigrationsAfter(db, "0034_attention_candidates");
   expect(await db.prepare("SELECT * FROM task_occurrences WHERE id=?").bind(occurrenceId).first()).toEqual(before);
+  expect(await db.prepare("SELECT * FROM attention_candidates WHERE id=?").bind(c.candidate_id).first())
+    .toEqual({ ...candidateBefore, first_detected_at: candidateBefore.generated_at });
+  // 旧Workerの更新SQLはそのまま使え、内容更新は区間の開始時刻を動かさない。
+  await db.prepare("UPDATE attention_candidates SET generated_at=? WHERE id=?").bind("2026-10-17T01:00:00.000Z", c.candidate_id).run();
+  expect(await db.prepare("SELECT first_detected_at FROM attention_candidates WHERE id=?").bind(c.candidate_id).first())
+    .toEqual({ first_detected_at: candidateBefore.generated_at });
   await saveNotificationSettings(db, householdAMember, { ...DEFAULT_SETTINGS, enabled: true, connectionId: principal.connectionId }, 0, now);
   await setCandidateControl(db, householdAMember, c.candidate_id, { muted: true, snoozedUntil: null }, now);
   await recordDelivery(db, principal, { deliveryId: "migration", candidateId: c.candidate_id, outcome: "accepted", reason: null }, now);
