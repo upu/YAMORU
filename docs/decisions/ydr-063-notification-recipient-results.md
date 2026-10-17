@@ -38,6 +38,8 @@ decision_date: 2026-10-18
 
 既存ID・日時・履歴を保持し、新構造は以後も利用する。終端から90日後に本文を一回100件ずつ消す。unknown/failedは最小の宛先結果・ID・試行数を維持し、上限回避を防ぐ。非終端の本文は維持する。
 
+0044はbatchへ終端時刻を追加し、旧・新Workerの親更新をtriggerで同期する。本文が残る終端記録だけの期限索引を清掃に使い、破棄済み本文の証拠を毎回読み直さない。backfillでは親の元の時刻を使い、既存本文・event ID・日時を変更しない。0043と同じ追加だけの互換性を維持する。
+
 この追加は内部の保存APIであり、runtimeのEvents providerを有効にしない。実connector、定期取得の代替方式、日次まとめ、実dotの到達・解除・失効は#442の残る合格条件である。
 
 参照: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。

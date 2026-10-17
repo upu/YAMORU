@@ -532,7 +532,7 @@ CREATE TABLE notification_event_batches (
   connection_id TEXT NOT NULL,
   event_id TEXT NOT NULL UNIQUE,
   body TEXT CHECK(body IS NULL OR (json_valid(body) AND length(CAST(body AS BLOB))<=262144)),
-  frozen_at TEXT NOT NULL,
+  frozen_at TEXT NOT NULL, terminal_at TEXT,
   FOREIGN KEY(delivery_id,household_id,user_id,connection_id)
     REFERENCES notification_outbox(delivery_id,household_id,user_id,connection_id) ON DELETE CASCADE,
   UNIQUE(delivery_id,household_id,user_id,connection_id)
@@ -1118,6 +1118,10 @@ CREATE INDEX managed_item_type_suggestions_adopted_idx
 -- index: managed_items_household_id_idx
 CREATE INDEX managed_items_household_id_idx ON managed_items(household_id);
 
+-- index: notification_event_batches_retention_idx
+CREATE INDEX notification_event_batches_retention_idx ON notification_event_batches(terminal_at,delivery_id)
+  WHERE terminal_at IS NOT NULL AND body IS NOT NULL;
+
 -- index: notification_history_person_idx
 CREATE INDEX notification_history_person_idx ON notification_delivery_history(household_id,user_id,sequence DESC);
 
@@ -1308,6 +1312,18 @@ END;
 -- trigger: attention_update
 CREATE TRIGGER attention_update AFTER UPDATE OF payload ON attention_candidates WHEN OLD.payload<>NEW.payload BEGIN
  INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
+END;
+
+-- trigger: notification_event_batch_terminal_insert
+CREATE TRIGGER notification_event_batch_terminal_insert AFTER INSERT ON notification_event_batches BEGIN
+  UPDATE notification_event_batches SET terminal_at=(SELECT updated_at FROM notification_outbox o
+    WHERE o.delivery_id=NEW.delivery_id AND o.state IN ('accepted','reported','unknown','failed','cancelled','suppressed')) WHERE delivery_id=NEW.delivery_id;
+END;
+
+-- trigger: notification_event_batch_terminal_update
+CREATE TRIGGER notification_event_batch_terminal_update AFTER UPDATE OF state,updated_at ON notification_outbox BEGIN
+  UPDATE notification_event_batches SET terminal_at = CASE
+    WHEN NEW.state IN ('accepted','reported','unknown','failed','cancelled','suppressed') THEN NEW.updated_at ELSE NULL END WHERE delivery_id=NEW.delivery_id;
 END;
 
 -- trigger: notification_outbox_capture_source

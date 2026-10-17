@@ -237,3 +237,14 @@ it("非終端bodyは残し、期限切れbodyが多数でも一回100件まで�
   await pruneNotificationOutbox(db, now());
   expect(await db.prepare("SELECT count(*) AS n FROM notification_event_batches WHERE body IS NOT NULL").first()).toEqual({ n: 1 });
 });
+it("定期清掃は本文を持つ終端記録の期限索引を使い、破棄済み証拠を走査しない", async () => {
+  const plans: string[] = [];
+  const observing = { prepare: (sql: string) => {
+    if (sql.startsWith("UPDATE notification_event_batches")) plans.push(sql);
+    return db.prepare(sql);
+  }, batch: (statements: D1PreparedStatement[]) => db.batch(statements) } as unknown as D1Database;
+  await pruneNotificationOutbox(observing, now());
+  expect(plans).toHaveLength(1);
+  const plan = (await db.prepare(`EXPLAIN QUERY PLAN ${plans[0]}`).bind(new Date(Date.now() - 90 * 86_400_000).toISOString()).all<{ detail: string }>()).results;
+  expect(plan.map((r) => r.detail).join("\n")).toContain("notification_event_batches_retention_idx");
+});
