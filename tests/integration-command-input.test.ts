@@ -38,9 +38,14 @@ describe("prepare/commitの入力", () => {
 
   it("commitではpayloadを受け取らず、未実装の確認tokenは未対応として返す", () => {
     const base = { fingerprint: "a".repeat(64), operation_id: OPERATION_ID, preview_id: OPERATION_ID };
-    expect(parseCommitRequest(base)).toEqual({ fingerprint: "a".repeat(64), operationId: OPERATION_ID, previewId: OPERATION_ID });
+    expect(parseCommitRequest(base)).toEqual({
+      confirmationToken: undefined, fingerprint: "a".repeat(64), operationId: OPERATION_ID, previewId: OPERATION_ID,
+    });
     expect(errorOf(() => parseCommitRequest({ ...base, payload: {} })).code).toBe("invalid_input");
-    expect(errorOf(() => parseCommitRequest({ ...base, confirmation_token: "t" })).code).toBe("unsupported_capability");
+    // 追加確認(YDR-062)のtokenは文字列だけを受け取り、検証はcommitで行う。
+    expect(parseCommitRequest({ ...base, confirmation_token: "t" })).toMatchObject({ confirmationToken: "t" });
+    expect(errorOf(() => parseCommitRequest({ ...base, confirmation_token: 1 })).code).toBe("invalid_input");
+    expect(errorOf(() => parseCommitRequest({ ...base, confirmation_token: "x".repeat(257) })).code).toBe("invalid_input");
   });
 });
 

@@ -12,15 +12,23 @@ import type { IntegrationScope } from "../scopes";
 import {
   canonicalJson,
   CommandError,
-  isCommandErrorCode,
   isCommandName,
   PREVIEW_TTL_MS,
   sha256Hex,
   type CommandName,
   type NormalizedCommand,
 } from "./contract";
+import {
+  confirmationOutput,
+  createConfirmationTokens,
+  decideConfirmation,
+  meaningfulDigestOf,
+  subjectKeyOf,
+  visibleConfirmationStatus,
+} from "./confirmation";
 import type { CommandContext, CommandHandler, CommandPlan } from "./handler";
-import { parseCommitRequest, parseOperationGetRequest, parsePrepareRequest, tokyoDate } from "./input";
+import { errorDetail, outcomeOf, prepareOutput, storedError, successOutput, visibleStatus } from "./output";
+import { parseCommitRequest, parseOperationGetRequest, parsePrepareRequest } from "./input";
 import {
   checkExpectedRevision,
   currentRevision,
@@ -45,7 +53,8 @@ import { todoUpdateHandler } from "./todo-update";
 //
 // 競合は家庭の世代(YDR-053)で検出する。previewを作ったときの世代を保存し、
 // commitのbatchの最初の文で同じ世代であることを確かめる(YDR-054)。
-// 追加確認(confirmation_url)はまだ扱わない。
+// 古いpreviewを作り直して意味のある差分が出た操作は、YAMORUの確認画面での
+// 本人の承認と一回限りのtokenを必須にする(YDR-062)。
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "managed_item.create": managedItemCreateHandler,
@@ -64,9 +73,23 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "notification.snooze": notificationSnoozeHandler,
 };
 
-export type CommandServiceDependencies = { db: D1Database; now?: () => Date; commitGuard?: D1PreparedStatement };
+export type CommandServiceDependencies = {
+  db: D1Database;
+  now?: () => Date;
+  commitGuard?: D1PreparedStatement;
+  // 確認画面のURLの起点(OAuthのissuer)。無ければ相対パスを返す。
+  config?: { issuer: string } | null;
+  // 追加確認のtokenを計算する秘密鍵(AUTH_SECRET)。無ければtokenを発行しない。
+  cursorSecret?: string;
+};
 
-type Request = { deps: CommandServiceDependencies; now: Date; principal: IntegrationPrincipal };
+type Request = {
+  confirmationToken?: string;
+  deps: CommandServiceDependencies;
+  now: Date;
+  principal: IntegrationPrincipal;
+  tokens: ReturnType<typeof createConfirmationTokens>;
+};
 
 // 運用ログには理由と操作IDだけを残し、家庭データやpayloadを書かない(8節)。
 function logFailure(event: string, error: unknown, operationId?: string): void {
@@ -81,6 +104,14 @@ function requireScope(principal: IntegrationPrincipal, scope: IntegrationScope):
   if (!principal.scopes.includes(scope)) throw new CommandError("insufficient_scope");
 }
 
+function commandScope(command: string): IntegrationScope {
+  return command.startsWith("notification.") ? "notifications.manage" : "household.write";
+}
+
+function issuerOf(request: Request): string | null {
+  return request.deps.config?.issuer ?? null;
+}
+
 function contextOf({ deps, now, principal }: Request): CommandContext {
   return { db: deps.db, householdId: principal.householdId, now, userId: principal.userId };
 }
@@ -90,63 +121,11 @@ function handlerOf(command: string): CommandHandler {
   return HANDLERS[command];
 }
 
-// 期限を過ぎたまま確定していない操作も、外からは期限切れとして見せる。
-function visibleStatus(operation: IntegrationOperation, now: Date): string {
-  return operation.status === "prepared" && operation.expiresAt <= now.toISOString() ? "expired" : operation.status;
-}
-
-// 拒否を確定させたときの詳細を、再送やoperation_getでも同じ形で返す。
-function storedError(operation: IntegrationOperation): CommandError {
-  const code = operation.reasonCode ?? "";
-  const detail = JSON.parse(operation.reasonDetail ?? "{}") as {
-    current_state?: Record<string, unknown>;
-    field_errors?: Record<string, string>;
-  };
-  return new CommandError(isCommandErrorCode(code) ? code : "temporarily_unavailable", {
-    currentState: detail.current_state,
-    fieldErrors: detail.field_errors,
-    operationId: operation.operationId,
-  });
-}
-
-function errorDetail(error: CommandError): string | null {
-  if (error.currentState === undefined && error.fieldErrors === undefined) return null;
-  return canonicalJson({ current_state: error.currentState, field_errors: error.fieldErrors });
-}
-
-function outcomeOf(operation: IntegrationOperation, now: Date): Record<string, unknown> {
-  const status = visibleStatus(operation, now);
-  if (status === "succeeded") return { recorded_at: operation.resolvedAt, result: JSON.parse(operation.result ?? "null") as unknown };
-  if (status === "expired" && operation.status === "prepared") {
-    return { error: new CommandError("preview_expired", { operationId: operation.operationId }).toWire() };
-  }
-  if (status === "rejected" || status === "expired") return { error: storedError(operation).toWire() };
-  return {};
-}
-
-function prepareOutput(operation: IntegrationOperation, now: Date): Record<string, unknown> {
-  return {
-    operation_id: operation.operationId,
-    status: visibleStatus(operation, now),
-    preview_id: operation.previewId,
-    expires_at: operation.expiresAt,
-    // 「今日」「昨日」を解決した基準日。日付の暦はAsia/Tokyoに固定する。
-    reference_date: tokyoDate(operation.createdAt),
-    time_zone: "Asia/Tokyo",
-    normalized_command: JSON.parse(operation.normalizedCommand) as unknown,
-    ...(JSON.parse(operation.preview) as Record<string, unknown>),
-    confirmation: { reason_codes: [], state: "not_needed" },
-    fingerprint: operation.fingerprint,
-    household_revision: { epoch: operation.revisionEpoch, version: operation.revisionVersion },
-    ...outcomeOf(operation, now),
-  };
-}
-
-function replayPrepare(operation: IntegrationOperation, requestHash: string, now: Date): Record<string, unknown> {
+function replayPrepare(request: Request, operation: IntegrationOperation, requestHash: string): Record<string, unknown> {
   if (operation.requestHash !== requestHash) {
     throw new CommandError("idempotency_conflict", { operationId: operation.operationId });
   }
-  return prepareOutput(operation, now);
+  return prepareOutput(operation, request.now, issuerOf(request));
 }
 
 async function createOperation(
@@ -161,7 +140,21 @@ async function createOperation(
 ): Promise<IntegrationOperation> {
   const { normalized, plan, revision } = input;
   const id = crypto.randomUUID();
+  const subjectKey = await subjectKeyOf(normalized);
+  const meaningfulDigest = await meaningfulDigestOf(normalized, plan.preview);
+  const confirmation = await decideConfirmation(request.deps.db, {
+    digest: meaningfulDigest,
+    householdId: request.principal.householdId,
+    id,
+    now: request.now,
+    subjectKey,
+    userId: request.principal.userId,
+  });
   const operation: IntegrationOperation = {
+    ...confirmation,
+    confirmationDecidedAt: null,
+    meaningfulDigest,
+    subjectKey,
     businessKey: `integration:${id}`,
     clientId: request.principal.clientId,
     command: normalized.command,
@@ -213,7 +206,7 @@ async function planAndSave(
 async function prepare(request: Request, input: unknown): Promise<Record<string, unknown>> {
   const parsed = parsePrepareRequest(input);
   requireScope(request.principal, "household.read");
-  requireScope(request.principal, parsed.command.startsWith("notification.") ? "notifications.manage" : "household.write");
+  requireScope(request.principal, commandScope(parsed.command));
   const requestHash = await sha256Hex(canonicalJson({
     command: parsed.command,
     expected_revision: parsed.expectedRevision ?? null,
@@ -223,7 +216,7 @@ async function prepare(request: Request, input: unknown): Promise<Record<string,
   const { db } = request.deps;
   const { connectionId } = request.principal;
   const existing = await findIntegrationOperation(db, connectionId, parsed.operationId);
-  if (existing !== null) return replayPrepare(existing, requestHash, request.now);
+  if (existing !== null) return replayPrepare(request, existing, requestHash);
   let revision: HouseholdRevision;
   try {
     revision = await planAndSave(request, parsed, requestHash);
@@ -233,7 +226,7 @@ async function prepare(request: Request, input: unknown): Promise<Record<string,
   }
   // 同じ操作IDで同時にprepareされた場合も、保存された一件と照合する。
   const saved = await findIntegrationOperation(db, connectionId, parsed.operationId);
-  if (saved !== null) return replayPrepare(saved, requestHash, request.now);
+  if (saved !== null) return replayPrepare(request, saved, requestHash);
   // 保存の直前に家族が更新した場合は何も残っていないので、同じ操作IDで再試行できる。
   const latest = await currentRevision(db, request.principal.householdId);
   const code = sameRevision(latest, revision) ? "connection_revoked" : "temporarily_unavailable";
@@ -244,16 +237,6 @@ async function reload(request: Request, operation: IntegrationOperation): Promis
   const latest = await findIntegrationOperation(request.deps.db, operation.connectionId, operation.operationId);
   if (latest === null) throw new CommandError("not_found", { operationId: operation.operationId });
   return latest;
-}
-
-function successOutput(operation: IntegrationOperation, replayed: boolean): Record<string, unknown> {
-  return {
-    status: "succeeded",
-    operation_id: operation.operationId,
-    replayed,
-    recorded_at: operation.resolvedAt,
-    result: JSON.parse(operation.result ?? "null") as unknown,
-  };
 }
 
 // 未実行の操作を拒否・期限切れとして確定させる。同時のcommitが先に成功して
@@ -334,6 +317,15 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
   return successOutput(await reload(request, operation), false);
 }
 
+// 確認が必須の操作は、本人の承認と、その承認に束縛したtokenの両方を求める。
+// 欠けていれば確定させず、確認後の同じ操作IDでのcommitに委ねる。
+async function requireConfirmation(request: Request, operation: IntegrationOperation): Promise<void> {
+  if (operation.confirmationState !== "required") return;
+  if (!await request.tokens.verify(operation, request.confirmationToken)) {
+    throw new CommandError("confirmation_required", { operationId: operation.operationId });
+  }
+}
+
 async function settle(request: Request, operation: IntegrationOperation): Promise<Record<string, unknown>> {
   // 成功済みの再送は、previewの期限後でも保存した結果を返し、再実行しない。
   if (operation.status === "succeeded") return successOutput(operation, true);
@@ -341,6 +333,7 @@ async function settle(request: Request, operation: IntegrationOperation): Promis
   if (operation.expiresAt <= request.now.toISOString()) {
     return resolveWithoutCommit(request, operation, new CommandError("preview_expired"));
   }
+  await requireConfirmation(request, operation);
   return execute(request, operation);
 }
 
@@ -349,12 +342,12 @@ async function commit(request: Request, input: unknown): Promise<Record<string, 
   const parsed = parseCommitRequest(input);
   const operation = await findIntegrationOperation(request.deps.db, request.principal.connectionId, parsed.operationId);
   if (operation === null) throw new CommandError("not_found", { operationId: parsed.operationId });
-  requireScope(request.principal, operation.command.startsWith("notification.") ? "notifications.manage" : "household.write");
+  requireScope(request.principal, commandScope(operation.command));
   // payloadは再入力させない。previewと内容の指紋が保存した操作と一致することだけを確かめる。
   if (operation.previewId !== parsed.previewId || operation.fingerprint !== parsed.fingerprint) {
     throw new CommandError("idempotency_conflict", { operationId: parsed.operationId });
   }
-  return settle(request, operation);
+  return settle({ ...request, confirmationToken: parsed.confirmationToken }, operation);
 }
 
 async function get(request: Request, input: unknown): Promise<Record<string, unknown>> {
@@ -376,8 +369,22 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
     created_at: operation.createdAt,
     expires_at: operation.expiresAt,
     resolved_at: operation.resolvedAt,
+    confirmation: confirmationOutput(operation, request.now, issuerOf(request)),
+    ...(operation.confirmationState === "required"
+      ? { confirmation_status: visibleConfirmationStatus(operation, request.now) }
+      : {}),
+    ...await confirmationTokenOutput(request, operation),
     ...outcomeOf(operation, request.now),
   };
+}
+
+// 承認済み・未実行・期限内で、要求した接続(元の接続)が元commandに必要な
+// scopeを持つときだけtokenを返す。別接続の操作はそもそも引けない。
+async function confirmationTokenOutput(request: Request, operation: IntegrationOperation): Promise<Record<string, unknown>> {
+  if (visibleConfirmationStatus(operation, request.now) !== "approved" || visibleStatus(operation, request.now) !== "prepared") return {};
+  if (!request.principal.scopes.includes(commandScope(operation.command))) return {};
+  const token = await request.tokens.issue(operation);
+  return token === null ? {} : { confirmation_token: token };
 }
 
 // 予期しない失敗は、内部の詳細を外へ出さず一時的な失敗として返す。
@@ -392,10 +399,12 @@ async function guarded(run: () => Promise<Record<string, unknown>>): Promise<Rec
 }
 
 export function createCommandService(deps: CommandServiceDependencies) {
+  const tokens = createConfirmationTokens(deps.cursorSecret);
   const requestOf = (principal: IntegrationPrincipal): Request => ({
     deps,
     now: deps.now?.() ?? new Date(),
     principal,
+    tokens,
   });
   return {
     commit: (principal: IntegrationPrincipal, input: unknown) => guarded(() => commit(requestOf(principal), input)),

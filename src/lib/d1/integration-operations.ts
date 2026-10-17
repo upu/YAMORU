@@ -6,7 +6,21 @@ import type { BusinessEvidence } from "./todos/command-plans";
 
 export type IntegrationOperationStatus = "expired" | "prepared" | "rejected" | "succeeded";
 
-export type IntegrationOperation = {
+export type ConfirmationStatus = "approved" | "denied" | "pending";
+
+// 追加確認(YDR-062)。staleな操作と作り直しの対応、比較の基準、確認の状態。
+export type OperationConfirmation = {
+  baselineOperationId: string | null;
+  confirmationDecidedAt: string | null;
+  confirmationReasonCodes: string[];
+  confirmationState: "not_needed" | "required";
+  confirmationStatus: ConfirmationStatus | null;
+  meaningfulDigest: string | null;
+  subjectKey: string | null;
+  supersedesOperationId: string | null;
+};
+
+export type IntegrationOperation = OperationConfirmation & {
   businessKey: string;
   clientId: string;
   command: string;
@@ -32,7 +46,15 @@ export type IntegrationOperation = {
   userId: string;
 };
 
-type OperationRow = {
+export type OperationRow = {
+  baseline_operation_id: string | null;
+  confirmation_decided_at: string | null;
+  confirmation_reason_codes: string | null;
+  confirmation_state: "not_needed" | "required";
+  confirmation_status: ConfirmationStatus | null;
+  meaningful_digest: string | null;
+  subject_key: string | null;
+  supersedes_operation_id: string | null;
   business_key: string;
   client_id: string;
   command: string;
@@ -57,8 +79,16 @@ type OperationRow = {
   user_id: string;
 };
 
-function fromRow(row: OperationRow): IntegrationOperation {
+export function fromRow(row: OperationRow): IntegrationOperation {
   return {
+    baselineOperationId: row.baseline_operation_id,
+    confirmationDecidedAt: row.confirmation_decided_at,
+    confirmationReasonCodes: row.confirmation_reason_codes === null ? [] : JSON.parse(row.confirmation_reason_codes) as string[],
+    confirmationState: row.confirmation_state,
+    confirmationStatus: row.confirmation_status,
+    meaningfulDigest: row.meaningful_digest,
+    subjectKey: row.subject_key,
+    supersedesOperationId: row.supersedes_operation_id,
     businessKey: row.business_key,
     clientId: row.client_id,
     command: row.command,
@@ -126,7 +156,7 @@ export async function findIntegrationOperation(
 
 export type PreparedOperationInput = Omit<
   IntegrationOperation,
-  "reasonCode" | "reasonDetail" | "resolvedAt" | "result" | "status"
+  "confirmationDecidedAt" | "reasonCode" | "reasonDetail" | "resolvedAt" | "result" | "status"
 >;
 
 // previewを保存する。同じ接続・操作IDの行がすでにあれば(同時のprepare)何も
@@ -141,8 +171,11 @@ export async function insertPreparedOperation(
     `INSERT INTO integration_operations (
       id, household_id, user_id, client_id, connection_id, operation_id, command,
       request_hash, fingerprint, preview_id, normalized_command, preview, status,
-      business_key, created_at, expires_at, revision_epoch, revision_version
-    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'prepared', ?13, ?14, ?15, ?16, ?17
+      business_key, created_at, expires_at, revision_epoch, revision_version,
+      subject_key, meaningful_digest, supersedes_operation_id, baseline_operation_id,
+      confirmation_state, confirmation_reason_codes, confirmation_status
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'prepared', ?13, ?14, ?15, ?16, ?17,
+        ?18, ?19, ?20, ?21, ?22, ?23, ?24
       WHERE EXISTS (
         SELECT 1 FROM oauth_connections c
          WHERE c.id = ?5 AND c.household_id = ?2 AND c.user_id = ?3 AND c.client_id = ?4
@@ -171,6 +204,13 @@ export async function insertPreparedOperation(
     input.expiresAt,
     input.revisionEpoch,
     input.revisionVersion,
+    input.subjectKey,
+    input.meaningfulDigest,
+    input.supersedesOperationId,
+    input.baselineOperationId,
+    input.confirmationState,
+    input.confirmationReasonCodes.length === 0 ? null : JSON.stringify(input.confirmationReasonCodes),
+    input.confirmationStatus,
   ).run();
   return result.meta.changes > 0;
 }
@@ -193,7 +233,7 @@ export async function resolveOperationWithoutCommit(
 
 // 接続が今も書き込みに使えるか。失効・家庭からの離脱・パスワード変更・
 // household.writeの除外のいずれでもfalseになる。
-const ACTIVE_WRITE_CONNECTION = `EXISTS (
+export const ACTIVE_WRITE_CONNECTION = `EXISTS (
   SELECT 1 FROM oauth_connections c
     JOIN users u ON u.id = c.user_id
     JOIN household_members m ON m.household_id = c.household_id AND m.user_id = c.user_id
@@ -342,6 +382,7 @@ export function commitReceiptStatement(
     `UPDATE integration_operations
         SET status = CASE
               WHEN status = 'prepared' AND expires_at > ?2
+                AND (confirmation_state = 'not_needed' OR confirmation_status = 'approved')
                 AND ${ACTIVE_WRITE_CONNECTION}
                 AND ${conditions.sql.join("\n                AND ")}
               THEN 'succeeded'

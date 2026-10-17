@@ -7,6 +7,7 @@ tags: [yamoru, decisions, ydr, integration, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-17
+superseded_by: [YDR-062]
 ---
 
 # YDR-054: 外部commandの受付記録を業務更新と同じD1 batchで確定させる
@@ -41,6 +42,6 @@ decision_date: 2026-10-17
 
 - 受付記録が成功で業務の記録が無い状態、または業務の記録だけがあり受付記録が未確定の状態は、どちらも起こらないことを実D1で確かめた(確認と実行の間に他の家族の更新や接続の解除を割り込ませるテストを含む)。
 - 世代は家庭単位なので、previewから実行までの間に家族が無関係なものを更新しても`stale_preview`になる。YDR-053の保守的な方式をそのまま使う。利用を妨げる頻度になれば、対象別の世代を新たに設計する。
-- 追加確認(`confirmation_url`)はまだ扱わず、`confirmation_token`が送られたら`unsupported_capability`を返す。現在のpreviewはすべて`not_needed`である。
+- 追加確認(`confirmation_url`)はまだ扱わず、`confirmation_token`が送られたら`unsupported_capability`を返す。現在のpreviewはすべて`not_needed`である。この記述は[YDR-062](ydr-062-integration-command-confirmation.md)で置き換えた(古いpreviewの作り直しで意味のある差分が出たときだけ確認を必須にする)。
 - 成功結果の詳細を30日で破棄する処理はまだ無い。追加するときは`result`を最小記録へ置き換え、`result_expired`を返す。
 - 取消後の処理はD1のエラーメッセージに依存せず、確定した状態を読み直して理由を決める。NOT NULL制約の違反で取り消されることは、メッセージを判定する`isCommitReceiptRejection`を使ってテストで確かめている。

@@ -65,7 +65,7 @@
 | YDR-051 | 必達日を各回の予定・目安とは独立した暦日として持つ | Accepted（YDR-031/046のホーム除外を部分置換） | [ydr-051-occurrence-hard-deadline.md](ydr-051-occurrence-hard-deadline.md) |
 | YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
 | YDR-053 | 会話読み取りのrevisionを家庭世代で保守的に管理する | Accepted | [ydr-053-conversation-read-revisions.md](ydr-053-conversation-read-revisions.md) |
-| YDR-054 | 外部commandの受付記録を業務更新と同じD1 batchで確定させる | Accepted | [ydr-054-integration-command-receipts.md](ydr-054-integration-command-receipts.md) |
+| YDR-054 | 外部commandの受付記録を業務更新と同じD1 batchで確定させる | Accepted（追加確認の未対応の記述をYDR-062で置換） | [ydr-054-integration-command-receipts.md](ydr-054-integration-command-receipts.md) |
 | YDR-055 | 通知候補の発生区間と差分を永続化する | Accepted | [ydr-055-attention-candidate-intervals.md](ydr-055-attention-candidate-intervals.md) |
 | YDR-056 | 個人の通知設定と配信判定を共有予定から分離する | Accepted | [ydr-056-personal-notification-policy.md](ydr-056-personal-notification-policy.md) |
 | YDR-057 | 在庫の観測と補充を分け、訂正を追記する | Accepted | [ydr-057-stock-observation-and-refill-history.md](ydr-057-stock-observation-and-refill-history.md) |
@@ -73,6 +73,7 @@
 | YDR-059 | 通知outboxと走査の進捗をD1に永続化する | Accepted | [ydr-059-durable-notification-outbox.md](ydr-059-durable-notification-outbox.md) |
 | YDR-060 | 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する | Accepted | [ydr-060-event-subscription-boundary.md](ydr-060-event-subscription-boundary.md) |
 | YDR-061 | 通知時の元対象を保持し、詳細と再送防止の保存期限を分ける | Accepted | [ydr-061-notification-source-and-retention.md](ydr-061-notification-source-and-retention.md) |
+| YDR-062 | 古いpreviewの作り直しで意味のある差分が出た変更だけ、本人の追加確認を必須にする | Accepted | [ydr-062-integration-command-confirmation.md](ydr-062-integration-command-confirmation.md) |
 | YDR-063 | 通知の宛先集合と結果を購読の世代ごとに保持する | Accepted | [ydr-063-notification-recipient-results.md](ydr-063-notification-recipient-results.md) |
 
 ## 新しい意思決定の追加

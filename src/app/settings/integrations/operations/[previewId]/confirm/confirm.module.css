@@ -1,0 +1,52 @@
+/* 外部commandの追加確認画面(#437、YDR-062)。この画面だけで使う。 */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.denyButton {
+  min-height: var(--tap-target);
+  padding: 0 16px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.compare {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 720px) {
+  .compare {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+
+.details dt {
+  font-weight: 600;
+}
+
+.details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.entities {
+  margin: 8px 0 0;
+  padding-left: 1.2em;
+}

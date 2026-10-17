@@ -9,8 +9,10 @@ import { householdAMember } from "./test-support/households";
 import { interruptBeforeBatch } from "./test-support/integration-commands";
 import { createAttentionReader } from "../../features/integration/attention/service";
 import { createNotificationReader } from "../../features/integration/notifications/service";
+import { approveConfirmation } from "./integration-confirmations";
 const db = env.DB;
-const service = createCommandService({ db, now: () => now });
+const SECRET = "notification-test-secret-with-32-bytes";
+const service = createCommandService({ db, now: () => now, cursorSecret: SECRET });
 beforeAll(() => applyAllMigrations(db));
 beforeEach(() => resetNotificationFixtures(db));
 function request(patch = {}) { return { operation_id: crypto.randomUUID(), command: "notification.configure", payload: { settings_revision: 0, enabled: true, connection_id: "connection-a", ...patch } }; }
@@ -85,11 +87,15 @@ it("SQL実行直前の設定変更・接続解除でも、個人設定とreceipt
   }) });
   await expect(interrupted.commit(principal, commitInput(preview))).rejects.toMatchObject({ code: "stale_preview" });
   expect((await getNotificationSettings(db, householdAMember)).settings).toMatchObject({ enabled: false, digestTime: "13:00" });
+  // 確認後に家族が設定を変えたため、作り直したpreviewは変更前の値が違う。本人の確認が必要になる(YDR-062)。
   const again = await service.prepare(principal, request({ settings_revision: 1 }));
-  const revoked = createCommandService({ now: () => now, db: interruptBeforeBatch(db, async () => {
+  expect(again.confirmation).toMatchObject({ state: "required", reason_codes: ["changed_after_stale_preview"] });
+  await expect(approveConfirmation(db, householdAMember, again.preview_id, now.toISOString())).resolves.toBe("approved");
+  const { confirmation_token: token } = await service.get(principal, { operation_id: again.operation_id });
+  const revoked = createCommandService({ now: () => now, cursorSecret: SECRET, db: interruptBeforeBatch(db, async () => {
     await db.prepare("UPDATE oauth_connections SET revoked_at=?,revoked_reason='user_revoked' WHERE id=?").bind(now.toISOString(), principal.connectionId).run();
   }) });
-  await expect(revoked.commit(principal, commitInput(again))).rejects.toMatchObject({ code: "connection_revoked" });
+  await expect(revoked.commit(principal, { ...commitInput(again), confirmation_token: token })).rejects.toMatchObject({ code: "connection_revoked" });
   expect((await getNotificationSettings(db, householdAMember)).revision).toBe(1);
 });
 it("通知先を変更しない操作でも、呼び出した接続の期限切れを拒否する", async () => {

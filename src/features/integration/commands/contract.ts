@@ -54,6 +54,8 @@ const COMMAND_ERRORS = {
   missing_required: { message: "必要な項目が足りません。足りない項目だけを確認してください。", recovery: "ask_user", retryable: false },
   not_found: { message: "対象を取得できません。", recovery: "reread", retryable: false },
   preview_expired: { message: "確認内容の有効期限が切れました。現在の状態を読み直して、新しい操作として作り直してください。", recovery: "reread", retryable: false },
+  confirmation_denied: { message: "この変更はYAMORUの確認画面で取りやめられました。必要なら内容を確かめて新しい操作として作り直してください。", recovery: "reread", retryable: false },
+  confirmation_required: { message: "内容が変わったため、YAMORUの確認画面で本人の確認が必要です。確認後にoperation_getでtokenを受け取ってから実行してください。", recovery: "confirm", retryable: false },
   stale_preview: { message: "確認した後に対象が変わりました。現在の状態を読み直して、新しい操作として作り直してください。", recovery: "reread", retryable: false },
   temporarily_unavailable: { message: "一時的に処理できませんでした。同じ操作IDで結果を確認してから再試行してください。", recovery: "operation_get", retryable: true },
   unsafe_undo: { message: "後から家族が変更した内容を消してしまうため、この操作は実行できません。", recovery: "reread", retryable: false },
@@ -70,6 +72,7 @@ export function isCommandErrorCode(value: string): value is CommandErrorCode {
 // 一時的な失敗や認可の失敗は確定させず、接続の回復後に同じIDで照合できる。
 const FINAL_CODES: ReadonlySet<CommandErrorCode> = new Set([
   "already_resolved",
+  "confirmation_denied",
   "invalid_input",
   "missing_required",
   "not_found",
