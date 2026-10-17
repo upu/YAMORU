@@ -171,6 +171,18 @@ describe("todo.complete", () => {
     await expect(countRows(db, "SELECT count(*) AS count FROM integration_operations")).resolves.toBe(0);
   });
 
+  it("次回の予定日が既存の回と重なる過去日の完了は、再試行しても通らない入力として返す", async () => {
+    // 最初の回は10月10日。10月3日の実施なら7日後の次回も10月10日になり、今回と重なる。
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const error = await expectCommandError(
+      commandService(db).prepare(principal, completeRequest(occurrenceId, { occurred_on: "2026-10-03" })),
+      "invalid_input",
+    );
+    expect(error.fieldErrors).toEqual({ payload: "next_schedule_taken" });
+    expect(error.retryable).toBe(false);
+    await expect(completedLogs(occurrenceId)).resolves.toBe(0);
+  });
+
   it("毎週土曜と実施から7日後を区別して次回を示す", async () => {
     const saturday = await createEverySaturdayTodo(db);
     const sevenDays = await createSevenDaysAfterTodo(db);

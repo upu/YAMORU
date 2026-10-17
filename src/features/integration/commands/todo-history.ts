@@ -149,6 +149,7 @@ export const todoCorrectHandler: CommandHandler = {
       performerId: changes.performer_id ?? null,
     }).catch((error: unknown) => mapD1Error(error, {
       ...HISTORY_ERRORS,
+      NEXT_OCCURRENCE_SCHEDULE_TAKEN: () => invalidInput("payload.changes", "next_schedule_taken"),
       PERFORMER_NOT_FOUND: () => performerNotFound("payload.changes.performer_id"),
     }));
     rejectUnchanged(correction);

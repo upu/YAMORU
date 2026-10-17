@@ -4,7 +4,7 @@ import {
   planCompletion,
   type CompletionPlan,
 } from "../../../lib/d1/todos/command-plans";
-import { CommandError, type NormalizedCommand } from "./contract";
+import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
 import {
   mapD1Error,
   performerNotFound,
@@ -89,6 +89,7 @@ async function plan(context: CommandContext, normalized: NormalizedCommand) {
     performerId: payload.performer_id,
   }).catch((error: unknown) => mapD1Error(error, {
     OCCURRENCE_NOT_FOUND: () => new CommandError("not_found"),
+    NEXT_OCCURRENCE_SCHEDULE_TAKEN: () => invalidInput("payload", "next_schedule_taken"),
     OCCURRENCE_NOT_PENDING: () => alreadyResolved(context, occurrenceId),
     PERFORMER_NOT_FOUND: () => performerNotFound("payload.performer_id"),
   }));

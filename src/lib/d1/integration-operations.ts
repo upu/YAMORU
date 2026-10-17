@@ -84,15 +84,28 @@ function fromRow(row: OperationRow): IntegrationOperation {
   };
 }
 
-// 業務の記録(activity_logs・completion_corrections)のidempotency_keyから、
-// それを書いた外部commandの接続元(client_id)を引くSQL式。Webからの記録はNULL。
-// 訂正は項目ごとに`<business_key>:occurred_at`・`:performer`のキーを使う。
-export function operationClientExpression(alias: string): string {
-  return `(SELECT io.client_id FROM integration_operations io
-    WHERE io.household_id = ${alias}.household_id
+// 業務の記録(activity_logs・completion_corrections)を書いた外部commandの
+// 受付記録を、その記録のidempotency_keyで引く条件。訂正は項目ごとに
+// `<business_key>:occurred_at`・`:performer`のキーを使う。
+function operationOf(alias: string): string {
+  return `io.household_id = ${alias}.household_id
       AND ${alias}.idempotency_key LIKE 'integration:%'
       AND (io.business_key = ${alias}.idempotency_key
-        OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer')))`;
+        OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer'))`;
+}
+
+// 外部commandの接続元(client_id)を引くSQL式。Webからの記録はNULL。
+export function operationClientExpression(alias: string): string {
+  return `(SELECT io.client_id FROM integration_operations io WHERE ${operationOf(alias)})`;
+}
+
+// 外部commandで指定された実施日時の精度(day / instant)を引くSQL式。
+// Webからの記録はNULL(精度は記録していない)。
+export function operationDatePrecisionExpression(
+  alias: string,
+  path: "$.payload.changes.date_precision" | "$.payload.date_precision",
+): string {
+  return `(SELECT json_extract(io.normalized_command, '${path}') FROM integration_operations io WHERE ${operationOf(alias)})`;
 }
 
 // 接続ごとの操作IDで引く。接続は本人・家庭・clientを含むため、別の利用者や

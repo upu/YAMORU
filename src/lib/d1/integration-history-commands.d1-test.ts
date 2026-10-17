@@ -243,6 +243,20 @@ describe("todo.correct", () => {
       .resolves.toMatchObject({ results: [{ new_occurred_at: null, new_performed_by_user_id: familyMember.userId }] });
   });
 
+  it("訂正後の次回の予定日が既存の回と重なるなら、再試行しても通らない入力として返す", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const { completionLogId } = await completeByCommand(service, occurrenceId);
+
+    const error = await expectCommandError(service.prepare(principal, {
+      command: "todo.correct",
+      operation_id: crypto.randomUUID(),
+      payload: { changes: { occurred_on: "2026-10-03" }, completion_log_id: completionLogId },
+    }), "invalid_input");
+    expect(error.fieldErrors).toEqual({ "payload.changes": "next_schedule_taken" });
+    await expect(corrections()).resolves.toBe(0);
+  });
+
   it("空の訂正や現在と同じ値は受け付けない", async () => {
     const occurrenceId = await createSevenDaysAfterTodo(db);
     const service = commandService(db);
@@ -284,8 +298,15 @@ describe("履歴での接続元", () => {
       ["completion_corrected", TEST_CLIENT_ID],
       ["completion_corrected", TEST_CLIENT_ID],
     ]);
+    // 実施日だけを指定した訂正は、完了の現在の実施日時も含めて日単位の精度を保つ。
+    expect(own.records.filter((record) => record.occurred_at !== null)
+      .map((record) => [record.kind, record.date_precision, record.occurred_on]).sort()).toEqual([
+      ["completed", "day", "2026-10-11"],
+      ["completion_corrected", "day", "2026-10-11"],
+    ]);
     const next = await reader.historyList({ id: nextOccurrenceId, kind: "todo_occurrence" });
-    expect(next.records.map((record) => [record.kind, record.client_id])).toEqual([["completed", null]]);
+    expect(next.records.map((record) => [record.kind, record.client_id, record.date_precision]))
+      .toEqual([["completed", null, "unknown"]]);
   });
 });
 

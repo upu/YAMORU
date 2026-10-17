@@ -51,6 +51,25 @@ async function loadRuleTitle(db: D1Database, householdId: string, taskRuleId: st
   return row.title;
 }
 
+// 次回の予定日が、同じルールの別の回(今回や過去の回を含む)と重ならないこと。
+// 重なるとtask_occurrencesの一意制約でbatchが失敗し、同じ入力では何度
+// 再試行しても通らないため、previewの時点で業務エラーにする。
+async function requireFreeSchedule(
+  db: D1Database,
+  householdId: string,
+  input: { exceptOccurrenceId: string | null; scheduledFor: string | null; taskRuleId: string },
+): Promise<void> {
+  if (input.scheduledFor === null) return;
+  const taken = await db.prepare(
+    `SELECT 1 FROM task_occurrences
+      WHERE task_rule_id = ?1 AND household_id = ?2 AND scheduled_for = ?3
+        AND (?4 IS NULL OR id <> ?4)`,
+  ).bind(input.taskRuleId, householdId, input.scheduledFor, input.exceptOccurrenceId).first();
+  if (taken !== null) {
+    throw new D1ConflictError("Next occurrence already exists for the computed schedule", "NEXT_OCCURRENCE_SCHEDULE_TAKEN");
+  }
+}
+
 // 他の家族がすでに完了させていた場合に、現在の状態として返す有効な完了記録。
 export async function loadCurrentCompletion(
   db: D1Database,
@@ -84,8 +103,14 @@ export async function planCompletion(
   const occurrence = await loadOccurrence(db, householdId, input.occurrenceId);
   if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   await requireHouseholdUser(db, householdId, input.performerId, "PERFORMER_NOT_FOUND");
+  const next = nextOccurrence(occurrence, input.occurredAt);
+  await requireFreeSchedule(db, householdId, {
+    exceptOccurrenceId: null,
+    scheduledFor: next?.scheduledFor ?? null,
+    taskRuleId: occurrence.task_rule_id,
+  });
   return {
-    next: nextOccurrence(occurrence, input.occurredAt),
+    next,
     occurredAt: input.occurredAt,
     occurrence,
     performerId: input.performerId,
@@ -268,6 +293,11 @@ async function correctionNextEffect(
     return null;
   }
   if (state.hasRuleChanges || (dated !== null && !isUntouched(state))) throw nextOccurrenceModified();
+  await requireFreeSchedule(db, householdId, {
+    exceptOccurrenceId: state.id,
+    scheduledFor: dated?.scheduledFor ?? null,
+    taskRuleId: occurrence.task_rule_id,
+  });
   return {
     current: { dueAt: state.dueAt, id: state.id, scheduledFor: state.scheduledFor },
     recalculated: dated,
