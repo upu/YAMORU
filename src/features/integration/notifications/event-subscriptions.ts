@@ -23,8 +23,7 @@ function sameOwner(a: IntegrationPrincipal, b: IntegrationPrincipal) {
 }
 async function identity(p: IntegrationPrincipal, url: string, filter: EventFilter): Promise<EventSubscriptionIdentity> {
   const owner = { householdId: p.householdId, userId: p.userId, connectionId: p.connectionId, clientId: p.clientId };
-  return { id: `sub_${await sha256Hex(canonicalJson({ v: 1, owner, event: "attention.ready", url, filter }))}`, filter,
-    callbackOrigin: new URL(url).origin, callbackHash: await sha256Hex(url) };
+  return { id: `sub_${await sha256Hex(canonicalJson({ v: 1, owner, event: "attention.ready", url, filter }))}`, filter, callbackHash: await sha256Hex(url) };
 }
 function available(deps: Dependencies) {
   if (!deps.transport || !deps.providerId || deps.providerId.length > 100) throw new EventSubscriptionError("callback_unavailable", "transport_unverified");

@@ -7,7 +7,7 @@ const databaseNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const activeNow = NOTIFICATION_CONNECTION_ACTIVE.replaceAll("?4", databaseNow);
 export type EventSubscriptionRow = { id: string; household_id: string; user_id: string; connection_id: string; event_name: string; filters: string; callback_origin: string; callback_hash: string;
   key_fingerprint: string | null; provider_id: string | null; encrypted_destination: string | null; state: "active" | "revoked" | "expired"; revision: number; verified_at: string | null; expires_at: string };
-export type EventSubscriptionIdentity = { id: string; filter: EventFilter; callbackOrigin: string; callbackHash: string };
+export type EventSubscriptionIdentity = { id: string; filter: EventFilter; callbackHash: string };
 export async function authorizeEventOwner(db: D1Database, p: IntegrationPrincipal, now: Date) {
   if (!p.scopes.includes("household.read") || !p.scopes.includes("events.subscribe")) throw new EventSubscriptionError("insufficient_scope");
   const row = await db.prepare(`SELECT c.expires_at FROM oauth_connections c WHERE c.id=?1 AND c.household_id=?2 AND c.user_id=?3 AND c.client_id=?5 AND ${NOTIFICATION_CONNECTION_ACTIVE}`)
@@ -65,9 +65,9 @@ export async function saveEventSubscription(db: D1Database, p: IntegrationPrinci
   const save = db.prepare(`INSERT INTO notification_event_subscriptions(id,household_id,user_id,connection_id,event_name,filters,callback_origin,callback_hash,
     key_fingerprint,provider_id,encrypted_destination,state,verified_at,expires_at,created_at,updated_at)
     VALUES(?1,?2,?3,?4,'attention.ready',?5,?6,?7,?8,?9,?10,'active',?11,?12,?13,?13)
-    ON CONFLICT(id) DO UPDATE SET key_fingerprint=excluded.key_fingerprint,provider_id=excluded.provider_id,encrypted_destination=excluded.encrypted_destination,
+    ON CONFLICT(id) DO UPDATE SET callback_origin='',key_fingerprint=excluded.key_fingerprint,provider_id=excluded.provider_id,encrypted_destination=excluded.encrypted_destination,
       state='active',verified_at=excluded.verified_at,expires_at=excluded.expires_at,stopped_at=NULL,updated_at=excluded.updated_at,revision=notification_event_subscriptions.revision+1`)
-    .bind(input.id, p.householdId, p.userId, p.connectionId, canonicalJson(input.filter), input.callbackOrigin, input.callbackHash,
+    .bind(input.id, p.householdId, p.userId, p.connectionId, canonicalJson(input.filter), "", input.callbackHash,
       input.keyFingerprint, input.providerId, input.encryptedDestination, input.verifiedAt, input.expiresAt, now.toISOString());
   await guardedBatch(db, [...(commitGuard ? [commitGuard] : []), ownerGuard(db, p, guards[0]), unchanged, save,
     db.prepare("DELETE FROM attention_guards WHERE id IN (?,?)").bind(...guards)]);
@@ -78,13 +78,14 @@ export async function stopEventSubscription(db: D1Database, p: IntegrationPrinci
   await guardedBatch(db, [...(commitGuard ? [commitGuard] : []), ownerGuard(db, p, guard),
     db.prepare(`INSERT INTO notification_event_subscriptions(id,household_id,user_id,connection_id,event_name,filters,callback_origin,callback_hash,state,expires_at,stopped_at,created_at,updated_at)
       VALUES(?1,?2,?3,?4,'attention.ready',?5,?6,?7,'revoked',?8,?8,?8,?8)
-      ON CONFLICT(id) DO UPDATE SET state='revoked',encrypted_destination=NULL,key_fingerprint=NULL,stopped_at=excluded.stopped_at,updated_at=excluded.updated_at,
+      ON CONFLICT(id) DO UPDATE SET callback_origin='',state='revoked',encrypted_destination=NULL,key_fingerprint=NULL,stopped_at=excluded.stopped_at,updated_at=excluded.updated_at,
         revision=notification_event_subscriptions.revision+1 WHERE notification_event_subscriptions.household_id=?2 AND notification_event_subscriptions.user_id=?3 AND notification_event_subscriptions.connection_id=?4`)
-      .bind(input.id, p.householdId, p.userId, p.connectionId, canonicalJson(input.filter), input.callbackOrigin, input.callbackHash, now.toISOString()),
+      .bind(input.id, p.householdId, p.userId, p.connectionId, canonicalJson(input.filter), "", input.callbackHash, now.toISOString()),
     db.prepare("DELETE FROM attention_guards WHERE id=?").bind(guard)]);
 }
 export async function pruneEventSubscriptions(db: D1Database, now: Date) {
   await db.batch([
+    db.prepare("UPDATE notification_event_subscriptions SET callback_origin='' WHERE id IN (SELECT id FROM notification_event_subscriptions WHERE callback_origin<>'' ORDER BY id LIMIT 100)"),
     db.prepare(`UPDATE notification_event_subscriptions SET state='expired',encrypted_destination=NULL,key_fingerprint=NULL,stopped_at=?1,updated_at=?1,revision=revision+1
       WHERE id IN (SELECT s.id FROM notification_event_subscriptions s WHERE s.state='active' AND (s.expires_at<=?1 OR NOT EXISTS(
         SELECT 1 FROM oauth_connections c WHERE c.id=s.connection_id AND ${NOTIFICATION_CONNECTION_ACTIVE.replaceAll("?4", "?1")})) ORDER BY s.expires_at,s.id LIMIT 100)`).bind(now.toISOString()),

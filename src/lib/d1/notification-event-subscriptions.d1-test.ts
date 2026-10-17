@@ -19,11 +19,13 @@ it("署名付きchallengeを通した購読を暗号化保存し、同じ条件�
   const { ruleId } = await notificationCandidate(db);
   const { api, post } = service();
   const first = await api.subscribe(input({ todo_rule_ids: [ruleId] }));
+  await db.prepare("UPDATE notification_event_subscriptions SET callback_origin='https://legacy.receiver.example.com' WHERE id=?").bind(first.id).run();
   const second = await api.subscribe(input({ kinds: ["todo_occurrence"], todo_rule_ids: [ruleId, ruleId] }));
   expect(second.id).toBe(first.id);
   expect(post).toHaveBeenCalledTimes(1);
   const row = await db.prepare("SELECT * FROM notification_event_subscriptions").first<{ encrypted_destination: string; state: string }>();
   expect(row?.state).toBe("active");
+  expect(row).toMatchObject({ callback_origin: "" });
   expect(JSON.stringify(row)).not.toContain(secret);
   expect(JSON.stringify(row)).not.toContain("fictional-callback-token");
   expect(await decryptWebhookDestination(master, principal, first.id, row?.encrypted_destination ?? "")).toEqual({ url, secret });
@@ -54,10 +56,11 @@ it("challenge不一致と確認中のgrant解除では購読を有効にしな�
 it("解除は冪等で秘密を消し、再購読では検証をやり直す", async () => {
   const { api, post } = service();
   const first = await api.subscribe(input());
+  await db.prepare("UPDATE notification_event_subscriptions SET callback_origin='https://legacy.receiver.example.com' WHERE id=?").bind(first.id).run();
   const stop = { name: "attention.ready", arguments: {}, delivery: { mode: "webhook", url } };
   await api.unsubscribe(stop);
   await api.unsubscribe(stop);
-  expect(await db.prepare("SELECT state,encrypted_destination FROM notification_event_subscriptions").first()).toEqual({ state: "revoked", encrypted_destination: null });
+  expect(await db.prepare("SELECT state,encrypted_destination,callback_origin FROM notification_event_subscriptions").first()).toEqual({ state: "revoked", encrypted_destination: null, callback_origin: "" });
   expect((await api.subscribe(input())).id).toBe(first.id);
   expect(post).toHaveBeenCalledTimes(2);
 });
@@ -108,7 +111,7 @@ it("最終batchで古い検証を拒み、解除・期限切れでは秘密を�
   const saved = await api.subscribe(input());
   const row = await eventSubscription(db, principal, saved.id);
   if (!row?.encrypted_destination || !row.key_fingerprint || !row.provider_id) throw new Error("Missing subscription");
-  await expect(saveEventSubscription(db, principal, { id: row.id, filter: { kinds: ["todo_occurrence", "consumable"] }, callbackOrigin: row.callback_origin, callbackHash: row.callback_hash,
+  await expect(saveEventSubscription(db, principal, { id: row.id, filter: { kinds: ["todo_occurrence", "consumable"] }, callbackHash: row.callback_hash,
     encryptedDestination: row.encrypted_destination, keyFingerprint: row.key_fingerprint, providerId: row.provider_id, verifiedAt: new Date(Date.now() - 901_000).toISOString(),
     expiresAt: row.expires_at, expectedRevision: row.revision }, new Date())).rejects.toMatchObject({ code: "read_conflict" });
   await pruneEventSubscriptions(db, new Date(Date.now() + 86_401_000));
@@ -154,4 +157,16 @@ it("同じURLの別購読に検証cacheがあっても、解除した購読で�
   await api.unsubscribe({ name: "attention.ready", delivery: { mode: "webhook", url } });
   await api.subscribe(input());
   expect(post).toHaveBeenCalledTimes(2);
+});
+it("古い平文originだけを消し、暗号化URL・購読ID・状態・日時は変えない", async () => {
+  const { api } = service();
+  const saved = await api.subscribe(input());
+  await db.prepare("UPDATE notification_event_subscriptions SET callback_origin='https://legacy.receiver.example.com'").run();
+  const before = await db.prepare("SELECT * FROM notification_event_subscriptions").first();
+  if (!before) throw new Error("Missing subscription");
+  await pruneEventSubscriptions(db, new Date());
+  const after = await db.prepare("SELECT * FROM notification_event_subscriptions").first();
+  expect(after).toMatchObject({ callback_origin: "" });
+  expect({ ...after, callback_origin: before.callback_origin }).toEqual(before);
+  expect(await decryptWebhookDestination(master, principal, saved.id, String(after?.encrypted_destination))).toEqual({ url, secret });
 });
