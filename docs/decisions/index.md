@@ -66,6 +66,7 @@
 | YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
 
 | YDR-053 | 会話読み取りのrevisionを家庭世代で保守的に管理する | Accepted | [ydr-053-conversation-read-revisions.md](ydr-053-conversation-read-revisions.md) |
+| YDR-055 | 通知候補の発生区間と差分を永続化する | Accepted | [ydr-055-attention-candidate-intervals.md](ydr-055-attention-candidate-intervals.md) |
 
 ## 新しい意思決定の追加
 
