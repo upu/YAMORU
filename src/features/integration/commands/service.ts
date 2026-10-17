@@ -29,6 +29,7 @@ import {
   type HouseholdRevision,
 } from "./revision";
 import { todoCompleteHandler } from "./todo-complete";
+import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
@@ -42,6 +43,7 @@ import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
+  "todo.create": todoCreateHandler,
   "todo.undo": todoUndoHandler,
 };
 

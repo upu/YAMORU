@@ -10,6 +10,7 @@ import {
   performerNotFound,
   recurrenceName,
   scheduleView,
+  targetOf,
   todoDetailUrl,
   type CommandContext,
   type CommandHandler,
@@ -82,7 +83,7 @@ function preview(plan: CompletionPlan, payload: CompletePayload) {
 
 async function plan(context: CommandContext, normalized: NormalizedCommand) {
   const payload = normalized.payload as CompletePayload;
-  const occurrenceId = normalized.target.id;
+  const occurrenceId = targetOf(normalized).id;
   const completion = await planCompletion(context.db, context.householdId, {
     occurredAt: payload.occurred_at,
     occurrenceId,

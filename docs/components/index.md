@@ -42,7 +42,7 @@
 | 画面の見た目(CSS)の置き場所 | `src/app/globals.css`(全体基盤と共有ルール)、部品ごとの`*.module.css` | 変更した画面のテスト・E2E | [スタイル](styles.md) |
 | 外部クライアントの認可(OAuth)・同意画面・接続管理 | `src/features/integration/oauth/`、`src/app/oauth/authorize/`、`src/app/settings/integrations/` → `src/lib/d1/oauth-connections.ts` | `tests/integration-oauth-request.test.ts`、`tests/integration-connections-ui.test.tsx`、`src/lib/d1/oauth-flow.d1-test.ts`、`src/lib/d1/oauth-connections-authorization.d1-test.ts` | [外部連携](integration.md) |
 | 外部クライアントのaccess token検証(MCPなど外部入口の共通) | `src/features/integration/oauth/bearer.ts`、`src/features/integration/principal.ts` | `src/lib/d1/oauth-flow.d1-test.ts` | [外部連携](integration.md) |
-| 外部クライアントの変更操作(prepare/commit・受付記録。Todoの完了・訂正・取消) | `src/features/integration/commands/service.ts` → `src/lib/d1/integration-operations.ts`、`src/lib/d1/todos/command-plans.ts` | `tests/integration-command-input.test.ts`、`src/lib/d1/integration-commands.d1-test.ts`、`src/lib/d1/integration-history-commands.d1-test.ts` | [外部連携](integration.md) |
+| 外部クライアントの変更操作(prepare/commit・受付記録。Todoの登録・完了・訂正・取消) | `src/features/integration/commands/service.ts` → `src/lib/d1/integration-operations.ts`、`src/lib/d1/todos/command-plans.ts` | `tests/integration-command-input.test.ts`、`src/lib/d1/integration-commands.d1-test.ts`、`src/lib/d1/integration-history-commands.d1-test.ts`、`src/lib/d1/integration-create-commands.d1-test.ts` | [外部連携](integration.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 
 ## まだ実装していない領域
