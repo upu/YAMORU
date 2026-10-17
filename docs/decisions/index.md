@@ -62,6 +62,7 @@
 | YDR-048 | ManagedItemのタグを家庭単位のマスタと多対多の関連として保存する | Accepted | [ydr-048-managed-item-tags.md](ydr-048-managed-item-tags.md) |
 | YDR-049 | 会話操作を認証された共通ユースケースへ集約する | Accepted | [ydr-049-conversation-command-boundary.md](ydr-049-conversation-command-boundary.md) |
 | YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
+| YDR-051 | 必達日を各回の予定・目安とは独立した暦日として持つ | Accepted（YDR-031/046のホーム除外を部分置換） | [ydr-051-occurrence-hard-deadline.md](ydr-051-occurrence-hard-deadline.md) |
 | YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
 
 ## 新しい意思決定の追加

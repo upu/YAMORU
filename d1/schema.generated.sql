@@ -367,6 +367,20 @@ CREATE TABLE tags (
   CHECK (name = trim(name) AND length(name) BETWEEN 1 AND 30)
 );
 
+-- table: task_deadline_changes
+CREATE TABLE task_deadline_changes (
+  id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  task_occurrence_id TEXT NOT NULL,
+  actor_user_id TEXT NOT NULL,
+  previous_date TEXT,
+  new_date TEXT,
+  recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  FOREIGN KEY(task_occurrence_id, household_id) REFERENCES task_occurrences(id, household_id) ON DELETE CASCADE,
+  FOREIGN KEY(household_id, actor_user_id) REFERENCES household_members(household_id, user_id),
+  CHECK(previous_date IS NOT new_date)
+);
+
 -- table: task_occurrences
 CREATE TABLE "task_occurrences" (
   id TEXT PRIMARY KEY,
@@ -381,7 +395,13 @@ CREATE TABLE "task_occurrences" (
   schedule_spec_version INTEGER
     CHECK (schedule_spec_version IS NULL OR schedule_spec_version = 1),
   rule_snapshot TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(rule_snapshot)),
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), must_complete_by TEXT
+  CHECK (must_complete_by IS NULL OR (
+    length(must_complete_by) = 10
+    AND must_complete_by GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+    AND substr(must_complete_by, 1, 4) >= '0001'
+    AND date(must_complete_by, '+0 days') IS must_complete_by
+  )),
   UNIQUE (id, household_id),
   UNIQUE (task_rule_id, scheduled_for),
   FOREIGN KEY (task_rule_id, household_id) REFERENCES "task_rules"(id, household_id) ON DELETE CASCADE,
@@ -665,6 +685,15 @@ CREATE INDEX oauth_connections_user_created_idx
 CREATE INDEX oauth_tokens_connection_idx
   ON oauth_tokens(connection_id, kind, expires_at);
 
+-- index: task_deadline_changes_occurrence_idx
+CREATE INDEX task_deadline_changes_occurrence_idx
+  ON task_deadline_changes(task_occurrence_id, household_id);
+
+-- index: task_occurrences_hard_deadline_idx
+CREATE INDEX task_occurrences_hard_deadline_idx
+  ON task_occurrences(household_id, must_complete_by)
+  WHERE status = 'pending' AND must_complete_by IS NOT NULL;
+
 -- index: task_occurrences_household_id_idx
 CREATE INDEX task_occurrences_household_id_idx ON task_occurrences(household_id);
 
@@ -702,6 +731,33 @@ CREATE INDEX user_consumable_favorites_household_user_idx
 -- index: user_consumable_pins_household_user_idx
 CREATE INDEX user_consumable_pins_household_user_idx
   ON user_consumable_pins(household_id, user_id, pinned_at DESC);
+
+-- trigger: protect_deadline_from_completion_correction
+CREATE TRIGGER protect_deadline_from_completion_correction
+BEFORE INSERT ON completion_corrections
+WHEN NEW.new_occurred_at IS NOT NULL AND EXISTS (
+  SELECT 1 FROM activity_logs c JOIN task_occurrences n
+    ON n.id = c.next_task_occurrence_id AND n.household_id = c.household_id
+  JOIN task_deadline_changes d ON d.task_occurrence_id = n.id AND d.household_id = n.household_id
+  WHERE c.id = NEW.completed_activity_log_id AND c.household_id = NEW.household_id
+    AND n.scheduled_for IS NOT NULL
+)
+BEGIN
+  SELECT RAISE(ABORT, 'NEXT_OCCURRENCE_DEADLINE_MODIFIED');
+END;
+
+-- trigger: protect_deadline_from_completion_undo
+CREATE TRIGGER protect_deadline_from_completion_undo
+BEFORE INSERT ON activity_logs
+WHEN NEW.action = 'completion_undone' AND EXISTS (
+  SELECT 1 FROM activity_logs c JOIN task_deadline_changes d
+    ON d.task_occurrence_id = c.next_task_occurrence_id AND d.household_id = c.household_id
+  WHERE c.task_occurrence_id = NEW.task_occurrence_id AND c.household_id = NEW.household_id
+    AND c.action = 'completed'
+)
+BEGIN
+  SELECT RAISE(ABORT, 'NEXT_OCCURRENCE_DEADLINE_MODIFIED');
+END;
 
 -- trigger: sync_legacy_from_pins_delete
 CREATE TRIGGER sync_legacy_from_pins_delete

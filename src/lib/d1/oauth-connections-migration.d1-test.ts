@@ -1,6 +1,6 @@
 // Issue #436 / YDR-052: 0031は外部接続のテーブルを足すだけのexpand migration。
 // 既存の家庭データを変えないこと、旧Workerの書き込みが通ること、制約と
-// cascadeをDBが守ることを確かめる。0030は#51(必達日)が使う予定の番号。
+// cascadeをDBが守ることを確かめる。0030は#51(必達日)のmigration。
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -13,7 +13,7 @@ const NOW = "2026-10-17T00:00:00.000Z";
 const LATER = "2026-11-17T00:00:00.000Z";
 
 beforeAll(async () => {
-  await applyMigrationsThrough(db, "0029_managed_item_tags");
+  await applyMigrationsThrough(db, "0030_occurrence_hard_deadline");
   await db.batch([
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com'), ('user-b', 'b@example.com')"),
     db.prepare("INSERT INTO households (id, name, created_at) VALUES ('household-a', 'Household A', '2026-01-02T03:04:05.000Z'), ('household-b', 'Household B', '2026-01-02T03:04:05.000Z')"),

@@ -14,7 +14,7 @@ decision_date: 2026-10-17
 - 状態: Accepted
 - 決定日: 2026-10-17
 - 関連: [#436](https://github.com/upu/YAMORU/issues/436)、[YDR-049](ydr-049-conversation-command-boundary.md)、[会話連携設計](../product/conversation-integration.md) 3節・8節
-- 番号について: YDR-051は#51(必達日)が使う予定のため、この決定は052とする。migrationも同じ理由で0031を使う。
+- 番号について: YDR-051は#51(必達日)が使うため、この決定は052とする。migrationも同じ理由で0031を使う。
 
 ## 背景
 

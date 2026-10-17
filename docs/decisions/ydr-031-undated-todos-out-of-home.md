@@ -8,7 +8,7 @@ status: stable
 decision_status: Accepted
 decision_date: 2026-08-25
 supersedes: YDR-030
-superseded_by: YDR-046
+superseded_by: [YDR-046, YDR-051]
 ---
 
 # YDR-031: 予定日未定Todoをホームの要対応表示から外し、Todo一覧で扱う
@@ -16,6 +16,10 @@ superseded_by: YDR-046
 - 状態: Accepted(予定日未定Todoから予定日を設定できるという点のみ、`recurrence_basis = 'manual'`について [YDR-046](ydr-046-manual-recurrence-todos.md) が置き換え。ホームのどの区分にも表示しないこと、「件の予定」に数えないこと、Todo一覧で日付があるTodoの後ろへ置くこと、状態を増やさないことは本YDRのまま有効)
 - 決定日: 2026-08-25
 - 置き換える決定: [YDR-030](ydr-030-undated-one-time-task-occurrences.md)(「日付未定Todoはホームの独立した『予定日未定』区分へ表示する」という表示先の決定のみ。`scheduled_for`/`due_at`のNULLペア、一回限りTodoへの限定、具体日と未定の往復、日付未定中は延期を提供しないこと、未定のまま完了できること、一意制約の扱いは変更しない)
+
+## 後続決定
+
+[YDR-051](ydr-051-occurrence-hard-deadline.md)により、必達日がある回は予定日未定でも必達日の近接・当日・超過に応じてホームに表示し、件数にも含める。以下のホーム除外・日付順の決定は必達日も未設定の回に引き続き適用する。
 
 ## 背景
 

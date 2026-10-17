@@ -58,6 +58,10 @@ D1層が投げる業務エラーは`src/lib/d1/errors.ts`の`D1ErrorCode`(識別
 - メモ(`task_rules.note`)はOccurrenceごとの記録ではなくTaskRuleの手順であり、`rule_snapshot`へ含めない。完了済みTodoの詳細でも現在の値を表示する。表示先はTodo詳細だけで、ホーム・Todo一覧・管理対象詳細・横断検索には出さない([YDR-047](../decisions/ydr-047-todo-note-on-task-rule.md))。
 - 「必要になったら繰り返す」(`manual`)のOccurrenceは常に予定日未定で、具体日と未定を往復しない。完了すると次の予定日未定Occurrenceを1件だけ作る。予定日の設定・延期は提供せず、DB側のトリガーもこの不変条件を守る([YDR-046](../decisions/ydr-046-manual-recurrence-todos.md))。
 
+## 各回の必達日
+
+`must_complete_by`は任意の東京暦日で、予定日・推奨期間から独立する。登録フォームと未完了詳細の`HardDeadlinePanel`が入口。`src/lib/d1/todos/hard-deadline.ts`は家庭境界・競合を検証し、`task_deadline_changes`へ追記する。次回へコピーせず、次回の設定・解除も取消/訂正の保護対象にする。`hard-deadline.d1-test.ts`、`hard-deadline-migration.d1-test.ts`、`tests/hard-deadline*.test.ts`、`e2e/hard-deadline.spec.ts`で検証する。判定と表示は`src/app/pending-todo.ts`を共有する([YDR-051](../decisions/ydr-051-occurrence-hard-deadline.md))。
+
 ## 関連YDR
 
 - 有効: YDR-004、YDR-006、YDR-012、YDR-013、YDR-014、YDR-015、YDR-016、YDR-020、YDR-021、YDR-026、YDR-031、YDR-032、YDR-037、YDR-038、YDR-039、YDR-040、YDR-046、YDR-047

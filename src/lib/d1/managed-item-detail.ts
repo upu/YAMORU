@@ -41,6 +41,7 @@ function attachActivityLogs(
       activity_logs: logsByOccurrence.get(occurrence.id) ?? [],
       assignee_user_id: occurrence.assignee_user_id,
       due_at: occurrence.due_at,
+      must_complete_by: occurrence.must_complete_by ?? null,
       id: occurrence.id,
       scheduled_for: occurrence.scheduled_for,
       status: occurrence.status,
@@ -79,7 +80,7 @@ const DETAIL_RULES_SQL = `SELECT r.id, r.title, r.deadline_kind, r.recurrence_ba
  ORDER BY r.created_at, r.id`;
 
 const DETAIL_OCCURRENCES_SQL = `SELECT o.id, o.task_rule_id, o.status, o.scheduled_for,
-       o.due_at, o.assignee_user_id,
+       o.due_at, o.assignee_user_id, o.must_complete_by,
        CASE WHEN json_type(o.rule_snapshot, '$.title') IS NULL
          THEN r.title ELSE json_extract(o.rule_snapshot, '$.title') END AS title_snapshot
   FROM task_occurrences o

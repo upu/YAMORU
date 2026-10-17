@@ -98,6 +98,7 @@ function occurrenceInsert(
     householdId: string;
     occurrenceId: string;
     completionCalendarVersion: 1 | null;
+    mustCompleteBy: string | null;
     scheduledFor: string | null;
     taskRuleId: string;
   },
@@ -106,11 +107,11 @@ function occurrenceInsert(
   return db.prepare(
     `INSERT INTO task_occurrences (
       id, household_id, task_rule_id, scheduled_for, due_at,
-      completion_calendar_version, schedule_spec_version, rule_snapshot
+      completion_calendar_version, schedule_spec_version, rule_snapshot, must_complete_by
     )
     SELECT ?1, ?2, ?3, ?4, ?5, ?6,
            CASE WHEN r.recurrence_basis = 'calendar' THEN 1 END,
-           ${snapshot}
+           ${snapshot}, ?7
       FROM task_rules r
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id
@@ -122,6 +123,7 @@ function occurrenceInsert(
     input.scheduledFor,
     input.dueAt,
     input.completionCalendarVersion,
+    input.mustCompleteBy,
   );
 }
 
@@ -174,6 +176,7 @@ async function insertTask(
     // 候補指定を入れた後にOccurrenceを作る。rule_snapshotが候補指定を含み
     // (YDR-039 / YDR-040)、0021のロールアウトガードも候補指定の件数を見るため。
     occurrenceInsert(db, {
+      mustCompleteBy: input.mustCompleteBy ?? null,
       completionCalendarVersion:
         input.recommendedUnit === "month" || input.recommendedUnit === "year" ? 1 : null,
       dueAt: input.dueAt,

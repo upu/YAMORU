@@ -107,7 +107,7 @@ export function TodoListSectionDescription({
 }) {
   const base = status === "completed"
     ? "実施日が新しいものから並びます"
-    : "予定日が早いものから並び、予定日未定は最後に並びます";
+    : "必達日超過を先に、続いて予定日が早いものから並び、日付のないTodoは最後に並びます";
   return (
     <p>
       {base}

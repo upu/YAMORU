@@ -8,6 +8,7 @@ status: stable
 decision_status: Accepted
 decision_date: 2026-09-12
 supersedes: [YDR-030, YDR-031, YDR-039]
+superseded_by: YDR-051
 ---
 
 # YDR-046: 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す
@@ -18,6 +19,10 @@ supersedes: [YDR-030, YDR-031, YDR-039]
   - [YDR-030](ydr-030-undated-one-time-task-occurrences.md)(「両方NULLを許すのは`recurrence_basis = 'once'`のTaskRuleに属するOccurrenceだけ」という限定のみ。NULLペアの持ち方、一回限りTodoにおける具体日と未定の往復、日付未定中は延期を提供しないこと、未定のまま完了できること、二種類の一意制約の扱いは変更しない)
   - [YDR-031](ydr-031-undated-todos-out-of-home.md)(「予定日未定Todoへ一覧・詳細から予定日を設定できる」という点のみ、manualに限って置き換える。ホームのどの区分にも表示しないこと、「件の予定」に数えないこと、Todo一覧で日付があるTodoの後ろへ置くこと、`waiting`のような状態を増やさないことは、manualにもそのまま適用する)
   - [YDR-039](ydr-039-safe-recurring-todo-edit.md)(「編集画面を『今回の予定』と『次回以降の繰り返し』へ分けて保存する」という点のみ、manualに限って置き換える。保存先の分離、現在回のスナップショット更新、変更履歴、完了取消・実施日訂正のガードはすべてYDR-039のまま維持する)
+
+## 後続決定
+
+[YDR-051](ydr-051-occurrence-hard-deadline.md)は、各回に独立した必達日を設定する操作を追加し、必達日がある回についてホームから常に除外する部分だけを置き換える。scheduled_for/due_atのNULLペア、延期禁止、次回生成は維持する。必達日はRuleへ保存せず、次回へコピーしない。
 
 ## 背景
 

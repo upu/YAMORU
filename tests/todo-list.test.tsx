@@ -115,6 +115,16 @@ function renderTodoList(
 }
 
 describe("未完了Todoの並び(buildTodoListItems)", () => {
+  it.each(["card", "list"] as const)("%s表示でも必達日と推奨期間超過の両方を確認できる", (view) => {
+    for (const mustCompleteBy of ["2026-08-11", "2026-08-12"]) {
+      const row = { ...maintenanceRow("late", "2026-08-01T15:00:00.000Z", "2026-08-09T15:00:00.000Z"), must_complete_by: mustCompleteBy };
+      const { unmount } = renderTodoList(buildTodoListItems([row], NOW), HOUSEHOLD, view);
+      expect(screen.getByText(/推奨期間超過/)).toBeVisible();
+      if (mustCompleteBy === "2026-08-11") expect(screen.getByText("必達日超過", { exact: true })).toBeVisible();
+      else expect(screen.getByText(/必達日: .*（今日）/)).toBeVisible();
+      unmount();
+    }
+  });
   it("ホームに出ない7日より先の予定と推奨期間前のTodoも含める", () => {
     const items = buildTodoListItems(
       [

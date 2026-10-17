@@ -259,7 +259,6 @@ function undoStatements(
     occurrenceId: string;
   },
 ): D1PreparedStatement[] {
-  const now = new Date().toISOString();
   const logId = crypto.randomUUID();
   const log = db.prepare(
     `INSERT INTO activity_logs (
@@ -281,13 +280,15 @@ function undoStatements(
                SELECT 1 FROM task_rule_changes c
                 WHERE c.task_occurrence_id = n.id AND c.household_id = ?2
              )
+             AND NOT EXISTS (SELECT 1 FROM task_deadline_changes d
+               WHERE d.task_occurrence_id = n.id AND d.household_id = ?2)
         ))`,
   ).bind(
     logId,
     input.householdId,
     input.occurrenceId,
     input.actorId,
-    now,
+    new Date().toISOString(),
     input.idempotencyKey,
     input.nextOccurrenceId,
   );

@@ -2,6 +2,7 @@
 // D1から取れる行を、画面が扱うカード1件分の形へ変換する部分だけを持つ。
 
 import { selectActiveCompletionLogs } from "../../active-completion";
+import { buildPendingTodoEntries } from "../../pending-todo";
 import {
   MAINTENANCE_DISPLAY_COPY,
   STRICT_DISPLAY_COPY,
@@ -59,6 +60,7 @@ export type ActivityLogRow = {
 };
 
 export type TaskOccurrenceRow = {
+  must_complete_by?: string | null;
   activity_logs: ActivityLogRow[];
   assignee_user_id: string | null;
   due_at: string | null;
@@ -125,7 +127,7 @@ export function buildDatedPendingTodo(
   };
 }
 
-export function buildPendingTodo(
+function buildBasePendingTodo(
   rule: TaskRuleRow,
   occurrence: TaskOccurrenceRow,
   nowIso: string,
@@ -165,12 +167,23 @@ export function buildPendingTodo(
 // 予定日の昇順で並べ、予定日未定(scheduledFor = null)はTodo一覧(/todos)と
 // 同じく末尾へ置く(Issue #325 / YDR-046)。空文字へ寄せて比較すると、日付の
 // あるTodoより前へ出てしまう。
+export function buildPendingTodo(rule: TaskRuleRow, occurrence: TaskOccurrenceRow, nowIso: string): PendingTodoData {
+  const base = buildBasePendingTodo(rule, occurrence, nowIso);
+  if (!occurrence.must_complete_by) return base;
+  const [{ item }] = buildPendingTodoEntries([{
+    ...occurrence, task_rules: { ...rule, title: base.title, managed_items: null },
+  }], nowIso);
+  return { ...base, badge: item.badge ?? base.badge, meta: item.meta, tone: item.tone };
+}
+
 export function buildPendingTodos(taskRules: TaskRuleRow[], nowIso: string): PendingTodoData[] {
   return taskRules
     .flatMap((rule) => rule.task_occurrences
       .filter((occurrence) => occurrence.status === "pending")
       .map((occurrence) => buildPendingTodo(rule, occurrence, nowIso)))
     .sort((left, right) => {
+      const priority = Number(right.badge === "必達日超過") - Number(left.badge === "必達日超過");
+      if (priority) return priority;
       if (left.scheduledFor === null || right.scheduledFor === null) {
         return Number(left.scheduledFor === null) - Number(right.scheduledFor === null);
       }

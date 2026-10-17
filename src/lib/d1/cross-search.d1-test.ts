@@ -94,6 +94,7 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
         dueAt: "2026-09-10T15:00:00.000Z",
         id: await occurrenceIdForRule(ruleId),
         managedItemId: null,
+        mustCompleteBy: null,
         recurrenceBasis: "once",
         scheduledFor: "2026-09-10T15:00:00.000Z",
         title: "卵を買う",

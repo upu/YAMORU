@@ -20,6 +20,7 @@ import { likeSearchPattern } from "./text-search";
 export const CROSS_SEARCH_LIMIT = 20;
 
 export type CrossSearchTodo = {
+  mustCompleteBy?: string | null;
   dueAt: string | null;
   // Todo詳細(/todos/[id])はTaskOccurrenceのIDで開くため、到達先もOccurrenceを指す。
   id: string;
@@ -90,7 +91,7 @@ const TODO_SEARCH_SQL = `SELECT o.id,
             ${EFFECTIVE_TODO_MANAGED_ITEM_ID} AS managedItemId,
             ${EFFECTIVE_TODO_RECURRENCE_BASIS} AS recurrenceBasis,
             o.scheduled_for AS scheduledFor,
-            o.due_at AS dueAt
+            o.due_at AS dueAt, o.must_complete_by AS mustCompleteBy
        FROM task_occurrences o
        JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
       WHERE o.household_id = ?1 AND o.status = 'pending'

@@ -21,6 +21,7 @@ import type { RegisteredTodoSchedule } from "./registration-feedback";
 // 分けている。
 
 export type TodoBasics = {
+  mustCompleteBy?: string | null;
   managedItemId: string | null;
   // Issue #329 / YDR-047: 実施するときに毎回参照する手順・注意点。未設定はnull。
   note: string | null;
@@ -94,7 +95,7 @@ async function saveCalendarTodo(
   now: Date,
 ): Promise<{ dueAt: string; scheduledFor: string }> {
   // 使わない項目のNULL埋めは編集側と同じ関数を使う(#367)。
-  const schedule = calendarScheduleWithNulls(input);
+  const schedule = { ...calendarScheduleWithNulls(input), ...(input.mustCompleteBy ? { mustCompleteBy: input.mustCompleteBy } : {}) };
   await createCalendarTask(db, session, schedule, now);
   const first = calendarFirstScheduledFor(calendarScheduleFromInput(schedule), now);
   return { dueAt: first, scheduledFor: first };
@@ -108,7 +109,8 @@ export async function saveTodo(
   now: Date,
 ): Promise<RegisteredTodoSchedule> {
   const { db, session } = await getD1Context();
-  const basics = { recurrenceBasis: input.recurrenceBasis, title: input.title };
+  const basics = { recurrenceBasis: input.recurrenceBasis, title: input.title,
+    ...(input.mustCompleteBy ? { mustCompleteBy: input.mustCompleteBy } : {}) };
   if (input.recurrenceBasis === "once") {
     await createOneTimeTask(db, session, input);
     return {

@@ -85,6 +85,10 @@ function insertOccurredAtCorrectionStatement(
                SELECT 1 FROM activity_logs a
                 WHERE a.task_occurrence_id = n.id AND a.household_id = ?2
              )
+             AND NOT EXISTS (
+               SELECT 1 FROM task_deadline_changes d
+                WHERE d.task_occurrence_id = n.id AND d.household_id = ?2
+             )
         ))`,
   ).bind(
     input.correctionId,

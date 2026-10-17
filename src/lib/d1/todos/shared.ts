@@ -17,6 +17,7 @@ import { calendarScheduleSpecsExpression } from "./rule-snapshot";
 // の記録ではなくTaskRuleの一部なので、方式を問わずここに置く。メモは任意
 // なので省略でき、省略・nullはどちらも「メモ未設定」として保存する。
 export type TaskBasics = {
+  mustCompleteBy?: string | null;
   managedItemId: string | null;
   note?: string | null;
   title: string;

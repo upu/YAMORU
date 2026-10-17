@@ -25,6 +25,7 @@ function assigneeFilterParams(
 // を参照(Issue #218の台帳検索と共有)。
 
 export type PendingOccurrenceRow = {
+  must_complete_by?: string | null;
   assignee_user_id: string | null;
   due_at: string | null;
   id: string;
@@ -65,7 +66,7 @@ export async function listPendingOccurrences(
   const { userId, unassignedOnly } = assigneeFilterParams(assigneeFilter);
   const searchPattern = likeSearchPattern(search);
   const { results } = await db.prepare(
-    `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id,
+    `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.must_complete_by,
             r.title, r.deadline_kind, r.recurrence_basis,
             i.id AS managed_item_id, i.name AS managed_item_name
        FROM task_occurrences o
@@ -81,6 +82,7 @@ export async function listPendingOccurrences(
   ).bind(householdId, userId, unassignedOnly, searchPattern).all<FlatPendingRow>();
   return results.map((row) => ({
     assignee_user_id: row.assignee_user_id,
+    must_complete_by: row.must_complete_by ?? null,
     due_at: row.due_at,
     id: row.id,
     scheduled_for: row.scheduled_for,
