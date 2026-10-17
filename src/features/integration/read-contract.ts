@@ -10,14 +10,25 @@ export type ReadPrincipal = {
   scopes: readonly string[];
 };
 
+const READ_ERROR_MESSAGES = {
+  invalid_input: "入力内容を確認してください。",
+  invalid_cursor: "検索条件またはデータが変わりました。最初から取得してください。",
+  cursor_expired: "続きの取得期限が切れました。最初から取得してください。",
+  not_found: "対象を取得できません。",
+  forbidden: "この家庭のデータへアクセスできません。",
+  unauthenticated: "ログインまたは再接続が必要です。",
+  insufficient_scope: "読み取り権限が必要です。",
+  read_conflict: "読み取り中にデータが変わりました。最初から取得してください。",
+} as const;
+
 export class ReadError extends Error {
-  constructor(public readonly code: "invalid_input" | "invalid_cursor" | "cursor_expired" | "not_found" | "forbidden" | "read_conflict") {
-    super(code);
-  }
-  get recovery(): { action: "restart_read" | "retry_read" | "check_request"; omit_cursor: boolean } {
-    if (this.code === "invalid_cursor" || this.code === "cursor_expired") return { action: "restart_read", omit_cursor: true };
-    if (this.code === "read_conflict") return { action: "retry_read", omit_cursor: false };
-    return { action: "check_request", omit_cursor: false };
+  readonly retryable: boolean;
+  readonly recovery: { action: "restart_read" | "check_request"; omit_cursor: boolean };
+  constructor(public readonly code: keyof typeof READ_ERROR_MESSAGES) {
+    super(READ_ERROR_MESSAGES[code]);
+    this.retryable = code === "read_conflict";
+    const restart = code === "read_conflict" || code === "invalid_cursor" || code === "cursor_expired";
+    this.recovery = { action: restart ? "restart_read" : "check_request", omit_cursor: restart };
   }
 }
 

@@ -1,4 +1,5 @@
 import { requireHouseholdMembership } from "../../lib/d1/authorization";
+import { D1ForbiddenError, D1UnauthorizedError } from "../../lib/d1/errors";
 import { readEntityRelations, readEntityRows, readHistoryRows, readHouseholdVersion, type EntityRow, type ReadVersion } from "../../lib/d1/conversation-read";
 import { ENTITY_KINDS, ReadError, kindInput, limitInput, matchEntity, normalizeEntityText, objectInput, stringInput, toWireValue, type EntityKind, type MatchReason, type ReadPrincipal } from "./read-contract";
 import { createReadCursor, cursorScope } from "./read-cursor";
@@ -26,10 +27,16 @@ function searchInput(input: unknown) {
 }
 
 async function authorized(deps: ReadDependencies): Promise<ReadPrincipal> {
-  const principal = await deps.authorize();
-  if (!principal.scopes.includes("household.read")) throw new ReadError("forbidden");
-  await requireHouseholdMembership(deps.db, { userId: principal.userId }, principal.householdId);
-  return principal;
+  try {
+    const principal = await deps.authorize();
+    if (!principal.scopes.includes("household.read")) throw new ReadError("insufficient_scope");
+    await requireHouseholdMembership(deps.db, { userId: principal.userId }, principal.householdId);
+    return principal;
+  } catch (error) {
+    if (error instanceof D1ForbiddenError) throw new ReadError("forbidden");
+    if (error instanceof D1UnauthorizedError) throw new ReadError("unauthenticated");
+    throw error;
+  }
 }
 
 async function consistentRead<T>(deps: ReadDependencies, run: (context: ReadContext) => Promise<T>) {
@@ -82,7 +89,7 @@ async function historyPage(deps: ReadDependencies, context: ReadContext, value: 
   const after = await cursor.decode(value.cursor, scope, context.now);
   const rows = await readHistoryRows(deps.db, context.principal.householdId, kind, id, after, limit + 1);
   const page = rows.slice(0, limit);
-  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, occurred_on: row.occurred_on, recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: null, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
+  return { records: page.map((row) => ({ id: row.id, kind: row.kind, occurrence_id: row.occurrence_id, occurred_at: row.occurred_at, occurred_on: row.occurred_on, date_precision: row.occurred_on === null ? "unknown" : "day", recorded_at: row.recorded_at, actor_user_id: row.actor_user_id, performer_user_id: row.performer_user_id, corrects_id: row.corrects_id, details: toWireValue(JSON.parse(row.data)) as Record<string, unknown>, client_id: null, time_zone: "Asia/Tokyo", data_origin: "user_authored" })),
     next_cursor: rows.length > limit ? await cursor.encode(scope, page[page.length - 1].key, context.now) : null };
 }
 

@@ -6,6 +6,7 @@ import { listPendingOccurrences } from "./home";
 import { applyAllMigrations } from "./test-support/migrations";
 import { resetHouseholdFixtures, householdAMember, createHouseholdAMaintenanceTask } from "./test-support/households";
 import { createOneTimeTask, createManualTask, completeTask, correctCompletionOccurredAt, undoTaskCompletion } from "./todos";
+import { D1UnauthorizedError } from "./errors";
 
 const db = env.DB;
 const now = new Date("2026-10-17T00:00:00.000Z");
@@ -16,8 +17,8 @@ beforeEach(() => resetHouseholdFixtures(db));
 
 it("家庭外ID、未所属、scope不足を拒否する", async () => {
   await expect(reader().entityGet({ kind: "managed_item", id: "item-b" })).rejects.toMatchObject({ code: "not_found" });
-  await expect(reader({ userId: "user-outsider" }).entitySearch({ query: "Item", kinds: ["managed_item"] })).rejects.toThrow();
-  await expect(reader({ scopes: [] }).entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "forbidden" });
+  await expect(reader({ userId: "user-outsider" }).entitySearch({ query: "Item", kinds: ["managed_item"] })).rejects.toMatchObject({ code: "forbidden" });
+  await expect(reader({ scopes: [] }).entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "insufficient_scope" });
 });
 
 it("別名、幅、かな、英字、関連名から複数候補を返す", async () => {
@@ -54,7 +55,7 @@ it("画面の期限状態と一致し、snapshotと現在Ruleを分ける", asyn
   expect(detail.entity.related.items).toContainEqual({ kind: "managed_item", id: "item-a" });
   expect(detail.entity.attributes.occurrence_rule).toMatchObject({ recurrence_basis: "completion", managed_item_id: "item-a" });
   expect(detail.entity.state).toMatchObject({ category: ui.category, badge: ui.item.badge, tone: ui.item.tone });
-  expect(detail.entity.dates).toMatchObject({ time_zone: "Asia/Tokyo", must_complete_by: "2026-10-17", scheduled_on: null, recommended_window: { from: "2026-08-02", until: "2026-08-11" } });
+  expect(detail.entity.dates).toMatchObject({ time_zone: "Asia/Tokyo", must_complete_by: "2026-10-17", scheduled_on: null, recommended_window: { start: "2026-08-02", end: "2026-08-11", state: "past-window" } });
   await db.prepare("UPDATE task_rules SET title='Future title' WHERE id=?").bind(ruleId).run();
   const next = await reader().entityGet({ kind: "todo_occurrence", id: occurrenceId });
   expect(next.entity.name).toBe("A maintenance");
@@ -94,7 +95,7 @@ it("読み取り中の更新・認可失効を検出して混在した結果を�
   await expect(changing.entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "read_conflict" });
   calls = 0;
   const revoked = createHouseholdReader({ db, cursorSecret: "test-only-secret-with-at-least-32-bytes", authorize: async () => ({ ...principal, scopes: ++calls === 2 ? [] : principal.scopes }) });
-  await expect(revoked.entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "forbidden" });
+  await expect(revoked.entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "insufficient_scope" });
 });
 
 it("日付境界でWebと一致し、必要時・未定・延期・必達日を区別する", async () => {
@@ -144,4 +145,42 @@ it("snapshotの明示nullを現在Ruleの関連先で埋めず、関連の展開
   const related = (await reader().entityGet({ kind: "managed_item", id: "item-a" })).entity.related;
   expect(related.items).toHaveLength(50);
   expect(related.has_more).toBe(true);
+});
+
+it("未認証と読み取り中の家庭離脱を構造化エラーで返す", async () => {
+  const anonymous = createHouseholdReader({ db, cursorSecret: "test-only-secret-with-at-least-32-bytes", authorize: async () => { throw new D1UnauthorizedError("not signed in"); } });
+  await expect(anonymous.entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "unauthenticated", retryable: false });
+  let calls = 0;
+  const removed = createHouseholdReader({ db, cursorSecret: "test-only-secret-with-at-least-32-bytes", authorize: async () => {
+    if (++calls === 2) await db.prepare("DELETE FROM household_members WHERE user_id='user-a'").run();
+    return principal;
+  } });
+  await expect(removed.entityGet({ kind: "managed_item", id: "item-a" })).rejects.toMatchObject({ code: "forbidden", retryable: false });
+});
+
+it("ページ取得中の更新では古いcursorを捨てて先頭から回復できる", async () => {
+  await db.prepare("INSERT INTO managed_items(id,household_id,name,kind) VALUES ('item-a2','household-a','Item A2','other')").run();
+  const input = { query: "Item", kinds: ["managed_item"], limit: 1 };
+  const first = await reader().entitySearch(input);
+  let calls = 0;
+  const changing = createHouseholdReader({ db, cursorSecret: "test-only-secret-with-at-least-32-bytes", now: () => now, authorize: async () => {
+    if (++calls === 2) await db.prepare("UPDATE managed_items SET name='Item changed' WHERE id='item-a'").run();
+    return principal;
+  } });
+  await expect(changing.entitySearch({ ...input, cursor: first.next_cursor })).rejects.toMatchObject({ code: "read_conflict", retryable: true, recovery: { action: "restart_read", omit_cursor: true } });
+  expect((await changing.entitySearch(input)).candidates[0].name).toBe("Item changed");
+});
+
+it.each([
+  ["2026-08-01T00:00:00.000Z", "before-window"],
+  ["2026-08-02T00:00:00.000Z", "in-window"],
+  ["2026-08-10T00:00:00.000Z", "reminder-window"],
+  ["2026-08-12T00:00:00.000Z", "past-window"],
+])("推奨期間を契約通りのstart/end/stateで返す: %s", async (iso, state) => {
+  const { occurrenceId } = await createHouseholdAMaintenanceTask(db);
+  await db.prepare("UPDATE task_occurrences SET must_complete_by='2026-07-01' WHERE id=?").bind(occurrenceId).run();
+  const api = createHouseholdReader({ db, cursorSecret: "test-only-secret-with-at-least-32-bytes", now: () => new Date(iso), authorize: async () => principal });
+  const result = await api.entityGet({ kind: "todo_occurrence", id: occurrenceId });
+  expect(result.entity.dates?.recommended_window).toEqual({ start: "2026-08-02", end: "2026-08-11", state });
+  expect(result.entity.state).toMatchObject({ category: "overdue", hard_deadline_overdue: true });
 });

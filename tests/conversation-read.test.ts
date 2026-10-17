@@ -10,10 +10,10 @@ describe("会話読み取りの入力とcursor", () => {
     expect(matchEntity("浄水器", "本体", ["浄水器"], null)?.field).toBe("alias");
   });
   it("未知キー・kind・不正上限を拒否する", () => {
-    for (const input of [0, 51, -1, 1.5, "20", null]) expect(() => limitInput(input)).toThrow("invalid_input");
+    for (const input of [0, 51, -1, 1.5, "20", null]) expect(() => limitInput(input)).toThrow("入力内容を確認してください。");
     expect(limitInput(undefined)).toBe(20);
-    expect(() => kindInput("household")).toThrow("invalid_input");
-    expect(() => objectInput({ query: "x", householdId: "other" }, ["query"])).toThrow("invalid_input");
+    expect(() => kindInput("household")).toThrow("入力内容を確認してください。");
+    expect(() => objectInput({ query: "x", householdId: "other" }, ["query"])).toThrow("入力内容を確認してください。");
   });
   it("cursorは期限・条件・主体・署名を検証する", async () => {
     const cursor = createReadCursor("test-only-secret-with-at-least-32-bytes");

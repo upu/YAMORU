@@ -30,7 +30,7 @@ Workerだけ旧版へ戻せる。既存データの変換・削除がないた�
 - `src/features/integration/read.ts`: `createHouseholdReader({ db, authorize, cursorSecret, now? })`の`entitySearch`、`entityGet`、`historyList`。要求はunknownから検証し、公開wire名は`entity_search/entity_get/history_list`。HTTP/MCP endpointは#439が接続する。
 - `authorize`は要求本文からPrincipalを作らず、#436の検証済みtokenまたはWebの検証済みセッションを使う。毎回、読み取り前後に呼び、grantの期限・失効を再検証する。家庭所属と`household.read`は共通層でも検証する。#449の`IntegrationPrincipal`と構造的に互換で、OAuthコードを複製しない。
 - `cursorSecret`は32バイト以上のサーバー専用のランダム鍵を#439で環境から供給する。コードに秘密を固定しない。鍵交換時のcursorは再取得する。
-- `src/lib/d1/conversation-read.ts`: 家庭に限定したSELECT。履歴は追記訂正と元ログを別行で返す。元の補充履歴にないactor/client/performerはnull。次回予定を新規算出せず、保存されたOccurrenceを返す。
+- `src/lib/d1/conversation-read.ts`: 家庭に限定したSELECT。履歴は追記訂正と元ログを別行で返す。元の補充履歴にないactor/client/performerはnull。補充の暦日はdate_precision: day、入力精度を保存していない旧完了日時はunknownとし、日時から入力精度を推測しない。次回予定を新規算出せず、保存されたOccurrenceを返す。
 - `src/features/todos/projection/`: 画面と共通の日付・期限分類。旧`src/app/`のimport入口はre-exportで保つ。ホームの名前・関連先も現在RuleではなくOccurrence snapshotを優先する。
 
 ## 検索とページング
@@ -39,11 +39,11 @@ Workerだけ旧版へ戻せる。既存データの変換・削除がないた�
 
 候補は既定20・最大50件、DBから一回に読む候補行は継続判定用を含め201件まで。日本語の正規化を正確に行い、旧Workerの変更を古い検索索引で見落とさないため、安定したkind/id順に上限付きで走査する。**空ページでもnext_cursorがある場合は続きを取得する。** search_complete=trueになるまで検索完了や候補一意を断定しない。
 
-cursorはHMAC-SHA256、15分有効。本人・家庭・client・接続・正規化した条件・limit・家庭世代に束縛する。データ更新/改ざん/条件変更ではinvalid_cursor、期限切れはcursor_expiredとなる。いずれもcursorを外して最初から取得する。アダプタは`ReadError.code`と`recovery`をエラー応答へ写す。read_conflictは読み取り中の更新なので同じ読み取り要求を再試行する。読み取りは副作用を持たない。
+cursorはHMAC-SHA256、15分有効。本人・家庭・client・接続・正規化した条件・limit・家庭世代に束縛する。データ更新/改ざん/条件変更ではinvalid_cursor、期限切れはcursor_expiredとなる。いずれもcursorを外して最初から取得する。アダプタは`ReadError.code`と`recovery`をエラー応答へ写す。read_conflictは読み取り中の更新なので、cursorを外して同じ条件の先頭から再取得する。古いcursorは更新前の世代に束縛されているため再利用しない。読み取りは副作用を持たない。
 
 revisionは家庭単位の保守的な世代。updated_atはその世代のchanged_atであり、`updated_at_scope: household_revision`を必ず返す。過去に記録していない「個別対象の最終編集日時」を生成しない。対象のcreated_atは既存値のまま保持する。
 
-予定日・現在期限・必達日・推奨期間は別フィールドで返し、Asia/Tokyoの暦日へ投影する。Occurrenceに現在Ruleの予定条件を上書きせず、Rule照会はcurrent_rule、Occurrence照会はoccurrence_ruleを返す。関連IDは最大50件とhas_moreだけを返し、関連の全件展開はしない。既存Webに詳細画面がないskipped回のdetail_urlはnullとし、404のリンクを作らない。完了/取消の可否をread権限から推定せず、変更commandは#437/#438が追加する。
+予定日・現在期限・必達日・推奨期間（recommended_windowのstart/end/state）は別フィールドで返し、Asia/Tokyoの暦日へ投影する。Occurrenceに現在Ruleの予定条件を上書きせず、Rule照会はcurrent_rule、Occurrence照会はoccurrence_ruleを返す。関連IDは最大50件とhas_moreだけを返し、関連の全件展開はしない。既存Webに詳細画面がないskipped回のdetail_urlはnullとし、404のリンクを作らない。完了/取消の可否をread権限から推定せず、変更commandは#437/#438が追加する。
 
 ## 検証
 

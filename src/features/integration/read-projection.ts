@@ -1,6 +1,6 @@
 import type { EntityRow, ReadVersion } from "../../lib/d1/conversation-read";
 import { buildPendingTodoEntries } from "../todos/projection/pending-todo";
-import { formatTokyoDateInput } from "../todos/projection/time-zone";
+import { formatTokyoDateInput, getMaintenanceDisplayStateFromIso } from "../todos/projection/time-zone";
 import { toWireValue } from "./read-contract";
 
 type EntityData = {
@@ -44,13 +44,20 @@ function occurrenceState(row: EntityRow, data: EntityData, now: Date) {
     hard_deadline_overdue: entry.hardDeadlineOverdue ?? false };
 }
 
-function occurrenceDates(data: EntityData) {
+function recommendedWindow(data: EntityData, now: Date) {
+  if (data.deadline_kind !== "maintenance") return null;
+  if (!data.scheduled_for || !data.due_at) throw new Error("Maintenance window missing");
+  return { start: formatTokyoDateInput(data.scheduled_for), end: formatTokyoDateInput(data.due_at),
+    state: getMaintenanceDisplayStateFromIso({ scheduledFor: data.scheduled_for, dueAt: data.due_at }, now.toISOString()) };
+}
+
+function occurrenceDates(data: EntityData, now: Date) {
   const day = (value: string | null | undefined) => value ? formatTokyoDateInput(value) : null;
   const maintenance = data.deadline_kind === "maintenance";
   return {
     time_zone: "Asia/Tokyo", scheduled_on: maintenance ? null : day(data.scheduled_for),
     due_on: maintenance ? null : day(data.due_at), must_complete_by: data.must_complete_by ?? null,
-    recommended_window: maintenance ? { from: day(data.scheduled_for), until: day(data.due_at) } : null,
+    recommended_window: recommendedWindow(data, now),
     semantics: { scheduled_on: "本来の予定日", due_on: "延期を反映した現在期限", must_complete_by: "今回だけの独立した必達日（次回へコピーしない）", recommended_window: "完了日基準の推奨期間（厳密な期限ではない）" },
   };
 }
@@ -62,7 +69,7 @@ export function entityProjection(row: EntityRow, version: ReadVersion, now: Date
     data_origin: "user_authored" as const,
     attributes: toWireValue(data) as Record<string, unknown>,
     state: row.kind === "todo_occurrence" ? occurrenceState(row, data, now) : { stock_status: data.stock_status ?? null },
-    dates: row.kind === "todo_occurrence" ? occurrenceDates(data) : null,
+    dates: row.kind === "todo_occurrence" ? occurrenceDates(data, now) : null,
     // Mutations are introduced by #437/#438. Read scope alone grants none.
     allowed_operations: ["entity_get", "history_list"],
   };
