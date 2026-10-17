@@ -37,6 +37,7 @@ import manualRecurrenceSql from "../../../../d1/migrations/0027_manual_recurrenc
 import taskRuleNoteSql from "../../../../d1/migrations/0028_task_rule_note.sql?raw";
 import managedItemTagsSql from "../../../../d1/migrations/0029_managed_item_tags.sql?raw";
 import hardDeadlineSql from "../../../../d1/migrations/0030_occurrence_hard_deadline.sql?raw";
+import oauthConnectionsSql from "../../../../d1/migrations/0031_oauth_connections.sql?raw";
 
 import conversationReadSql from "../../../../d1/migrations/0032_conversation_reads.sql?raw";
 
@@ -72,6 +73,7 @@ const MIGRATIONS = [
   { name: "0028_task_rule_note", sql: taskRuleNoteSql },
   { name: "0029_managed_item_tags", sql: managedItemTagsSql },
   { name: "0030_occurrence_hard_deadline", sql: hardDeadlineSql },
+  { name: "0031_oauth_connections", sql: oauthConnectionsSql },
   { name: "0032_conversation_reads", sql: conversationReadSql },
 ] as const;
 
