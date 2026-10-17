@@ -49,14 +49,14 @@ export async function setCandidateControl(db: D1Database, session: D1Session, ca
   const result = await candidateControlStatement(db, { householdId, userId }, candidateId, control, now).run();
   if (result.meta.changes === 0) throw new NotificationError("not_found");
 }
-export function candidateControlStatement(db: D1Database, owner: { householdId: string; userId: string }, candidateId: string, control: CandidateControl, now: Date, expectedRevision: number | null = null, businessKey: string | null = null) {
+export function candidateControlStatement(db: D1Database, owner: { householdId: string; userId: string }, candidateId: string, control: CandidateControl, now: Date, expectedRevision: number | null = null, businessKey: string | null = null, candidateRevision: number | null = null) {
   return db.prepare(`INSERT INTO notification_controls(household_id,user_id,candidate_id,muted,snoozed_until,updated_at,idempotency_key)
-    SELECT ?1,?2,?3,?4,?5,?6,?8 WHERE EXISTS(SELECT 1 FROM attention_candidates WHERE id=?3 AND household_id=?1)
+    SELECT ?1,?2,?3,?4,?5,?6,?8 WHERE EXISTS(SELECT 1 FROM attention_candidates WHERE id=?3 AND household_id=?1 AND (?9 IS NULL OR revision=?9))
       AND EXISTS(SELECT 1 FROM household_members WHERE household_id=?1 AND user_id=?2)
       AND (?7 IS NULL OR COALESCE((SELECT revision FROM notification_controls WHERE household_id=?1 AND user_id=?2 AND candidate_id=?3),0)=?7)
     ON CONFLICT(household_id,user_id,candidate_id) DO UPDATE SET muted=excluded.muted,snoozed_until=excluded.snoozed_until,updated_at=excluded.updated_at,
       revision=notification_controls.revision+1,idempotency_key=excluded.idempotency_key`)
-    .bind(owner.householdId, owner.userId, candidateId, Number(control.muted), control.snoozedUntil, now.toISOString(), expectedRevision, businessKey);
+    .bind(owner.householdId, owner.userId, candidateId, Number(control.muted), control.snoozedUntil, now.toISOString(), expectedRevision, businessKey, candidateRevision);
 }
 export async function getCandidateControl(db: D1Database, owner: { householdId: string; userId: string }, candidateId: string): Promise<CandidateControl & { revision: number }> {
   const row = await db.prepare("SELECT muted,snoozed_until,revision FROM notification_controls WHERE household_id=? AND user_id=? AND candidate_id=?")

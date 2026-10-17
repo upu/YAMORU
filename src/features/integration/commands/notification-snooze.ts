@@ -31,7 +31,7 @@ async function plan(context: CommandContext, normalized: NormalizedCommand): Pro
   return {
     preview: { affected_entities: [{ kind: "attention_candidate", id }], diff: { before: { ...controlToWire(previous), revision: previous.revision }, after: controlToWire(control) }, schedule_effect: { shared_schedule_changed: false } },
     build: ({ businessKey, recordedAt }) => ({
-      statements: [candidateControlStatement(context.db, context, id, control, new Date(recordedAt), previous.revision, businessKey)],
+      statements: [candidateControlStatement(context.db, context, id, control, new Date(recordedAt), previous.revision, businessKey, candidate.revision)],
       evidence: [{ table: "notification_controls", idempotencyKey: businessKey }],
       revisionEntity: { kind: "attention_candidate", id },
       result: { candidate_id: id, ...controlToWire(control), shared_schedule_changed: false },

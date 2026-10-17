@@ -3,10 +3,11 @@ import { beforeAll, beforeEach, expect, it } from "vitest";
 import { applyAllMigrations } from "./test-support/migrations";
 import { notificationNow as now, notificationPrincipal as principal, resetNotificationFixtures, notificationCandidate } from "./test-support/notifications";
 import { createCommandService } from "../../features/integration/commands/service";
-import { getCandidateControl, getNotificationSettings, saveNotificationSettings } from "./notification-settings";
+import { getCandidateControl, getNotificationSettings, saveNotificationSettings, setCandidateControl } from "./notification-settings";
 import { DEFAULT_SETTINGS } from "../../features/integration/notifications/contract";
 import { householdAMember } from "./test-support/households";
 import { interruptBeforeBatch } from "./test-support/integration-commands";
+import { createAttentionReader } from "../../features/integration/attention/service";
 const db = env.DB;
 const service = createCommandService({ db, now: () => now });
 beforeAll(() => applyAllMigrations(db));
@@ -75,4 +76,25 @@ it("通知先を変更しない操作でも、呼び出した接続の期限切�
   await db.prepare("UPDATE oauth_connections SET expires_at=? WHERE id=?").bind(now.toISOString(), principal.connectionId).run();
   await expect(service.commit(principal, commitInput(preview))).rejects.toMatchObject({ code: "connection_revoked" });
   expect((await getNotificationSettings(db, householdAMember)).revision).toBe(0);
+});
+it.each([false, true])("保存直前の日付跨ぎによる候補更新で、休止とreceiptを共に取り消す(existing=%s)", async (existing) => {
+  const { occurrenceId } = await notificationCandidate(db);
+  await db.prepare("UPDATE task_occurrences SET must_complete_by='2026-10-17' WHERE id=?").bind(occurrenceId).run();
+  let clock = now;
+  const reader = createAttentionReader({ db, authorize: async () => principal, now: () => clock, cursorSecret: "notification-test-secret-with-32-bytes" });
+  const candidate = (await reader.attentionGet({})).candidates[0];
+  if (existing) await setCandidateControl(db, householdAMember, candidate.candidate_id, { muted: true, snoozedUntil: null }, now);
+  const before = await getCandidateControl(db, principal, candidate.candidate_id);
+  const preview = await service.prepare(principal, { operation_id: crypto.randomUUID(), command: "notification.snooze", payload: {
+    candidate_id: candidate.candidate_id, candidate_revision: candidate.revision, until: "2026-10-19T00:00:00.000Z",
+  } });
+  const interrupted = createCommandService({ now: () => now, db: interruptBeforeBatch(db, async () => {
+    const version = await db.prepare("SELECT * FROM household_read_versions WHERE household_id=?").bind(principal.householdId).first();
+    clock = new Date("2026-10-18T00:00:00Z");
+    expect((await reader.attentionGet({})).candidates[0].revision).not.toBe(candidate.revision);
+    expect(await db.prepare("SELECT * FROM household_read_versions WHERE household_id=?").bind(principal.householdId).first()).toEqual(version);
+  }) });
+  await expect(interrupted.commit(principal, commitInput(preview))).rejects.toMatchObject({ code: "stale_preview" });
+  expect(await getCandidateControl(db, principal, candidate.candidate_id)).toEqual(before);
+  expect(await db.prepare("SELECT status FROM integration_operations WHERE operation_id=?").bind(preview.operation_id).first()).not.toEqual({ status: "succeeded" });
 });
