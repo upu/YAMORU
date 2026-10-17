@@ -26,10 +26,12 @@ const REVOKED_REASON_LABELS: Record<ConnectionRevokedReason, string> = {
 };
 
 function StatusNote({ connection }: { connection: ConnectionSummary }) {
-  if (connection.status === "revoked" && connection.revokedReason !== null && connection.revokedAt !== null) {
+  if (connection.status === "revoked" && connection.revokedReason !== null) {
+    // 前提が崩れただけで解除の記録がまだ無い接続は、日付を出さず理由だけを示す。
+    const when = connection.revokedAt === null ? "" : `${formatTokyoDate(connection.revokedAt)}に解除。`;
     return (
       <p className={styles.note}>
-        {formatTokyoDate(connection.revokedAt)}に解除。{REVOKED_REASON_LABELS[connection.revokedReason]}
+        {when}{REVOKED_REASON_LABELS[connection.revokedReason]}
         再び使うには、接続元のアプリから改めて連携してください。
       </p>
     );

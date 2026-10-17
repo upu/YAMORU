@@ -118,6 +118,12 @@ describe("外部サービスとの連携の管理", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("前提が崩れただけで解除の記録が無い接続も、理由を示し解除ボタンを出さない", () => {
+    render(<ConnectionList connections={[{ ...ACTIVE, revokedReason: "credentials_changed", status: "revoked" }]} />);
+    expect(screen.getByText(/パスワードが変更されたため/u)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
   it("期限切れの接続は再連携を案内し、解除もできる", () => {
     render(<ConnectionList connections={[{ ...ACTIVE, status: "expired" }]} />);
     expect(screen.getByText("期限切れ")).toBeInTheDocument();

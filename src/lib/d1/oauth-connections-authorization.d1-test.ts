@@ -213,6 +213,16 @@ describe("接続管理画面の一覧", () => {
     expect(listed.some((connection) => connection.id === activeId)).toBe(true);
   });
 
+  it("所属やパスワードが変わった接続は、tokenが使われる前でも解除済みとして示す", async () => {
+    await connect(db, memberA);
+    await resetPassword(db, householdAMember.email, "pbkdf2_sha256$100000$c2FsdA$aGFzaA");
+    const [afterPassword] = await listConnectionsForUser(db, householdAMember, now());
+    expect(afterPassword).toMatchObject({ revokedAt: null, revokedReason: "credentials_changed", status: "revoked" });
+    await db.prepare("DELETE FROM household_members WHERE user_id = ?1").bind(householdAMember.userId).run();
+    const [afterLeaving] = await listConnectionsForUser(db, householdAMember, now());
+    expect(afterLeaving).toMatchObject({ householdName: null, revokedReason: "membership_changed", status: "revoked" });
+  });
+
   it("解除済み・期限切れを区別し、離れた家庭の名前は返さない", async () => {
     await connect(db, memberA);
     const { id } = await connectionState();

@@ -25,8 +25,10 @@ type ConnectionRow = {
   client_name: string;
   created_at: string;
   expires_at: string;
+  credentials_current: number;
   household_name: string | null;
   id: string;
+  is_member: number;
   last_used_at: string | null;
   revoked_at: string | null;
   revoked_reason: ConnectionRevokedReason | null;
@@ -37,8 +39,18 @@ type ConnectionRow = {
 // 含む)は、確認・解除できなくならないよう件数によらずすべて返す。
 const REVOKED_HISTORY_LIMIT = 50;
 
+// まだ解除の記録が無くても、token検証と同じ前提(家庭への所属とパスワードの
+// 世代)が崩れた接続は使えないため、解除済みとして理由とともに示す。記録は
+// 次にtokenが使われたときに残る(bearer.ts / model.ts)。
+function effectiveRevokedReason(row: ConnectionRow): ConnectionRevokedReason | null {
+  if (row.revoked_reason !== null) return row.revoked_reason;
+  if (row.is_member !== 1) return "membership_changed";
+  if (row.credentials_current !== 1) return "credentials_changed";
+  return null;
+}
+
 function statusOf(row: ConnectionRow, now: string): ConnectionStatus {
-  if (row.revoked_at !== null) return "revoked";
+  if (effectiveRevokedReason(row) !== null) return "revoked";
   return row.expires_at > now ? "active" : "expired";
 }
 
@@ -53,6 +65,12 @@ export async function listConnectionsForUser(
   const { results } = await db.prepare(
     `SELECT c.id, c.client_id, c.client_name, c.scopes, c.created_at, c.expires_at,
             c.last_used_at, c.revoked_at, c.revoked_reason,
+            EXISTS (
+              SELECT 1 FROM household_members m
+               WHERE m.household_id = c.household_id AND m.user_id = c.user_id
+            ) AS is_member,
+            (SELECT u.session_version = c.user_session_version FROM users u WHERE u.id = c.user_id)
+              AS credentials_current,
             (SELECT h.name FROM households h
                JOIN household_members m ON m.household_id = h.id
               WHERE h.id = c.household_id AND m.user_id = c.user_id) AS household_name
@@ -78,7 +96,7 @@ export async function listConnectionsForUser(
     id: row.id,
     lastUsedAt: row.last_used_at,
     revokedAt: row.revoked_at,
-    revokedReason: row.revoked_reason,
+    revokedReason: effectiveRevokedReason(row),
     scopes: row.scopes,
     status: statusOf(row, now),
   }));
