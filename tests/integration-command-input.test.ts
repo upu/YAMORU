@@ -50,6 +50,9 @@ describe("実施日時", () => {
       .toEqual({ datePrecision: "day", occurredAt: "2026-10-10T15:00:00.000Z" });
     expect(occurredValue({ occurred_at: "2026-10-12T09:30+09:00" }, "payload", NOW))
       .toEqual({ datePrecision: "instant", occurredAt: "2026-10-12T00:30:00.000Z" });
+    // Pythonなどが出力するマイクロ秒も受け付け、ミリ秒へ揃える。
+    expect(occurredValue({ occurred_at: "2026-10-12T09:30:00.123456+09:00" }, "payload", NOW))
+      .toEqual({ datePrecision: "instant", occurredAt: "2026-10-12T00:30:00.123Z" });
     expect(occurredValue({}, "payload", NOW)).toBeNull();
   });
 

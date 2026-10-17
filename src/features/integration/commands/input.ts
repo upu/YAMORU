@@ -7,7 +7,7 @@ import { CommandError, invalidInput, isCommandName, type CommandName, type Comma
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
-const INSTANT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-](\d{2}):(\d{2}))$/u;
+const INSTANT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?(?:Z|[+-](\d{2}):(\d{2}))$/u;
 
 export function objectValue(value: unknown, field: string, keys: readonly string[]): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw invalidInput(field, "object_required");
