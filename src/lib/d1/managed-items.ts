@@ -52,6 +52,7 @@ export type ActivityLogRow = {
   recorded_at: string;
 };
 export type TaskOccurrenceRow = {
+  must_complete_by?: string | null;
   activity_logs: ActivityLogRow[];
   assignee_user_id: string | null;
   due_at: string | null;

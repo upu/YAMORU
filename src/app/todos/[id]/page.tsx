@@ -18,6 +18,7 @@ import {
 } from "../../../lib/d1/profiles";
 import { AssigneePanel } from "../../../features/todos/components/assignee-panel";
 import { CompleteTodoPanel } from "../../../features/todos/components/complete-todo-panel";
+import { HardDeadlinePanel } from "../../../features/todos/components/hard-deadline-panel";
 import { CorrectionPanel } from "../../../features/todos/components/correction-panel";
 import { DetailBackNav, TODO_DETAIL_BACK_NAV } from "../../detail-back-nav";
 import { EditIcon } from "../../edit-icon";
@@ -41,6 +42,7 @@ export type TodoCompletionData = {
 };
 
 export type TodoDetailData = {
+  mustCompleteBy?: string | null;
   // Issue #392: 担当は読み取り専用の表示ではなく、その場で変更できる操作に
   // なった。担当予定者の名前はメンバー一覧(members)から解決するため、ここは
   // 選択中の値だけを持つ。担当未定(誰でも可)はnull。
@@ -146,6 +148,7 @@ function TodoDetailList({ todo }: { todo: TodoDetailData }) {
         </div>
       )}
       <TodoScheduleRows todo={todo} />
+      {todo.mustCompleteBy ? <div><dt>必達日</dt><dd>{todo.mustCompleteBy}</dd></div> : null}
     </dl>
   );
 }
@@ -282,6 +285,9 @@ export function TodoDetailContent({
             todo={todo}
           />
           <TodoContentSection todo={todo} />
+          {!todo.isCompleted ? (
+            <HardDeadlinePanel occurrenceId={todo.id} managedItemId={todo.managedItemId} value={todo.mustCompleteBy ?? null} />
+          ) : null}
           <TodoNoteSection note={todo.note} />
         </div>
 
@@ -396,6 +402,7 @@ export default async function TodoDetailPage({
         recurrenceBasis: toRecurrenceBasis(row.recurrence_basis),
         recurrenceLabel: buildRecurrenceLabel(row),
         scheduledFor: row.scheduled_for,
+        mustCompleteBy: row.must_complete_by ?? null,
         taskRuleId: row.task_rule_id,
         title: row.title,
       }}

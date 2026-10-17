@@ -27,7 +27,7 @@ status: stable
 ## 重要な不変条件
 
 - 未完了Todoの分類は`src/app/pending-todo.ts`の一箇所で行う。ホームは「いま対応すること」だけを出し、Todo一覧(`/todos`)は同じ分類結果を並べ替えて全件出す。ホーム専用の分類規則を増やさない。
-- 予定日未定のOccurrenceはホームの要対応表示へ出さず、Todo一覧で扱う([YDR-031](../decisions/ydr-031-undated-todos-out-of-home.md))。
+- 予定日も必達日も未設定のOccurrenceはホームへ出さず、Todo一覧で扱う。必達日がある回は7日以内・当日・超過に応じて表示し、必達日超過を優先する。予定・推奨期間も保持する([YDR-051](../decisions/ydr-051-occurrence-hard-deadline.md)、YDR-031の部分置換)。
 - ホーム上部にTodo一覧・台帳への移動ボタンを置かない([Issue #219](https://github.com/upu/YAMORU/issues/219))。PCはサイドバー、モバイルは下部ナビゲーションがどちらの行き先も常に見せているため、同じ移動先の二つ目の入口になる(#391の規約)。上部は対応状況のサマリーだけを持つ。ホームが空のときに出す再発見の導線(`HomeEmptyState`)は、「予定日未定のTodoはTodo一覧で確認できる」という文脈を伴う案内なので別に扱う([Issue #202](https://github.com/upu/YAMORU/issues/202))。
 - メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/app/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
 - 完了操作はホーム専用の保存処理を持たず、`CompleteTodoPanel`(→`src/features/todos/actions/completion.ts`)を共有する。同じ部品を台帳詳細と検索結果も使う。

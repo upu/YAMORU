@@ -56,6 +56,8 @@ function TodoListRowMeta({
   item: TodoCardItem;
 }) {
   const parts = [
+    item.mustCompleteBy ? `必達日: ${item.mustCompleteBy}${item.hardDeadlineToday ? "（今日）" : ""}` : "",
+    item.scheduleState ?? "",
     describeListSchedule(item.listSchedule),
     item.performedAt === undefined ? "" : formatTokyoShortMonthDay(item.performedAt),
     item.performedByName ?? "",

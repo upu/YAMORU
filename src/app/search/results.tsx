@@ -92,6 +92,7 @@ function TodoResults({
               <span className={styles.resultMeta}>
                 <span className="sr-only">予定: </span>
                 {describeTodoSchedule(todo)}
+                {todo.mustCompleteBy ? ` ・ 必達日: ${todo.mustCompleteBy}` : ""}
               </span>
             </div>
             <div className={styles.resultActions}>

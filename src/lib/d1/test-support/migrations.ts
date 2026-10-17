@@ -36,6 +36,7 @@ import userConsumablePinsSql from "../../../../d1/migrations/0026_user_consumabl
 import manualRecurrenceSql from "../../../../d1/migrations/0027_manual_recurrence.sql?raw";
 import taskRuleNoteSql from "../../../../d1/migrations/0028_task_rule_note.sql?raw";
 import managedItemTagsSql from "../../../../d1/migrations/0029_managed_item_tags.sql?raw";
+import hardDeadlineSql from "../../../../d1/migrations/0030_occurrence_hard_deadline.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -68,6 +69,7 @@ const MIGRATIONS = [
   { name: "0027_manual_recurrence", sql: manualRecurrenceSql },
   { name: "0028_task_rule_note", sql: taskRuleNoteSql },
   { name: "0029_managed_item_tags", sql: managedItemTagsSql },
+  { name: "0030_occurrence_hard_deadline", sql: hardDeadlineSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

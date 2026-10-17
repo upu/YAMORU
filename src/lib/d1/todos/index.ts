@@ -4,6 +4,7 @@
 
 export { claimTaskOccurrenceAssignee, postponeTaskOccurrence, setOneTimeTaskSchedule, setTaskOccurrenceAssignee } from "./assignment";
 export { completeTask, undoTaskCompletion } from "./completion";
+export { setTaskHardDeadline } from "./hard-deadline";
 export { correctCompletionOccurredAt, correctCompletionPerformer } from "./corrections";
 export { type CalendarTaskInput, type IntervalTaskInput, type MaintenanceTaskInput, type ManualTaskInput, type OneTimeTaskInput, createCalendarTask, createIntervalTask, createMaintenanceTask, createManualTask, createOneTimeTask } from "./creation";
 export {

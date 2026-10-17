@@ -56,6 +56,10 @@ type RecommendedOffsets = {
   recommendedUntilOffset: number;
   recommendedUntilValue: number;
 };
+function isInvalidHardDeadline(value: FormDataEntryValue | null): boolean {
+  return value !== null && value !== "" && (typeof value !== "string" || tokyoDateToUtcIso(value) === null);
+}
+
 function parseTodoBasics(
   formData: FormData,
 ): TodoBasics | MaintenanceTodoActionState {
@@ -87,7 +91,12 @@ function parseTodoBasics(
   const managedItemId = typeof rawManagedItemId === "string"
     ? rawManagedItemId.trim() || null
     : null;
-  return { managedItemId, note: note.value, recurrenceBasis, title };
+  const mustCompleteBy = formData.get("mustCompleteBy");
+  if (isInvalidHardDeadline(mustCompleteBy)) {
+    return { message: "必達日を正しく入力してください。", status: "error" };
+  }
+  return { managedItemId, note: note.value, recurrenceBasis, title,
+    ...(typeof mustCompleteBy === "string" && mustCompleteBy !== "" ? { mustCompleteBy } : {}) };
 }
 
 function parseBoundedInteger(

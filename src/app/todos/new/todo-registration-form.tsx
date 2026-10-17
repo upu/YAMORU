@@ -23,6 +23,7 @@ import {
   OneTimeFields,
 } from "./recurrence-fields";
 import { TodoNoteField } from "../todo-note-field";
+import { HardDeadlineField } from "../hard-deadline-field";
 import styles from "./registration-notice.module.css";
 
 export type { TodoManagedItemOption };
@@ -211,6 +212,7 @@ export function TodoRegistrationForm({
       <RecurrenceConditionFields recurrenceBasis={recurrenceBasis} />
       {/* Issue #329 / YDR-047: 繰り返し方によらず同じ位置へ置く。 */}
       <TodoNoteField idPrefix="todo" />
+      <HardDeadlineField />
       <ManagedItemSearch
         idPrefix="todo"
         initialManagedItemId={initialManagedItemId}

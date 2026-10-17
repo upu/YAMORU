@@ -96,6 +96,23 @@ beforeEach(() => {
 
 describe("専用ページのTodo登録操作", () => {
 
+  it.each([
+    ["once", createOneTimeTaskMock], ["manual", createManualTaskMock],
+    ["completion", createMaintenanceTaskMock], ["calendar", createCalendarTaskMock],
+    ["interval", createIntervalTaskMock],
+  ] as const)("%sの登録で必達日を保存し、予定と併記する", async (recurrenceBasis, save) => {
+    const result = await createTodo(INITIAL_STATE, todoForm({ recurrenceBasis, mustCompleteBy: "2026-12-31" }));
+    expect(result.status).toBe("success");
+    expect(save.mock.calls[0]?.[2]).toMatchObject({ mustCompleteBy: "2026-12-31" });
+    expect(result.registered?.schedule).toContain(" ・ 今回の必達日: 2026-12-31");
+  });
+
+  it("存在しない必達日は登録せず入力エラーを返す", async () => {
+    const result = await createTodo(INITIAL_STATE, todoForm({ mustCompleteBy: "2026-02-29" }));
+    expect(result.status).toBe("error");
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+  });
+
   it("管理対象なしの一回限りTodoを登録する", async () => {
     const result = await createTodo(INITIAL_STATE, todoForm());
 
