@@ -125,3 +125,10 @@ it("callbackの本文が止まっても要求中断で検証を終え、購読�
   expect(cancelled).toBe(true);
   expect((await db.prepare("SELECT * FROM notification_event_subscriptions").all()).results).toEqual([]);
 });
+it.each(["http_error", "response_too_large"] as const)("%sの本文を閉じる処理が止まっても検証失敗を返す", async (reason) => {
+  const response = new Response(new ReadableStream({ cancel: () => new Promise<void>(() => {}) }),
+    reason === "http_error" ? { status: 503 } : { headers: { "content-length": "5000" } });
+  const api = createEventSubscriptionService({ db, authorize: async () => principal, secret: master, providerId: "fictional-provider", transport: { post: async () => response } });
+  await expect(api.subscribe(input())).rejects.toMatchObject({ code: "callback_unavailable", reason });
+  expect((await db.prepare("SELECT * FROM notification_event_subscriptions").all()).results).toEqual([]);
+});

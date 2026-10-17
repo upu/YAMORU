@@ -23,7 +23,7 @@ async function readChunks(reader: ReadableStreamDefaultReader<Uint8Array>, maxBy
     if (done) break;
     total += value.byteLength;
     if (total > maxBytes) {
-      await reader.cancel();
+      void reader.cancel().catch(() => undefined);
       return null;
     }
     chunks.push(value);
@@ -35,6 +35,11 @@ async function readChunks(reader: ReadableStreamDefaultReader<Uint8Array>, maxBy
     offset += chunk.byteLength;
   }
   return new TextDecoder().decode(bytes);
+}
+
+export function discardBody(body: ReadableStream<Uint8Array> | null) {
+  // 外部のclose完了を待って拒否・timeoutの応答まで止めない。
+  void body?.cancel().catch(() => undefined);
 }
 
 // Content-Lengthが上限を超えると宣言している要求は、本文を読まずに拒否する。

@@ -1,4 +1,5 @@
 import ipaddr from "ipaddr.js";
+import { discardBody } from "../oauth/limited-body";
 export class WebhookEndpointError extends Error {
   constructor(readonly reason: "blocked_url" | "blocked_address" | "redirect_not_allowed" | "payload_too_large" | "timeout" | "unreachable", readonly requestStarted = false) { super(reason); }
 }
@@ -67,7 +68,7 @@ export function createPinnedWebhookTransport(deps: Dependencies) {
           body: input.body, headers: Object.fromEntries(headers.entries()), signal }), signal, true);
       } catch (error) { throw error instanceof WebhookEndpointError ? error : new WebhookEndpointError("unreachable", true); }
       if (response.status >= 300 && response.status < 400) {
-        await response.body?.cancel();
+        discardBody(response.body);
         throw new WebhookEndpointError("redirect_not_allowed", true);
       }
       return response;

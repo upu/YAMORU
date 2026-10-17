@@ -38,3 +38,8 @@ it("DNS中の取消は未送信と区別し、接続を始めない", async () =
   await expect(transport.post("https://hooks.example.com/events", { body: "{}", headers: {}, signal: controller.signal })).rejects.toMatchObject({ reason: "timeout", requestStarted: false });
   expect(connect).not.toHaveBeenCalled();
 });
+it("redirectの応答を閉じる処理が止まっても、redirectエラーを直ちに返す", async () => {
+  const response = new Response(new ReadableStream({ cancel: () => new Promise<void>(() => {}) }), { status: 302 });
+  const transport = createPinnedWebhookTransport({ resolve: () => Promise.resolve(["8.8.8.8"]), connect: () => Promise.resolve(response) });
+  await expect(transport.post("https://hooks.example.com/events", { body: "{}", headers: {} })).rejects.toMatchObject({ reason: "redirect_not_allowed" });
+});

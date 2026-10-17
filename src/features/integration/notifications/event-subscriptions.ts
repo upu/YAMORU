@@ -5,7 +5,7 @@ import { normalizeEventFilter, type EventFilter } from "./event-filter";
 import { decodeWebhookSecret, decryptWebhookDestination, encryptWebhookDestination, sameChallenge, standardWebhookHeaders, WebhookCryptoError, type WebhookDestination } from "./event-crypto";
 import { normalizeWebhookUrl, WebhookEndpointError, type PinnedWebhookTransport } from "./webhook-transport";
 import { EventSubscriptionError } from "./event-errors";
-import { declaresTooLargeBody, readTextWithLimit } from "../oauth/limited-body";
+import { declaresTooLargeBody, discardBody, readTextWithLimit } from "../oauth/limited-body";
 import { activeEventSubscriptionCount, authorizeEventOwner, eventSubscription, recentWebhookVerification, saveEventSubscription, stopEventSubscription, validateEventTargets, type EventSubscriptionIdentity, type EventSubscriptionRow } from "../../../lib/d1/notification-event-subscriptions";
 
 type Dependencies = { db: D1Database; authorize: () => Promise<IntegrationPrincipal>; secret: string; providerId: string; transport?: PinnedWebhookTransport; now?: () => Date; signal?: AbortSignal; commitGuard?: D1PreparedStatement };
@@ -36,8 +36,8 @@ function normalizedSecret(value: string) {
   catch { throw new EventSubscriptionError("invalid_input"); }
 }
 async function verifyResponse(response: Response, challenge: string, signal: AbortSignal) {
-  if (!response.ok) { await response.body?.cancel(); throw new EventSubscriptionError("callback_unavailable", "http_error"); }
-  if (declaresTooLargeBody(response.headers, 4096)) { await response.body?.cancel(); throw new EventSubscriptionError("callback_unavailable", "response_too_large"); }
+  if (!response.ok) { discardBody(response.body); throw new EventSubscriptionError("callback_unavailable", "http_error"); }
+  if (declaresTooLargeBody(response.headers, 4096)) { discardBody(response.body); throw new EventSubscriptionError("callback_unavailable", "response_too_large"); }
   const text = await readTextWithLimit(response.body, 4096, signal);
   if (text === null) throw new EventSubscriptionError("callback_unavailable", "response_too_large");
   let value: unknown;
