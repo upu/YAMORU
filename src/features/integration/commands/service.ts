@@ -68,11 +68,23 @@ function visibleStatus(operation: IntegrationOperation, now: Date): string {
   return operation.status === "prepared" && operation.expiresAt <= now.toISOString() ? "expired" : operation.status;
 }
 
+// 拒否を確定させたときの詳細を、再送やoperation_getでも同じ形で返す。
 function storedError(operation: IntegrationOperation): CommandError {
   const code = operation.reasonCode ?? "";
+  const detail = JSON.parse(operation.reasonDetail ?? "{}") as {
+    current_state?: Record<string, unknown>;
+    field_errors?: Record<string, string>;
+  };
   return new CommandError(isCommandErrorCode(code) ? code : "temporarily_unavailable", {
+    currentState: detail.current_state,
+    fieldErrors: detail.field_errors,
     operationId: operation.operationId,
   });
+}
+
+function errorDetail(error: CommandError): string | null {
+  if (error.currentState === undefined && error.fieldErrors === undefined) return null;
+  return canonicalJson({ current_state: error.currentState, field_errors: error.fieldErrors });
 }
 
 function outcomeOf(operation: IntegrationOperation, now: Date): Record<string, unknown> {
@@ -131,6 +143,7 @@ async function createOperation(
     preview: canonicalJson(plan.preview),
     previewId: crypto.randomUUID(),
     reasonCode: null,
+    reasonDetail: null,
     requestHash: input.requestHash,
     resolvedAt: null,
     result: null,
@@ -194,7 +207,8 @@ async function resolveWithoutCommit(
 ): Promise<Record<string, unknown>> {
   const status = error.code === "preview_expired" ? "expired" : "rejected";
   const now = request.now.toISOString();
-  if (!await resolveOperationWithoutCommit(request.deps.db, operation.id, status, error.code, now)) {
+  const reason = { code: error.code, detail: errorDetail(error) };
+  if (!await resolveOperationWithoutCommit(request.deps.db, operation.id, status, reason, now)) {
     return settle(request, await reload(request, operation));
   }
   throw error.withOperation(operation.operationId);

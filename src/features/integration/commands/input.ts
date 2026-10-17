@@ -7,7 +7,7 @@ import { CommandError, invalidInput, isCommandName, type CommandName, type Comma
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
-const INSTANT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/u;
+const INSTANT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-](\d{2}):(\d{2}))$/u;
 
 export function objectValue(value: unknown, field: string, keys: readonly string[]): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw invalidInput(field, "object_required");
@@ -87,8 +87,19 @@ function parseOccurredOn(value: unknown, field: string, now: Date): OccurredValu
   return { datePrecision: "day", occurredAt };
 }
 
+// Dateは2月30日などを翌月へ繰り越して解釈するため、暦日と時刻の各部分が
+// 実在する値であることを先に確かめる。
+function isRealInstant(match: RegExpExecArray): boolean {
+  const [year, month, day, hour, minute, second = "0", offsetHour = "0", offsetMinute = "0"] = match.slice(1);
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return date.getUTCFullYear() === Number(year) && date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day) && Number(hour) < 24 && Number(minute) < 60 && Number(second) < 60 &&
+    Number(offsetHour) < 24 && Number(offsetMinute) < 60;
+}
+
 function parseOccurredAt(value: unknown, field: string, now: Date): OccurredValue {
-  const parsed = typeof value === "string" && INSTANT_PATTERN.test(value) ? new Date(value) : null;
+  const match = typeof value === "string" ? INSTANT_PATTERN.exec(value) : null;
+  const parsed = match !== null && isRealInstant(match) ? new Date(match[0]) : null;
   if (parsed === null || Number.isNaN(parsed.getTime())) throw invalidInput(field, "datetime_required");
   if (parsed.getTime() > now.getTime()) throw invalidInput(field, "future_datetime");
   return { datePrecision: "instant", occurredAt: parsed.toISOString() };

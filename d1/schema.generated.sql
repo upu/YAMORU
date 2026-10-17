@@ -164,6 +164,9 @@ CREATE TABLE integration_operations (
   reason_code TEXT,
 
 
+  reason_detail TEXT,
+
+
   business_key TEXT NOT NULL UNIQUE,
 
   result TEXT,
@@ -176,6 +179,7 @@ CREATE TABLE integration_operations (
   CHECK (length(command) BETWEEN 1 AND 64),
   CHECK (json_valid(normalized_command) AND json_valid(preview)),
   CHECK (result IS NULL OR json_valid(result)),
+  CHECK (reason_detail IS NULL OR (reason_code IS NOT NULL AND json_valid(reason_detail))),
   CHECK ((status = 'prepared') = (resolved_at IS NULL)),
   CHECK ((status IN ('rejected', 'expired')) = (reason_code IS NOT NULL)),
   CHECK (status <> 'succeeded' OR result IS NOT NULL),

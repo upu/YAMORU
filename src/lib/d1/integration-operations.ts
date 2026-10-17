@@ -21,6 +21,8 @@ export type IntegrationOperation = {
   preview: string;
   previewId: string;
   reasonCode: string | null;
+  // 拒否時に返した詳細(JSON)。再送にも同じ内容を返す。
+  reasonDetail: string | null;
   requestHash: string;
   resolvedAt: string | null;
   result: string | null;
@@ -43,6 +45,7 @@ type OperationRow = {
   preview: string;
   preview_id: string;
   reason_code: string | null;
+  reason_detail: string | null;
   request_hash: string;
   resolved_at: string | null;
   result: string | null;
@@ -66,6 +69,7 @@ function fromRow(row: OperationRow): IntegrationOperation {
     preview: row.preview,
     previewId: row.preview_id,
     reasonCode: row.reason_code,
+    reasonDetail: row.reason_detail,
     requestHash: row.request_hash,
     resolvedAt: row.resolved_at,
     result: row.result,
@@ -89,7 +93,7 @@ export async function findIntegrationOperation(
 
 export type PreparedOperationInput = Omit<
   IntegrationOperation,
-  "reasonCode" | "resolvedAt" | "result" | "status"
+  "reasonCode" | "reasonDetail" | "resolvedAt" | "result" | "status"
 >;
 
 // previewを保存する。同じ接続・操作IDの行がすでにあれば(同時のprepare)何も
@@ -137,13 +141,13 @@ export async function resolveOperationWithoutCommit(
   db: D1Database,
   id: string,
   status: "expired" | "rejected",
-  reasonCode: string,
+  reason: { code: string; detail: string | null },
   at: string,
 ): Promise<boolean> {
   const result = await db.prepare(
-    `UPDATE integration_operations SET status = ?2, reason_code = ?3, resolved_at = ?4
+    `UPDATE integration_operations SET status = ?2, reason_code = ?3, reason_detail = ?4, resolved_at = ?5
       WHERE id = ?1 AND status = 'prepared'`,
-  ).bind(id, status, reasonCode, at).run();
+  ).bind(id, status, reason.code, reason.detail, at).run();
   return result.meta.changes > 0;
 }
 

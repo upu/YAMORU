@@ -74,6 +74,7 @@ describe("外部commandの受付記録のmigration(0033_integration_operations)"
     await expect(insertOperation("op-x2", { operation_id: operationId(2), resolved_at: NOW, status: "succeeded" }).run()).rejects.toThrow();
     await expect(insertOperation("op-x3", { operation_id: operationId(3), resolved_at: NOW, status: "rejected" }).run()).rejects.toThrow();
     await expect(insertOperation("op-x4", { operation_id: "not-a-uuid" }).run()).rejects.toThrow();
+    await expect(db.prepare("UPDATE integration_operations SET reason_detail = '{}' WHERE id = 'op-1'").run()).rejects.toThrow();
     await expect(insertOperation("op-ok", { operation_id: operationId(5), resolved_at: NOW, result: "{}", status: "succeeded" }).run())
       .resolves.toBeDefined();
   });

@@ -37,6 +37,9 @@ CREATE TABLE integration_operations (
   status TEXT NOT NULL,
   -- rejected / expiredの理由コード(conversation-integration.md 5節)。
   reason_code TEXT,
+  -- 拒否したときに返した詳細(field_errors・current_state、JSON)。同じ操作IDの
+  -- 再送やoperation_getにも、最初の応答と同じ内容を返すために保存する。
+  reason_detail TEXT,
   -- 業務側の記録(activity_logs・completion_corrections)へ渡した
   -- idempotency_keyの元。受付記録と業務の履歴をこの値で結び付ける。
   business_key TEXT NOT NULL UNIQUE,
@@ -51,6 +54,7 @@ CREATE TABLE integration_operations (
   CHECK (length(command) BETWEEN 1 AND 64),
   CHECK (json_valid(normalized_command) AND json_valid(preview)),
   CHECK (result IS NULL OR json_valid(result)),
+  CHECK (reason_detail IS NULL OR (reason_code IS NOT NULL AND json_valid(reason_detail))),
   CHECK ((status = 'prepared') = (resolved_at IS NULL)),
   CHECK ((status IN ('rejected', 'expired')) = (reason_code IS NOT NULL)),
   CHECK (status <> 'succeeded' OR result IS NOT NULL),

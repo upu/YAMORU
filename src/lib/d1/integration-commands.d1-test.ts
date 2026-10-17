@@ -215,6 +215,13 @@ describe("古いpreviewと同時の更新", () => {
 
     const error = await expectCommandError(service.commit(principal, commitRequest(prepared)), "already_resolved");
     expect(error.currentState).toMatchObject({ performer_id: familyMember.userId, status: "completed" });
+    // 応答を失って再送・照合しても、最初と同じ詳細を返す。
+    const replayed = await expectCommandError(service.commit(principal, commitRequest(prepared)), "already_resolved");
+    expect(replayed.currentState).toEqual(error.currentState);
+    await expect(service.get(principal, { operation_id: prepared.operation_id })).resolves.toMatchObject({
+      error: { code: "already_resolved", current_state: error.currentState },
+      status: "rejected",
+    });
     await expect(completedLogs(occurrenceId)).resolves.toBe(1);
     await expect(occurrencesOf(occurrenceId)).resolves.toBe(2);
   });
