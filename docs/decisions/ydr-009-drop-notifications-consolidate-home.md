@@ -5,16 +5,18 @@ title: 初期版から通知機能を外し、ホーム画面へ集約する
 description: Push・メール・カレンダー通知を初期版から外し、期限切れ・今日・近日・最近の実施をホーム画面に常時表示する
 tags: [yamoru, decisions, ydr]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-12
 supersedes: YDR-007
+superseded_by: YDR-050
 ---
 
 # YDR-009: 初期版から通知機能を外し、ホーム画面へ集約する
 
-- 状態: Accepted
+- 状態: Superseded
 - 決定日: 2026-08-12
 - 置き換える決定: [YDR-007](ydr-007-notification-field-trial.md)
+- 後続の決定: [YDR-050](ydr-050-conversation-reminders.md)。v0.21.0で会話連携先への通知を導入する。以下は通知を初期計画から外した当時の記録であり、現在の通知計画は後続YDRを参照する。
 
 ## 背景
 
