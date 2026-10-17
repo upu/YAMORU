@@ -1,0 +1,11 @@
+.fields { display: grid; gap: 1rem; }
+.fields fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 1rem; min-width: 0; }
+.fields label { display: grid; gap: .4rem; }
+.fields label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: .6rem; min-height: var(--tap-target); }
+.fields select, .fields input:not([type="checkbox"]):not([type="hidden"]) { width: 100%; min-height: var(--tap-target); padding: .5rem; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: inherit; font: inherit; }
+.entries { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.entries li { border-bottom: 1px solid var(--line); padding-bottom: 1rem; overflow-wrap: anywhere; }
+.entries button { margin: .3rem .3rem .3rem 0; min-height: 44px; }
+.fields button, .entries button { padding: .6rem .8rem; min-height: var(--tap-target); border: 1px solid var(--line); border-radius: 10px; background: var(--green-pale); color: var(--green); font: inherit; font-weight: 800; cursor: pointer; }
+.fields button:disabled, .entries button:disabled { opacity: .6; cursor: wait; }
+.entries a { color: var(--green); }

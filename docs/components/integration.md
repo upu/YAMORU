@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、Todoの登録・完了・訂正・取消、管理対象の登録、管理対象とTodoの同時登録の6 commandを持ち、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。編集系(`todo.update`・`todo.reschedule`・`managed_item.update`)と追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
+利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・完了・訂正・取消、管理対象の登録、管理対象とTodoの同時登録の6つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。編集系(`todo.update`・`todo.reschedule`・`managed_item.update`)と追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
 
 ## 主要入口
 
@@ -52,6 +52,8 @@ status: stable
 - 家庭の世代は保守的で、previewから実行までに家族が無関係なものを更新しても再確認(`stale_preview`)になる。
 
 ## 関連YDR
+
+個人設定の読み取りと`notification.configure` / `notification.snooze`の入口・権限・配信との境界は[個人の通知](notifications.md)を参照する。
 
 - 有効: [YDR-049](../decisions/ydr-049-conversation-command-boundary.md)、[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、[YDR-054](../decisions/ydr-054-integration-command-receipts.md)、[YDR-015](../decisions/ydr-015-occurrence-state-activitylog-history-safe-undo.md)、[YDR-026](../decisions/ydr-026-completion-correction-events.md)、[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)
 

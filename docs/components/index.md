@@ -16,6 +16,7 @@
 
 | 変更したいこと | 最初に読む実装 | テスト | 詳細文書 |
 |---|---|---|---|
+| 本人の通知設定・スヌーズ・配信履歴 | `src/app/settings/notifications/`、`src/features/integration/notifications/` → `src/lib/d1/notification-settings.ts`、`notification-policy.ts`、`notification-deliveries.ts` | `tests/notification-*.test.*`、`src/lib/d1/notification-*.d1-test.ts`、`e2e/notification-settings.spec.ts` | [個人の通知](notifications.md) |
 | 通知候補の理由・順序・差分取得 | `src/features/integration/attention/service.ts`、`projection.ts` → `src/lib/d1/attention.ts` | `tests/attention-projection.test.ts`、`src/lib/d1/attention*.d1-test.ts` | [通知候補](attention.md) |
 | ホームに出す内容・並び・状態表示 | `src/app/page.tsx`、`src/app/home-hero.tsx`、`src/app/pending-todo.ts`、`src/lib/d1/home.ts` | `tests/home.test.tsx`、`tests/home-sections.test.ts`、`e2e/home-summary.spec.ts` | [ホーム](home.md) |
 | Todoの登録 | `src/app/todos/new/actions.ts` → `src/lib/d1/todos/creation.ts` | `tests/todo-registration-actions.test.ts`、`tests/todo-registration-calendar-actions.test.ts` | [Todo](todos.md) |
@@ -47,6 +48,6 @@
 
 ## まだ実装していない領域
 
-会話向けの共通読み取り(#435)は[会話読み取り](conversation-read.md)、通知候補生成(#440)は[通知候補](attention.md)に実装入口を示す。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作(#437の実装済みcommand)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の変更操作・通知設定と配信は[会話連携設計](../product/conversation-integration.md)に契約と接続先を定義している。共通読み取り・変更操作・候補生成の実装は、公開MCPや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
+会話向けの共通読み取り(#435)は[会話読み取り](conversation-read.md)、通知候補生成(#440)は[通知候補](attention.md)、本人の設定と履歴(#441)は[個人の通知](notifications.md)に実装入口を示す。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作(#437の実装済みcommand)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の変更操作・実際の配信は[会話連携設計](../product/conversation-integration.md)に契約と接続先を定義している。共通読み取り・変更操作・候補生成・本人設定の実装は、公開MCPや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
 
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。

@@ -216,6 +216,8 @@ recurrenceの値は既存の入力検証と暦規則を再利用する。one_tim
 
 ## 7. 候補・通知設定・配信状態
 
+#441の本人設定・スヌーズ・配信履歴、共通commandの入口と#442への引き継ぎは[個人の通知Component](../components/notifications.md)に記録する。設定の保存と配信可否の判定までを実装し、実際のscheduler/outbox/lease/配信は#442で追加する。
+
 ### 候補と設定
 
 候補は`candidate_id, kind, entity_id, occurrence_id?, revision, reason_codes[], priority, dates, generated_at, next_check_at, detail_url`を持つ。Todo完了/取消/アーカイブ済みと在庫回復済みは除外する。ただし完了取消でpendingへ戻ったOccurrenceは再評価する。過去に取消履歴があるだけで除外しない。候補IDは対象・理由の発生区間で安定させ、同じ条件の再走査で増やさない。状態が一度解消して再発した場合は新しい区間とする。

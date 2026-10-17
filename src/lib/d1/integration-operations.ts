@@ -197,14 +197,17 @@ const ACTIVE_WRITE_CONNECTION = `EXISTS (
    WHERE c.id = integration_operations.connection_id
      AND c.household_id = integration_operations.household_id
      AND c.revoked_at IS NULL
+     AND c.expires_at > ?2
      AND u.session_version = c.user_session_version
-     AND (' ' || c.scopes || ' ') LIKE '% household.write %'
+     AND (' ' || c.scopes || ' ') LIKE '% household.read %'
+     AND instr(' ' || c.scopes || ' ', CASE WHEN integration_operations.command LIKE 'notification.%'
+       THEN ' notifications.manage ' ELSE ' household.write ' END)>0
 )`;
 
-export async function isWriteConnectionActive(db: D1Database, operationRowId: string): Promise<boolean> {
+export async function isWriteConnectionActive(db: D1Database, operationRowId: string, at: string): Promise<boolean> {
   const row = await db.prepare(
     `SELECT ${ACTIVE_WRITE_CONNECTION} AS active FROM integration_operations WHERE id = ?1`,
-  ).bind(operationRowId).first<{ active: number }>();
+  ).bind(operationRowId, at).first<{ active: number }>();
   return row?.active === 1;
 }
 
@@ -259,8 +262,8 @@ function evidenceValue(evidence: BusinessEvidence): string {
 // 3. 接続が書き込みに使えること(batchの直前に解除された場合を含む)
 // 4. 業務の記録(evidence)がすべて存在し、対象の完了記録が今も最新であること
 //
-// 結果には、業務の更新で進んだ後の対象のrevision(読み取りToolと同じ
-// `[1, kind, id, epoch, version]`のJSON文字列)を`revision`として加える。
+// 結果には読み取りToolと同じ形式のrevisionを加える。通知設定は整数、
+// 候補は[1,id,candidateRevision]、通常の家庭データは[1,kind,id,epoch,version]。
 // 複数の対象を作る操作は、それぞれの結果の位置(path)にも同じ形で加える。
 // 書き込み後の世代はbatchの中でしか分からないため、この文で読み取って保存する。
 export type RevisionPlacement = { id: string; kind: string; path: string };
@@ -268,10 +271,23 @@ export type RevisionPlacement = { id: string; kind: string; path: string };
 const REVISION_PATH = /^\$(?:\.[a-z_]+)+$/u;
 
 function revisionValue(kindParameter: number): string {
-  return `(SELECT '[1,' || json_quote(?${String(kindParameter)}) || ',' || json_quote(?${String(kindParameter + 1)})
-                || ',' || json_quote(v.epoch) || ',' || v.version || ']'
-                FROM household_read_versions v
-               WHERE v.household_id = integration_operations.household_id)`;
+  const kind = `?${String(kindParameter)}`;
+  const id = `?${String(kindParameter + 1)}`;
+  return `CASE ${kind}
+              WHEN 'notification_settings' THEN (
+                SELECT revision FROM notification_settings
+                 WHERE household_id = integration_operations.household_id
+                   AND user_id = integration_operations.user_id AND user_id = ${id}
+              )
+              WHEN 'attention_candidate' THEN (
+                SELECT '[1,' || json_quote(id) || ',' || revision || ']' FROM attention_candidates
+                 WHERE household_id = integration_operations.household_id AND id = ${id}
+              )
+              ELSE (
+                SELECT '[1,' || json_quote(${kind}) || ',' || json_quote(${id}) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
+                  FROM household_read_versions v
+                 WHERE v.household_id = integration_operations.household_id
+              ) END`;
 }
 
 export function commitReceiptStatement(

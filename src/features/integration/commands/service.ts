@@ -32,6 +32,8 @@ import { managedItemCreateHandler, managedItemWithTodoCreateHandler } from "./ma
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
+import { notificationConfigureHandler } from "./notification-configure";
+import { notificationSnoozeHandler } from "./notification-snooze";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
@@ -48,6 +50,8 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.correct": todoCorrectHandler,
   "todo.create": todoCreateHandler,
   "todo.undo": todoUndoHandler,
+  "notification.configure": notificationConfigureHandler,
+  "notification.snooze": notificationSnoozeHandler,
 };
 
 export type CommandServiceDependencies = { db: D1Database; now?: () => Date };
@@ -197,8 +201,9 @@ async function planAndSave(
 }
 
 async function prepare(request: Request, input: unknown): Promise<Record<string, unknown>> {
-  requireScope(request.principal, "household.write");
   const parsed = parsePrepareRequest(input);
+  requireScope(request.principal, "household.read");
+  requireScope(request.principal, parsed.command.startsWith("notification.") ? "notifications.manage" : "household.write");
   const requestHash = await sha256Hex(canonicalJson({
     command: parsed.command,
     expected_revision: parsed.expectedRevision ?? null,
@@ -281,7 +286,7 @@ function isPlan(value: CommandPlan | Record<string, unknown>): value is CommandP
 async function diagnose(request: Request, operation: IntegrationOperation, cause: unknown): Promise<Record<string, unknown>> {
   const latest = await reload(request, operation);
   if (latest.status !== "prepared" || latest.expiresAt <= request.now.toISOString()) return settle(request, latest);
-  if (!await isWriteConnectionActive(request.deps.db, operation.id)) {
+  if (!await isWriteConnectionActive(request.deps.db, operation.id, request.now.toISOString())) {
     throw new CommandError("connection_revoked", { operationId: operation.operationId });
   }
   const plan = await replan(request, latest);
@@ -329,10 +334,11 @@ async function settle(request: Request, operation: IntegrationOperation): Promis
 }
 
 async function commit(request: Request, input: unknown): Promise<Record<string, unknown>> {
-  requireScope(request.principal, "household.write");
+  requireScope(request.principal, "household.read");
   const parsed = parseCommitRequest(input);
   const operation = await findIntegrationOperation(request.deps.db, request.principal.connectionId, parsed.operationId);
   if (operation === null) throw new CommandError("not_found", { operationId: parsed.operationId });
+  requireScope(request.principal, operation.command.startsWith("notification.") ? "notifications.manage" : "household.write");
   // payloadは再入力させない。previewと内容の指紋が保存した操作と一致することだけを確かめる。
   if (operation.previewId !== parsed.previewId || operation.fingerprint !== parsed.fingerprint) {
     throw new CommandError("idempotency_conflict", { operationId: parsed.operationId });
@@ -349,6 +355,7 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
   if (operation === null) {
     return { operation_id: parsed.operationId, recovery: "prepare_same_operation", status: "unknown" };
   }
+  if (operation.command.startsWith("notification.")) requireScope(request.principal, "notifications.manage");
   return {
     operation_id: operation.operationId,
     command: operation.command,

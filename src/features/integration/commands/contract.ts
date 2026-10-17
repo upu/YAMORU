@@ -5,6 +5,8 @@
 export const COMMAND_NAMES = [
   "managed_item.create",
   "managed_item_with_todo.create",
+  "notification.configure",
+  "notification.snooze",
   "todo.complete",
   "todo.correct",
   "todo.create",
@@ -19,7 +21,7 @@ export function isCommandName(value: unknown): value is CommandName {
 // previewの有効期間(5節「previewは10分有効」)。
 export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
-export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" };
+export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" };
 
 // 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。
 export type NormalizedCommand = {
@@ -38,7 +40,7 @@ const COMMAND_ERRORS = {
   already_resolved: { message: "対象はすでに別の操作で処理されています。現在の状態を確認してください。", recovery: "reread", retryable: false },
   connection_revoked: { message: "この接続は解除されています。再接続してください。", recovery: "reconnect", retryable: false },
   idempotency_conflict: { message: "同じ操作IDで別の内容が送られました。新しい操作として作り直してください。", recovery: "new_operation", retryable: false },
-  insufficient_scope: { message: "この操作には家庭のデータを変更する権限が必要です。", recovery: "reconnect", retryable: false },
+  insufficient_scope: { message: "この操作に必要な権限がありません。許可する範囲を確認してください。", recovery: "reconnect", retryable: false },
   invalid_input: { message: "入力内容を確認してください。", recovery: "check_request", retryable: false },
   missing_required: { message: "必要な項目が足りません。足りない項目だけを確認してください。", recovery: "ask_user", retryable: false },
   not_found: { message: "対象を取得できません。", recovery: "reread", retryable: false },
