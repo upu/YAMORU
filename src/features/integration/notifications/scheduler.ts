@@ -1,6 +1,6 @@
 import { readHouseholdVersion } from "../../../lib/d1/conversation-read";
 import { refreshAttention } from "../../../lib/d1/attention";
-import { enqueueNotification, reconcilePendingNotifications, recoverNotificationLeases, NotificationOutboxError } from "../../../lib/d1/notification-outbox";
+import { drainStoppedNotificationSchedule, enqueueNotification, reconcilePendingNotifications, recoverNotificationLeases, NotificationOutboxError } from "../../../lib/d1/notification-outbox";
 import { claimNotificationSchedule, finishNotificationSchedule, schedulerPrincipal, seedNotificationSchedule, schedulerCandidatePage, type SchedulerLease, type SchedulerPosition } from "../../../lib/d1/notification-scheduler";
 import { usableNotificationConnection } from "../../../lib/d1/notification-settings";
 import { pruneDeliveryHistory } from "../../../lib/d1/notification-deliveries";
@@ -19,10 +19,14 @@ async function processConnection(deps: Dependencies, lease: SchedulerLease, limi
   const p = await schedulerPrincipal(deps.db, lease);
   if (!p) return lease;
   const now = deps.now?.() ?? new Date();
-  await recoverNotificationLeases(deps.db, p, now);
   const allowed = deps.allowedClientIds.includes(p.clientId);
-  const reconciled = await reconcilePendingNotifications(deps.db, p, now, lease.outbox_after, allowed ? undefined : "client_disabled");
-  if (!allowed || !await usableNotificationConnection(deps.db, p, p.connectionId, now)) return { ...lease, outbox_after: reconciled.nextAfter };
+  if (!allowed || !await usableNotificationConnection(deps.db, p, p.connectionId, now)) {
+    const result = await drainStoppedNotificationSchedule(deps.db, p, lease, now, allowed ? "connection_unavailable" : "client_disabled");
+    return { ...lease, outbox_after: result.nextAfter };
+  }
+  await recoverNotificationLeases(deps.db, p, now);
+  const reconciled = await reconcilePendingNotifications(deps.db, p, now, lease.outbox_after);
+  if (!await usableNotificationConnection(deps.db, p, p.connectionId, now)) return { ...lease, outbox_after: reconciled.nextAfter };
   const version = await readHouseholdVersion(deps.db, p.householdId);
   const day = formatTokyoDateInput(now.toISOString());
   const resume = lease.source_epoch === version.epoch && lease.source_version === version.version && lease.source_day === day;
@@ -40,14 +44,14 @@ export async function runNotificationScheduler(deps: Dependencies) {
   let processed = 0;
   let failed = 0;
   for (; processed < connectionLimit; processed++) {
-    const lease = await claimNotificationSchedule(deps.db, clock());
+    const lease = await claimNotificationSchedule(deps.db, clock(), deps.allowedClientIds);
     if (!lease) break;
     try {
       const position = await processConnection(deps, lease, candidateLimit);
-      await finishNotificationSchedule(deps.db, lease, position, clock());
+      await finishNotificationSchedule(deps.db, lease, position, clock(), deps.allowedClientIds);
     } catch (error) {
       const reason = error instanceof ReadError || error instanceof NotificationOutboxError ? "conflict" : "unavailable";
-      await finishNotificationSchedule(deps.db, lease, lease, clock(), reason);
+      await finishNotificationSchedule(deps.db, lease, lease, clock(), deps.allowedClientIds, reason);
       failed++;
     }
   }

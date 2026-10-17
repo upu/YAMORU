@@ -3,6 +3,7 @@ import { NotificationError } from "../../features/integration/notifications/cont
 import { currentNotificationCandidate, evaluateNotification, type NotificationDecision } from "./notification-policy";
 import { deliveryRecordStatements, type DeliveryOutcome } from "./notification-deliveries";
 import { usableNotificationConnection } from "./notification-settings";
+import type { SchedulerLease } from "./notification-scheduler";
 
 type OutboxState = "pending" | "leased" | "sending" | "retry_wait" | Exclude<DeliveryOutcome, "deferred">;
 type OutboxRow = { delivery_id: string; candidate_id: string; candidate_name: string; state: OutboxState; lease_token: string; attempts: number; first_sent_at: string | null; revision: number; next_attempt_at: string };
@@ -19,11 +20,14 @@ async function sendDecision(db: D1Database, p: IntegrationPrincipal, candidateId
   return evaluateNotification(db, p, candidateId, now);
 }
 
-async function requireIdentity(db: D1Database, p: IntegrationPrincipal) {
-  if (!p.scopes.includes("household.read") || !p.scopes.includes("events.subscribe")) throw new NotificationError("insufficient_scope");
+async function requireOwner(db: D1Database, p: IntegrationPrincipal) {
   const connection = await db.prepare("SELECT 1 FROM oauth_connections WHERE id=? AND household_id=? AND user_id=? AND client_id=?")
     .bind(p.connectionId, p.householdId, p.userId, p.clientId).first();
   if (!connection) throw new NotificationError("not_found");
+}
+async function requireIdentity(db: D1Database, p: IntegrationPrincipal) {
+  if (!p.scopes.includes("household.read") || !p.scopes.includes("events.subscribe")) throw new NotificationError("insufficient_scope");
+  await requireOwner(db, p);
 }
 type ReadStamp = { epoch: string; version: number; settings_revision: number; control_revision: number; candidate_revision: number };
 async function readStamp(db: D1Database, p: IntegrationPrincipal, candidateId: string) {
@@ -37,26 +41,30 @@ async function readStamp(db: D1Database, p: IntegrationPrincipal, candidateId: s
   if (!stamp) throw new NotificationError("not_found");
   return stamp;
 }
-function stampGuard(db: D1Database, p: IntegrationPrincipal, candidateId: string, stamp: ReadStamp, id: string, active: boolean) {
+function stampGuard(db: D1Database, p: IntegrationPrincipal, candidateId: string, stamp: ReadStamp, id: string, active: boolean, maintenance?: SchedulerLease) {
   return db.prepare(`INSERT INTO attention_guards(id,valid) SELECT ?1,CASE WHEN
     EXISTS(SELECT 1 FROM household_read_versions WHERE household_id=?2 AND epoch=?6 AND version=?7)
     AND coalesce((SELECT revision FROM notification_settings WHERE household_id=?2 AND user_id=?3),0)=?8
     AND coalesce((SELECT revision FROM notification_controls WHERE household_id=?2 AND user_id=?3 AND candidate_id=?10),0)=?9
     AND coalesce((SELECT revision FROM attention_candidates WHERE household_id=?2 AND id=?10),0)=?11
+    AND (?13 IS NULL OR EXISTS(SELECT 1 FROM notification_scheduler_progress WHERE connection_id=?4 AND household_id=?2 AND user_id=?3
+      AND lease_token=?13 AND lease_expires_at>${databaseNow}))
     AND (?12=0 OR EXISTS(SELECT 1 FROM oauth_connections c JOIN users u ON u.id=c.user_id
       JOIN household_members m ON m.user_id=c.user_id AND m.household_id=c.household_id
       WHERE c.id=?4 AND c.household_id=?2 AND c.user_id=?3 AND c.client_id=?5 AND c.revoked_at IS NULL
         AND c.expires_at>${databaseNow} AND u.session_version=c.user_session_version
         AND instr(' '||c.scopes||' ',' household.read ')>0 AND instr(' '||c.scopes||' ',' events.subscribe ')>0))
-    THEN 1 ELSE 0 END`).bind(id, p.householdId, p.userId, p.connectionId, p.clientId, stamp.epoch, stamp.version, stamp.settings_revision, stamp.control_revision, candidateId, stamp.candidate_revision, Number(active));
+    THEN 1 ELSE 0 END`).bind(id, p.householdId, p.userId, p.connectionId, p.clientId, stamp.epoch, stamp.version, stamp.settings_revision, stamp.control_revision, candidateId, stamp.candidate_revision, Number(active), maintenance?.lease_token ?? null);
 }
-function leaseGuard(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, id: string, state: "leased" | "sending", expired = false) {
+function leaseGuard(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, id: string, state: "leased" | "sending", expired = false, maintenance?: SchedulerLease) {
   return db.prepare(`INSERT INTO attention_guards(id,valid) SELECT ?1,CASE WHEN EXISTS(
     SELECT 1 FROM notification_outbox o JOIN oauth_connections c ON c.id=o.connection_id
     WHERE o.delivery_id=?2 AND o.household_id=?3 AND o.user_id=?4 AND o.connection_id=?5 AND c.client_id=?6
       AND o.candidate_id=?7 AND o.lease_token=?8 AND o.state=?9
-      AND o.lease_expires_at ${expired ? "<=" : ">"} ${databaseNow}) THEN 1 ELSE 0 END`)
-    .bind(id, lease.deliveryId, p.householdId, p.userId, p.connectionId, p.clientId, lease.candidateId, lease.leaseToken, state);
+      AND o.lease_expires_at ${expired ? "<=" : ">"} ${databaseNow}
+      AND (?10 IS NULL OR EXISTS(SELECT 1 FROM notification_scheduler_progress WHERE connection_id=?5 AND household_id=?3 AND user_id=?4
+        AND lease_token=?10 AND lease_expires_at>${databaseNow}))) THEN 1 ELSE 0 END`)
+    .bind(id, lease.deliveryId, p.householdId, p.userId, p.connectionId, p.clientId, lease.candidateId, lease.leaseToken, state, maintenance?.lease_token ?? null);
 }
 function cleanupGuards(db: D1Database, ids: string[]) { return db.prepare("DELETE FROM attention_guards WHERE id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(ids)); }
 async function batch(db: D1Database, statements: D1PreparedStatement[], code: "lease_lost" | "read_conflict") {
@@ -147,12 +155,12 @@ export async function finishNotificationSend(db: D1Database, p: IntegrationPrinc
     cleanupGuards(db, [guard])], "lease_lost");
   return { state, nextAt };
 }
-async function recoverRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date) {
+async function recoverRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, maintenance?: SchedulerLease) {
     const lease = leaseOf(row);
     const guard = crypto.randomUUID();
     const sending = row.state === "sending";
     try {
-      await batch(db, [leaseGuard(db, p, lease, guard, sending ? "sending" : "leased", true),
+      await batch(db, [leaseGuard(db, p, lease, guard, sending ? "sending" : "leased", true, maintenance),
         updateOutcome(db, lease, sending ? "unknown" : "pending", sending ? "send_interrupted" : "lease_expired", now),
         ...(sending ? deliveryRecordStatements(db, p, { deliveryId: lease.deliveryId, candidateId: lease.candidateId, outcome: "unknown", reason: "send_interrupted" }, row.candidate_name, now) : []),
         cleanupGuards(db, [guard])], "lease_lost");
@@ -160,10 +168,13 @@ async function recoverRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRo
 }
 export async function recoverNotificationLeases(db: D1Database, p: IntegrationPrincipal, now: Date) {
   await requireIdentity(db, p);
+  return recoverLeases(db, p, now);
+}
+async function recoverLeases(db: D1Database, p: IntegrationPrincipal, now: Date, maintenance?: SchedulerLease) {
   const rows = (await db.prepare(`SELECT * FROM notification_outbox WHERE household_id=? AND user_id=? AND connection_id=?
     AND state IN ('leased','sending') AND lease_expires_at<=${databaseNow} ORDER BY lease_expires_at,delivery_id LIMIT 50`)
     .bind(p.householdId, p.userId, p.connectionId).all<OutboxRow>()).results;
-  for (const row of rows) await recoverRow(db, p, row, now);
+  for (const row of rows) await recoverRow(db, p, row, now, maintenance);
   return rows.length;
 }
 function reconciledTime(row: OutboxRow, decision: NotificationDecision, now: Date) {
@@ -172,7 +183,8 @@ function reconciledTime(row: OutboxRow, decision: NotificationDecision, now: Dat
   if (decision.state === "ready" && row.next_attempt_at < scheduled) return row.next_attempt_at;
   return scheduled;
 }
-async function reconcileRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, stopReason?: "client_disabled") {
+type StopReason = "client_disabled" | "connection_unavailable";
+async function reconcileRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, stopReason?: StopReason, maintenance?: SchedulerLease) {
   const stamp = await readStamp(db, p, row.candidate_id);
   const decision = stopReason ? { state: "cancelled" as const, reason: stopReason, nextAt: null } : await sendDecision(db, p, row.candidate_id, now);
   const terminalOutcome = decision.state === "cancelled" || decision.state === "suppressed" ? decision.state : null;
@@ -182,20 +194,32 @@ async function reconcileRow(db: D1Database, p: IntegrationPrincipal, row: Outbox
     SELECT 1 FROM notification_outbox WHERE delivery_id=? AND household_id=? AND user_id=? AND connection_id=? AND revision=?
       AND state IN ('pending','retry_wait')) THEN 1 ELSE 0 END`)
     .bind(guards[0], row.delivery_id, p.householdId, p.userId, p.connectionId, row.revision);
-  await batch(db, [unchanged, stampGuard(db, p, row.candidate_id, stamp, guards[1], terminalOutcome === null),
+  await batch(db, [unchanged, stampGuard(db, p, row.candidate_id, stamp, guards[1], terminalOutcome === null, maintenance),
     updateOutcome(db, leaseOf(row), state, decision.reason, now, reconciledTime(row, decision, now)),
     ...(terminalOutcome ? deliveryRecordStatements(db, p, { deliveryId: row.delivery_id, candidateId: row.candidate_id, outcome: terminalOutcome, reason: decision.reason }, row.candidate_name, now) : []),
     cleanupGuards(db, guards)], "read_conflict");
 }
 export async function reconcilePendingNotifications(db: D1Database, p: IntegrationPrincipal, now: Date, after = "", stopReason?: "client_disabled") {
   await requireIdentity(db, p);
+  return reconcilePending(db, p, now, after, stopReason);
+}
+async function reconcilePending(db: D1Database, p: IntegrationPrincipal, now: Date, after: string, stopReason?: StopReason, maintenance?: SchedulerLease) {
   const rows = (await db.prepare(`SELECT * FROM notification_outbox WHERE household_id=? AND user_id=? AND connection_id=?
     AND state IN ('pending','retry_wait') AND delivery_id>? ORDER BY delivery_id LIMIT 26`)
     .bind(p.householdId, p.userId, p.connectionId, after).all<OutboxRow>()).results;
   const page = rows.slice(0, 25);
   for (const row of page) {
-    try { await reconcileRow(db, p, row, now, stopReason); }
+    try { await reconcileRow(db, p, row, now, stopReason, maintenance); }
     catch (error) { if (!(error instanceof NotificationOutboxError)) throw error; }
   }
   return { nextAfter: rows.length > 25 ? page[page.length - 1].delivery_id : "", processed: page.length };
+}
+// 失効後の後処理専用。外部のscopeを偽装せず、現在のCron leaseを各batchでも照合する。
+export async function drainStoppedNotificationSchedule(db: D1Database, p: IntegrationPrincipal, lease: SchedulerLease, now: Date, reason: StopReason) {
+  await requireOwner(db, p);
+  const valid = await db.prepare(`SELECT 1 FROM notification_scheduler_progress WHERE connection_id=? AND household_id=? AND user_id=?
+    AND lease_token=? AND lease_expires_at>${databaseNow}`).bind(p.connectionId, p.householdId, p.userId, lease.lease_token).first();
+  if (!valid) throw new NotificationOutboxError("lease_lost");
+  await recoverLeases(db, p, now, lease);
+  return reconcilePending(db, p, now, lease.outbox_after, reason, lease);
 }

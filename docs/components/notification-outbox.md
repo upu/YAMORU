@@ -23,6 +23,8 @@ status: draft
 
 家庭共有の日時は変更しない。接続元・本人・家庭・候補を照合し、events.subscribeとhousehold.readを要する。期限切れの送信処理は成功結果を上書きできない。unknownは自動再送せず、失敗の上限も新しい配信IDで回避しない。設定・休止の再評価ではretry_waitのbackoffを短縮しない。
 
+走査対象は現在有効で選択中の接続、または未送信・lease中の後処理が残る接続だけとする。停止済みで空のprogressは一回100件ずつ削除し、削除待ちでも走査枠を確保しない。解除・期限切れ・scope縮小・接続先変更・通知停止後は、未処理分を回収してから終了する。scope縮小後の後処理は本人を偽装せず、現在のCron leaseとDB時刻を各batchで照合する専用経路を使う。通常の送信APIのscope制約は維持する。
+
 0040と[YDR-059](../decisions/ydr-059-durable-notification-outbox.md)が保存と回復の契約。既存の行とSQLを保持する追加migrationで、接続の物理削除は本人のoutboxと進捗をcascadeする。候補の削除で送信証拠は消さない。
 
 `notification-outbox*.d1-test.ts`は並列・回復・競合・履歴との全取消・更新DB、`notification-scheduler.d1-test.ts`はcheckpoint継続と解除の入口。built WorkerのCronテストはローカルの実ハンドラーを通すが、previewの定期実行や実dotへの到達の証明ではない。
