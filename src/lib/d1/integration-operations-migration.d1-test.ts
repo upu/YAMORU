@@ -13,7 +13,7 @@ const NOW = "2026-10-17T00:00:00.000Z";
 const LATER = "2026-10-17T00:10:00.000Z";
 
 beforeAll(async () => {
-  await applyMigrationsThrough(db, "0031_oauth_connections");
+  await applyMigrationsThrough(db, "0032_conversation_reads");
   await db.batch([
     db.prepare("INSERT INTO users (id, email) VALUES ('user-a', 'a@example.com'), ('user-b', 'b@example.com')"),
     db.prepare("INSERT INTO households (id, name, created_at) VALUES ('household-a', 'Household A', '2026-01-02T03:04:05.000Z'), ('household-b', 'Household B', '2026-01-02T03:04:05.000Z')"),
@@ -44,8 +44,9 @@ function insertOperation(id: string, overrides: Record<string, string | null> = 
   return db.prepare(
     `INSERT INTO integration_operations (
       id, household_id, user_id, client_id, connection_id, operation_id, command, request_hash, fingerprint,
-      preview_id, normalized_command, preview, status, reason_code, business_key, result, created_at, expires_at, resolved_at
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo.complete', 'h', 'f', ?7, '{}', '{}', ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+      preview_id, normalized_command, preview, status, reason_code, business_key, result, created_at, expires_at, resolved_at,
+      revision_epoch, revision_version
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo.complete', 'h', 'f', ?7, '{}', '{}', ?8, ?9, ?10, ?11, ?12, ?13, ?14, 'epoch', 1)`,
   ).bind(
     id, values.household_id, values.user_id, CLIENT, values.connection_id, values.operation_id,
     `preview-${id}`, values.status, values.reason_code, `integration:${id}`, values.result, NOW, LATER, values.resolved_at,

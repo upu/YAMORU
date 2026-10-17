@@ -26,6 +26,8 @@ export type IntegrationOperation = {
   requestHash: string;
   resolvedAt: string | null;
   result: string | null;
+  revisionEpoch: string;
+  revisionVersion: number;
   status: IntegrationOperationStatus;
   userId: string;
 };
@@ -49,6 +51,8 @@ type OperationRow = {
   request_hash: string;
   resolved_at: string | null;
   result: string | null;
+  revision_epoch: string;
+  revision_version: number;
   status: IntegrationOperationStatus;
   user_id: string;
 };
@@ -73,6 +77,8 @@ function fromRow(row: OperationRow): IntegrationOperation {
     requestHash: row.request_hash,
     resolvedAt: row.resolved_at,
     result: row.result,
+    revisionEpoch: row.revision_epoch,
+    revisionVersion: row.revision_version,
     status: row.status,
     userId: row.user_id,
   };
@@ -107,8 +113,8 @@ export async function insertPreparedOperation(
     `INSERT INTO integration_operations (
       id, household_id, user_id, client_id, connection_id, operation_id, command,
       request_hash, fingerprint, preview_id, normalized_command, preview, status,
-      business_key, created_at, expires_at
-    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'prepared', ?13, ?14, ?15
+      business_key, created_at, expires_at, revision_epoch, revision_version
+    ) SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'prepared', ?13, ?14, ?15, ?16, ?17
       WHERE EXISTS (
         SELECT 1 FROM oauth_connections c
          WHERE c.id = ?5 AND c.household_id = ?2 AND c.user_id = ?3 AND c.client_id = ?4
@@ -131,6 +137,8 @@ export async function insertPreparedOperation(
     input.businessKey,
     input.createdAt,
     input.expiresAt,
+    input.revisionEpoch,
+    input.revisionVersion,
   ).run();
   return result.meta.changes > 0;
 }
@@ -169,6 +177,24 @@ export async function isWriteConnectionActive(db: D1Database, operationRowId: st
     `SELECT ${ACTIVE_WRITE_CONNECTION} AS active FROM integration_operations WHERE id = ?1`,
   ).bind(operationRowId).first<{ active: number }>();
   return row?.active === 1;
+}
+
+// commitのbatchの最初に置く文。previewを作ったときから家庭の世代が変わって
+// いなければ何も変えず、変わっていればstatusをNULLに評価してbatch全体を取り消す。
+// 業務の更新自体が世代を進めるため、条件は業務の文より前で確かめる。
+export function revisionGuardStatement(db: D1Database, id: string): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE integration_operations
+        SET status = CASE
+              WHEN EXISTS (
+                SELECT 1 FROM household_read_versions v
+                 WHERE v.household_id = integration_operations.household_id
+                   AND v.epoch = integration_operations.revision_epoch
+                   AND v.version = integration_operations.revision_version
+              ) THEN status
+            END
+      WHERE id = ?1`,
+  ).bind(id);
 }
 
 function evidenceCondition(evidence: BusinessEvidence, parameter: number): string {

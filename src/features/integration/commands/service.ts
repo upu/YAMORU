@@ -4,6 +4,7 @@ import {
   insertPreparedOperation,
   isWriteConnectionActive,
   resolveOperationWithoutCommit,
+  revisionGuardStatement,
   type IntegrationOperation,
 } from "../../../lib/d1/integration-operations";
 import type { IntegrationPrincipal } from "../principal";
@@ -20,6 +21,13 @@ import {
 } from "./contract";
 import type { CommandContext, CommandHandler, CommandPlan } from "./handler";
 import { parseCommitRequest, parseOperationGetRequest, parsePrepareRequest, tokyoDate } from "./input";
+import {
+  checkExpectedRevision,
+  currentRevision,
+  parseExpectedRevision,
+  sameRevision,
+  type HouseholdRevision,
+} from "./revision";
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 
@@ -27,9 +35,9 @@ import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
 // 要求本文の利用者・家庭・scopeは採用しない。
 //
-// 現在の範囲(#437の第1段階): 対象のrevision(expected_revision)と追加確認
-// (confirmation_url)はまだ扱わない。revisionは#435の家庭世代と結び付けて
-// から受け付け、それまでは外部へcommitを公開しない(#439)。
+// 競合は家庭の世代(YDR-053)で検出する。previewを作ったときの世代を保存し、
+// commitのbatchの最初の文で同じ世代であることを確かめる(YDR-054)。
+// 追加確認(confirmation_url)はまだ扱わない。
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.complete": todoCompleteHandler,
@@ -110,6 +118,7 @@ function prepareOutput(operation: IntegrationOperation, now: Date): Record<strin
     ...(JSON.parse(operation.preview) as Record<string, unknown>),
     confirmation: { reason_codes: [], state: "not_needed" },
     fingerprint: operation.fingerprint,
+    household_revision: { epoch: operation.revisionEpoch, version: operation.revisionVersion },
     ...outcomeOf(operation, now),
   };
 }
@@ -123,9 +132,15 @@ function replayPrepare(operation: IntegrationOperation, requestHash: string, now
 
 async function createOperation(
   request: Request,
-  input: { normalized: NormalizedCommand; operationId: string; plan: CommandPlan; requestHash: string },
+  input: {
+    normalized: NormalizedCommand;
+    operationId: string;
+    plan: CommandPlan;
+    requestHash: string;
+    revision: HouseholdRevision;
+  },
 ): Promise<IntegrationOperation> {
-  const { normalized, plan } = input;
+  const { normalized, plan, revision } = input;
   const id = crypto.randomUUID();
   const operation: IntegrationOperation = {
     businessKey: `integration:${id}`,
@@ -134,8 +149,7 @@ async function createOperation(
     connectionId: request.principal.connectionId,
     createdAt: request.now.toISOString(),
     expiresAt: new Date(request.now.getTime() + PREVIEW_TTL_MS).toISOString(),
-    // revisionの参照集合は#435の家庭世代と結び付けるときに加える。
-    fingerprint: await sha256Hex(canonicalJson({ ...normalized, revisions: [] })),
+    fingerprint: await sha256Hex(canonicalJson({ ...normalized, revisions: [{ kind: "household", ...revision }] })),
     householdId: request.principal.householdId,
     id,
     normalizedCommand: canonicalJson(normalized),
@@ -147,6 +161,8 @@ async function createOperation(
     requestHash: input.requestHash,
     resolvedAt: null,
     result: null,
+    revisionEpoch: revision.epoch,
+    revisionVersion: revision.version,
     status: "prepared",
     userId: request.principal.userId,
   };
@@ -154,11 +170,32 @@ async function createOperation(
   return operation;
 }
 
+// 読み取りの前後で家庭の世代が同じときだけ、previewとその世代を保存する。
+async function planAndSave(
+  request: Request,
+  parsed: ReturnType<typeof parsePrepareRequest>,
+  requestHash: string,
+): Promise<void> {
+  const expected = parsed.expectedRevision === undefined ? null : parseExpectedRevision(parsed.expectedRevision);
+  const { db } = request.deps;
+  const { householdId } = request.principal;
+  const handler = HANDLERS[parsed.command];
+  const context = contextOf(request);
+  const normalized = handler.normalize(context, parsed);
+  const revision = await currentRevision(db, householdId);
+  const plan = await handler.plan(context, normalized);
+  // previewの読み取り中に家族が更新した。保存せず、同じ操作IDでの再試行に委ねる。
+  if (!sameRevision(revision, await currentRevision(db, householdId))) throw new CommandError("temporarily_unavailable");
+  if (expected !== null) checkExpectedRevision(expected, revision, plan.preview);
+  await createOperation(request, { normalized, operationId: parsed.operationId, plan, requestHash, revision });
+}
+
 async function prepare(request: Request, input: unknown): Promise<Record<string, unknown>> {
   requireScope(request.principal, "household.write");
   const parsed = parsePrepareRequest(input);
   const requestHash = await sha256Hex(canonicalJson({
     command: parsed.command,
+    expected_revision: parsed.expectedRevision ?? null,
     payload: parsed.payload ?? null,
     target: parsed.target ?? null,
   }));
@@ -167,11 +204,7 @@ async function prepare(request: Request, input: unknown): Promise<Record<string,
   const existing = await findIntegrationOperation(db, connectionId, parsed.operationId);
   if (existing !== null) return replayPrepare(existing, requestHash, request.now);
   try {
-    const handler = HANDLERS[parsed.command];
-    const context = contextOf(request);
-    const normalized = handler.normalize(context, parsed);
-    const plan = await handler.plan(context, normalized);
-    await createOperation(request, { normalized, operationId: parsed.operationId, plan, requestHash });
+    await planAndSave(request, parsed, requestHash);
   } catch (error) {
     if (error instanceof CommandError) throw error.withOperation(parsed.operationId);
     throw error;
@@ -218,7 +251,10 @@ async function replan(request: Request, operation: IntegrationOperation): Promis
   const normalized = JSON.parse(operation.normalizedCommand) as NormalizedCommand;
   try {
     const plan = await handlerOf(normalized.command).plan(contextOf(request), normalized);
-    if (canonicalJson(plan.preview) === operation.preview) return plan;
+    const revision = await currentRevision(request.deps.db, operation.householdId);
+    const unchanged = canonicalJson(plan.preview) === operation.preview &&
+      sameRevision(revision, { epoch: operation.revisionEpoch, version: operation.revisionVersion });
+    if (unchanged) return plan;
     return await resolveWithoutCommit(request, operation, new CommandError("stale_preview"));
   } catch (error) {
     if (error instanceof CommandError && error.final) return resolveWithoutCommit(request, operation, error);
@@ -254,6 +290,7 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
   const { db } = request.deps;
   try {
     await db.batch([
+      revisionGuardStatement(db, operation.id),
       ...execution.statements,
       commitReceiptStatement(db, {
         at: recordedAt,

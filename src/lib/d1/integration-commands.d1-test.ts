@@ -160,7 +160,7 @@ describe("todo.complete", () => {
     await expectCommandError(service.prepare(principal, completeRequest(occurrenceId, { note: "x" })), "invalid_input");
     await expectCommandError(
       service.prepare(principal, { ...completeRequest(occurrenceId), expected_revision: "rev" }),
-      "unsupported_capability",
+      "invalid_input",
     );
     await expect(countRows(db, "SELECT count(*) AS count FROM integration_operations")).resolves.toBe(0);
   });
@@ -247,6 +247,55 @@ describe("古いpreviewと同時の更新", () => {
     await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "connection_revoked");
     await expect(completedLogs(occurrenceId)).resolves.toBe(0);
     await expect(receiptStatus(prepared.operation_id)).resolves.toEqual({ reason_code: null, status: "prepared" });
+  });
+});
+
+describe("家庭の世代(revision)", () => {
+  async function revisionOf(kind: string, id: string): Promise<string> {
+    const row = await db.prepare("SELECT epoch, version FROM household_read_versions WHERE household_id = 'household-a'")
+      .first<{ epoch: string; version: number }>();
+    if (row === null) throw new Error("revision not found");
+    return JSON.stringify([1, kind, id, row.epoch, row.version]);
+  }
+
+  it("読み取ったときのrevisionで確認でき、その後に更新されていれば再確認になる", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const fresh = await revisionOf("todo_occurrence", occurrenceId);
+    await expect(prepare(service, { ...completeRequest(occurrenceId), expected_revision: fresh }))
+      .resolves.toMatchObject({ status: "prepared" });
+
+    const other = await createSevenDaysAfterTodo(db);
+    await expectCommandError(
+      service.prepare(principal, { ...completeRequest(other), expected_revision: fresh }),
+      "invalid_input",
+    );
+    await expectCommandError(
+      service.prepare(principal, { ...completeRequest(other), expected_revision: fresh.replace(occurrenceId, other) }),
+      "stale_preview",
+    );
+  });
+
+  it("確認の後に家族が無関係なものを更新しても、保守的に再確認を求める", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const prepared = await prepare(service, completeRequest(occurrenceId));
+    await db.prepare("UPDATE managed_items SET name = '名前だけ変更' WHERE id = 'item-a'").run();
+
+    await expectCommandError(service.commit(principal, commitRequest(prepared)), "stale_preview");
+    await expect(completedLogs(occurrenceId)).resolves.toBe(0);
+  });
+
+  it("確認の後、実行の直前に家庭の世代が進めば、batch全体を取り消す", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const prepared = await prepare(commandService(db), completeRequest(occurrenceId));
+    const racing = interruptBeforeBatch(db, async () => {
+      await db.prepare("UPDATE managed_items SET name = '名前だけ変更' WHERE id = 'item-a'").run();
+    });
+
+    await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "stale_preview");
+    await expect(completedLogs(occurrenceId)).resolves.toBe(0);
+    await expect(occurrencesOf(occurrenceId)).resolves.toBe(1);
   });
 });
 

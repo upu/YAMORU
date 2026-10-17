@@ -183,6 +183,11 @@ CREATE TABLE integration_operations (
   normalized_command TEXT NOT NULL,
 
 
+
+  revision_epoch TEXT NOT NULL,
+  revision_version INTEGER NOT NULL,
+
+
   preview TEXT NOT NULL,
   status TEXT NOT NULL,
 

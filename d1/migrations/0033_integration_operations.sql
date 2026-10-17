@@ -5,6 +5,8 @@
 -- 追加だけのexpand migrationであり、既存テーブルを変更しない。旧Workerは
 -- このテーブルを参照しないため、適用後も旧Workerのまま動き続ける。
 --
+-- 0032(家庭の世代)の後に適用する。
+--
 -- 1行が、利用者の意図した一つの操作(クライアントが生成したoperation_id)を
 -- 表す。previewを作った時点で行を作り(status = 'prepared')、commitの成功は
 -- 業務データの更新と同じD1 batchの最後の文でstatus = 'succeeded'へ進める。
@@ -31,6 +33,11 @@ CREATE TABLE integration_operations (
   preview_id TEXT NOT NULL UNIQUE,
   -- 「今」や「昨日」をprepare時に絶対値へ固定した正規化command(JSON)。
   normalized_command TEXT NOT NULL,
+  -- previewを作ったときの家庭の世代(0032のhousehold_read_versions、YDR-053)。
+  -- commitのbatchは最初の文でこの世代が変わっていないことを確かめ、変わって
+  -- いればbatch全体を取り消す。家族による無関係な更新でも再確認になる保守的な方式。
+  revision_epoch TEXT NOT NULL,
+  revision_version INTEGER NOT NULL,
   -- 利用者へ示した差分と次回への影響(JSON)。commit時に同じ内容を
   -- 計算し直し、変わっていればstale_previewとして実行しない。
   preview TEXT NOT NULL,

@@ -166,6 +166,8 @@ export const todoCorrectHandler: CommandHandler = {
       preview: {
         affected_entities: [
           { change: "correct", id: correction.effective.completionLogId, kind: "completion_log", title: correction.title },
+          // 現在の実施日・実施者として表示される対象。読み取りのrevisionで照合できる。
+          { change: "correct_history", id: correction.occurrence.id, kind: "todo_occurrence", title: correction.title },
         ],
         diff: correctionDiff(correction, changes),
         schedule_effect: correctionScheduleEffect(correction),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { canonicalJson, CommandError } from "../src/features/integration/commands/contract";
 import { occurredValue, parseCommitRequest, parsePrepareRequest } from "../src/features/integration/commands/input";
+import { parseExpectedRevision } from "../src/features/integration/commands/revision";
 
 // 外部command(#437)の入力検証と、同じ内容を同じ指紋にする正規化。
 const OPERATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
@@ -65,6 +66,16 @@ describe("実施日時", () => {
     for (const value of ["2026-02-30T12:00:00Z", "2026-10-11T24:00Z", "2026-10-11T10:60Z", "2026-10-11T10:00+24:00"]) {
       expect(errorOf(() => occurredValue({ occurred_at: value }, "payload", NOW)).fieldErrors)
         .toEqual({ "payload.occurred_at": "datetime_required" });
+    }
+  });
+});
+
+describe("expected_revision", () => {
+  it("読み取りToolと同じ形式だけを受け付ける", () => {
+    expect(parseExpectedRevision(JSON.stringify([1, "todo_occurrence", "occ-1", "e", 3])))
+      .toEqual({ epoch: "e", id: "occ-1", kind: "todo_occurrence", version: 3 });
+    for (const value of ["rev", JSON.stringify([2, "todo_occurrence", "occ-1", "e", 3]), JSON.stringify([1, "todo_occurrence", "occ-1", "e", 0]), 3]) {
+      expect(errorOf(() => parseExpectedRevision(value)).fieldErrors).toEqual({ expected_revision: "invalid_revision" });
     }
   });
 });

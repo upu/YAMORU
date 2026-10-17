@@ -28,6 +28,7 @@ function uuidValue(value: unknown, field: string): string {
 
 export type PrepareRequest = {
   command: CommandName;
+  expectedRevision: unknown;
   operationId: string;
   payload: unknown;
   target: unknown;
@@ -36,11 +37,14 @@ export type PrepareRequest = {
 export function parsePrepareRequest(input: unknown): PrepareRequest {
   const value = objectValue(input, "input", ["operation_id", "command", "target", "expected_revision", "payload"]);
   const operationId = uuidValue(value.operation_id, "operation_id");
-  // 対象のrevisionは#435の家庭世代と結び付けてから受け付ける。それまでは
-  // 指定されても黙って無視せず、未対応として返す。
-  if (value.expected_revision !== undefined) throw new CommandError("unsupported_capability", { operationId });
   if (!isCommandName(value.command)) throw new CommandError("unsupported_capability", { operationId });
-  return { command: value.command, operationId, payload: value.payload, target: value.target };
+  return {
+    command: value.command,
+    expectedRevision: value.expected_revision,
+    operationId,
+    payload: value.payload,
+    target: value.target,
+  };
 }
 
 export function parseCommitRequest(input: unknown): { fingerprint: string; operationId: string; previewId: string } {

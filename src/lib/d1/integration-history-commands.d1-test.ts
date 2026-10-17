@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { IntegrationPrincipal } from "../../features/integration/principal";
 import { commitReceiptStatement, isCommitReceiptRejection } from "./integration-operations";
+import { correctCompletionPerformer } from "./todos";
 import { householdAMember, resetHouseholdFixtures } from "./test-support/households";
 import {
   addFamilyMember,
@@ -219,6 +220,23 @@ describe("todo.correct", () => {
 
     await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "already_resolved");
     await expect(corrections()).resolves.toBe(0);
+  });
+
+  it("確認の後、実行の直前に家族が訂正していれば、その訂正を上書きしない", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const { completionLogId } = await completeByCommand(service, occurrenceId);
+    const prepared = await service.prepare(principal, {
+      command: "todo.correct",
+      operation_id: crypto.randomUUID(),
+      payload: { changes: { occurred_on: "2026-10-11" }, completion_log_id: completionLogId },
+    }) as Prepared;
+    const racing = interruptBeforeBatch(db, () =>
+      correctCompletionPerformer(db, familyMember, occurrenceId, crypto.randomUUID(), familyMember.userId));
+
+    await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "stale_preview");
+    await expect(db.prepare("SELECT new_occurred_at, new_performed_by_user_id FROM completion_corrections").all())
+      .resolves.toMatchObject({ results: [{ new_occurred_at: null, new_performed_by_user_id: familyMember.userId }] });
   });
 
   it("空の訂正や現在と同じ値は受け付けない", async () => {
