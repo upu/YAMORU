@@ -50,6 +50,7 @@ import mcpLimitsSql from "../../../../d1/migrations/0039_integration_mcp_limits.
 import notificationOutboxSql from "../../../../d1/migrations/0040_notification_outbox.sql?raw";
 import notificationEventSubscriptionsSql from "../../../../d1/migrations/0041_notification_event_subscriptions.sql?raw";
 import notificationOutboxSourcesSql from "../../../../d1/migrations/0042_notification_outbox_sources.sql?raw";
+import integrationCommandConfirmationSql from "../../../../d1/migrations/0043_integration_command_confirmation.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -95,6 +96,7 @@ const MIGRATIONS = [
   { name: "0040_notification_outbox", sql: notificationOutboxSql },
   { name: "0041_notification_event_subscriptions", sql: notificationEventSubscriptionsSql },
   { name: "0042_notification_outbox_sources", sql: notificationOutboxSourcesSql },
+  { name: "0043_integration_command_confirmation", sql: integrationCommandConfirmationSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・編集(`todo.update`)・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の9つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。追加確認(confirmation_url)はまだ無い。公開入口は[認証付きMCP](mcp.md)、候補生成は[通知候補](attention.md)に実装する。実dotとの接続と通知配信(#442)は未実証である。
+利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・編集(`todo.update`)・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の9つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。古いpreviewを作り直して意味のある差分が出た操作だけ、YAMORUの確認画面での本人の承認とtokenを必須にする([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。公開入口は[認証付きMCP](mcp.md)、候補生成は[通知候補](attention.md)に実装する。実dotとの接続と通知配信(#442)は未実証である。
 
 ## 主要入口
 
@@ -32,6 +32,8 @@ status: stable
 | 管理対象の入力規則(Webの登録と外部commandで共通) | `src/app/managed-items/form-input.ts`、`started-on.ts` → 保存の文は`src/lib/d1/managed-items.ts`の`managedItemInsertStatements`、commandの確認は`src/lib/d1/managed-item-commands.ts` |
 | 繰り返し条件の入力規則(Webの登録と外部commandで共通) | `src/app/todos/recurrence-input.ts`、`src/app/todos/calendar-schedule-input.ts` → 保存形は`src/lib/d1/todos/creation.ts`の`*TaskInsert` |
 | 受付記録の保存と、世代の確認・成功を確定させる文 | `src/lib/d1/integration-operations.ts` |
+| 追加確認(作り直しの追跡・意味のある差分・token) | `src/features/integration/commands/confirmation.ts` → `src/lib/d1/integration-confirmations.ts` |
+| 追加確認の画面(承認・取りやめ) | `src/app/settings/integrations/operations/[previewId]/confirm/` → `src/lib/d1/integration-confirmations.ts` |
 | 家庭の世代と`expected_revision`の照合 | `src/features/integration/commands/revision.ts` → `src/lib/d1/conversation-read.ts` |
 | commandのpreview用の読み取りと業務更新の文 | `src/lib/d1/todos/command-plans.ts` → `completion.ts`、`corrections.ts`。延期・編集は`command-edits.ts` → `assignment.ts`、`recurring-edit.ts`、`edit.ts`、`hard-deadline.ts` |
 
@@ -51,6 +53,7 @@ status: stable
 - `todo.update`は対象の方式に合う`edit_scope`だけを受け付ける(暦を持つ方式は`current_occurrence`・`future_rule`、必要時は`manual_combined`、一回限りは`one_time_combined`)。指定した項目だけを現在の値へ重ね、Webの編集(`recurringOccurrenceStatements`・`recurringRuleStatements`・`oneTimeEditStatements`・`hardDeadlineStatements`)と同じ文で保存する。方式そのものは変えない。期限は変えたときだけ「今日より後・本来の予定日以降」を確かめ、名前だけの変更では繰り返し条件に触れない(`RuleBasicsUpdate`)。受付記録の成功は、変えた項目が変更後の値を持ち、現在回がpendingであることを条件にする。
 - `managed_item.update`は指定した項目だけを現在の値へ重ね、Webの編集と同じ文(`managedItemUpdateStatements`)で保存する。分類(大分類・詳しい種類)のどれかを変えると、指定しなかった詳しい種類は未設定にする。更新は条件付きのため、batchの後に管理対象が編集後の値を持つこと(値を照合する証跡)を受付記録の成功条件にする。
 - `managed_item_with_todo.create`は、管理対象とTodoの文を一つのbatchへ載せ、両方の行を受付記録の成功条件にする。Todo側の入力は`todo.create`と同じ解析を通し、関連先は作る管理対象に固定する(`managed_item_id`は受け付けない)。結果の`managed_item`・`todo`にもそれぞれのrevisionを付け、続く操作の`expected_revision`に使えるようにする。
+- 追加確認([YDR-062](../decisions/ydr-062-integration-command-confirmation.md)): prepareのたびに、同じ本人・家庭・対象(`subject_key`)の24時間以内の最新の受付記録を引く。それが`stale_preview`で拒否された記録か、確認必須のまま成功していない記録なら作り直しとみなし、利用者が最後に同意した内容の`meaningful_digest`(previewからrevisionを除いた指紋)と比べる。同じなら確認不要、違えば`confirmation.state: required`と確認画面のURLを返す。操作IDや接続を変えても同じ記録を引くため回避できない。承認は確認画面のServer Actionだけが記録し、世代が変わっていれば承認せず`stale_preview`で確定させる。tokenは保存せず、AUTH_SECRETから受付記録ID・preview ID・fingerprint・接続・本人・家庭・期限・承認時刻に束縛したHMACを都度計算する。承認されていない確認必須の操作が成功にならないことは、`commitReceiptStatement`の条件とDBのtrigger(migration 0043)の両方で守る。
 - 「今」や「昨日」はprepare時に固定し、commitでは保存した正規化commandからpreviewを計算し直して、一致したときだけ実行する。同じ操作IDの再送は保存した結果を返す。
 - 家庭の世代は保守的で、previewから実行までに家族が無関係なものを更新しても再確認(`stale_preview`)になる。
 
@@ -67,7 +70,7 @@ status: stable
 ```
 npm test -- tests/integration-oauth-request.test.ts tests/integration-connections-ui.test.tsx tests/auth-boundary.test.ts tests/integration-command-input.test.ts
 npm run test:d1 -- src/lib/d1/oauth-flow.d1-test.ts src/lib/d1/oauth-connections-authorization.d1-test.ts src/lib/d1/oauth-clients.d1-test.ts src/lib/d1/oauth-connections-migration.d1-test.ts
-npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-update-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts src/lib/d1/integration-edit-history-keys-migration.d1-test.ts
+npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-update-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts src/lib/d1/integration-edit-history-keys-migration.d1-test.ts src/lib/d1/integration-confirmation.d1-test.ts src/lib/d1/integration-confirmation-migration.d1-test.ts
 ```
 
 D1テストは検証済みのOAuthクライアントライブラリ`oauth4webapi`をクライアント役にして流れ全体を確かめる。これは実際の接続先との接続確認(設計のE1)の代わりにはならない。変更操作のテストは、確認と実行の間に家族の更新や接続の解除を割り込ませ(`interruptBeforeBatch`)、業務データと受付記録が全成功か全取消になることを確かめる。

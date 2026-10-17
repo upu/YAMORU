@@ -336,7 +336,12 @@ CREATE TABLE integration_operations (
   result TEXT,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
-  resolved_at TEXT,
+  resolved_at TEXT, subject_key TEXT, meaningful_digest TEXT, supersedes_operation_id TEXT
+  REFERENCES integration_operations(id) ON DELETE SET NULL, baseline_operation_id TEXT
+  REFERENCES integration_operations(id) ON DELETE SET NULL, confirmation_state TEXT NOT NULL DEFAULT 'not_needed'
+  CHECK (confirmation_state IN ('not_needed', 'required')), confirmation_reason_codes TEXT
+  CHECK (confirmation_reason_codes IS NULL OR json_valid(confirmation_reason_codes)), confirmation_status TEXT
+  CHECK (confirmation_status IS NULL OR confirmation_status IN ('pending', 'approved', 'denied')), confirmation_decided_at TEXT,
   UNIQUE (connection_id, operation_id),
   CHECK (status IN ('prepared', 'succeeded', 'rejected', 'expired')),
   CHECK (length(operation_id) = 36),
@@ -1052,6 +1057,11 @@ CREATE INDEX integration_mcp_rate_window_cleanup ON integration_mcp_rate_windows
 CREATE INDEX integration_operations_household_created_idx
   ON integration_operations(household_id, created_at DESC);
 
+-- index: integration_operations_subject_idx
+CREATE INDEX integration_operations_subject_idx
+  ON integration_operations(household_id, user_id, subject_key, created_at DESC)
+  WHERE subject_key IS NOT NULL;
+
 -- index: invitation_claims_expires_at_idx
 CREATE INDEX invitation_claims_expires_at_idx ON invitation_claims(expires_at);
 
@@ -1273,6 +1283,33 @@ END;
 -- trigger: attention_update
 CREATE TRIGGER attention_update AFTER UPDATE OF payload ON attention_candidates WHEN OLD.payload<>NEW.payload BEGIN
  INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
+END;
+
+-- trigger: integration_operations_confirmation_commit_guard
+CREATE TRIGGER integration_operations_confirmation_commit_guard
+BEFORE UPDATE OF status ON integration_operations
+WHEN NEW.status = 'succeeded' AND OLD.confirmation_state = 'required'
+  AND OLD.confirmation_status IS NOT 'approved'
+BEGIN
+  SELECT RAISE(ABORT, 'confirmation required');
+END;
+
+-- trigger: integration_operations_confirmation_decision_guard
+CREATE TRIGGER integration_operations_confirmation_decision_guard
+BEFORE UPDATE OF confirmation_status ON integration_operations
+WHEN OLD.confirmation_state <> 'required'
+  OR OLD.confirmation_status IS NOT 'pending'
+  OR NEW.confirmation_status NOT IN ('approved', 'denied')
+BEGIN
+  SELECT RAISE(ABORT, 'invalid confirmation decision');
+END;
+
+-- trigger: integration_operations_confirmation_state_guard
+CREATE TRIGGER integration_operations_confirmation_state_guard
+BEFORE INSERT ON integration_operations
+WHEN (NEW.confirmation_state = 'required') <> (NEW.confirmation_status IS NOT NULL)
+BEGIN
+  SELECT RAISE(ABORT, 'confirmation_status requires confirmation_state = required');
 END;
 
 -- trigger: notification_outbox_capture_source

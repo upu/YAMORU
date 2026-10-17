@@ -21,7 +21,7 @@ stale_after: 2026-11-17
 
 #436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
 
-#437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`)は未実装である。
+#437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`、確認画面、`operation_get`の確認状態と`confirmation_token`)は、古いpreviewの作り直しで意味のある差分が出た操作だけを対象として実装した([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。
 
 2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerでOAuthから登録・完了・次回確認と切断後の照合を検証するが、実dotの接続実証と通知の到達は未完了であり、#439/#442/#444の完了と区別する。
 
@@ -142,7 +142,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 
 `command_commit`入力は`operation_id, preview_id, fingerprint`と、確認必須の場合のサーバー発行`confirmation_token`のみ。payloadを再入力させない。tokenは認証済みYAMORU確認画面で該当previewへ同意したとき発行し、同じ主体・内容・期限へ束縛する。日常の明確な操作では追加確認画面を要求しない。MCPクライアント固有の確認UIが追加で要求される場合はそれに従う。
 
-追加確認は次の手順で完結させる。URL/画面/Toolは#436・#437・#439で実装する契約であり、現存する導線ではない。
+追加確認は次の手順で完結させる。どの場合に確認を必須にするかと、作り直しの追跡・比較の方法は[YDR-062](../decisions/ydr-062-integration-command-confirmation.md)に従う(古いpreviewの作り直しで意味のある差分が出た操作だけ)。
 
 1. `confirmation_url`はYAMORU自身の`/settings/integrations/operations/{preview_id}/confirm`を指す。IDは推測困難とし、URLへtokenや家庭情報を含めない。リンクを開くGETだけでは承認しない。
 2. Webログイン後、previewの本人・家庭・接続・元commandのscopeを確認する。接続元と確定差分、次回への影響を表示し、承認/拒否をCSRF保護されたPOSTで記録する。承認時もpreview期限とrevisionを再確認し、変更済みなら承認せず再prepareへ戻す。
@@ -201,7 +201,8 @@ recurrenceの値は既存の入力検証と暦規則を再利用する。one_tim
 | `unauthenticated / connection_revoked / insufficient_scope` | ログイン/再接続/必要な権限。自動で権限を拡張しない |
 | `not_found / no_household` | 対象を読めない/家庭への所属が必要。他家庭の存在を示さない |
 | `ambiguous_target / missing_required / invalid_input` | 候補または不足項目だけ確認。何も変更しない |
-| `stale_preview / preview_expired / confirmation_required` | 現在状態を読み直し、必要な確認後に新操作を作る |
+| `stale_preview / preview_expired / confirmation_required` | 現在状態を読み直し、必要な確認後に新操作を作る。`confirmation_required`は確定させず、本人の承認後に同じ操作IDで実行できる |
+| `confirmation_denied` | 本人が確認画面で取りやめた。変更せず説明し、必要なら内容を確かめて新しい操作を作る |
 | `idempotency_conflict / already_resolved / unsafe_undo` | 同ID別内容/完了済み/後続更新あり。変更せず説明 |
 | `rate_limited / temporarily_unavailable` | Retry-After後に同IDを再試行。結果不明なら先に照合 |
 | `cursor_expired / result_expired / unsupported_capability` | 全体再取得/履歴参照/対応機能の案内。再実行や全件無制限取得をしない |

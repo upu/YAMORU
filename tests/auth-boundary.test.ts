@@ -51,6 +51,7 @@ describe("Auth.js認証境界", () => {
     "/mcp-help",
     "/mcp/private",
     "/settings/integrations",
+    "/settings/integrations/operations/00000000-0000-4000-8000-000000000000/confirm",
   ])("公開経路に似た保護経路 %s は未認証で通さない", async (pathname) => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
       auth: null,

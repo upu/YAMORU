@@ -47,17 +47,24 @@ export function parsePrepareRequest(input: unknown): PrepareRequest {
   };
 }
 
-export function parseCommitRequest(input: unknown): { fingerprint: string; operationId: string; previewId: string } {
+export function parseCommitRequest(input: unknown): {
+  confirmationToken: string | undefined;
+  fingerprint: string;
+  operationId: string;
+  previewId: string;
+} {
   const value = objectValue(input, "input", ["operation_id", "preview_id", "fingerprint", "confirmation_token"]);
   const operationId = uuidValue(value.operation_id, "operation_id");
-  // 追加確認(confirmation_url)の導線は後続で実装する。現在のpreviewは
-  // すべて確認不要(not_needed)なので、tokenを受け取る場面はない。
-  if (value.confirmation_token !== undefined) throw new CommandError("unsupported_capability", { operationId });
   const previewId = uuidValue(value.preview_id, "preview_id");
   if (typeof value.fingerprint !== "string" || !HASH_PATTERN.test(value.fingerprint)) {
     throw invalidInput("fingerprint", "invalid_fingerprint");
   }
-  return { fingerprint: value.fingerprint, operationId, previewId };
+  // 追加確認(YDR-062)の承認後にoperation_getが返すtoken。確認が必須の操作でだけ使う。
+  const token = value.confirmation_token;
+  if (token !== undefined && (typeof token !== "string" || token.length === 0 || token.length > 256)) {
+    throw invalidInput("confirmation_token", "invalid_token");
+  }
+  return { confirmationToken: token, fingerprint: value.fingerprint, operationId, previewId };
 }
 
 export function parseOperationGetRequest(input: unknown): { operationId: string } {
