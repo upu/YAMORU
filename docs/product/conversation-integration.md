@@ -19,11 +19,11 @@ stale_after: 2026-11-17
 
 #435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
 
-#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
+#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、previewで実dotの接続・本人照会を実証した。E1の家庭B・未所属の実接続検証は#444に残る。
 
 #437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`、確認画面、`operation_get`の確認状態と`confirmation_token`)は、古いpreviewの作り直しで意味のある差分が出た操作だけを対象として実装した([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。
 
-2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerでOAuthから登録・完了・次回確認と切断後の照合を検証するが、実dotの接続実証と通知の到達は未完了であり、#439/#442/#444の完了と区別する。
+2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerの検証に加え、previewで実dotの登録・取得・完了・次回確認・解除/再接続・権限不足・曖昧な対象の検索を実証し、同Componentに記録した。通知到達は#442、通知への返答は#443、全体の実接続E1〜E8の確認は#444に残る。
 
 ## 1. 家庭での操作とToolの対応
 
