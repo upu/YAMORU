@@ -32,7 +32,10 @@ export type BusinessEvidence =
   | { activeCompletionLogId: string }
   // 登録で作った行が存在すること。作成の文は条件付きではないが、関連する行
   // (TaskRule)が無ければOccurrenceは作られないため、最後に作る行で確かめる。
-  | { rowId: string; table: "managed_items" | "task_occurrences" };
+  | { rowId: string; table: "managed_items" | "task_occurrences" }
+  // 更新した行が、batchの後に意図した値を持つこと。条件付き更新が0件だった
+  // 場合を成功にしない。列名はコード内の定数だけを使う。
+  | { rowId: string; table: "managed_items" | "task_occurrences" | "task_rules"; values: Record<string, number | string | null> };
 
 export type BusinessStatements = {
   evidence: BusinessEvidence[];
@@ -47,7 +50,7 @@ export type EffectiveCompletionState = {
   performerId: string | null;
 };
 
-async function loadRuleTitle(db: D1Database, householdId: string, taskRuleId: string): Promise<string> {
+export async function loadRuleTitle(db: D1Database, householdId: string, taskRuleId: string): Promise<string> {
   const row = await db.prepare("SELECT title FROM task_rules WHERE id = ?1 AND household_id = ?2")
     .bind(taskRuleId, householdId).first<{ title: string }>();
   if (row === null) throw new D1NotFoundError("Occurrence not found", "OCCURRENCE_NOT_FOUND");

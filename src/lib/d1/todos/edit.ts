@@ -149,7 +149,10 @@ function assigneeChangeStatement(
   db: D1Database,
   input: {
     actorId: string;
+    at: string;
     householdId: string;
+    // 外部command(#437)の操作キー(`<key>:assignee`)。Webからの編集はnull。
+    idempotencyKey: string | null;
     logId: string;
     newAssigneeUserId: string | null;
     occurrenceId: string;
@@ -160,8 +163,8 @@ function assigneeChangeStatement(
     `INSERT INTO activity_logs (
       id, household_id, task_occurrence_id, action, actor_user_id,
       occurred_at, assignee_user_id, previous_assignee_user_id,
-      new_assignee_user_id
-    ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
+      new_assignee_user_id, idempotency_key
+    ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6, ?8
       WHERE EXISTS (
         SELECT 1 FROM task_occurrences
          WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
@@ -171,9 +174,10 @@ function assigneeChangeStatement(
     input.householdId,
     input.occurrenceId,
     input.actorId,
-    new Date().toISOString(),
+    input.at,
     input.newAssigneeUserId,
     input.previousAssigneeUserId,
+    input.idempotencyKey,
   );
 }
 
@@ -189,21 +193,22 @@ function manualRuleChangeStatement(
   householdId: string,
   occurrence: OccurrenceWithRule,
   actorId: string,
+  idempotencyKey: string | null,
 ): D1PreparedStatement {
   const snapshot = taskRuleSnapshotExpression();
   return db.prepare(
     `INSERT INTO task_rule_changes (
       id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
-      previous_rule_snapshot, new_rule_snapshot
+      previous_rule_snapshot, new_rule_snapshot, idempotency_key
     )
-    SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
+    SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}, ?5
       FROM task_occurrences o
       JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id
      WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
        AND o.rule_snapshot <> ${snapshot}`,
-  ).bind(crypto.randomUUID(), householdId, actorId, occurrence.id);
+  ).bind(crypto.randomUUID(), householdId, actorId, occurrence.id, idempotencyKey);
 }
 
 function oneTimeTodoStatements(
@@ -267,7 +272,7 @@ function oneTimeTodoStatements(
 // ため、同じ画面・同じ経路で編集する。ただし予定日は方式そのものが「日付を
 // 決めない」であり、具体日と未定を往復しない(YDR-030の往復は一回限りTodoだけ
 // の規則)。
-function requireEditableOccurrence(
+export function requireEditableOccurrence(
   occurrence: OccurrenceWithRule,
   input: OneTimeTodoUpdate,
 ): void {
@@ -308,21 +313,9 @@ export async function updateOneTimeTodo(
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
   requireEditableOccurrence(occurrence, input);
 
-  const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
-  if (occurrence.recurrence_basis === "manual") {
-    // TaskRuleの更新の後、現在のsnapshotを読み替える前に挟む。
-    statements.splice(1, 0, manualRuleChangeStatement(db, householdId, occurrence, user.userId));
-  }
-  if (occurrence.assignee_user_id !== input.assigneeUserId) {
-    statements.unshift(assigneeChangeStatement(db, {
-      actorId: user.userId,
-      householdId,
-      logId: crypto.randomUUID(),
-      newAssigneeUserId: input.assigneeUserId,
-      occurrenceId,
-      previousAssigneeUserId: occurrence.assignee_user_id,
-    }));
-  }
+  const statements = oneTimeEditStatements(db, {
+    actorId: user.userId, at: new Date().toISOString(), householdId, input, occurrence,
+  });
 
   let results: D1Result[];
   try {
@@ -338,3 +331,37 @@ export async function updateOneTimeTodo(
   }
   return { previousManagedItemId: occurrence.managed_item_id };
 }
+
+// 繰り返しなし(一回限り・必要時)Todoの編集の文。最後の文は現在回の更新で、
+// その変更件数でpendingだったかを判定できる。外部command(#437)も同じ文を使う。
+export function oneTimeEditStatements(
+  db: D1Database,
+  edit: {
+    actorId: string; at: string; householdId: string; idempotencyKey?: string | null; input: OneTimeTodoUpdate; occurrence: OccurrenceWithRule;
+  },
+): D1PreparedStatement[] {
+  const { actorId, householdId, input, occurrence } = edit;
+  // 外部command(#437)の操作キー。履歴ごとに`<key>:rule`・`:assignee`として残す。
+  const keyFor = (suffix: string) => edit.idempotencyKey === undefined || edit.idempotencyKey === null
+    ? null
+    : `${edit.idempotencyKey}:${suffix}`;
+  const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
+  if (occurrence.recurrence_basis === "manual") {
+    // TaskRuleの更新の後、現在のsnapshotを読み替える前に挟む。
+    statements.splice(1, 0, manualRuleChangeStatement(db, householdId, occurrence, actorId, keyFor("rule")));
+  }
+  if (occurrence.assignee_user_id !== input.assigneeUserId) {
+    statements.unshift(assigneeChangeStatement(db, {
+      actorId,
+      at: edit.at,
+      householdId,
+      idempotencyKey: keyFor("assignee"),
+      logId: crypto.randomUUID(),
+      newAssigneeUserId: input.assigneeUserId,
+      occurrenceId: occurrence.id,
+      previousAssigneeUserId: occurrence.assignee_user_id,
+    }));
+  }
+  return statements;
+}
+

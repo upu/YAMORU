@@ -4,6 +4,7 @@
 
 export const COMMAND_NAMES = [
   "managed_item.create",
+  "managed_item.update",
   "managed_item_with_todo.create",
   "notification.configure",
   "notification.snooze",
@@ -13,7 +14,9 @@ export const COMMAND_NAMES = [
   "todo.complete",
   "todo.correct",
   "todo.create",
+  "todo.reschedule",
   "todo.undo",
+  "todo.update",
 ] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
@@ -24,7 +27,10 @@ export function isCommandName(value: unknown): value is CommandName {
 // previewの有効期間(5節「previewは10分有効」)。
 export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
-export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" | "consumable" };
+export type CommandTarget = {
+  id: string;
+  kind: "attention_candidate" | "completion_log" | "consumable" | "managed_item" | "notification_settings" | "todo_occurrence";
+};
 
 // 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。
 export type NormalizedCommand = {

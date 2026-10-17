@@ -29,12 +29,15 @@ import {
   type HouseholdRevision,
 } from "./revision";
 import { managedItemCreateHandler, managedItemWithTodoCreateHandler } from "./managed-item-create";
+import { managedItemUpdateHandler } from "./managed-item-update";
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 import { notificationConfigureHandler } from "./notification-configure";
 import { notificationSnoozeHandler } from "./notification-snooze";
 import { stockCorrectHandler, stockObserveHandler, stockRefillHandler } from "./stock";
+import { todoRescheduleHandler } from "./todo-reschedule";
+import { todoUpdateHandler } from "./todo-update";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
@@ -46,6 +49,7 @@ import { stockCorrectHandler, stockObserveHandler, stockRefillHandler } from "./
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "managed_item.create": managedItemCreateHandler,
+  "managed_item.update": managedItemUpdateHandler,
   "managed_item_with_todo.create": managedItemWithTodoCreateHandler,
   "stock.observe": stockObserveHandler,
   "stock.refill": stockRefillHandler,
@@ -53,7 +57,9 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
   "todo.create": todoCreateHandler,
+  "todo.reschedule": todoRescheduleHandler,
   "todo.undo": todoUndoHandler,
+  "todo.update": todoUpdateHandler,
   "notification.configure": notificationConfigureHandler,
   "notification.snooze": notificationSnoozeHandler,
 };

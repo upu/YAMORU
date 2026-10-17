@@ -59,24 +59,24 @@ function missing(field: string): CommandError {
   return new CommandError("missing_required", { fieldErrors: { [field]: "required" } });
 }
 
-function titleValue(value: unknown): string {
-  if (value === undefined || value === null) throw missing("payload.title");
+export function titleValue(value: unknown, field = "payload.title"): string {
+  if (value === undefined || value === null) throw missing(field);
   const title = typeof value === "string" ? value.trim() : "";
-  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) throw invalidInput("payload.title", "invalid_title");
+  if (title.length === 0 || Array.from(title).length > TASK_TITLE_MAX_LENGTH) throw invalidInput(field, "invalid_title");
   return title;
 }
 
 // Webの登録と同じく、改行をLFへそろえ、空白だけのメモは未設定にする。
-function noteValue(value: unknown): string | null {
+export function noteValue(value: unknown, field = "payload.note"): string | null {
   if (value === undefined || value === null) return null;
-  if (typeof value !== "string") throw invalidInput("payload.note", "string_required");
+  if (typeof value !== "string") throw invalidInput(field, "string_required");
   const note = value.replaceAll("\r\n", "\n").trim();
   if (note.length === 0) return null;
-  if (Array.from(note).length > TASK_NOTE_MAX_LENGTH) throw invalidInput("payload.note", "too_long");
+  if (Array.from(note).length > TASK_NOTE_MAX_LENGTH) throw invalidInput(field, "too_long");
   return note;
 }
 
-function dateValue(value: unknown, field: string): string {
+export function dateValue(value: unknown, field: string): string {
   if (typeof value !== "string" || tokyoDateToUtcIso(value) === null) throw invalidInput(field, "date_required");
   return value;
 }
@@ -85,11 +85,11 @@ function optionalDate(value: unknown, field: string): string | null {
   return value === undefined || value === null ? null : dateValue(value, field);
 }
 
-function optionalId(value: unknown, field: string): string | null {
+export function optionalId(value: unknown, field: string): string | null {
   return value === undefined || value === null ? null : idValue(value, field);
 }
 
-function integerValue(value: unknown, field: string): number {
+export function integerValue(value: unknown, field: string): number {
   if (typeof value !== "number" || !Number.isSafeInteger(value)) throw invalidInput(field, "integer_required");
   return value;
 }
@@ -106,7 +106,7 @@ function booleanValue(value: unknown, field: string): boolean {
   return value;
 }
 
-const CALENDAR_KEYS = ["type", "kind", "days_of_week", "day_of_month", "month_end", "month", "day_of_week", "weeks_of_month", "week_last"];
+export const CALENDAR_KEYS = ["type", "kind", "days_of_week", "day_of_month", "month_end", "month", "day_of_week", "weeks_of_month", "week_last"];
 
 // Webの登録画面と同じ解釈を通すため、入力欄の形に並べ直して共通の解析へ渡す。
 function calendarFormData(value: Record<string, unknown>, field: string): FormData {
@@ -130,7 +130,7 @@ export function calendarCondition(recurrence: Extract<CreateRecurrence, { type: 
   return condition;
 }
 
-function calendarRecurrence(value: Record<string, unknown>, field: string): CreateRecurrence {
+export function calendarRecurrence(value: Record<string, unknown>, field: string): CreateRecurrence {
   objectValue(value, field, CALENDAR_KEYS);
   const condition = parseCalendarScheduleInput(calendarFormData(value, field));
   if (isCalendarScheduleInputError(condition)) throw invalidInput(field, condition);
@@ -167,7 +167,7 @@ function completionRecurrence(value: Record<string, unknown>, field: string): Cr
   return { first, max: offsets.recommendedUntilValue, min: offsets.recommendedStartValue, type: "completion", unit: value.unit };
 }
 
-function intervalRecurrence(value: Record<string, unknown>, field: string, now: Date): CreateRecurrence {
+export function intervalRecurrence(value: Record<string, unknown>, field: string, now: Date): CreateRecurrence {
   objectValue(value, field, ["type", "unit", "count", "start_on"]);
   if (value.start_on === undefined) throw missing(`${field}.start_on`);
   const startOn = dateValue(value.start_on, `${field}.start_on`);

@@ -57,6 +57,32 @@ export type RecurringTaskRuleUpdate =
   | CompletionRuleUpdate
   | IntervalRuleUpdate;
 
+// 繰り返し条件に触れず、名前・関連先・メモだけを変える更新(外部command、#437)。
+// Webの編集画面は常に条件も送るため使わない。
+export type RuleBasicsUpdate = {
+  basicsOnly: true;
+  managedItemId: string | null;
+  note: string | null;
+  recurrenceBasis: "calendar" | "completion" | "interval";
+  title: string;
+};
+
+function ruleBasicsUpdateStatement(
+  db: D1Database,
+  householdId: string,
+  occurrence: OccurrenceWithRule,
+  input: RuleBasicsUpdate,
+): D1PreparedStatement {
+  return db.prepare(
+    `UPDATE task_rules SET title = ?1, managed_item_id = ?2, note = ?6
+      WHERE id = ?3 AND household_id = ?4 AND recurrence_basis = ?5
+        AND EXISTS (
+          SELECT 1 FROM task_occurrences
+           WHERE id = ?7 AND household_id = ?4 AND status = 'pending'
+        )`,
+  ).bind(input.title, input.managedItemId, occurrence.task_rule_id, householdId, input.recurrenceBasis, input.note, occurrence.id);
+}
+
 function recurringRuleValues(input: RecurringTaskRuleUpdate): (number | string | null)[] {
   if (input.recurrenceBasis === "completion") {
     return [
@@ -146,9 +172,9 @@ function scheduleSpecReplacement(
   householdId: string,
   occurrenceId: string,
   taskRuleId: string,
-  input: RecurringTaskRuleUpdate,
+  input: RecurringTaskRuleUpdate | RuleBasicsUpdate,
 ): { deleteStatements: D1PreparedStatement[]; insertStatements: D1PreparedStatement[] } {
-  if (input.recurrenceBasis !== "calendar") {
+  if ("basicsOnly" in input || input.recurrenceBasis !== "calendar") {
     return { deleteStatements: [], insertStatements: [] };
   }
   return {
@@ -198,9 +224,10 @@ function scheduleSpecInsertStatements(
   );
 }
 
-function assertRecurringOccurrence(
+export function assertRecurringOccurrence(
   occurrence: OccurrenceWithRule,
   input: RecurringOccurrenceUpdate,
+  nowIso: string,
 ): void {
   if (occurrence.status !== "pending") throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   if (occurrence.recurrence_basis === "once") {
@@ -212,7 +239,7 @@ function assertRecurringOccurrence(
   if (occurrence.scheduled_for === null || occurrence.due_at === null) {
     throw new D1ConflictError("Recurring occurrence must have a schedule");
   }
-  if (input.dueAt <= new Date().toISOString()) {
+  if (input.dueAt <= nowIso) {
     throw new D1ConflictError("new_due_at must be in the future", "DUE_AT_NOT_IN_FUTURE");
   }
   if (input.dueAt < occurrence.scheduled_for) {
@@ -223,25 +250,34 @@ function assertRecurringOccurrence(
   }
 }
 
-function assigneeStatements(
-  db: D1Database,
-  householdId: string,
-  userId: string,
-  occurrence: OccurrenceWithRule,
-  input: RecurringOccurrenceUpdate,
-): D1PreparedStatement[] {
+type OccurrenceEdit = {
+  at: string;
+  householdId: string;
+  // 外部command(#437)の操作キー。履歴の接続元を引くため、担当は`<key>:assignee`、
+  // 期限は`<key>:due`を履歴に残す。Webからの編集はnull。
+  idempotencyKey?: string | null;
+  input: RecurringOccurrenceUpdate;
+  occurrence: OccurrenceWithRule;
+  userId: string;
+};
+
+function suffixedKey(key: string | null | undefined, suffix: string): string | null {
+  return key === undefined || key === null ? null : `${key}:${suffix}`;
+}
+
+function assigneeStatements(db: D1Database, { at, householdId, idempotencyKey, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
   if (occurrence.assignee_user_id === input.assigneeUserId) return [];
   const logId = crypto.randomUUID();
   return [
     db.prepare(
       `INSERT INTO activity_logs (
         id, household_id, task_occurrence_id, action, actor_user_id,
-        occurred_at, assignee_user_id, previous_assignee_user_id, new_assignee_user_id
-      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
+        occurred_at, assignee_user_id, previous_assignee_user_id, new_assignee_user_id, idempotency_key
+      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6, ?8
         WHERE EXISTS (SELECT 1 FROM task_occurrences
           WHERE id = ?3 AND household_id = ?2 AND status = 'pending')`,
-    ).bind(logId, householdId, occurrence.id, userId, new Date().toISOString(),
-      input.assigneeUserId, occurrence.assignee_user_id),
+    ).bind(logId, householdId, occurrence.id, userId, at,
+      input.assigneeUserId, occurrence.assignee_user_id, suffixedKey(idempotencyKey, "assignee")),
     db.prepare(
       `UPDATE task_occurrences SET assignee_user_id = ?1
         WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
@@ -250,31 +286,31 @@ function assigneeStatements(
   ];
 }
 
-function dueDateStatements(
-  db: D1Database,
-  householdId: string,
-  userId: string,
-  occurrence: OccurrenceWithRule,
-  input: RecurringOccurrenceUpdate,
-): D1PreparedStatement[] {
+function dueDateStatements(db: D1Database, { at, householdId, idempotencyKey, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
   if (occurrence.due_at === input.dueAt) return [];
   const logId = crypto.randomUUID();
   return [
     db.prepare(
       `INSERT INTO activity_logs (
         id, household_id, task_occurrence_id, action, actor_user_id,
-        occurred_at, previous_due_at, new_due_at
-      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7
+        occurred_at, previous_due_at, new_due_at, idempotency_key
+      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7, ?8
         WHERE EXISTS (SELECT 1 FROM task_occurrences
           WHERE id = ?3 AND household_id = ?2 AND status = 'pending')`,
-    ).bind(logId, householdId, occurrence.id, userId, new Date().toISOString(),
-      occurrence.due_at, input.dueAt),
+    ).bind(logId, householdId, occurrence.id, userId, at,
+      occurrence.due_at, input.dueAt, suffixedKey(idempotencyKey, "due")),
     db.prepare(
       `UPDATE task_occurrences SET due_at = ?1
         WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
           AND EXISTS (SELECT 1 FROM activity_logs WHERE id = ?4 AND household_id = ?3)`,
     ).bind(input.dueAt, occurrence.id, householdId, logId),
   ];
+}
+
+// 現在回の担当・期限の変更。変わった項目ごとに(履歴, 更新)の2文を並べる。
+// 外部command(#437)も同じ文を使う。
+export function recurringOccurrenceStatements(db: D1Database, edit: OccurrenceEdit): D1PreparedStatement[] {
+  return [...assigneeStatements(db, edit), ...dueDateStatements(db, edit)];
 }
 
 // Issue #265 / YDR-039: 現在回の担当・期限だけを同じbatchで変更する。
@@ -291,11 +327,10 @@ export async function updateRecurringOccurrence(
     await requireHouseholdUser(db, householdId, input.assigneeUserId, "ASSIGNEE_NOT_FOUND");
   }
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  assertRecurringOccurrence(occurrence, input);
-  const statements = [
-    ...assigneeStatements(db, householdId, user.userId, occurrence, input),
-    ...dueDateStatements(db, householdId, user.userId, occurrence, input),
-  ];
+  assertRecurringOccurrence(occurrence, input, new Date().toISOString());
+  const statements = recurringOccurrenceStatements(db, {
+    at: new Date().toISOString(), householdId, input, occurrence, userId: user.userId,
+  });
   if (statements.length === 0) return { managedItemId: occurrence.managed_item_id };
   const results = await db.batch(statements);
   const missingLog = results.some((result, index) => index % 2 === 0 && result.meta.changes === 0);
@@ -315,12 +350,14 @@ const PENDING_RECURRING_OCCURRENCE_SQL = `SELECT 1 FROM task_occurrences o
 // 更新を1つのbatchへ並べる。候補指定の置き換えは変更履歴の作成より前に終え、
 // 履歴と現在回のスナップショットが置き換え後の候補指定を含むようにする。
 // 候補指定の件数で文の数が変わるため、結果を読む位置も一緒に返す。
-function recurringRuleStatements(
+export function recurringRuleStatements(
   db: D1Database,
   input: {
     changeId: string;
     householdId: string;
-    input: RecurringTaskRuleUpdate;
+    // 外部command(#437)の操作キー(`<key>:rule`として残す)。Webからの編集はnull。
+    idempotencyKey?: string | null;
+    input: RecurringTaskRuleUpdate | RuleBasicsUpdate;
     occurrence: OccurrenceWithRule;
     occurrenceId: string;
     userId: string;
@@ -339,21 +376,23 @@ function recurringRuleStatements(
     changeIndex: 1 + deleteStatements.length + insertStatements.length,
     statements: [
       ...deleteStatements,
-      recurringRuleUpdateStatement(db, householdId, occurrence, input.input),
+      "basicsOnly" in input.input
+        ? ruleBasicsUpdateStatement(db, householdId, occurrence, input.input)
+        : recurringRuleUpdateStatement(db, householdId, occurrence, input.input),
       ...insertStatements,
       db.prepare(
         `INSERT INTO task_rule_changes (
           id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
-          previous_rule_snapshot, new_rule_snapshot
+          previous_rule_snapshot, new_rule_snapshot, idempotency_key
         )
-        SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
+        SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}, ?5
          FROM task_occurrences o
           JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
           LEFT JOIN managed_items i
             ON i.id = r.managed_item_id AND i.household_id = r.household_id
          WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
            AND o.rule_snapshot <> ${snapshot}`,
-      ).bind(changeId, householdId, userId, occurrenceId),
+      ).bind(changeId, householdId, userId, occurrenceId, suffixedKey(input.idempotencyKey, "rule")),
       db.prepare(
         `UPDATE task_occurrences
             SET rule_snapshot = (

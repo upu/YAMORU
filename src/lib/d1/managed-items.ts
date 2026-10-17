@@ -289,7 +289,15 @@ export async function getManagedItemForEdit(
   session: D1Session,
   id: string,
 ): Promise<ManagedItemEditData | null> {
-  const householdId = await requireCurrentHousehold(db, session);
+  return loadManagedItemForEdit(db, await requireCurrentHousehold(db, session), id);
+}
+
+// 家庭IDが確定している呼び出し(外部command、#437)向け。
+export async function loadManagedItemForEdit(
+  db: D1Database,
+  householdId: string,
+  id: string,
+): Promise<ManagedItemEditData | null> {
   return db.prepare(
     `SELECT item.*,
             ${OPTIONAL_ATTRIBUTE_SELECT},
@@ -333,20 +341,26 @@ export async function updateManagedItem(
   const householdId = await requireCurrentHousehold(db, session);
   const classification = await requireActiveClassification(db, input);
   if (input.tags !== undefined) await assertManagedItemTagLimit(db, householdId, input.tags);
+  const statements = managedItemUpdateStatements(db, householdId, id, { ...input, ...classification });
+  const results = await db.batch(statements);
+  if ((results[0]?.meta.changes ?? 0) === 0) {
+    throw new D1NotFoundError("管理対象が見つかりません。");
+  }
+}
+
+// 編集の文。最初の文の変更件数で、対象が自家庭にあったかを判定できる。
+export function managedItemUpdateStatements(
+  db: D1Database,
+  householdId: string,
+  id: string,
+  input: ManagedItemWriteInput & ClassificationDefinition,
+): D1PreparedStatement[] {
   const statements = [
     db.prepare(
       `UPDATE managed_items
           SET name = ?1, kind = ?2, note = ?5, product_info = ?6, started_on = ?7
         WHERE id = ?3 AND household_id = ?4`,
-    ).bind(
-      input.name,
-      classification.legacyKind,
-      id,
-      householdId,
-      input.note,
-      input.productInfo,
-      input.startedOn,
-    ),
+    ).bind(input.name, input.legacyKind, id, householdId, input.note, input.productInfo, input.startedOn),
     db.prepare(
       `INSERT INTO managed_item_classifications (
          managed_item_id, household_id, kind_code, item_type_code, custom_item_type
@@ -374,8 +388,5 @@ export async function updateManagedItem(
   if (input.tags !== undefined) {
     statements.push(...buildManagedItemTagStatements(db, householdId, id, input.tags));
   }
-  const results = await db.batch(statements);
-  if ((results[0]?.meta.changes ?? 0) === 0) {
-    throw new D1NotFoundError("管理対象が見つかりません。");
-  }
+  return statements;
 }

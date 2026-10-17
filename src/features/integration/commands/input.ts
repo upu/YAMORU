@@ -71,6 +71,12 @@ export function todoOccurrenceTarget(target: unknown): CommandTarget {
   return { id: idValue(value.id, "target.id"), kind: "todo_occurrence" };
 }
 
+export function managedItemTarget(target: unknown): CommandTarget {
+  const value = objectValue(target, "target", ["kind", "id"]);
+  if (value.kind !== "managed_item") throw invalidInput("target.kind", "managed_item_required");
+  return { id: idValue(value.id, "target.id"), kind: "managed_item" };
+}
+
 // 訂正・取消の対象は完了記録。payloadのcompletion_log_idが正本であり、
 // targetを併せて送る場合は同じ記録を指していなければならない。
 export function completionLogTarget(target: unknown, completionLogId: unknown): CommandTarget {

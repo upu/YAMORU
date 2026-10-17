@@ -83,9 +83,12 @@ function tagIds(value: unknown, field: string): string[] {
   return ids;
 }
 
-function classification(value: Record<string, unknown>, field: string) {
-  if (value.kind === undefined || value.kind === null) throw missing(`${field}.kind`);
-  if (typeof value.kind !== "string" || value.kind.length === 0) throw invalidInput(`${field}.kind`, "string_required");
+function kindValue(value: unknown, field: string): string {
+  if (value === undefined || value === null) throw missing(field);
+  return idValue(value, field);
+}
+
+function detailedType(value: Record<string, unknown>, field: string) {
   const hasItemType = value.item_type !== undefined && value.item_type !== null;
   const hasCustom = value.custom_item_type !== undefined && value.custom_item_type !== null;
   if (hasItemType && hasCustom) throw invalidInput(field, "item_type_or_custom_item_type");
@@ -94,8 +97,11 @@ function classification(value: Record<string, unknown>, field: string) {
       ? requiredText(value.custom_item_type, `${field}.custom_item_type`, CUSTOM_ITEM_TYPE_MAX_LENGTH)
       : null,
     item_type: hasItemType ? idValue(value.item_type, `${field}.item_type`) : null,
-    kind: value.kind,
   };
+}
+
+function classification(value: Record<string, unknown>, field: string) {
+  return { kind: kindValue(value.kind, `${field}.kind`), ...detailedType(value, field) };
 }
 
 export function managedItemPayload(payload: unknown, field = "payload"): ManagedItemPayload {
@@ -110,3 +116,44 @@ export function managedItemPayload(payload: unknown, field = "payload"): Managed
     tag_ids: tagIds(value.tag_ids, `${field}.tag_ids`),
   };
 }
+
+// managed_item.updateの変更内容。指定した項目だけを持ち、nullは未設定へ戻す。
+// 名前と大分類は未設定にできない。詳しい種類は大分類に属するため、大分類・
+// 詳しい種類のどれかを変えるときは、指定しなかった詳しい種類を未設定にする。
+export type ManagedItemChanges = Partial<ManagedItemPayload>;
+
+const CLEARABLE_TEXT: [keyof ManagedItemPayload, string, number][] = [
+  ["note", "note", NOTE_MAX_LENGTH],
+  ["product_info", "product_info", PRODUCT_INFO_MAX_LENGTH],
+];
+
+function has(value: Record<string, unknown>, key: string): boolean {
+  return value[key] !== undefined;
+}
+
+function classificationChanges(value: Record<string, unknown>, field: string): ManagedItemChanges {
+  if (!has(value, "kind") && !has(value, "item_type") && !has(value, "custom_item_type")) return {};
+  if (value.kind === null) throw invalidInput(`${field}.kind`, "not_clearable");
+  const kind = has(value, "kind") ? { kind: kindValue(value.kind, `${field}.kind`) } : {};
+  return { ...kind, ...detailedType(value, field) };
+}
+
+export function managedItemChanges(changes: unknown, field: string): ManagedItemChanges {
+  const value = objectValue(changes ?? {}, field, MANAGED_ITEM_PAYLOAD_KEYS);
+  const result: ManagedItemChanges = classificationChanges(value, field);
+  if (has(value, "name")) {
+    if (value.name === null) throw invalidInput(`${field}.name`, "not_clearable");
+    result.name = requiredText(value.name, `${field}.name`, MANAGED_ITEM_NAME_MAX_LENGTH);
+  }
+  for (const [key, name, maxLength] of CLEARABLE_TEXT) {
+    if (has(value, name)) Object.assign(result, { [key]: optionalText(value[name], `${field}.${name}`, maxLength) });
+  }
+  if (has(value, "external_url")) result.external_url = externalUrl(value.external_url, `${field}.external_url`);
+  if (has(value, "started_on")) result.started_on = startedOn(value.started_on, `${field}.started_on`);
+  if (has(value, "tag_ids")) result.tag_ids = tagIds(value.tag_ids, `${field}.tag_ids`);
+  if (Object.keys(result).length === 0) {
+    throw new CommandError("missing_required", { fieldErrors: { [field]: "at_least_one_change" } });
+  }
+  return result;
+}
+
