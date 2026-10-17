@@ -2,6 +2,7 @@ import type { StoredOAuthClient } from "../../../lib/d1/oauth-clients";
 import type { AuthorizationPageError, ValidAuthorizationRequest } from "../../../features/integration/oauth/authorization-request";
 import { REQUIRED_SCOPE, SCOPE_DESCRIPTIONS } from "../../../features/integration/scopes";
 import { decideAuthorization } from "./actions";
+import { DISPLAYED_CLIENT_NAME_FIELD } from "./consent-snapshot";
 import styles from "./consent.module.css";
 
 const PAGE_ERROR_MESSAGES: Record<AuthorizationPageError | "client_unavailable", string> = {
@@ -85,6 +86,7 @@ export function ConsentCard({ client, email, householdName, rawRequest, request 
       </dl>
       <form action={decideAuthorization}>
         <input name="request" type="hidden" value={rawRequest} />
+        <input name={DISPLAYED_CLIENT_NAME_FIELD} type="hidden" value={client.clientName} />
         <fieldset className={styles.scopes}>
           <legend>許可する範囲</legend>
           <p>外したい範囲はチェックを外してください。読み取りは連携に必須です。</p>

@@ -74,6 +74,8 @@ describe("同意画面", () => {
 
   it("許可と拒否の両方を選べる", () => {
     renderConsent(["household.read"]);
+    // 送信時に照合するため、表示した接続元の名前をフォームへ含める。
+    expect(document.querySelector('input[name="displayedClientName"]')).toHaveValue("Example Assistant");
     expect(screen.getByRole("button", { name: "許可する" })).toHaveAttribute("value", "approve");
     expect(screen.getByRole("button", { name: "許可しない" })).toHaveAttribute("value", "deny");
   });

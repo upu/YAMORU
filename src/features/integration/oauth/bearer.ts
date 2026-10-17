@@ -59,10 +59,11 @@ export async function verifyAccessToken(
 }
 
 // Authorizationヘッダーのbearer tokenだけを受け付ける。query stringのtokenは扱わない。
+// 認証方式名(Bearer)は大文字小文字を区別しない(RFC 9110 11.1)。
 export function extractBearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
   if (header === null) return null;
-  const match = /^Bearer ([A-Za-z0-9\-._~+/]+=*)$/u.exec(header.trim());
+  const match = /^Bearer ([A-Za-z0-9\-._~+/]+=*)$/iu.exec(header.trim());
   return match === null ? null : match[1];
 }
 

@@ -289,6 +289,18 @@ describe("refresh tokenのローテーション", () => {
     expect((await connectionRow())?.revoked_reason).toBe("token_reuse_detected");
   });
 
+  it("期限を過ぎた使用済みrefresh tokenが再提示されても、接続を失効させない", async () => {
+    const first = await connect(db, memberA);
+    const rotated = await oauth.processRefreshTokenResponse(
+      await discoverTestServer(), testClient, await refresh(db, first.refresh_token ?? ""),
+    );
+    const later = () => new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
+    const model = createOAuthModel({ config, db, now: later });
+    expect(await model.getRefreshToken(first.refresh_token ?? "")).toBe(false);
+    expect((await connectionRow())?.revoked_reason).toBeNull();
+    expect((await verifyAccessToken({ config, db }, rotated.access_token, [])).ok).toBe(true);
+  });
+
   it("refreshでscopeを広げることはできない", async () => {
     const first = await connect(db, { ...memberA, approvedScopes: ["household.read"] });
     const response = await oauth.refreshTokenGrantRequest(

@@ -186,6 +186,9 @@ function refreshTokenModel({ config, db, now = () => new Date() }: OAuthModelDep
         return false;
       }
       const at = now().toISOString();
+      // 期限を過ぎたrefresh tokenは何にも使えない。再提示されても接続を失効させず、
+      // 期限切れの秘密が後から接続を切る手段として残らないようにする。
+      if (token.expiresAt <= at) return false;
       if (token.rotatedAt !== null) {
         // ローテーション済みのrefresh tokenが再提示された。盗用とみなし接続ごと失効させる。
         await revokeConnection(db, token.connectionId, "token_reuse_detected", at);

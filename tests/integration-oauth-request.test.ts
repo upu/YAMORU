@@ -10,6 +10,7 @@ import { parseAllowedClientIds, resolveOAuthConfig } from "../src/features/integ
 import { authorizationServerMetadata, protectedResourceMetadata } from "../src/features/integration/oauth/metadata";
 import { grantedScopes } from "../src/features/integration/oauth/authorize";
 import { declaresTooLargeBody, readTextWithLimit } from "../src/features/integration/oauth/limited-body";
+import { isSameConsentScreen } from "../src/app/oauth/authorize/consent-snapshot";
 
 const CLIENT_ID = "https://client.example.test/oauth/client.json";
 const REDIRECT_URI = "https://client.example.test/callback";
@@ -216,6 +217,8 @@ describe("bearer token", () => {
     expect(extractBearerToken(new Request("https://y.test/mcp", { headers: { authorization: "Bearer ymr_at_abc" } }))).toBe("ymr_at_abc");
     expect(extractBearerToken(new Request("https://y.test/mcp?access_token=ymr_at_abc"))).toBeNull();
     expect(extractBearerToken(new Request("https://y.test/mcp", { headers: { authorization: "Basic abc" } }))).toBeNull();
+    // 認証方式名は大文字小文字を区別しない。
+    expect(extractBearerToken(new Request("https://y.test/mcp", { headers: { authorization: "bearer ymr_at_abc" } }))).toBe("ymr_at_abc");
   });
 });
 
@@ -232,5 +235,13 @@ describe("本文の上限", () => {
     expect(declaresTooLargeBody(new Headers({ "content-length": "8193" }), 8192)).toBe(true);
     expect(declaresTooLargeBody(new Headers({ "content-length": "8192" }), 8192)).toBe(false);
     expect(declaresTooLargeBody(new Headers(), 8192)).toBe(false);
+  });
+});
+
+describe("同意画面の表示と送信の照合", () => {
+  it("表示した接続元の名前が送信時と一致するときだけ許可を受け付ける", () => {
+    expect(isSameConsentScreen("Example Assistant", { clientName: "Example Assistant" })).toBe(true);
+    expect(isSameConsentScreen("Example Assistant", { clientName: "Renamed Assistant" })).toBe(false);
+    expect(isSameConsentScreen(null, { clientName: "Example Assistant" })).toBe(false);
   });
 });
