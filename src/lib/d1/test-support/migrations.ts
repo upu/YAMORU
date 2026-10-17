@@ -39,6 +39,8 @@ import managedItemTagsSql from "../../../../d1/migrations/0029_managed_item_tags
 import hardDeadlineSql from "../../../../d1/migrations/0030_occurrence_hard_deadline.sql?raw";
 import oauthConnectionsSql from "../../../../d1/migrations/0031_oauth_connections.sql?raw";
 
+import conversationReadSql from "../../../../d1/migrations/0032_conversation_reads.sql?raw";
+
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
   { name: "0001_init", sql: initSql },
@@ -72,6 +74,7 @@ const MIGRATIONS = [
   { name: "0029_managed_item_tags", sql: managedItemTagsSql },
   { name: "0030_occurrence_hard_deadline", sql: hardDeadlineSql },
   { name: "0031_oauth_connections", sql: oauthConnectionsSql },
+  { name: "0032_conversation_reads", sql: conversationReadSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

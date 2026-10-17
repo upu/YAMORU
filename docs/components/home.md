@@ -18,8 +18,8 @@ status: stable
 |---|---|
 | 画面組み立てと表示区分 | `src/app/page.tsx`(`HomeContent`、`HomeSection`、`buildRecentItems`) |
 | 上部の見出し・件数サマリー | `src/app/home-hero.tsx`、`src/app/home-anchors.ts` |
-| 未完了Todoの分類 | `src/app/pending-todo.ts` |
-| 期限・推奨期間の表示状態と文言 | `src/app/task-schedule.ts`、`src/app/time-zone.ts` |
+| 未完了Todoの分類 | `src/features/todos/projection/pending-todo.ts`（app側はre-export） |
+| 期限・推奨期間の表示状態と文言 | `src/features/todos/projection/task-schedule.ts`、`src/features/todos/projection/time-zone.ts` |
 | Todoカードと完了操作 | `src/app/todo-card.tsx` → `src/features/todos/components/complete-todo-panel.tsx` |
 | 消耗品の表示 | `src/app/pinned-consumables.tsx`、`src/app/shopping-candidates.tsx` |
 | データ取得 | `src/lib/d1/home.ts`、`src/lib/d1/consumables.ts`、`src/lib/d1/consumable-pins.ts` |
@@ -29,7 +29,7 @@ status: stable
 - 未完了Todoの分類は`src/app/pending-todo.ts`の一箇所で行う。ホームは「いま対応すること」だけを出し、Todo一覧(`/todos`)は同じ分類結果を並べ替えて全件出す。ホーム専用の分類規則を増やさない。
 - 予定日も必達日も未設定のOccurrenceはホームへ出さず、Todo一覧で扱う。必達日がある回は7日以内・当日・超過に応じて表示し、必達日超過を優先する。予定・推奨期間も保持する([YDR-051](../decisions/ydr-051-occurrence-hard-deadline.md)、YDR-031の部分置換)。
 - ホーム上部にTodo一覧・台帳への移動ボタンを置かない([Issue #219](https://github.com/upu/YAMORU/issues/219))。PCはサイドバー、モバイルは下部ナビゲーションがどちらの行き先も常に見せているため、同じ移動先の二つ目の入口になる(#391の規約)。上部は対応状況のサマリーだけを持つ。ホームが空のときに出す再発見の導線(`HomeEmptyState`)は、「予定日未定のTodoはTodo一覧で確認できる」という文脈を伴う案内なので別に扱う([Issue #202](https://github.com/upu/YAMORU/issues/202))。
-- メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/app/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
+- メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/features/todos/projection/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
 - 完了操作はホーム専用の保存処理を持たず、`CompleteTodoPanel`(→`src/features/todos/actions/completion.ts`)を共有する。同じ部品を台帳詳細と検索結果も使う。
 - 現在の要対応表示はホームが担う。v0.21.0の会話通知は[YDR-050](../decisions/ydr-050-conversation-reminders.md)で追加する計画であり、ホームの表示を廃止しない。候補生成時は同じ状態分類を共通処理へ集約する。
 - 上部の件数サマリーは、同じホーム内のセクションへのアンカー導線として使う。遷移先のidは`src/app/home-anchors.ts`が唯一の定義とし、0件のサマリーは遷移先セクションが表示されないためリンクにしない(Issue #360)。

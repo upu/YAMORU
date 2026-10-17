@@ -17,6 +17,8 @@ stale_after: 2026-11-17
 
 2026-10-17時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充処理をコードで確認した。OAuth接続、MCP操作、MCP Events、通知の実到達は未実装・未検証である。以下の「確認する」は後続Issueの合格条件を示す。
 
+#435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
+
 #436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
 
 ## 1. 家庭での操作とToolの対応

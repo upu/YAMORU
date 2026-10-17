@@ -1,5 +1,6 @@
 import { requireCurrentHouseholdId, type D1Session } from "./authorization";
 import { likeSearchPattern } from "./text-search";
+import { effectiveOccurrenceField } from "./todos/rule-snapshot";
 
 // Issue #223: Todo一覧の担当予定者(assignee_user_id)による絞り込み。
 // 完了記録の実施者(performed_by_user_id、YDR-020)とは別の意味であり、
@@ -67,8 +68,11 @@ export async function listPendingOccurrences(
   const searchPattern = likeSearchPattern(search);
   const { results } = await db.prepare(
     `SELECT o.id, o.scheduled_for, o.due_at, o.assignee_user_id, o.must_complete_by,
-            r.title, r.deadline_kind, r.recurrence_basis,
-            i.id AS managed_item_id, i.name AS managed_item_name
+            ${effectiveOccurrenceField("title", "r.title")} AS title,
+            ${effectiveOccurrenceField("deadlineKind", "r.deadline_kind")} AS deadline_kind,
+            ${effectiveOccurrenceField("recurrenceBasis", "r.recurrence_basis")} AS recurrence_basis,
+            ${effectiveOccurrenceField("managedItemId", "i.id")} AS managed_item_id,
+            ${effectiveOccurrenceField("managedItemName", "i.name")} AS managed_item_name
        FROM task_occurrences o
        JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
        LEFT JOIN managed_items i ON i.id = r.managed_item_id AND i.household_id = r.household_id
@@ -78,7 +82,7 @@ export async function listPendingOccurrences(
           OR (?3 = 1 AND o.assignee_user_id IS NULL)
           OR o.assignee_user_id = ?2
         )
-        AND (?4 IS NULL OR LOWER(r.title) LIKE ?4 ESCAPE '\\')`,
+        AND (?4 IS NULL OR LOWER(${effectiveOccurrenceField("title", "r.title")}) LIKE ?4 ESCAPE '\\')`,
   ).bind(householdId, userId, unassignedOnly, searchPattern).all<FlatPendingRow>();
   return results.map((row) => ({
     assignee_user_id: row.assignee_user_id,
