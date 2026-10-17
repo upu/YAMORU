@@ -11,6 +11,8 @@ function isPublicPath(pathname: string): boolean {
     // 元の認可要求へ戻る形でログインへ誘導する。
     pathname.startsWith("/.well-known/oauth-") ||
     pathname.startsWith("/oauth/") ||
+    // MCPはCookieではなくendpoint内のBearer認証を必須にする。
+    pathname === "/mcp" ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/favicon.ico" ||
     /\.(?:svg|png|jpg|jpeg|gif|webp)$/u.test(pathname)

@@ -93,4 +93,6 @@ npm run test:e2e:local
 
 `test:e2e:local`はE2E専用の空のローカルD1へマイグレーションと架空fixtureを適用する。通常のローカルD1や家庭の実データは使わない。
 
+MCP入口とOAuthをCloudflare向けのビルドでも確認する場合は、`npm run test:e2e:worker`を実行する。OpenNextをビルドし、e2e環境のローカルWorker(`localhost:8787`)で専用の通しテストを実行する。`test:e2e:local`とは順番に実行し、同じ`.next`を使うビルドと開発サーバーを同時に動かさない。実dotの接続確認は[MCP Component](../components/mcp.md)の未完了境界を参照する。
+
 Pull Requestと`main`へのpushでは、GitHub ActionsがQuality checksに加え、空のローカルD1へのマイグレーション適用と家庭間分離・原子性テストを実行する。

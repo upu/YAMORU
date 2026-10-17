@@ -1,8 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-import { E2E_WRANGLER_ENVIRONMENT } from "./scripts/e2e-environment.ts";
-
-const E2E_AUTH_SECRET = "yamoru-e2e-auth-secret-at-least-32-characters";
+import { E2E_AUTH_SECRET, E2E_WRANGLER_ENVIRONMENT } from "./scripts/e2e-environment.ts";
 
 export default defineConfig({
   expect: { timeout: 10_000 },

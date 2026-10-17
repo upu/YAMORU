@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:local": "npm run d1:migrate:e2e && playwright test",
+    "test:e2e:worker": "npm run d1:migrate:e2e && npm run cf:build && playwright test -c config/playwright.worker.config.ts",
     "test:e2e:preview": "playwright test -c config/playwright.preview.config.ts",
     "typecheck": "tsc --noEmit",
     "cf:build": "opennextjs-cloudflare build",
@@ -37,13 +38,16 @@
     "auth:reset-password:production": "node scripts/auth-admin.ts reset-password --environment production"
   },
   "dependencies": {
+    "@cfworker/json-schema": "4.1.1",
     "@js-temporal/polyfill": "0.5.1",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@node-oauth/oauth2-server": "5.3.0",
     "next": "16.3.8",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

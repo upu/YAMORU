@@ -21,7 +21,9 @@ stale_after: 2026-11-17
 
 #436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
 
-#437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`)は未実装で、外部へ公開する入口(#439)も無い。
+#437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`)は未実装である。
+
+2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerでOAuthから登録・完了・次回確認と切断後の照合を検証するが、実dotの接続実証と通知の到達は未完了であり、#439/#442/#444の完了と区別する。
 
 ## 1. 家庭での操作とToolの対応
 
@@ -66,7 +68,7 @@ flowchart TD
 | `src/lib/d1/authorization.ts`、`context.ts` | 利用者と家庭所属の導出、家庭IDでの絞り込み | 外部tokenを検証してからPrincipalへ変換。入力のuserIdで`getD1Context`を呼ばない |
 | `src/lib/d1/todos/index.ts` → creation/edit/recurring-edit | 5方式の登録、現在回/次回以降の区別、snapshot | 構造化入力、全変更の操作receipt、revision |
 | `src/lib/d1/todos/completion.ts`、`corrections.ts` | 条件付きbatch、二重完了防止、安全な取消、追記型訂正 | payload全体のfingerprint、結果再取得、期限付きpreview、実行境界の競合検出 |
-| `src/lib/d1/consumables.ts` | 在庫3状態、補充履歴 | 現在の補充は呼出しごとにUUIDを生成するため、共通操作IDと観測/補充/訂正履歴を#438で追加 |
+| `src/lib/d1/consumable-stock-history.ts` | 在庫3状態、観測と補充、追記型訂正、操作IDごとの結果保存 | #438でWebと共通commandの保存処理を共有。MCPの公開は#439 |
 | `src/lib/d1/calendar.ts`、`src/app/task-schedule.ts`、`pending-todo.ts` | 暦計算とホームの状態分類 | UI依存を切り離した共通のprojection。画面/APIの一致テスト |
 | `src/lib/d1/cross-search.ts`、`text-search.ts` | 家庭内の名前検索 | 別名・表記揺れの一致理由と候補選択。通常画面の検索拡張判断#351は別 |
 

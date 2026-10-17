@@ -64,7 +64,7 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "notification.snooze": notificationSnoozeHandler,
 };
 
-export type CommandServiceDependencies = { db: D1Database; now?: () => Date };
+export type CommandServiceDependencies = { db: D1Database; now?: () => Date; commitGuard?: D1PreparedStatement };
 
 type Request = { deps: CommandServiceDependencies; now: Date; principal: IntegrationPrincipal };
 
@@ -315,6 +315,7 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
   const { db } = request.deps;
   try {
     await db.batch([
+      ...(request.deps.commitGuard ? [request.deps.commitGuard] : []),
       revisionGuardStatement(db, operation.id),
       ...execution.statements,
       commitReceiptStatement(db, {

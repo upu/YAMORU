@@ -44,11 +44,12 @@
 | 画面の見た目(CSS)の置き場所 | `src/app/globals.css`(全体基盤と共有ルール)、部品ごとの`*.module.css` | 変更した画面のテスト・E2E | [スタイル](styles.md) |
 | 外部クライアントの認可(OAuth)・同意画面・接続管理 | `src/features/integration/oauth/`、`src/app/oauth/authorize/`、`src/app/settings/integrations/` → `src/lib/d1/oauth-connections.ts` | `tests/integration-oauth-request.test.ts`、`tests/integration-connections-ui.test.tsx`、`src/lib/d1/oauth-flow.d1-test.ts`、`src/lib/d1/oauth-connections-authorization.d1-test.ts` | [外部連携](integration.md) |
 | 外部クライアントのaccess token検証(MCPなど外部入口の共通) | `src/features/integration/oauth/bearer.ts`、`src/features/integration/principal.ts` | `src/lib/d1/oauth-flow.d1-test.ts` | [外部連携](integration.md) |
+| 認証付きMCP入口・Tool定義・接続確認 | `src/app/mcp/route.ts` → `src/features/integration/mcp/` | `tests/integration-mcp-http.test.ts`、`src/lib/d1/integration-mcp.d1-test.ts`、`e2e/mcp-integration.spec.ts`、`config/playwright.worker.config.ts` | [MCP](mcp.md) |
 | 外部クライアントの変更操作(prepare/commit・受付記録。Todoの登録・完了・訂正・取消) | `src/features/integration/commands/service.ts` → `src/lib/d1/integration-operations.ts`、`src/lib/d1/todos/command-plans.ts` | `tests/integration-command-input.test.ts`、`src/lib/d1/integration-commands.d1-test.ts`、`src/lib/d1/integration-history-commands.d1-test.ts`、`src/lib/d1/integration-create-commands.d1-test.ts` | [外部連携](integration.md) |
 | 家庭間分離(household_idの扱い) | `src/lib/d1/authorization.ts`、`src/lib/d1/context.ts` | `src/lib/d1/authorization.d1-test.ts`、`src/lib/d1/**/*-authorization.d1-test.ts` | [認証・家庭・招待](household-access.md) |
 
 ## まだ実装していない領域
 
-会話向けの共通読み取り(#435)は[会話読み取り](conversation-read.md)、通知候補生成(#440)は[通知候補](attention.md)、本人の設定と履歴(#441)は[個人の通知](notifications.md)に実装入口を示す。外部クライアントの認可と接続管理(#436)は上の表に入口があるが、許可するclient_idを設定するまで受付は無効である。変更操作(#437の実装済みcommand)も上の表に入口があるが、外部へ公開する入口(#439)はまだ無い。MCPのTool・その他の変更操作・実際の配信は[会話連携設計](../product/conversation-integration.md)に契約と接続先を定義している。共通読み取り・変更操作・候補生成・本人設定の実装は、公開MCPや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
+会話向けの共通読み取り(#435)、通知候補生成(#440)、本人の設定と履歴(#441)、認可と接続管理(#436)、実装済みcommand(#437/#438)、認証付きMCP入口(#439)は上の表に入口を示す。許可するclient_idを設定するまで外部受付は無効である。実dotとの接続実証・追加の変更操作・実際の配信は[会話連携設計](../product/conversation-integration.md)に契約と合格条件を定義している。MCP入口の実装やローカルSDKの成功は、実dotとの接続や通知の到達を証明しない。
 
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。
