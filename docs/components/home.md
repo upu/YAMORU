@@ -31,7 +31,7 @@ status: stable
 - ホーム上部にTodo一覧・台帳への移動ボタンを置かない([Issue #219](https://github.com/upu/YAMORU/issues/219))。PCはサイドバー、モバイルは下部ナビゲーションがどちらの行き先も常に見せているため、同じ移動先の二つ目の入口になる(#391の規約)。上部は対応状況のサマリーだけを持つ。ホームが空のときに出す再発見の導線(`HomeEmptyState`)は、「予定日未定のTodoはTodo一覧で確認できる」という文脈を伴う案内なので別に扱う([Issue #202](https://github.com/upu/YAMORU/issues/202))。
 - メンテナンスTodoは推奨期間の進み具合に応じた4状態で表示する。しきい値は`src/app/task-schedule.ts`の`maintenanceReminderThresholdDays`が唯一の定義([YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md))。
 - 完了操作はホーム専用の保存処理を持たず、`CompleteTodoPanel`(→`src/features/todos/actions/completion.ts`)を共有する。同じ部品を台帳詳細と検索結果も使う。
-- 通知機能を持たず、気づきの導線はホームへ集約する([YDR-009](../decisions/ydr-009-drop-notifications-consolidate-home.md))。
+- 現在の要対応表示はホームが担う。v0.21.0の会話通知は[YDR-050](../decisions/ydr-050-conversation-reminders.md)で追加する計画であり、ホームの表示を廃止しない。候補生成時は同じ状態分類を共通処理へ集約する。
 - 上部の件数サマリーは、同じホーム内のセクションへのアンカー導線として使う。遷移先のidは`src/app/home-anchors.ts`が唯一の定義とし、0件のサマリーは遷移先セクションが表示されないためリンクにしない(Issue #360)。
 - 件数サマリーの3項目は、320pxまでどの幅でも1行に収める([Issue #394](https://github.com/upu/YAMORU/issues/394))。1項目だけを全幅の2行目へ回さない。収めるために、サマリーでは短い表示ラベル(「買うもの」)を使い、狭い幅では数字と語を縦に積む。移動先のセクション見出しと読み上げ名(`linkLabel`)は正式な名前(「買っておきたいもの」)のままにする。0件は数字の色だけを弱め、大きさは変えない(桁で行の高さを変えないため)。
 - ホームの消耗品の並び(ピン留め・買っておきたいもの)は、同じ密度・同じ作りにする([Issue #398](https://github.com/upu/YAMORU/issues/398))。1件ずつ枠で囲まず、項目の間を細い線で区切り、1件を名前と状態の1行に収める。押せる高さは`--tap-target`に保つ(ピン留めは在庫変更ボタン、買い物候補は名前のリンクがその高さを作る)。買い物候補には「残りが少ない、または切れている消耗品です」のような説明文を置かない。各行の「少ない」「ない」のバッジが同じことを示しており、同じ意味を二重に出さない(#394のバッジと本文、#396の案内と同じ考え方)。買い物候補は在庫状態を変更せず確認だけの一覧なので、ピン留めの○△×ではなく読み取り専用のバッジを出す。
@@ -39,7 +39,7 @@ status: stable
 
 ## 関連YDR
 
-- 有効: [YDR-009](../decisions/ydr-009-drop-notifications-consolidate-home.md)、[YDR-031](../decisions/ydr-031-undated-todos-out-of-home.md)、[YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md)、[YDR-012](../decisions/ydr-012-separate-occurred-recorded-scheduled-due.md)
+- 有効: [YDR-050](../decisions/ydr-050-conversation-reminders.md)、[YDR-031](../decisions/ydr-031-undated-todos-out-of-home.md)、[YDR-034](../decisions/ydr-034-maintenance-home-progress-states.md)、[YDR-012](../decisions/ydr-012-separate-occurred-recorded-scheduled-due.md)
 - 過去の経緯として読む: [YDR-017](../decisions/ydr-017-strict-deadline-vs-maintenance-recommended-window.md)(推奨期間内の開始条件のみ[YDR-027](../decisions/ydr-027-maintenance-reminder-progress-ratio.md)が置き換え、さらにYDR-027全体をYDR-034が置き換えた)。厳密な期限と推奨期間を区別する枠組み自体はYDR-017の記述が現在の実装の背景である。
 
 ## 検証方法

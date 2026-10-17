@@ -19,8 +19,8 @@
 | YDR-005 | Realtimeと細かな権限区別をMVPで作らない | Superseded by YDR-022(household_idとRLS必須の部分のみ) | [ydr-005-no-realtime-no-fine-grained-permissions.md](ydr-005-no-realtime-no-fine-grained-permissions.md) |
 | YDR-006 | 担当者未設定を既定にする | Accepted | [ydr-006-unassigned-by-default.md](ydr-006-unassigned-by-default.md) |
 | YDR-007 | 通知を長期間実機検証し、結果だけでネイティブ化しない | Superseded by YDR-009 | [ydr-007-notification-field-trial.md](ydr-007-notification-field-trial.md) |
-| YDR-008 | AIを正しさの基盤にしない | Accepted | [ydr-008-ai-not-source-of-truth.md](ydr-008-ai-not-source-of-truth.md) |
-| YDR-009 | 初期版から通知機能を外し、ホーム画面へ集約する | Accepted | [ydr-009-drop-notifications-consolidate-home.md](ydr-009-drop-notifications-consolidate-home.md) |
+| YDR-008 | AIを正しさの基盤にしない | Superseded by YDR-049(AIの用途を補助へ限定する部分のみ。正本境界は維持) | [ydr-008-ai-not-source-of-truth.md](ydr-008-ai-not-source-of-truth.md) |
+| YDR-009 | 初期版から通知機能を外し、ホーム画面へ集約する | Superseded by YDR-050 | [ydr-009-drop-notifications-consolidate-home.md](ydr-009-drop-notifications-consolidate-home.md) |
 | YDR-010 | MVPではTaskRuleごとに未解決Todoを最大1件とする | Superseded by YDR-017 | [ydr-010-single-pending-occurrence-per-task-rule.md](ydr-010-single-pending-occurrence-per-task-rule.md) |
 | YDR-011 | 開封履歴を蓄積せず、最終利用日時だけを任意で保持する | Accepted | [ydr-011-last-seen-only-no-open-history.md](ydr-011-last-seen-only-no-open-history.md) |
 | YDR-012 | 実施日時と記録日時、本来の予定と現在期限を分離する | Accepted | [ydr-012-separate-occurred-recorded-scheduled-due.md](ydr-012-separate-occurred-recorded-scheduled-due.md) |
@@ -60,6 +60,8 @@
 | YDR-046 | 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す | Accepted | [ydr-046-manual-recurrence-todos.md](ydr-046-manual-recurrence-todos.md) |
 | YDR-047 | Todoのメモを実施ごとの記録ではなくTaskRuleの手順として持つ | Accepted | [ydr-047-todo-note-on-task-rule.md](ydr-047-todo-note-on-task-rule.md) |
 | YDR-048 | ManagedItemのタグを家庭単位のマスタと多対多の関連として保存する | Accepted | [ydr-048-managed-item-tags.md](ydr-048-managed-item-tags.md) |
+| YDR-049 | 会話操作を認証された共通ユースケースへ集約する | Accepted | [ydr-049-conversation-command-boundary.md](ydr-049-conversation-command-boundary.md) |
+| YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
 
 ## 新しい意思決定の追加
 

@@ -31,12 +31,12 @@ status: stable
 - 絞り込み条件は分類候補のコード値と一致するものだけを使い、利用者向けラベルをデータ条件にしない。自由入力の詳しい種類は家庭内の実表記で比較する。
 - タグは家庭単位の`tags`と`managed_item_tags`で持ち、関連の家庭一致は複合外部キーで守る。同名は英字の大文字小文字を区別せず一つにまとめ、作成は登録・編集フォームの中で行う([YDR-048](../decisions/ydr-048-managed-item-tags.md))。
 - 開始時期は`started_on`に持ち、大分類によらず同じ意味とする。変わるのは画面ラベルだけ([YDR-033](../decisions/ydr-033-managed-item-started-on.md))。
-- AI提案は明示操作の入力補助に限る。提案と採用結果は家庭内へ記録し、AIの出力を正しさの根拠にしない([YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)、[YDR-008](../decisions/ydr-008-ai-not-source-of-truth.md))。
+- 詳しい種類のAI提案は明示操作の入力補助に限る。提案と採用結果は家庭内へ記録し、AIの出力を正しさの根拠にしない([YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md))。会話操作は別の入口として[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)で共通処理の境界を定める。
 - 一覧・詳細のすべてのクエリーは`household_id`で先に絞る([家庭間分離](household-access.md))。
 
 ## 関連YDR
 
-- 有効: [YDR-002](../decisions/ydr-002-minimal-managed-item.md)、[YDR-008](../decisions/ydr-008-ai-not-source-of-truth.md)、[YDR-033](../decisions/ydr-033-managed-item-started-on.md)、[YDR-036](../decisions/ydr-036-merge-service-obligation-kinds.md)、[YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)、[YDR-048](../decisions/ydr-048-managed-item-tags.md)
+- 有効: [YDR-002](../decisions/ydr-002-minimal-managed-item.md)、[YDR-033](../decisions/ydr-033-managed-item-started-on.md)、[YDR-036](../decisions/ydr-036-merge-service-obligation-kinds.md)、[YDR-041](../decisions/ydr-041-ai-item-type-suggestion.md)、[YDR-048](../decisions/ydr-048-managed-item-tags.md)、[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)
 - 部分的に置き換えられている(範囲に注意): [YDR-028](../decisions/ydr-028-managed-item-kind-item-type-tags.md)は初期の表示ラベルの部分だけを[YDR-029](../decisions/ydr-029-managed-item-kind-labels.md)が置き換えた。大分類・詳しい種類・タグの役割分離はYDR-028が継続する。ラベルと選択肢そのものはYDR-029→[YDR-035](../decisions/ydr-035-retire-other-managed-item-kind.md)→YDR-036と置き換えられており、現在有効なのはYDR-036だけである。
 
 ## 検証方法

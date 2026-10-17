@@ -41,4 +41,6 @@
 
 ## まだ実装していない領域
 
+会話連携・認証付きMCP・リマインドは[会話連携設計](../product/conversation-integration.md)に契約と既存コードへの接続先を定義している。#435〜#444で実装する計画であり、現時点で公開APIや配信基盤が存在することを意味しない。実装時にこの対応表へ入口を追加する。
+
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。

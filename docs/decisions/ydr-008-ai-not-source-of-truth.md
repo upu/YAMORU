@@ -5,14 +5,16 @@ title: AIを正しさの基盤にしない
 description: 周期計算・通知・権限・履歴などの基幹要素にAIを用いず、AIは人が確認できる補助機能に限定する
 tags: [yamoru, decisions, ydr]
 status: stable
-decision_status: Accepted
+decision_status: Superseded
 decision_date: 2026-08-12
+superseded_by: YDR-049
 ---
 
 # YDR-008: AIを正しさの基盤にしない
 
-- 状態: Accepted
+- 状態: Superseded（AIの用途を候補抽出・検索等の補助へ限定する部分のみ）
 - 決定日: 2026-08-12
+- 置き換える決定: [YDR-049](ydr-049-conversation-command-boundary.md)。AIを正しさの基盤にしない原則、人が解釈結果を確認できる要件は引き継ぐ。以下は決定当時の記録である。
 
 ## 背景
 
