@@ -4,6 +4,7 @@ import { enqueueNotification, reconcilePendingNotifications, recoverNotification
 import { claimNotificationSchedule, finishNotificationSchedule, schedulerPrincipal, seedNotificationSchedule, schedulerCandidatePage, type SchedulerLease, type SchedulerPosition } from "../../../lib/d1/notification-scheduler";
 import { usableNotificationConnection } from "../../../lib/d1/notification-settings";
 import { pruneDeliveryHistory } from "../../../lib/d1/notification-deliveries";
+import { pruneEventSubscriptions } from "../../../lib/d1/notification-event-subscriptions";
 import { ReadError } from "../read-contract";
 import { formatTokyoDateInput } from "../../todos/projection/time-zone";
 type Dependencies = { db: D1Database; allowedClientIds: readonly string[]; now?: () => Date; candidateLimit?: number; connectionLimit?: number };
@@ -50,5 +51,6 @@ export async function runNotificationScheduler(deps: Dependencies) {
     }
   }
   await pruneDeliveryHistory(deps.db, clock());
+  await pruneEventSubscriptions(deps.db, clock());
   return { processed, failed };
 }

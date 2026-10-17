@@ -56,6 +56,8 @@ status: stable
 
 `integration-mcp-modern.d1-test.ts`は2026版の発見・一覧・読み取り、header不一致・版の再選択・入力上限、共通操作と再送、権限不足の再認証案内を検証する。実HTTPのMCP E2EでもOAuth後の2026版要求を送り、旧SDKの経路と併存させる。
 
+Eventsの購読APIは同じ認証入口を使い、household.readとevents.subscribeを要する。subscribe/unsubscribeはcommitの回数・同時枠・DB時刻のfenceを共有する。callback失敗は静的な分類付きの-32015で返し、URLや秘密を応答へ載せない。runtimeに検証済みproviderがない間はEventsを公開しない。[通知outbox](notification-outbox.md)に購読と実送信の実装・未完了の境界を示す。
+
 ```sh
 npm test -- tests/integration-mcp-http.test.ts tests/auth-boundary.test.ts
 npm run test:d1 -- src/lib/d1/integration-mcp.d1-test.ts

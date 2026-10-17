@@ -4,12 +4,15 @@ import { applyAllMigrations } from "./test-support/migrations";
 import { resetHouseholdFixtures } from "./test-support/households";
 import { connect, registerTestClient, testOAuthConfig } from "./test-support/oauth";
 import { handleMcpRequest } from "../../features/integration/mcp/http";
+import type { McpDependencies } from "../../features/integration/mcp/http";
 const db = env.DB;
 const version = "2026-07-28";
 const meta = { "io.modelcontextprotocol/protocolVersion": version, "io.modelcontextprotocol/clientCapabilities": {} };
 let token: string;
+let events: McpDependencies["events"];
 beforeAll(() => applyAllMigrations(db));
 beforeEach(async () => {
+  events = undefined;
   await resetHouseholdFixtures(db);
   await registerTestClient(db);
   token = (await connect(db, { householdId: "household-a", userId: "user-a" })).access_token;
@@ -19,7 +22,7 @@ async function rpc(method: string, params: Record<string, unknown> = {}, headers
     authorization: `Bearer ${accessToken}`, "content-type": "application/json", accept: "application/json, text/event-stream",
     "mcp-protocol-version": version, "mcp-method": method, ...(typeof params.name === "string" ? { "mcp-name": params.name } : {}), ...headers,
   }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: { _meta: meta, ...params } }) }),
-  { db, config: testOAuthConfig, cursorSecret: "fictional-modern-mcp-secret-at-least-32-characters" });
+  { db, config: testOAuthConfig, cursorSecret: "fictional-modern-mcp-secret-at-least-32-characters", ...(events ? { events } : {}) });
 }
 async function tool(name: string, args: Record<string, unknown>) {
   const response = await rpc("tools/call", { name, arguments: args });
@@ -85,4 +88,40 @@ it("権限不足の再認証案内・大きな入力・未知のmethodを区別�
   expect(await noCapabilities.json()).toMatchObject({ error: { code: -32602 } });
   expect((await rpc("server/discover", {}, { accept: "application/json;q=0, text/event-stream" })).status).toBe(406);
   expect((await rpc("server/discover", {}, { "content-type": "text/plain" })).status).toBe(415);
+});
+it("検証済み送信providerを渡した場合だけEventsを公開し、購読を本人のgrantで保存する", async () => {
+  expect(await (await rpc("server/discover")).json()).not.toMatchObject({ result: { capabilities: { events: {} } } });
+  expect((await rpc("events/list")).status).toBe(404);
+  events = { providerId: "fictional-test-provider", transport: { post: async (_url, request) => Response.json(JSON.parse(request.body) as unknown) } };
+  const access = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
+  expect(await (await rpc("server/discover", {}, {}, access)).json()).toMatchObject({ result: { capabilities: { events: {} } } });
+  const list = await rpc("events/list", {}, {}, access);
+  expect(await list.json()).toMatchObject({ result: { events: [{ name: "attention.ready", delivery: ["webhook"] }] } });
+  const params = { name: "attention.ready", delivery: { mode: "webhook", url: "https://receiver.example.com/events", secret: `whsec_${btoa("z".repeat(32))}` } };
+  const subscribed = await rpc("events/subscribe", params, {}, access);
+  expect(subscribed.status).toBe(200);
+  expect(await subscribed.json()).toMatchObject({ result: { resultType: "complete", id: expect.stringMatching(/^sub_/u), cursor: null, truncated: false } });
+  expect((await db.prepare("SELECT * FROM notification_event_subscriptions WHERE state='active'").all()).results).toHaveLength(1);
+  const delivery = { mode: params.delivery.mode, url: params.delivery.url };
+  expect((await rpc("events/unsubscribe", { name: params.name, delivery }, {}, access)).status).toBe(200);
+  expect((await db.prepare("SELECT * FROM notification_event_subscriptions WHERE state='active'").all()).results).toEqual([]);
+  expect((await db.prepare("SELECT * FROM integration_mcp_commit_leases").all()).results).toEqual([]);
+});
+it("Eventsのscope不足・callback失敗・header不一致を区別し、秘密をエラーへ返さない", async () => {
+  let calls = 0;
+  events = { providerId: "fictional-test-provider", transport: { post: async () => { calls++; return Response.json({ challenge: "wrong" }); } } };
+  const params = { name: "attention.ready", delivery: { mode: "webhook", url: "https://receiver.example.com/events?token=private-fixture", secret: `whsec_${btoa("z".repeat(32))}` } };
+  const denied = await rpc("events/subscribe", params);
+  expect(denied.status).toBe(403);
+  expect(denied.headers.get("www-authenticate")).toContain("events.subscribe");
+  expect(calls).toBe(0);
+  const access = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
+  const wrongHeader = await rpc("events/subscribe", params, { "mcp-name": "other.event" }, access);
+  expect(await wrongHeader.json()).toMatchObject({ error: { code: -32020 } });
+  expect(calls).toBe(0);
+  const failed = await rpc("events/subscribe", params, {}, access);
+  const body = await failed.text();
+  expect(JSON.parse(body)).toMatchObject({ error: { code: -32015, data: { reason: "challenge_failed" } } });
+  expect(body).not.toContain(params.delivery.secret);
+  expect(body).not.toContain("private-fixture");
 });

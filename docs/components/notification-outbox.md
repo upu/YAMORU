@@ -16,6 +16,8 @@ status: draft
 | 配信の一意性、lease世代、開始前の判定 | `src/lib/d1/notification-outbox.ts` |
 | 最新の時刻・設定の可否 | `src/lib/d1/notification-policy.ts`、[個人の通知](notifications.md) |
 | 受領・不明結果と履歴の同時保存 | `notification-outbox.ts` → `notification-deliveries.ts` |
+| 購読の本人境界・暗号化・解除競合 | `notifications/event-subscriptions.ts`、`src/lib/d1/notification-event-subscriptions.ts` |
+| callbackの宛先制限・署名 | `notifications/webhook-transport.ts`、`event-crypto.ts` |
 | 実ランタイムの検証 | `e2e/notification-scheduler.worker-e2e.ts`、`config/playwright.worker.config.ts` |
 
 家庭共有の日時は変更しない。接続元・本人・家庭・候補を照合し、events.subscribeとhousehold.readを要する。期限切れの送信処理は成功結果を上書きできない。unknownは自動再送せず、失敗の上限も新しい配信IDで回避しない。設定・休止の再評価ではretry_waitのbackoffを短縮しない。
@@ -24,6 +26,12 @@ status: draft
 
 `notification-outbox*.d1-test.ts`は並列・回復・競合・履歴との全取消・更新DB、`notification-scheduler.d1-test.ts`はcheckpoint継続と解除の入口。built WorkerのCronテストはローカルの実ハンドラーを通すが、previewの定期実行や実dotへの到達の証明ではない。
 
-現在は永続走査と送信管理の基盤である。MCP Eventsの公開、購読・callback検証・署名・実送信、定期取得のclaim/ack、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。
+0041は本人・家庭・接続の複合FKを持つ購読表だけを追加する。callback URLと署名鍵を所有者・client・購読IDに結び付けて暗号化し、解除・失効時には暗号文を消す。更新はrevisionで照合し、確認中の解除や遅い鍵更新で復活・上書きしない。詳細は[YDR-060](../decisions/ydr-060-event-subscription-boundary.md)。
+
+`notification-event-subscriptions*.d1-test.ts`は認可・上限・TTL・解除競合・鍵更新・中断・更新DBの互換性、`notification-event-crypto.test.ts`は別所有者への暗号文移動と署名移行、`notification-webhook-transport.test.ts`はDNS再検証・private混在・redirect拒否を確認する。
+
+現在は永続走査、送信管理と購読の基盤である。2026版のevents/list・subscribe・unsubscribeは明示的な送信providerの注入時だけ公開する。runtimeはproviderを設定しておらず、外部向けEventsは無効である。`createPinnedWebhookTransport`はDNS resolverと接続先IP・元hostのTLSを維持するconnectorを必須にし、通常のfetchで代用しない。テストの架空providerは実環境の証拠ではない。
+
+複数購読先への実送信と結果の永続化、定期取得のclaim/ack、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
 参照: [OpenNext custom worker](https://opennext.js.org/cloudflare/howtos/custom-worker)、[Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)、[MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。
