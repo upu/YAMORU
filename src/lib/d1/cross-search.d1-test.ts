@@ -76,7 +76,7 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
 
     expect(results.consumables).toEqual({
       hasMore: false,
-      items: [{ id: consumableId, name: "卵", stockStatus: "available" }],
+      items: [{ id: consumableId, name: "卵", stockStatus: "available", stockRevision: 1 }],
     });
     expect(results.managedItems).toEqual({
       hasMore: false,
@@ -255,7 +255,7 @@ describe("横断検索の取得 (Issue #349 / YDR-042)", () => {
 
     expect(results.consumables).toEqual({
       hasMore: false,
-      items: [{ id: ownConsumableId, name: "卵", stockStatus: "available" }],
+      items: [{ id: ownConsumableId, name: "卵", stockStatus: "available", stockRevision: 1 }],
     });
     expect(results.managedItems.items).toEqual([]);
     expect(results.todos.items).toEqual([]);

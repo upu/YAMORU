@@ -87,10 +87,12 @@ export function ConsumableDetailContent({
           <StockStatusControl
             consumableId={consumable.id}
             stockStatus={consumable.stockStatus}
+            stockRevision={consumable.stockRevision}
           >
             <ConsumableRefillControl
               consumableId={consumable.id}
               refills={consumable.refills}
+              stockRevision={consumable.stockRevision}
             />
           </StockStatusControl>
           <ConsumableRecord consumable={consumable} />

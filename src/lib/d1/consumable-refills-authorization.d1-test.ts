@@ -37,7 +37,7 @@ async function createFixture(): Promise<string> {
 }
 
 describe("Consumableの補充履歴と家庭間分離 (Issue #310)", () => {
-  it("補充ごとに履歴を追記し、在庫をあるへ戻して新しい順に共有する", async () => {
+  it("過去の補充を新しい順に共有し、後から確認した現在の在庫は巻き戻さない", async () => {
     const id = await createFixture();
     await updateConsumableStockStatus(db, householdAMember, id, "out");
 
@@ -55,7 +55,7 @@ describe("Consumableの補充履歴と家庭間分離 (Issue #310)", () => {
       id,
     );
 
-    expect(shared?.stockStatus).toBe("available");
+    expect(shared?.stockStatus).toBe("low");
     expect(shared?.refills.map(({ refilledOn }) => refilledOn))
       .toEqual(["2026-09-02", "2026-08-20"]);
     expect(shared?.refills).toEqual([

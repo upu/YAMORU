@@ -55,6 +55,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       productCode: "TP-12",
       refills: [],
       stockStatus: "available",
+      stockRevision: 1,
       taskRules: [],
     });
     await expect(listConsumables(db, householdBMember)).resolves.toEqual([]);
@@ -198,6 +199,7 @@ describe("Consumableの登録・関連・家庭間分離 (Issue #44)", () => {
       productCode: "FILTER-A",
       refills: [],
       stockStatus: "available",
+      stockRevision: 1,
       taskRules: [],
     });
   });

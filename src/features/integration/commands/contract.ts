@@ -8,6 +8,9 @@ export const COMMAND_NAMES = [
   "managed_item_with_todo.create",
   "notification.configure",
   "notification.snooze",
+  "stock.observe",
+  "stock.refill",
+  "stock.correct",
   "todo.complete",
   "todo.correct",
   "todo.create",
@@ -25,7 +28,7 @@ export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 export type CommandTarget = {
   id: string;
-  kind: "attention_candidate" | "completion_log" | "managed_item" | "notification_settings" | "todo_occurrence";
+  kind: "attention_candidate" | "completion_log" | "consumable" | "managed_item" | "notification_settings" | "todo_occurrence";
 };
 
 // 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。

@@ -13,7 +13,7 @@ export async function listPinnedConsumables(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   const { results } = await db.prepare(
-    `SELECT c.id, c.name, c.stock_status AS stockStatus
+    `SELECT c.id, c.name, c.stock_status AS stockStatus, c.stock_revision AS stockRevision
        FROM user_consumable_pins f
        JOIN consumables c
          ON c.id = f.consumable_id AND c.household_id = f.household_id

@@ -91,7 +91,7 @@ function operationOf(alias: string): string {
   return `io.household_id = ${alias}.household_id
       AND ${alias}.idempotency_key LIKE 'integration:%'
       AND (io.business_key = ${alias}.idempotency_key
-        OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer'))`;
+        OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer', io.business_key || ':current_observation'))`;
 }
 
 // 外部commandの接続元(client_id)を引くSQL式。Webからの記録はNULL。
