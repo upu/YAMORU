@@ -524,6 +524,41 @@ CREATE TABLE notification_delivery_marks (
   FOREIGN KEY(candidate_id,household_id) REFERENCES attention_candidates(id,household_id) ON DELETE CASCADE
 );
 
+-- table: notification_event_batches
+CREATE TABLE notification_event_batches (
+  delivery_id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  event_id TEXT NOT NULL UNIQUE,
+  body TEXT CHECK(body IS NULL OR (json_valid(body) AND length(CAST(body AS BLOB))<=262144)),
+  frozen_at TEXT NOT NULL, terminal_at TEXT,
+  FOREIGN KEY(delivery_id,household_id,user_id,connection_id)
+    REFERENCES notification_outbox(delivery_id,household_id,user_id,connection_id) ON DELETE CASCADE,
+  UNIQUE(delivery_id,household_id,user_id,connection_id)
+);
+
+-- table: notification_event_recipients
+CREATE TABLE notification_event_recipients (
+  delivery_id TEXT NOT NULL,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  subscription_id TEXT NOT NULL,
+  lifecycle TEXT NOT NULL CHECK(length(lifecycle)=32),
+  state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending','sending','retry_wait','accepted','unknown','failed','cancelled')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 8),
+  attempt_token TEXT,
+  next_attempt_at TEXT NOT NULL,
+  first_sent_at TEXT,
+  updated_at TEXT NOT NULL,
+  reason TEXT,
+  PRIMARY KEY(delivery_id,subscription_id),
+  FOREIGN KEY(delivery_id,household_id,user_id,connection_id)
+    REFERENCES notification_event_batches(delivery_id,household_id,user_id,connection_id) ON DELETE CASCADE,
+  CHECK((state='sending')=(attempt_token IS NOT NULL))
+);
+
 -- table: notification_event_subscriptions
 CREATE TABLE notification_event_subscriptions (
   id TEXT PRIMARY KEY,
@@ -543,7 +578,7 @@ CREATE TABLE notification_event_subscriptions (
   expires_at TEXT NOT NULL,
   stopped_at TEXT,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL, lifecycle TEXT NOT NULL DEFAULT '' CHECK(length(lifecycle) IN (0,32)),
   FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE,
   CHECK((state='active')=(encrypted_destination IS NOT NULL)),
   CHECK((state='active')=(stopped_at IS NULL)),
@@ -1083,6 +1118,10 @@ CREATE INDEX managed_item_type_suggestions_adopted_idx
 -- index: managed_items_household_id_idx
 CREATE INDEX managed_items_household_id_idx ON managed_items(household_id);
 
+-- index: notification_event_batches_retention_idx
+CREATE INDEX notification_event_batches_retention_idx ON notification_event_batches(terminal_at,delivery_id)
+  WHERE terminal_at IS NOT NULL AND body IS NOT NULL;
+
 -- index: notification_history_person_idx
 CREATE INDEX notification_history_person_idx ON notification_delivery_history(household_id,user_id,sequence DESC);
 
@@ -1275,6 +1314,18 @@ CREATE TRIGGER attention_update AFTER UPDATE OF payload ON attention_candidates 
  INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
 END;
 
+-- trigger: notification_event_batch_terminal_insert
+CREATE TRIGGER notification_event_batch_terminal_insert AFTER INSERT ON notification_event_batches BEGIN
+  UPDATE notification_event_batches SET terminal_at=(SELECT updated_at FROM notification_outbox o
+    WHERE o.delivery_id=NEW.delivery_id AND o.state IN ('accepted','reported','unknown','failed','cancelled','suppressed')) WHERE delivery_id=NEW.delivery_id;
+END;
+
+-- trigger: notification_event_batch_terminal_update
+CREATE TRIGGER notification_event_batch_terminal_update AFTER UPDATE OF state,updated_at ON notification_outbox BEGIN
+  UPDATE notification_event_batches SET terminal_at = CASE
+    WHEN NEW.state IN ('accepted','reported','unknown','failed','cancelled','suppressed') THEN NEW.updated_at ELSE NULL END WHERE delivery_id=NEW.delivery_id;
+END;
+
 -- trigger: notification_outbox_capture_source
 CREATE TRIGGER notification_outbox_capture_source AFTER INSERT ON notification_outbox BEGIN
   INSERT INTO notification_outbox_sources(delivery_id,household_id,user_id,connection_id,kind,entity_id,todo_rule_id,created_at,terminal_at)
@@ -1291,6 +1342,32 @@ CREATE TRIGGER notification_outbox_source_retention AFTER UPDATE OF state,update
   UPDATE notification_outbox_sources SET terminal_at = CASE
     WHEN NEW.state IN ('accepted','reported','unknown','failed','cancelled','suppressed') THEN NEW.updated_at ELSE NULL END
     WHERE delivery_id=NEW.delivery_id;
+END;
+
+-- trigger: notification_recipient_identity
+CREATE TRIGGER notification_recipient_identity BEFORE UPDATE OF delivery_id,household_id,user_id,connection_id,subscription_id,lifecycle ON notification_event_recipients
+WHEN NEW.delivery_id<>OLD.delivery_id OR NEW.household_id<>OLD.household_id OR NEW.user_id<>OLD.user_id OR NEW.connection_id<>OLD.connection_id
+  OR NEW.subscription_id<>OLD.subscription_id OR NEW.lifecycle<>OLD.lifecycle BEGIN
+  SELECT RAISE(ABORT,'recipient identity is immutable');
+END;
+
+-- trigger: notification_recipient_owner
+CREATE TRIGGER notification_recipient_owner BEFORE INSERT ON notification_event_recipients
+WHEN NOT EXISTS(SELECT 1 FROM notification_event_subscriptions s WHERE s.id=NEW.subscription_id
+    AND s.household_id=NEW.household_id AND s.user_id=NEW.user_id AND s.connection_id=NEW.connection_id AND s.lifecycle=NEW.lifecycle)
+BEGIN
+  SELECT RAISE(ABORT,'recipient owner mismatch');
+END;
+
+-- trigger: notification_subscription_lifecycle_insert
+CREATE TRIGGER notification_subscription_lifecycle_insert AFTER INSERT ON notification_event_subscriptions BEGIN
+  UPDATE notification_event_subscriptions SET lifecycle=lower(hex(randomblob(16))) WHERE id=NEW.id;
+END;
+
+-- trigger: notification_subscription_lifecycle_restart
+CREATE TRIGGER notification_subscription_lifecycle_restart AFTER UPDATE OF state,expires_at ON notification_event_subscriptions
+WHEN NEW.state='active' AND (OLD.state<>'active' OR OLD.expires_at<=strftime('%Y-%m-%dT%H:%M:%fZ','now')) BEGIN
+  UPDATE notification_event_subscriptions SET lifecycle=lower(hex(randomblob(16))) WHERE id=NEW.id;
 END;
 
 -- trigger: protect_deadline_from_completion_correction
