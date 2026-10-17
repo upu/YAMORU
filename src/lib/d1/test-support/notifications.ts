@@ -14,5 +14,7 @@ export async function notificationCandidate(db: D1Database) {
   const task = await createHouseholdAMaintenanceTask(db);
   const reader = createAttentionReader({ db, authorize: () => Promise.resolve(notificationPrincipal), now: () => notificationNow, cursorSecret: "notification-test-secret-with-32-bytes" });
   const response = await reader.attentionGet({});
-  return { ...task, candidate: response.candidates[0] };
+  const candidate = response.candidates.find((entry) => entry.kind === "todo_occurrence" && entry.entity_id === task.occurrenceId);
+  if (!candidate) throw new Error("Expected the created task's notification candidate");
+  return { ...task, candidate };
 }

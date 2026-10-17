@@ -9,6 +9,7 @@ import type { IntegrationPrincipal } from "../principal";
 import type { McpToolName } from "./catalog";
 import type { McpContext } from "./server";
 import { readIntegrationConnectionProfile } from "../../../lib/d1/integration-connection-profile";
+import { MCP_SUPPORTED_VERSIONS } from "./modern-request";
 export class McpAuthenticationError extends Error { constructor(readonly response: Response) { super("Authentication required"); } }
 async function authorize(context: McpContext): Promise<IntegrationPrincipal> {
   if (!context.config) throw new Error("MCP is disabled");
@@ -23,7 +24,7 @@ async function connection(context: McpContext, principal: IntegrationPrincipal) 
   return { schema_version: 1, request_id: crypto.randomUUID(), as_of: (context.now?.() ?? new Date()).toISOString(),
     connection_management_url: `${context.config.issuer}/settings/integrations`, user_id: principal.userId, household_id: principal.householdId, connection_id: principal.connectionId,
     client_id: principal.clientId, site_origin: context.config.issuer, ...row, scopes: [...principal.scopes], status: "active",
-    capabilities: { supported_commands: [...COMMAND_NAMES], events: false, notification_delivery: false, transport_protocols: ["2025-11-25"],
+    capabilities: { supported_commands: [...COMMAND_NAMES], events: Boolean(context.events), notification_delivery: false, transport_protocols: [...MCP_SUPPORTED_VERSIONS],
       unsupported_commands: ["todo.update", "todo.reschedule", "managed_item.update"].filter((name) => !(COMMAND_NAMES as readonly string[]).includes(name)) } };
 }
 export function createMcpToolService(context: McpContext) {

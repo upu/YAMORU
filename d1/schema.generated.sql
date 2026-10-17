@@ -524,6 +524,91 @@ CREATE TABLE notification_delivery_marks (
   FOREIGN KEY(candidate_id,household_id) REFERENCES attention_candidates(id,household_id) ON DELETE CASCADE
 );
 
+-- table: notification_event_subscriptions
+CREATE TABLE notification_event_subscriptions (
+  id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  event_name TEXT NOT NULL CHECK(event_name='attention.ready'),
+  filters TEXT NOT NULL CHECK(json_valid(filters) AND json_type(filters)='object' AND length(filters)<=24000),
+  callback_origin TEXT NOT NULL CHECK(length(callback_origin)<=300),
+  callback_hash TEXT NOT NULL CHECK(length(callback_hash)=64),
+  key_fingerprint TEXT CHECK(length(key_fingerprint)=64),
+  provider_id TEXT CHECK(length(provider_id) BETWEEN 1 AND 100),
+  encrypted_destination TEXT CHECK(encrypted_destination IS NULL OR (length(encrypted_destination) BETWEEN 1 AND 8192 AND substr(encrypted_destination,1,3)='v1.')),
+  state TEXT NOT NULL CHECK(state IN ('active','revoked','expired')),
+  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0),
+  verified_at TEXT,
+  expires_at TEXT NOT NULL,
+  stopped_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE,
+  CHECK((state='active')=(encrypted_destination IS NOT NULL)),
+  CHECK((state='active')=(stopped_at IS NULL)),
+  CHECK(state<>'active' OR (key_fingerprint IS NOT NULL AND provider_id IS NOT NULL AND verified_at IS NOT NULL AND expires_at>verified_at))
+);
+
+-- table: notification_outbox
+CREATE TABLE notification_outbox (
+  delivery_id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  candidate_id TEXT NOT NULL,
+  candidate_name TEXT NOT NULL,
+  state TEXT NOT NULL CHECK(state IN ('pending','leased','sending','retry_wait','accepted','reported','unknown','failed','cancelled','suppressed')),
+  next_attempt_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts BETWEEN 0 AND 8),
+  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0),
+  lease_token TEXT,
+  lease_expires_at TEXT,
+  first_sent_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  reason TEXT,
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE,
+  CHECK((lease_token IS NULL)=(lease_expires_at IS NULL)),
+  CHECK((state IN ('leased','sending'))=(lease_token IS NOT NULL))
+);
+
+-- table: notification_outbox_sources
+CREATE TABLE notification_outbox_sources (
+  delivery_id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('todo_occurrence','consumable')),
+  entity_id TEXT NOT NULL,
+  todo_rule_id TEXT,
+  created_at TEXT NOT NULL,
+  terminal_at TEXT,
+  FOREIGN KEY(delivery_id,household_id,user_id,connection_id)
+    REFERENCES notification_outbox(delivery_id,household_id,user_id,connection_id) ON DELETE CASCADE,
+  CHECK((kind='todo_occurrence')=(todo_rule_id IS NOT NULL))
+);
+
+-- table: notification_scheduler_progress
+CREATE TABLE notification_scheduler_progress (
+  connection_id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  source_epoch TEXT NOT NULL DEFAULT '',
+  source_version INTEGER NOT NULL DEFAULT -1,
+  source_day TEXT NOT NULL DEFAULT '',
+  source_after TEXT NOT NULL DEFAULT '',
+  candidate_after TEXT NOT NULL DEFAULT '',
+  outbox_after TEXT NOT NULL DEFAULT '',
+  next_run_at TEXT NOT NULL,
+  lease_token TEXT,
+  lease_expires_at TEXT,
+  last_success_at TEXT,
+  last_error TEXT CHECK(last_error IN ('conflict','unavailable')),
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE,
+  CHECK((lease_token IS NULL)=(lease_expires_at IS NULL))
+);
+
 -- table: notification_settings
 CREATE TABLE notification_settings (
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
@@ -1007,6 +1092,44 @@ CREATE INDEX notification_history_retention_idx ON notification_delivery_history
 -- index: notification_marks_candidate_idx
 CREATE INDEX notification_marks_candidate_idx ON notification_delivery_marks(household_id,user_id,connection_id,candidate_id,recorded_at);
 
+-- index: notification_outbox_active_candidate_idx
+CREATE UNIQUE INDEX notification_outbox_active_candidate_idx
+  ON notification_outbox(household_id,user_id,connection_id,candidate_id)
+  WHERE state IN ('pending','leased','sending','retry_wait','unknown','failed');
+
+-- index: notification_outbox_due_idx
+CREATE INDEX notification_outbox_due_idx ON notification_outbox(connection_id,state,next_attempt_at,delivery_id);
+
+-- index: notification_outbox_expired_idx
+CREATE INDEX notification_outbox_expired_idx ON notification_outbox(state,lease_expires_at);
+
+-- index: notification_outbox_owner_id_idx
+CREATE UNIQUE INDEX notification_outbox_owner_id_idx ON notification_outbox(delivery_id,household_id,user_id,connection_id);
+
+-- index: notification_outbox_redaction_idx
+CREATE INDEX notification_outbox_redaction_idx ON notification_outbox(updated_at,delivery_id) WHERE state IN ('unknown','failed') AND candidate_name<>'';
+
+-- index: notification_outbox_retention_idx
+CREATE INDEX notification_outbox_retention_idx ON notification_outbox(updated_at,delivery_id) WHERE state IN ('accepted','reported','cancelled','suppressed');
+
+-- index: notification_outbox_sources_retention_idx
+CREATE INDEX notification_outbox_sources_retention_idx ON notification_outbox_sources(terminal_at,delivery_id) WHERE terminal_at IS NOT NULL;
+
+-- index: notification_scheduler_due_idx
+CREATE INDEX notification_scheduler_due_idx ON notification_scheduler_progress(next_run_at,connection_id);
+
+-- index: notification_scheduler_household_idx
+CREATE INDEX notification_scheduler_household_idx ON notification_scheduler_progress(household_id);
+
+-- index: notification_subscriptions_owner_idx
+CREATE INDEX notification_subscriptions_owner_idx ON notification_event_subscriptions(connection_id,state,expires_at);
+
+-- index: notification_subscriptions_retention_idx
+CREATE INDEX notification_subscriptions_retention_idx ON notification_event_subscriptions(state,updated_at);
+
+-- index: notification_subscriptions_verification_idx
+CREATE INDEX notification_subscriptions_verification_idx ON notification_event_subscriptions(connection_id,callback_hash,key_fingerprint,provider_id,verified_at);
+
 -- index: oauth_authorization_codes_expires_idx
 CREATE INDEX oauth_authorization_codes_expires_idx
   ON oauth_authorization_codes(expires_at);
@@ -1150,6 +1273,24 @@ END;
 -- trigger: attention_update
 CREATE TRIGGER attention_update AFTER UPDATE OF payload ON attention_candidates WHEN OLD.payload<>NEW.payload BEGIN
  INSERT INTO attention_changes(household_id,candidate_id) VALUES(NEW.household_id,NEW.id);
+END;
+
+-- trigger: notification_outbox_capture_source
+CREATE TRIGGER notification_outbox_capture_source AFTER INSERT ON notification_outbox BEGIN
+  INSERT INTO notification_outbox_sources(delivery_id,household_id,user_id,connection_id,kind,entity_id,todo_rule_id,created_at,terminal_at)
+  SELECT NEW.delivery_id,NEW.household_id,NEW.user_id,NEW.connection_id,json_extract(c.payload,'$.kind'),json_extract(c.payload,'$.entity_id'),t.task_rule_id,NEW.created_at,
+    CASE WHEN NEW.state IN ('accepted','reported','unknown','failed','cancelled','suppressed') THEN NEW.updated_at ELSE NULL END
+  FROM attention_candidates c
+  LEFT JOIN task_occurrences t ON t.id=json_extract(c.payload,'$.entity_id') AND t.household_id=NEW.household_id AND json_extract(c.payload,'$.kind')='todo_occurrence'
+  LEFT JOIN consumables s ON s.id=json_extract(c.payload,'$.entity_id') AND s.household_id=NEW.household_id AND json_extract(c.payload,'$.kind')='consumable'
+  WHERE c.id=NEW.candidate_id AND c.household_id=NEW.household_id AND (t.id IS NOT NULL OR s.id IS NOT NULL);
+END;
+
+-- trigger: notification_outbox_source_retention
+CREATE TRIGGER notification_outbox_source_retention AFTER UPDATE OF state,updated_at ON notification_outbox BEGIN
+  UPDATE notification_outbox_sources SET terminal_at = CASE
+    WHEN NEW.state IN ('accepted','reported','unknown','failed','cancelled','suppressed') THEN NEW.updated_at ELSE NULL END
+    WHERE delivery_id=NEW.delivery_id;
 END;
 
 -- trigger: protect_deadline_from_completion_correction

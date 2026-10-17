@@ -17,6 +17,8 @@ status: stable
 | HTTP、Origin、本文上限、OAuth challenge | `mcp/http.ts`、環境取得は`runtime.ts` |
 | Tool名・説明・副作用、公開入力 | `catalog.ts`、`command-schemas.ts` |
 | 公開出力の形、SDK登録と一覧 | `output-schemas.ts`、`server.ts` |
+| 2026版の要求・HTTP header照合・発見 | `modern-request.ts`、`modern.ts` |
+| 版に共通のTool定義・権限説明・実行 | `server-tools.ts`、`instructions.ts` |
 | 共通読み取り・commandへの委譲 | `service.ts` |
 | 権限追加・期限切れの再認証案内 | `auth-challenge.ts` → 既存`oauth/bearer.ts` |
 | 回数制限・同時commit枠とbatchのfence | `src/lib/d1/integration-mcp-limits.ts`、`commands/service.ts`の`commitGuard` |
@@ -36,6 +38,8 @@ status: stable
 
 公式`@modelcontextprotocol/sdk` 1.32.1、Zod 4.6.7、Cloudflare向け`@cfworker/json-schema` 4.1.1を使う。Workerで動的コード生成をしないvalidatorを指定する。公式SDKの対応版は`2025-11-25`以前であり、ここで通し確認した版は`2025-11-25`。MCP Events 2.0 (`2026-07-28`)への対応をSDK採用から推定しない。Events・通知配信はまだcapabilitiesでfalseを返し、#442で実装・実証する。
 
+#442では`2026-07-28`の入口を明示的に追加する。initializeを使わない要求ごとにprotocolVersion・clientCapabilitiesとHTTPのMCP-Protocol-Version / Mcp-Method / Mcp-Nameを照合する。nameのBase64 sentinelも復号して比較し、不一致はHeaderMismatch、未知の版は対応版を案内する。Toolの一覧・説明・schema・実行・OAuth challengeを旧版と共有し、業務判定は複製しない。resultTypeとserverInfoを返すが、Eventsの購読や配信をそのことだけで対応済みにしない。
+
 `YAMORU_OAUTH_ALLOWED_CLIENT_IDS`が既定で空のため、MCPも既定で無効。設定は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
 
 回数制限と同時commit枠は[YDR-058](../decisions/ydr-058-mcp-request-budgets.md)とmigration `0039`で追加する。利用者の固定1分窓を全接続で共有し、read 60回・prepare/commit各20回、接続別の有効commit leaseは2件まで。429とRetry-Afterを返し、leaseを業務batch内のDB時刻でfenceする。期限切れのWorkerは書き込めず、古いreleaseは新しい枠へ作用しない。
@@ -49,6 +53,14 @@ status: stable
 `integration-mcp-limits.d1-test.ts`は並列の回数・同時commit枠と期限切れのfence、`integration-mcp-limits-migration.d1-test.ts`は更新DB・旧SQL・制約・cascadeの検証入口。全migrationを当てるD1テストと生成schema確認は空DBの検証も兼ねる。
 
 `e2e/mcp-integration.spec.ts`はローカル専用の架空clientで、ブラウザーのOAuth同意、実token endpoint、公式SDKの登録→取得→完了→次回確認、revocationを通す。通常のNext開発serverと、ビルド済みWorkerを対象に同じテストを使う。e2e envの架空clientはpreview/productionへ設定しない。
+
+`integration-mcp-modern.d1-test.ts`は2026版の発見・一覧・読み取り、header不一致・版の再選択・入力上限、共通操作と再送、権限不足の再認証案内を検証する。実HTTPのMCP E2EでもOAuth後の2026版要求を送り、旧SDKの経路と併存させる。
+
+Eventsの購読APIは同じ認証入口を使い、household.readとevents.subscribeを要する。subscribe/unsubscribeはcommitの回数・同時枠・DB時刻のfenceを共有する。callback失敗は静的な分類付きの-32015で返し、URLや秘密を応答へ載せない。runtimeに検証済みproviderがない間はEventsを公開しない。[通知outbox](notification-outbox.md)に購読と実送信の実装・未完了の境界を示す。
+
+server/discoverとconnection_getのEvents可否は、同じprovider設定を反映する。購読APIの対応と実配信は区別し、実送信の完成前はnotification_deliveryをfalseとする。
+
+Mcp-NameはTool・Resource・Prompt向けの標準ヘッダーであり、Events購読では必須にしない。EventsでもMcp-MethodとprotocolVersionは本文と照合する。[Streamable HTTPの標準ヘッダー](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)（2026-10-18確認）。
 
 ```sh
 npm test -- tests/integration-mcp-http.test.ts tests/auth-boundary.test.ts

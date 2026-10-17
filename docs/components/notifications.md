@@ -34,6 +34,8 @@ prepareでは書き込まず本人への差分を示し、commit時に設定・�
 
 この実装は配信を開始しない。画面にも準備中と表示する。MCP adapter・outbox・lease・定期実行・実接続検証を実装した後で表示を更新する。
 
+#442の永続outbox・lease・走査の入口は[通知outbox・定期走査](notification-outbox.md)へ追加している。実送信・購読と実dotでの確認は引き続き未完了であり、準備中の表示を維持する。
+
 - `evaluateNotification`は配信権の確保ではない。同じ本人・接続・候補・通知回をoutboxの一意制約とleaseで確保し、送信直前にも再判定する。
 - `deferred`は同じ配信IDを保ってpendingへ戻し、leaseを解放してnextAtを保存する。通知回数は増やさない。settings/control更新時に既存outboxの次回時刻を再計算する連携を#442で追加する。今の判定はキャッシュを使わず変更を即時に反映する。
 - `cancelled`/`suppressed`は試行を終了する。再有効化では未案内候補の新しい試行を作る。accepted/reportedは同じ配信の一回、unknownは自動再送しない。candidate revisionだけの変更は重複抑止を解除しない。

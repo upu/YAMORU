@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "worker.ts",
   "name": "yamoru",
   "compatibility_date": "2026-08-19",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -47,6 +47,7 @@
     },
     "preview": {
       "name": "yamoru-preview",
+      "triggers": { "crons": ["*/5 * * * *"] },
       "vars": {
         "NEXTJS_ENV": "production",
         "YAMORU_ENVIRONMENT": "preview"
@@ -74,6 +75,7 @@
     },
     "production": {
       "name": "yamoru-production",
+      "triggers": { "crons": ["*/5 * * * *"] },
       "vars": {
         "NEXTJS_ENV": "production",
         "YAMORU_ENVIRONMENT": "production"

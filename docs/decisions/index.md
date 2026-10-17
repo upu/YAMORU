@@ -70,6 +70,9 @@
 | YDR-056 | 個人の通知設定と配信判定を共有予定から分離する | Accepted | [ydr-056-personal-notification-policy.md](ydr-056-personal-notification-policy.md) |
 | YDR-057 | 在庫の観測と補充を分け、訂正を追記する | Accepted | [ydr-057-stock-observation-and-refill-history.md](ydr-057-stock-observation-and-refill-history.md) |
 | YDR-058 | MCPの回数制限と同時実行枠をD1で共有する | Accepted | [ydr-058-mcp-request-budgets.md](ydr-058-mcp-request-budgets.md) |
+| YDR-059 | 通知outboxと走査の進捗をD1に永続化する | Accepted | [ydr-059-durable-notification-outbox.md](ydr-059-durable-notification-outbox.md) |
+| YDR-060 | 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する | Accepted | [ydr-060-event-subscription-boundary.md](ydr-060-event-subscription-boundary.md) |
+| YDR-061 | 通知時の元対象を保持し、詳細と再送防止の保存期限を分ける | Accepted | [ydr-061-notification-source-and-retention.md](ydr-061-notification-source-and-retention.md) |
 
 ## 新しい意思決定の追加
 
