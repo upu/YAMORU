@@ -79,6 +79,9 @@ CREATE TABLE oauth_authorization_codes (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
+  -- 消費済みのcodeが再び提示された時刻。これがあるcodeからは接続を作らない
+  -- (同時に交換された場合に、後から接続が作られるのも防ぐ)。
+  replayed_at TEXT,
   connection_id TEXT REFERENCES oauth_connections(id) ON DELETE CASCADE,
   CHECK (code_challenge_method = 'S256'),
   CHECK (length(code_challenge) BETWEEN 43 AND 128),

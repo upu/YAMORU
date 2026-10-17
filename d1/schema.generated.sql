@@ -279,6 +279,9 @@ CREATE TABLE oauth_authorization_codes (
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
+
+
+  replayed_at TEXT,
   connection_id TEXT REFERENCES oauth_connections(id) ON DELETE CASCADE,
   CHECK (code_challenge_method = 'S256'),
   CHECK (length(code_challenge) BETWEEN 43 AND 128),

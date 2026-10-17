@@ -10,6 +10,7 @@ import OAuth2Server from "@node-oauth/oauth2-server";
 import {
   consumeAuthorizationCode,
   findAuthorizationCode,
+  markAuthorizationCodeReplayed,
   saveAuthorizationCode,
 } from "../../../lib/d1/oauth-authorization-codes";
 import { getOAuthClient } from "../../../lib/d1/oauth-clients";
@@ -101,6 +102,11 @@ function clientModel({ config, db }: OAuthModelDependencies) {
   };
 }
 
+async function revokeReplayedCode(db: D1Database, codeHash: string, at: string): Promise<void> {
+  const connectionId = await markAuthorizationCodeReplayed(db, codeHash, at);
+  if (connectionId !== null) await revokeConnection(db, connectionId, "token_reuse_detected", at);
+}
+
 function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthModelDependencies) {
   return {
     async saveAuthorizationCode(
@@ -134,9 +140,7 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
       if (code.consumedAt !== null) {
         // 一回限りのcodeが再提示された。漏えいの可能性があるため、そのcodeで
         // 作られた接続を失効させる(OAuth 2.1 4.1.3)。
-        if (code.connectionId !== null) {
-          await revokeConnection(db, code.connectionId, "token_reuse_detected", now().toISOString());
-        }
+        await revokeReplayedCode(db, codeHash, now().toISOString());
         return false;
       }
       return {
@@ -157,7 +161,12 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
     },
 
     async revokeAuthorizationCode(code: OAuth2Server.AuthorizationCode) {
-      return consumeAuthorizationCode(db, await hashSecret(code.authorizationCode), now().toISOString());
+      const codeHash = await hashSecret(code.authorizationCode);
+      if (await consumeAuthorizationCode(db, codeHash, now().toISOString())) return true;
+      // 同じcodeで同時に交換され、もう一方が先に消費した。どちらが正規の利用者か
+      // 区別できないため、再提示と同じく扱い、勝った側の接続も作らせない。
+      await revokeReplayedCode(db, codeHash, now().toISOString());
+      return false;
     },
   };
 }

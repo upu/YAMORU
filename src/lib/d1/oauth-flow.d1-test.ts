@@ -105,6 +105,30 @@ describe("authorization code + PKCE", () => {
     expect(await verifyAccessToken({ config, db }, first.access_token, [])).toEqual({ error: "invalid_token", ok: false });
   });
 
+  it("同じcodeの交換が競合し、消費に負けた側が先に記録したら、勝った側の接続も作らない", async () => {
+    const { redirectUrl } = await consent(db, memberA);
+    const code = redirectUrl.searchParams.get("code") ?? "";
+    const model = createOAuthModel({ config, db });
+    // 2つの要求がどちらも消費前の状態を読んだ後に、順に消費を試みる。
+    const winner = await model.getAuthorizationCode(code);
+    const loser = await model.getAuthorizationCode(code);
+    if (winner === false || loser === false) throw new Error("codeを読めません");
+    expect(await model.revokeAuthorizationCode(winner)).toBe(true);
+    expect(await model.revokeAuthorizationCode(loser)).toBe(false);
+    const now = Date.now();
+    await expect(model.saveToken({
+      accessToken: "ymr_at_race",
+      accessTokenExpiresAt: new Date(now + 3600_000),
+      authorizationCode: code,
+      client: winner.client,
+      refreshToken: "ymr_rt_race",
+      refreshTokenExpiresAt: new Date(now + 7200_000),
+      scope: winner.scope,
+      user: winner.user,
+    }, { ...winner.client, clientName: "Example Assistant" }, winner.user)).rejects.toThrow("connection is no longer valid");
+    expect(await connectionRow()).toBeNull();
+  });
+
   it("code_verifierが一致しなければtokenを発行しない", async () => {
     const consentResult = await consent(db, memberA);
     const response = await exchangeCode(db, consentResult, { verifier: oauth.generateRandomCodeVerifier() });

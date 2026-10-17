@@ -116,3 +116,24 @@ export async function consumeAuthorizationCode(
   ).bind(codeHash, now).run();
   return result.meta.changes === 1;
 }
+
+// 消費済みのcodeが再び提示された(または同時の交換で消費に負けた)ことを記録し、
+// そのcodeから作られた接続があればIDを返す。記録とIDの読み取りを同じbatchで
+// 行うため、交換の勝者が接続を作るのはこの記録より前(IDが返る)か、後
+// (createConnectionFromCodeがreplayed_atを見て作らない)のどちらかになる。
+export async function markAuthorizationCodeReplayed(
+  db: D1Database,
+  codeHash: string,
+  now: string,
+): Promise<string | null> {
+  const [, selected] = await db.batch([
+    db.prepare(
+      "UPDATE oauth_authorization_codes SET replayed_at = ?2 WHERE code_hash = ?1 AND replayed_at IS NULL",
+    ).bind(codeHash, now),
+    db.prepare("SELECT connection_id FROM oauth_authorization_codes WHERE code_hash = ?1").bind(codeHash),
+  ]);
+  const row = (selected.results as { connection_id: string | null }[])[0] as
+    | { connection_id: string | null }
+    | undefined;
+  return row?.connection_id ?? null;
+}

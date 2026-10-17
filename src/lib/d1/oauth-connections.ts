@@ -81,6 +81,7 @@ export async function createConnectionFromCode(
           AND EXISTS (
           SELECT 1 FROM oauth_authorization_codes
            WHERE code_hash = ?11 AND consumed_at IS NOT NULL AND connection_id IS NULL
+             AND replayed_at IS NULL
              AND household_id = ?2 AND user_id = ?3 AND client_id = ?4
         )`,
     ).bind(
