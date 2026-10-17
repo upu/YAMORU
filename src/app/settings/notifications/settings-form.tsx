@@ -5,7 +5,7 @@ import { saveNotificationAction } from "./actions";
 import { INITIAL_NOTIFICATION_STATE } from "./state";
 import styles from "./notifications.module.css";
 
-type Props = { settings: NotificationSettings; revision: number; connections: { id: string; name: string }[]; nextAt: string };
+type Props = { settings: NotificationSettings; revision: number; connections: { id: string; name: string }[]; nextAt: string | null };
 function TimeFields({ settings: s }: { settings: NotificationSettings }) {
   const zones = [...new Set([s.timeZone, "Asia/Tokyo", "UTC", ...Intl.supportedValuesOf("timeZone")])];
   return <fieldset className={styles.fields}><legend>知らせる時間</legend>
@@ -38,7 +38,8 @@ export function NotificationSettingsForm({ settings: s, revision, connections, n
     {!connections.length ? <p>通知の受け取りを許可した連携先がありません。外部サービスから連携し、通知の受け取りを許可してください。</p> : null}
     <label><input type="checkbox" name="muted" defaultChecked={s.muted} /> 自分への通知をすべて休止する</label>
     <TimeFields settings={s} /><RepeatFields settings={s} />
-    <p>保存済みの時間設定で、今から発生する候補を知らせられる最初の時刻：<time dateTime={nextAt}>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: s.timeZone }).format(new Date(nextAt))}（{s.timeZone}）</time></p>
+    {nextAt ? <p>保存済みの時間設定で、今から発生する候補を知らせられる最初の時刻：<time dateTime={nextAt}>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: s.timeZone }).format(new Date(nextAt))}（{s.timeZone}）</time></p>
+      : <p>現在は通知を受け取れません。通知の有効化・休止・通知先を確認してください。</p>}
     <p>これは配信可能な時刻の目安です。通知の有効・休止設定、候補の状態、接続先によって変わります。</p>
     <button type="submit" disabled={pending}>{pending ? "保存中…" : "通知設定を保存"}</button>
     {state.message ? <p role={state.status === "error" ? "alert" : "status"}>{state.message}</p> : null}

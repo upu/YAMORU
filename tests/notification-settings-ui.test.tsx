@@ -23,3 +23,8 @@ it("受領と案内報告を既読にせず、不明なら重複再送を避け�
   expect(screen.getByText(/利用者が読んだことを示すものではありません/)).toBeInTheDocument();
   expect(screen.getByText(/重複するおそれがあるため自動再送/)).toBeInTheDocument();
 });
+it("通知できる時刻がないときは時刻の代わりに設定の確認を案内する", () => {
+  const { container } = render(<NotificationSettingsForm settings={DEFAULT_SETTINGS} revision={0} connections={[]} nextAt={null} />);
+  expect(container.querySelector("time")).toBeNull();
+  expect(screen.getByText(/現在は通知を受け取れません/)).toBeInTheDocument();
+});

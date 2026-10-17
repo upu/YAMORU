@@ -4,7 +4,7 @@ import { ReadError } from "../read-contract";
 import { isConnectionActive } from "../../../lib/d1/oauth-connections";
 import { getNotificationSettings, usableNotificationConnection } from "../../../lib/d1/notification-settings";
 import { listDeliveries } from "../../../lib/d1/notification-deliveries";
-import { nextNotificationTime } from "./schedule";
+import { nextAllowedNotificationTime } from "./schedule";
 import { deliveryToWire, settingsToWire } from "./wire";
 
 type Dependencies = { db: D1Database; authorize: () => Promise<IntegrationPrincipal>; cursorSecret: string; now?: () => Date };
@@ -28,7 +28,7 @@ export function createNotificationReader(deps: Dependencies) {
       await authorized(deps, now);
       return { schema_version: 1, request_id: crypto.randomUUID(), as_of: now.toISOString(),
         settings: settingsToWire(result.settings), revision: result.revision, updated_at: result.updatedAt,
-        next_allowed_at: result.settings.enabled && !result.settings.muted && active ? nextNotificationTime(result.settings, now, now) : null };
+        next_allowed_at: nextAllowedNotificationTime(result.settings, active, now) };
     },
     async deliveryList(input: { cursor?: string; limit?: number } = {}) {
       const now = deps.now?.() ?? new Date();

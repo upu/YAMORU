@@ -10,11 +10,13 @@ test("個人の通知設定を保存し、候補の休止と解除で共有予�
   await page.getByRole("link", { name: "通知設定と配信履歴" }).click();
   await expect(page.getByRole("heading", { name: "あなたの通知設定" })).toBeVisible();
   await expect(page.getByLabel("通知を有効にする")).not.toBeChecked();
+  await expect(page.getByText(/現在は通知を受け取れません/)).toBeVisible();
   await page.getByLabel("まとめる時刻").fill("10:30");
   await page.getByRole("button", { name: "通知設定を保存" }).click();
   await expect(page.getByRole("status").filter({ hasText: "通知設定を保存しました" })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("まとめる時刻")).toHaveValue("10:30");
+  await expect(page.getByText(/現在は通知を受け取れません/)).toBeVisible();
   await page.getByRole("button", { name: "明日のまとめ時刻まで休む" }).click();
   await expect(page.getByText(/まで通知を休止$/)).toBeVisible();
   await page.getByRole("button", { name: "休止を解除", exact: true }).click();

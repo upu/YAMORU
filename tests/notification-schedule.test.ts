@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/features/integration/notifications/contract";
-import { nextNotificationTime, localNotificationTime } from "../src/features/integration/notifications/schedule";
+import { nextAllowedNotificationTime, nextNotificationTime, localNotificationTime } from "../src/features/integration/notifications/schedule";
 
 const at = (value: string) => new Date(value);
 describe("本人の通知時刻", () => {
+  it.each([
+    { enabled: false, muted: false, active: true, expected: null },
+    { enabled: true, muted: true, active: true, expected: null },
+    { enabled: true, muted: false, active: false, expected: null },
+    { enabled: true, muted: false, active: true, expected: "2026-10-17T00:00:00.000Z" },
+  ])("通知の有効性・休止・接続を反映した次回時刻を返す(%j)", ({ enabled, muted, active, expected }) => {
+    expect(nextAllowedNotificationTime({ ...DEFAULT_SETTINGS, enabled, muted, connectionId: "a" }, active, at("2026-10-16T23:00:00Z"))).toBe(expected);
+  });
   it("初期値は無効・朝9時・夜間休止・再通知なし", () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ enabled: false, timeZone: "Asia/Tokyo", digestTime: "09:00", mode: "daily", quietStart: "22:00", quietEnd: "08:00", repeatHighHours: null, repeatNormalHours: null });
   });

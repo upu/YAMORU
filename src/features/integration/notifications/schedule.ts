@@ -36,6 +36,9 @@ export function nextNotificationTime(settings: NotificationSettings, now: Date, 
   const slot = digestSlot(settings, dueSince);
   return quietHoursEnd(settings, slot > now ? slot : now).toISOString();
 }
+export function nextAllowedNotificationTime(settings: NotificationSettings, connectionActive: boolean, now: Date): string | null {
+  return settings.enabled && !settings.muted && connectionActive ? nextNotificationTime(settings, now, now) : null;
+}
 export function tomorrowNotificationTime(settings: NotificationSettings, now: Date): string {
   const date = local(now, settings.timeZone).toPlainDate().add({ days: 1 });
   return localNotificationTime(date.toString(), settings.digestTime, settings.timeZone);

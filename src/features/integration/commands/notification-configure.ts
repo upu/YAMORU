@@ -1,6 +1,6 @@
 import { getNotificationSettings, notificationSettingsStatement, usableNotificationConnection } from "../../../lib/d1/notification-settings";
 import { parseSettings, NotificationError } from "../notifications/contract";
-import { nextNotificationTime } from "../notifications/schedule";
+import { nextAllowedNotificationTime } from "../notifications/schedule";
 import { settingsToWire } from "../notifications/wire";
 import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
 import type { CommandContext, CommandHandler, CommandPlan } from "./handler";
@@ -31,9 +31,10 @@ async function plan(context: CommandContext, normalized: NormalizedCommand): Pro
   const current = await getNotificationSettings(context.db, { userId: context.userId }, context.householdId);
   if (current.revision !== normalized.payload.settings_revision) throw new CommandError("stale_preview");
   const settings = updatedSettings(current, normalized.payload);
-  if (settings.enabled && (!settings.connectionId || !await usableNotificationConnection(context.db, context, settings.connectionId, context.now))) throw invalidInput("connection_id", "notification_connection_unavailable");
+  const active = settings.connectionId !== null && await usableNotificationConnection(context.db, context, settings.connectionId, context.now);
+  if (settings.enabled && !active) throw invalidInput("connection_id", "notification_connection_unavailable");
   const reference = new Date(String(normalized.payload.reference_at));
-  const nextAt = nextNotificationTime(settings, reference, reference);
+  const nextAt = nextAllowedNotificationTime(settings, active, reference);
   return {
     preview: { affected_entities: [{ kind: "notification_settings", id: context.userId }], diff: { before: settingsToWire(current.settings), after: settingsToWire(settings), settings_revision: current.revision }, schedule_effect: { shared_schedule_changed: false, next_allowed_at: nextAt } },
     build: ({ businessKey, recordedAt }) => ({

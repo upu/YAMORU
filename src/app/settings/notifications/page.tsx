@@ -7,7 +7,7 @@ import { getCandidateControl, getNotificationSettings, notificationOwner, usable
 import { listConnectionsForUser } from "../../../lib/d1/oauth-connection-list";
 import { listDeliveries } from "../../../lib/d1/notification-deliveries";
 import { createAttentionReader } from "../../../features/integration/attention/service";
-import { nextNotificationTime } from "../../../features/integration/notifications/schedule";
+import { nextAllowedNotificationTime } from "../../../features/integration/notifications/schedule";
 import { NotificationSettingsForm } from "./settings-form";
 import { CandidateControls } from "./candidate-controls";
 import { DeliveryHistoryList } from "./delivery-history";
@@ -31,7 +31,8 @@ async function load(query: Query) {
   const candidates = await reader.attentionGet({ cursor: query.candidates, limit: 20 });
   const rows = await Promise.all(candidates.candidates.map(async (c) => ({ ...c, control: await getCandidateControl(db, owner, c.candidate_id) })));
   const history = await listDeliveries(db, session, { before: query.before ? Number(query.before) : undefined }, now);
-  return { saved, connections, candidates, rows, history, nextAt: nextNotificationTime(saved.settings, now, now) };
+  const active = connections.some((c) => c.id === saved.settings.connectionId);
+  return { saved, connections, candidates, rows, history, nextAt: nextAllowedNotificationTime(saved.settings, active, now) };
 }
 export default async function NotificationSettingsPage({ searchParams }: { searchParams: Promise<Query> }) {
   const query = await searchParams;

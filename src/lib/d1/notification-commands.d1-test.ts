@@ -19,6 +19,7 @@ it("通知権限だけでprepare/commitでき、同じIDの再送は同じ結果
   const preview = await service.prepare(principal, input);
   expect((await getNotificationSettings(db, householdAMember)).revision).toBe(0);
   const first = await service.commit(principal, commitInput(preview));
+  expect(first.result.next_allowed_at).toBe("2026-10-17T01:00:00.000Z");
   expect(preview.diff.after).toMatchObject({ connection_id: "connection-a", digest_time: "10:00", time_zone: "Asia/Tokyo" });
   expect(first.result.settings).not.toHaveProperty("connectionId");
   expect(first).toMatchObject({ status: "succeeded", result: { settings_revision: 1, shared_schedule_changed: false } });
@@ -32,6 +33,12 @@ it("attentionの再取得前に元の内容が変わった候補のrevisionを�
   await expect(service.prepare(principal, { operation_id: crypto.randomUUID(), command: "notification.snooze", payload: {
     candidate_id: candidate.candidate_id, candidate_revision: candidate.revision, until: "2026-10-18T00:00:00.000Z",
   } })).rejects.toMatchObject({ code: "stale_preview" });
+});
+it.each([{ enabled: false, connection_id: null }, { enabled: false }, { muted: true }])("無効・休止中はpreviewと結果に次回通知時刻を返さない(%j)", async (patch) => {
+  const preview = await service.prepare(principal, request(patch));
+  expect(preview.schedule_effect.next_allowed_at).toBeNull();
+  const committed = await service.commit(principal, commitInput(preview));
+  expect(committed.result.next_allowed_at).toBeNull();
 });
 it("設定の競合、権限不足、解除と期限切れを拒否し、設定を部分保存しない", async () => {
   await expect(service.prepare({ ...principal, scopes: ["household.read", "household.write"] }, request())).rejects.toMatchObject({ code: "insufficient_scope" });
