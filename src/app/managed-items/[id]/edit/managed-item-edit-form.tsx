@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
+import type { Tag } from "../../../../lib/d1/tags";
 import { updateManagedItem } from "../../actions";
 import {
   ManagedItemClassificationFields,
@@ -12,6 +13,7 @@ import {
 import type { ManagedItemClassificationOptions } from "../../model";
 import { ManagedItemOptionalAttributeFields } from "../../optional-attribute-fields";
 import { INITIAL_MANAGED_ITEM_STATE } from "../../state";
+import { ManagedItemTagFields } from "../../tag-fields";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -37,6 +39,8 @@ type ManagedItemEditFieldValues = {
   note: string | null;
   productInfo: string | null;
   startedOn: string | null;
+  // Issue #226: 保存済みのタグ。チェック済みの初期値になる。
+  tagIds?: string[];
 };
 
 function ManagedItemNameField({ name }: { name: string }) {
@@ -97,10 +101,13 @@ function ManagedItemEditFields({
   nowIso,
   productInfo,
   startedOn,
+  tagIds,
+  tagOptions,
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
   customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
   nowIso?: string;
+  tagOptions: Tag[];
 }) {
   // Issue #239: 開始時期の見出し語(「購入時期」など)を選択中の大分類に
   // 合わせて切り替えるため、大分類の状態をこのフォームへ持ち上げる(YDR-033)。
@@ -118,6 +125,12 @@ function ManagedItemEditFields({
         initialItemTypeCode={itemTypeCode}
         kindCode={currentKindCode}
         onKindCodeChange={setCurrentKindCode}
+      />
+
+      <ManagedItemTagFields
+        idPrefix="managed-item-edit"
+        selectedTagIds={tagIds}
+        tagOptions={tagOptions}
       />
 
       <ManagedItemExternalUrlField externalUrl={externalUrl} />
@@ -142,12 +155,14 @@ export function ManagedItemEditForm({
   customItemTypeOptions,
   id,
   nowIso,
+  tagOptions = [],
   ...values
 }: ManagedItemEditFieldValues & {
   classificationOptions: ManagedItemClassificationOptions;
   customItemTypeOptions?: ManagedItemCustomTypeSuggestion[];
   id: string;
   nowIso?: string;
+  tagOptions?: Tag[];
 }) {
   const [state, formAction] = useActionState(
     updateManagedItem,
@@ -161,6 +176,7 @@ export function ManagedItemEditForm({
         classificationOptions={classificationOptions}
         customItemTypeOptions={customItemTypeOptions}
         nowIso={nowIso}
+        tagOptions={tagOptions}
         {...values}
       />
       <div className="nickname-edit-actions">

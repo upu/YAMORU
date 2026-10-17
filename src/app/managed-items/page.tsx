@@ -10,6 +10,7 @@ import {
   type ManagedItemClassificationOptions,
   type ManagedItemCustomTypeOption,
 } from "../../lib/d1/managed-items";
+import { listManagedItemTagsByItem, type Tag } from "../../lib/d1/tags";
 import { FloatingAddButton } from "../floating-add-button";
 import {
   ledgerCategoryLabel,
@@ -26,12 +27,15 @@ import type { ManagedItemTypeGroup } from "./item-type-picker";
 import { ManagedItemsSearchForm } from "./managed-items-search-form";
 import { normalizeItemTypeText } from "./model";
 import { buildManagedItemsHref } from "./search-href";
+import { TagBadges } from "./tag-badges";
 
 export type ManagedItemSummary = {
   id: string;
   itemTypeLabel: string | null;
   kindLabel: string;
   name: string;
+  // Issue #226: 付与済みタグ。省略はタグなしと同じ。
+  tags?: Tag[];
 };
 
 type HouseholdSummary = { id: string; name: string };
@@ -218,6 +222,7 @@ function ManagedItemsList({ items }: { items: ManagedItemSummary[] }) {
             itemTypeLabel={item.itemTypeLabel}
             kindLabel={item.kindLabel}
           />
+          <TagBadges tags={item.tags ?? []} />
         </li>
       ))}
     </ul>
@@ -370,10 +375,11 @@ export default async function ManagedItemsPage({
     return <ManagedItemsContent household={null} items={[]} />;
   }
 
-  const [items, classificationOptions, customItemTypeOptions] = await Promise.all([
+  const [items, classificationOptions, customItemTypeOptions, tagsByItem] = await Promise.all([
     listManagedItems(db, session, { customItemType, itemTypeCode, kindCode: kind, search: q }),
     listManagedItemClassificationOptions(db),
     listHouseholdCustomItemTypes(db, session),
+    listManagedItemTagsByItem(db, session),
   ]);
 
   return (
@@ -384,7 +390,7 @@ export default async function ManagedItemsPage({
       household={household}
       itemTypeCode={itemTypeCode}
       itemTypeRaw={itemTypeRaw}
-      items={items}
+      items={items.map((item) => ({ ...item, tags: tagsByItem.get(item.id) ?? [] }))}
       kind={kind}
       q={q}
     />

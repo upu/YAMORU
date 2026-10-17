@@ -38,6 +38,8 @@ export async function clearDatabase(db: D1Database): Promise<void> {
   await retryD1Busy("clear", () =>
     db.batch([
       db.prepare("DELETE FROM managed_item_type_suggestions"),
+      db.prepare("DELETE FROM managed_item_tags"),
+      db.prepare("DELETE FROM tags"),
       db.prepare("DELETE FROM task_rule_consumables"),
       db.prepare("DELETE FROM managed_item_consumables"),
       db.prepare("DELETE FROM consumables"),

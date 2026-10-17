@@ -184,6 +184,19 @@ CREATE TABLE managed_item_kinds (
   CHECK (legacy_kind IN ('pet_supplies', 'appliance', 'housing_equipment', 'contract', 'other'))
 );
 
+-- table: managed_item_tags
+CREATE TABLE managed_item_tags (
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  managed_item_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (managed_item_id, tag_id),
+  FOREIGN KEY (managed_item_id, household_id)
+    REFERENCES managed_items(id, household_id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id, household_id)
+    REFERENCES tags(id, household_id) ON DELETE CASCADE
+);
+
 -- table: managed_item_type_presets
 CREATE TABLE managed_item_type_presets (
   code TEXT PRIMARY KEY,
@@ -259,6 +272,17 @@ CREATE TABLE profiles (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   CHECK (nickname = trim(nickname) AND length(nickname) BETWEEN 1 AND 20)
+);
+
+-- table: tags
+CREATE TABLE tags (
+  id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  name TEXT NOT NULL COLLATE NOCASE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (id, household_id),
+  UNIQUE (household_id, name),
+  CHECK (name = trim(name) AND length(name) BETWEEN 1 AND 30)
 );
 
 -- table: task_occurrences
@@ -535,6 +559,10 @@ CREATE INDEX managed_item_consumables_consumable_id_idx
 -- index: managed_item_consumables_household_id_idx
 CREATE INDEX managed_item_consumables_household_id_idx
   ON managed_item_consumables(household_id);
+
+-- index: managed_item_tags_household_tag_idx
+CREATE INDEX managed_item_tags_household_tag_idx
+  ON managed_item_tags(household_id, tag_id);
 
 -- index: managed_item_type_suggestions_adopted_idx
 CREATE INDEX managed_item_type_suggestions_adopted_idx

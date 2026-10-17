@@ -8,6 +8,7 @@ import {
   listManagedItemClassificationOptions,
   type ManagedItemCustomTypeOption,
 } from "../../../lib/d1/managed-items";
+import { listHouseholdTags, type Tag } from "../../../lib/d1/tags";
 import { ManagedItemForm } from "../managed-item-form";
 import type { ManagedItemClassificationOptions } from "../model";
 
@@ -18,11 +19,13 @@ export function ManagedItemRegistrationContent({
   customItemTypeOptions,
   household,
   nowIso,
+  tagOptions,
 }: {
   classificationOptions: ManagedItemClassificationOptions;
   customItemTypeOptions?: ManagedItemCustomTypeOption[];
   household: HouseholdSummary | null;
   nowIso?: string;
+  tagOptions?: Tag[];
 }) {
   return (
     <main className="page-form ledger-page">
@@ -53,6 +56,7 @@ export function ManagedItemRegistrationContent({
             classificationOptions={classificationOptions}
             customItemTypeOptions={customItemTypeOptions}
             nowIso={nowIso}
+            tagOptions={tagOptions}
           />
         </section>
       )}
@@ -68,14 +72,17 @@ export default async function ManagedItemRegistrationPage() {
   ).household;
   // Issue #288: 自由入力の詳しい種類の候補は家庭専用データなので、家庭に
   // 所属していない利用者では取得しない(台帳一覧と同じ扱い)。
-  const [classificationOptions, customItemTypeOptions]: [
+  // Issue #226: タグの選択肢も家庭専用データなので同じ扱いにする。
+  const [classificationOptions, customItemTypeOptions, tagOptions]: [
     ManagedItemClassificationOptions,
     ManagedItemCustomTypeOption[],
+    Tag[],
   ] = household === null
-    ? [{ itemTypes: [], kinds: [] }, []]
+    ? [{ itemTypes: [], kinds: [] }, [], []]
     : await Promise.all([
       listManagedItemClassificationOptions(db),
       listHouseholdCustomItemTypes(db, session),
+      listHouseholdTags(db, session),
     ]);
 
   return (
@@ -84,6 +91,7 @@ export default async function ManagedItemRegistrationPage() {
       customItemTypeOptions={customItemTypeOptions}
       household={household}
       nowIso={new Date().toISOString()}
+      tagOptions={tagOptions}
     />
   );
 }

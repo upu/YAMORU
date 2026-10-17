@@ -8,6 +8,7 @@ const {
   getD1ContextMock,
   listHouseholdCustomItemTypesMock,
   listManagedItemClassificationOptionsMock,
+  listManagedItemTagsByItemMock,
   listManagedItemsMock,
   loadAccountStateMock,
   requireUserMock,
@@ -16,6 +17,7 @@ const {
   getD1ContextMock: vi.fn(),
   listHouseholdCustomItemTypesMock: vi.fn(),
   listManagedItemClassificationOptionsMock: vi.fn(),
+  listManagedItemTagsByItemMock: vi.fn(),
   listManagedItemsMock: vi.fn(),
   loadAccountStateMock: vi.fn(),
   requireUserMock: vi.fn(),
@@ -30,6 +32,9 @@ vi.mock("../src/lib/d1/managed-items", () => ({
   listHouseholdCustomItemTypes: listHouseholdCustomItemTypesMock,
   listManagedItemClassificationOptions: listManagedItemClassificationOptionsMock,
   listManagedItems: listManagedItemsMock,
+}));
+vi.mock("../src/lib/d1/tags", () => ({
+  listManagedItemTagsByItem: listManagedItemTagsByItemMock,
 }));
 
 import ManagedItemsPage from "../src/app/managed-items/page";
@@ -65,6 +70,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireUserMock.mockResolvedValue({ id: "user-1" });
   getD1ContextMock.mockResolvedValue({ db: {}, session: { userId: "user-1" } });
+  listManagedItemTagsByItemMock.mockResolvedValue(new Map());
   loadAccountStateMock.mockResolvedValue({
     household: { id: "household-1", name: "テスト家庭" },
     nickname: "ぽっぷ",

@@ -59,6 +59,7 @@
 | YDR-045 | 通常UIを1系統のコンパクト表示に統一し、初心者向けの説明は初回ヒントとヘルプへ置く | Accepted | [ydr-045-compact-ui-with-first-run-hints.md](ydr-045-compact-ui-with-first-run-hints.md) |
 | YDR-046 | 必要になったら繰り返すTodoを予定日未定Occurrenceの連鎖として表す | Accepted | [ydr-046-manual-recurrence-todos.md](ydr-046-manual-recurrence-todos.md) |
 | YDR-047 | Todoのメモを実施ごとの記録ではなくTaskRuleの手順として持つ | Accepted | [ydr-047-todo-note-on-task-rule.md](ydr-047-todo-note-on-task-rule.md) |
+| YDR-048 | ManagedItemのタグを家庭単位のマスタと多対多の関連として保存する | Accepted | [ydr-048-managed-item-tags.md](ydr-048-managed-item-tags.md) |
 
 ## 新しい意思決定の追加
 

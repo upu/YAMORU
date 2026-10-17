@@ -7,14 +7,18 @@ const {
   getD1ContextMock,
   getManagedItemForEditMock,
   listHouseholdCustomItemTypesMock,
+  listHouseholdTagsMock,
   listManagedItemClassificationOptionsMock,
+  listTagsForManagedItemMock,
   loadAccountStateMock,
   requireUserMock,
 } = vi.hoisted(() => ({
   getD1ContextMock: vi.fn(),
   getManagedItemForEditMock: vi.fn(),
   listHouseholdCustomItemTypesMock: vi.fn(),
+  listHouseholdTagsMock: vi.fn(),
   listManagedItemClassificationOptionsMock: vi.fn(),
+  listTagsForManagedItemMock: vi.fn(),
   loadAccountStateMock: vi.fn(),
   requireUserMock: vi.fn(),
 }));
@@ -27,6 +31,10 @@ vi.mock("../src/lib/d1/managed-items", () => ({
   getManagedItemForEdit: getManagedItemForEditMock,
   listHouseholdCustomItemTypes: listHouseholdCustomItemTypesMock,
   listManagedItemClassificationOptions: listManagedItemClassificationOptionsMock,
+}));
+vi.mock("../src/lib/d1/tags", () => ({
+  listHouseholdTags: listHouseholdTagsMock,
+  listTagsForManagedItem: listTagsForManagedItemMock,
 }));
 
 import ManagedItemEditPage from "../src/app/managed-items/[id]/edit/page";
@@ -84,6 +92,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireUserMock.mockResolvedValue({ id: "user-1" });
   getD1ContextMock.mockResolvedValue({ db: {}, session: { userId: "user-1" } });
+  listHouseholdTagsMock.mockResolvedValue([]);
+  listTagsForManagedItemMock.mockResolvedValue([]);
   loadAccountStateMock.mockResolvedValue({
     household: { id: "household-1", name: "テスト家庭" },
     nickname: "ぽっぷ",

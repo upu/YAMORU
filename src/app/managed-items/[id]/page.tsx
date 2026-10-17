@@ -15,6 +15,7 @@ import {
   type ConsumableSummary,
 } from "../../../lib/d1/consumables";
 import { loadManagedItemDetail } from "../../../lib/d1/managed-item-detail";
+import { listTagsForManagedItem, type Tag } from "../../../lib/d1/tags";
 import {
   DetailBackNav,
   MANAGED_ITEM_DETAIL_BACK_NAV,
@@ -53,6 +54,8 @@ export type ManagedItemDetailData = {
   productInfo: string | null;
   recentCompletions: RecentCompletionData[];
   startedOn: string | null;
+  // Issue #226: 付与済みタグ。省略はタグなしと同じ。
+  tags?: Tag[];
 };
 
 export function ManagedItemDetailContent({
@@ -72,6 +75,7 @@ export function ManagedItemDetailContent({
         itemTypeLabel={item.itemTypeLabel}
         kindLabel={item.kindLabel}
         name={item.name}
+        tags={item.tags ?? []}
       />
 
       {/* Issue #397: PC幅では、この管理対象そのものの記録(主要情報)と、
@@ -121,10 +125,11 @@ export default async function RegisteredManagedItemDetail({
   const { id } = await params;
   const { db, session } = await getD1Context(user);
   const nowIso = new Date().toISOString();
-  const [data, actorName, consumables] = await Promise.all([
+  const [data, actorName, consumables, tags] = await Promise.all([
     loadManagedItemDetail(db, session, id),
     loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
     listConsumablesForManagedItem(db, session, id),
+    listTagsForManagedItem(db, session, id),
   ]);
 
   if (data === null) notFound();
@@ -174,6 +179,7 @@ export default async function RegisteredManagedItemDetail({
         productInfo: data.productInfo,
         recentCompletions,
         startedOn: data.startedOn,
+        tags,
       }}
     />
   );

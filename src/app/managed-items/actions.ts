@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import type { D1Session } from "../../lib/d1/authorization";
 import { getD1Context } from "../../lib/d1/context";
+import { d1ErrorCode } from "../../lib/d1/errors";
 import { recordItemTypeAdoption } from "../../lib/d1/item-type-suggestions";
 import {
   createManagedItem as createManagedItemInD1,
@@ -13,6 +14,7 @@ import {
 import { isSafeExternalUrl, startedOnLabel } from "./model";
 import { toStartedOn } from "./started-on";
 import type { ManagedItemActionState } from "./state";
+import { parseTagInput, TAG_LIMIT_EXCEEDED_STATE } from "./tag-input";
 
 const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
 const CUSTOM_ITEM_TYPE_MAX_LENGTH = 50;
@@ -38,6 +40,7 @@ type ParsedManagedItemForm =
       productInfo: string | null;
       startedOn: string | null;
       status: "ok";
+      tags: { newTagNames: string[]; tagIds: string[] };
     }
   | ManagedItemActionState;
 
@@ -191,7 +194,7 @@ function parseOptionalAttributes(
 }
 
 // createManagedItem・updateManagedItemの両方が使う、名前・分類・外部リンク・
-// 任意の記録の入力検証。登録と編集で許可する値・エラー文言を揃える。
+// 任意の記録・タグ(Issue #226)の入力検証。登録と編集で許可する値・エラー文言を揃える。
 function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   const name = parseName(formData);
   if (typeof name !== "string") return name;
@@ -201,6 +204,8 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
   if (externalUrl.status !== "ok") return externalUrl;
   const optional = parseOptionalAttributes(formData, classification.kindCode);
   if (optional.status !== "ok") return optional;
+  const tags = parseTagInput(formData);
+  if (tags.status !== "ok") return tags;
 
   return {
     customItemType: classification.customItemType,
@@ -212,6 +217,7 @@ function parseManagedItemForm(formData: FormData): ParsedManagedItemForm {
     productInfo: optional.productInfo,
     startedOn: optional.startedOn,
     status: "ok",
+    tags: { newTagNames: tags.newTagNames, tagIds: tags.tagIds },
   };
 }
 
@@ -264,9 +270,11 @@ export async function createManagedItem(
       note: parsed.note,
       productInfo: parsed.productInfo,
       startedOn: parsed.startedOn,
+      tags: parsed.tags,
     });
     created = { db, itemId, session };
-  } catch {
+  } catch (error) {
+    if (d1ErrorCode(error) === "MANAGED_ITEM_TAG_LIMIT_EXCEEDED") return TAG_LIMIT_EXCEEDED_STATE;
     return {
       message: "管理対象を登録できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -313,9 +321,11 @@ export async function updateManagedItem(
       note: parsed.note,
       productInfo: parsed.productInfo,
       startedOn: parsed.startedOn,
+      tags: parsed.tags,
     });
     updated = { db, session };
-  } catch {
+  } catch (error) {
+    if (d1ErrorCode(error) === "MANAGED_ITEM_TAG_LIMIT_EXCEEDED") return TAG_LIMIT_EXCEEDED_STATE;
     return {
       message: "管理対象を更新できませんでした。時間をおいて再度お試しください。",
       status: "error",

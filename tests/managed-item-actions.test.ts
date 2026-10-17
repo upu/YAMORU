@@ -81,6 +81,8 @@ const UNSET_OPTIONAL_ATTRIBUTES = {
   note: null,
   productInfo: null,
   startedOn: null,
+  // Issue #226: タグ欄を何も選ばず、新しいタグも書かない場合。
+  tags: { newTagNames: [], tagIds: [] },
 } as const;
 
 describe("ManagedItem登録操作", () => {
@@ -257,6 +259,7 @@ describe("ManagedItem登録操作の任意の記録(Issue #42, #239)", () => {
       note: "リビングの窓側に設置。\n説明書は棚の中。",
       productInfo: "三菱 霧ヶ峰 MSZ-ZW2224S",
       startedOn: "2024-05",
+      tags: { newTagNames: [], tagIds: [] },
     });
   });
 
@@ -444,6 +447,92 @@ describe("ManagedItem編集操作(Issue #40)", () => {
 
     expect(result).toEqual({
       message: "管理対象を更新できませんでした。時間をおいて再度お試しください。",
+      status: "error",
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+// Issue #226 / YDR-048: タグ欄(既存タグのチェックボックスtagIdsと、新しいタグの
+// 入力newTags)の読み取り。家庭IDは受け取らず、自家庭のタグかどうかはD1側の
+// 複合外部キーが確かめる。
+describe("ManagedItemのタグ指定(Issue #226)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
+    createManagedItemInD1Mock.mockResolvedValue("managed-item-id");
+  });
+
+  function formWithTags(tagIds: string[], newTags: string) {
+    const formData = managedItemForm();
+    for (const tagId of tagIds) formData.append("tagIds", tagId);
+    formData.set("newTags", newTags);
+    return formData;
+  }
+
+  it("登録で既存タグの選択と新しいタグを、整形・重複除去してD1へ渡す", async () => {
+    await createManagedItem(
+      INITIAL_STATE,
+      formWithTags(["tag-1", "tag-2", "tag-1", ""], " 子どもA 、 ペット,Kids，kids\n子どもA , "),
+    );
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      expect.objectContaining({
+        tags: { newTagNames: ["子どもA", "ペット", "Kids"], tagIds: ["tag-1", "tag-2"] },
+      }),
+    );
+  });
+
+  it("編集でも同じ形でD1へ渡し、全て外した場合は空のタグ指定になる", async () => {
+    const formData = formWithTags([], "");
+    formData.set("id", "managed-item-id");
+    await updateManagedItem(INITIAL_STATE, formData);
+
+    expect(updateManagedItemInD1Mock).toHaveBeenCalledWith(
+      "db",
+      "session",
+      "managed-item-id",
+      expect.objectContaining({ tags: { newTagNames: [], tagIds: [] } }),
+    );
+  });
+
+  it("31文字以上のタグ名はD1へ送らない", async () => {
+    const result = await createManagedItem(INITIAL_STATE, formWithTags([], `子どもA、${"あ".repeat(31)}`));
+
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      message: "タグは1つ30文字以内で入力してください。",
+      status: "error",
+    });
+  });
+
+  it("既存タグの選択だけ、または新しいタグだけで10個を超えるとD1へ送らない", async () => {
+    const tagIds = Array.from({ length: 11 }, (_, index) => `tag-${String(index)}`);
+    const newTags = Array.from({ length: 11 }, (_, index) => `新${String(index)}`).join("、");
+
+    for (const formData of [formWithTags(tagIds, ""), formWithTags([], newTags)]) {
+      const result = await createManagedItem(INITIAL_STATE, formData);
+      expect(result).toEqual({
+        message: "タグは1つの管理対象に10個まで付けられます。",
+        status: "error",
+      });
+    }
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+  });
+
+  it("既存タグと突き合わせた合計の上限はD1層が判定し、その案内を返す", async () => {
+    const tagIds = Array.from({ length: 8 }, (_, index) => `tag-${String(index)}`);
+    createManagedItemInD1Mock.mockRejectedValueOnce(
+      Object.assign(new Error("Too many tags"), { code: "MANAGED_ITEM_TAG_LIMIT_EXCEEDED" }),
+    );
+
+    const result = await createManagedItem(INITIAL_STATE, formWithTags(tagIds, "新1、新2、新3"));
+
+    expect(createManagedItemInD1Mock).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      message: "タグは1つの管理対象に10個まで付けられます。",
       status: "error",
     });
     expect(redirectMock).not.toHaveBeenCalled();

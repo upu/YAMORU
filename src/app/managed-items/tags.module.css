@@ -1,0 +1,97 @@
+/* Issue #226: ManagedItemのタグ。タグは分類とは別の概念(YDR-028、YDR-048)
+   なので、分類バッジ(globals.cssの.classification-badge、緑)とは違う色に
+   加え、「#」の印でも見分けられるようにする。 */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--blue-pale);
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mark {
+  margin-right: 2px;
+}
+
+/* 台帳一覧では、名前と分類の行の下へ1行として並べる。タグのない行の高さは
+   変えない(TagBadgesはタグがなければ何も描画しない)。 */
+:global(.ledger-list) .badges {
+  flex: 1 0 100%;
+  min-width: 0;
+  margin-top: -6px;
+  padding-bottom: 6px;
+}
+
+/* 登録・編集フォームのタグ欄。既存タグはチップ状のチェックボックスで横に
+   並べ、狭い画面では折り返す。 */
+.fieldset {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.fieldset legend {
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.fieldset p {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* .auth-form labelの余白と文字指定より優先させるため、1段重ねる。 */
+:global(.auth-form) .option {
+  display: inline-flex;
+  min-height: var(--tap-target);
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+:global(.auth-form) .option input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+:global(.auth-form) .option:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue-pale);
+  color: var(--blue);
+}
+
+:global(.auth-form) .option:has(input:focus-visible) {
+  outline: 3px solid rgb(64 103 120 / 38%);
+  outline-offset: 2px;
+}

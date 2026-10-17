@@ -32,6 +32,7 @@ status: stable
 | Todo一覧(ツールバー・リスト表示) | `src/app/todos/todo-list.module.css` |
 | 台帳のページ見出し | `src/app/ledger-page.module.css` |
 | 台帳のカテゴリ切り替え | `src/app/ledger-category-navigation.module.css` |
+| 台帳のタグ(バッジ・入力欄) | `src/app/managed-items/tags.module.css` |
 | 横断検索の結果 | `src/app/search/search-results.module.css` |
 | 消耗品の補充記録 | `src/app/consumables/refill-control.module.css` |
 | 消耗品詳細のピン留めボタン | `src/app/consumables/pin-toggle.module.css` |
