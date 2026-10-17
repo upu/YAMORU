@@ -183,9 +183,9 @@ async function plan(context: CommandContext, normalized: NormalizedCommand) {
   const { current } = update;
   const view = after(update);
   return {
-    build({ recordedAt }: { recordedAt: string }) {
+    build({ businessKey, recordedAt }: { businessKey: string; recordedAt: string }) {
       const business = todoUpdateStatements(context.db, update, {
-        actorId: context.userId, householdId: context.householdId, recordedAt,
+        actorId: context.userId, householdId: context.householdId, idempotencyKey: businessKey, recordedAt,
       });
       const result = {
         ...view,

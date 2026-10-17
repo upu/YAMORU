@@ -126,7 +126,7 @@ function occurrenceEvidence(id: string, values: Record<string, string | null>): 
 export function todoUpdateStatements(
   db: D1Database,
   plan: TodoUpdatePlan,
-  actor: { actorId: string; householdId: string; recordedAt: string },
+  actor: { actorId: string; householdId: string; idempotencyKey: string; recordedAt: string },
 ): BusinessStatements {
   const { current } = plan;
   const id = current.occurrence.id;
@@ -137,7 +137,9 @@ export function todoUpdateStatements(
         assignee_user_id: plan.occurrence.assigneeUserId, due_at: plan.occurrence.dueAt, must_complete_by: plan.mustCompleteBy,
       })],
       statements: [
-        ...recurringOccurrenceStatements(db, { ...base, at: actor.recordedAt, input: plan.occurrence, userId: actor.actorId }),
+        ...recurringOccurrenceStatements(db, {
+          ...base, at: actor.recordedAt, idempotencyKey: actor.idempotencyKey, input: plan.occurrence, userId: actor.actorId,
+        }),
         ...deadlineStatements(db, current, plan.mustCompleteBy, actor),
       ],
     };
@@ -161,7 +163,9 @@ export function todoUpdateStatements(
       assignee_user_id: plan.input.assigneeUserId, must_complete_by: plan.mustCompleteBy, scheduled_for: plan.input.scheduledFor,
     })],
     statements: [
-      ...oneTimeEditStatements(db, { ...base, actorId: actor.actorId, at: actor.recordedAt, input: plan.input }),
+      ...oneTimeEditStatements(db, {
+        ...base, actorId: actor.actorId, at: actor.recordedAt, idempotencyKey: actor.idempotencyKey, input: plan.input,
+      }),
       ...deadlineStatements(db, current, plan.mustCompleteBy, actor),
     ],
   };

@@ -151,6 +151,8 @@ function assigneeChangeStatement(
     actorId: string;
     at: string;
     householdId: string;
+    // 外部command(#437)の操作キー(`<key>:assignee`)。Webからの編集はnull。
+    idempotencyKey: string | null;
     logId: string;
     newAssigneeUserId: string | null;
     occurrenceId: string;
@@ -161,8 +163,8 @@ function assigneeChangeStatement(
     `INSERT INTO activity_logs (
       id, household_id, task_occurrence_id, action, actor_user_id,
       occurred_at, assignee_user_id, previous_assignee_user_id,
-      new_assignee_user_id
-    ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
+      new_assignee_user_id, idempotency_key
+    ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6, ?8
       WHERE EXISTS (
         SELECT 1 FROM task_occurrences
          WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
@@ -175,6 +177,7 @@ function assigneeChangeStatement(
     input.at,
     input.newAssigneeUserId,
     input.previousAssigneeUserId,
+    input.idempotencyKey,
   );
 }
 
@@ -332,7 +335,9 @@ export async function updateOneTimeTodo(
 // その変更件数でpendingだったかを判定できる。外部command(#437)も同じ文を使う。
 export function oneTimeEditStatements(
   db: D1Database,
-  edit: { actorId: string; at: string; householdId: string; input: OneTimeTodoUpdate; occurrence: OccurrenceWithRule },
+  edit: {
+    actorId: string; at: string; householdId: string; idempotencyKey?: string | null; input: OneTimeTodoUpdate; occurrence: OccurrenceWithRule;
+  },
 ): D1PreparedStatement[] {
   const { actorId, householdId, input, occurrence } = edit;
   const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
@@ -345,6 +350,7 @@ export function oneTimeEditStatements(
       actorId,
       at: edit.at,
       householdId,
+      idempotencyKey: edit.idempotencyKey === undefined || edit.idempotencyKey === null ? null : `${edit.idempotencyKey}:assignee`,
       logId: crypto.randomUUID(),
       newAssigneeUserId: input.assigneeUserId,
       occurrenceId: occurrence.id,

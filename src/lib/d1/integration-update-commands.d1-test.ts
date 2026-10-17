@@ -13,6 +13,7 @@ import {
   familyMember,
   interruptBeforeBatch,
 } from "./test-support/integration-commands";
+import { readHistoryRows } from "./conversation-read";
 import { applyAllMigrations } from "./test-support/migrations";
 import { updateOneTimeTodo, updateRecurringTaskRule } from "./todos";
 
@@ -167,6 +168,24 @@ describe("暦を持つ繰り返し", () => {
       changes: {}, edit_scope: "current_occurrence",
     })), "missing_required");
     expect(empty.fieldErrors).toEqual({ "payload.changes": "at_least_one_change" });
+  });
+});
+
+describe("履歴の接続元", () => {
+  it("担当・期限の変更履歴に、外部commandの接続元を残す", async () => {
+    const recurring = await createEverySaturdayTodo(db);
+    await run(commandService(db), updateRequest(recurring, {
+      changes: { assignee_id: familyMember.userId, due_on: "2026-10-14" }, edit_scope: "current_occurrence",
+    }));
+    const oneTime = await createTodo({ scheduled_on: "2026-10-20", type: "one_time" });
+    await run(commandService(db), updateRequest(oneTime, {
+      edit_scope: "one_time_combined", occurrence_changes: { assignee_id: familyMember.userId },
+    }));
+    const clients = async (occurrenceId: string) => (await readHistoryRows(db, "household-a", "todo_occurrence", occurrenceId, "", 20))
+      .filter((row) => row.kind === "assignee_changed" || row.kind === "postponed")
+      .map((row) => [row.kind, row.client_id]).sort();
+    await expect(clients(recurring)).resolves.toEqual([["assignee_changed", principal.clientId], ["postponed", principal.clientId]]);
+    await expect(clients(oneTime)).resolves.toEqual([["assignee_changed", principal.clientId]]);
   });
 });
 

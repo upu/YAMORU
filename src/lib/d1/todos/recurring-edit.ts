@@ -253,24 +253,31 @@ export function assertRecurringOccurrence(
 type OccurrenceEdit = {
   at: string;
   householdId: string;
+  // 外部command(#437)の操作キー。履歴の接続元を引くため、担当は`<key>:assignee`、
+  // 期限は`<key>:due`を履歴に残す。Webからの編集はnull。
+  idempotencyKey?: string | null;
   input: RecurringOccurrenceUpdate;
   occurrence: OccurrenceWithRule;
   userId: string;
 };
 
-function assigneeStatements(db: D1Database, { at, householdId, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
+function suffixedKey(key: string | null | undefined, suffix: string): string | null {
+  return key === undefined || key === null ? null : `${key}:${suffix}`;
+}
+
+function assigneeStatements(db: D1Database, { at, householdId, idempotencyKey, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
   if (occurrence.assignee_user_id === input.assigneeUserId) return [];
   const logId = crypto.randomUUID();
   return [
     db.prepare(
       `INSERT INTO activity_logs (
         id, household_id, task_occurrence_id, action, actor_user_id,
-        occurred_at, assignee_user_id, previous_assignee_user_id, new_assignee_user_id
-      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6
+        occurred_at, assignee_user_id, previous_assignee_user_id, new_assignee_user_id, idempotency_key
+      ) SELECT ?1, ?2, ?3, 'assignee_changed', ?4, ?5, ?6, ?7, ?6, ?8
         WHERE EXISTS (SELECT 1 FROM task_occurrences
           WHERE id = ?3 AND household_id = ?2 AND status = 'pending')`,
     ).bind(logId, householdId, occurrence.id, userId, at,
-      input.assigneeUserId, occurrence.assignee_user_id),
+      input.assigneeUserId, occurrence.assignee_user_id, suffixedKey(idempotencyKey, "assignee")),
     db.prepare(
       `UPDATE task_occurrences SET assignee_user_id = ?1
         WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
@@ -279,19 +286,19 @@ function assigneeStatements(db: D1Database, { at, householdId, input, occurrence
   ];
 }
 
-function dueDateStatements(db: D1Database, { at, householdId, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
+function dueDateStatements(db: D1Database, { at, householdId, idempotencyKey, input, occurrence, userId }: OccurrenceEdit): D1PreparedStatement[] {
   if (occurrence.due_at === input.dueAt) return [];
   const logId = crypto.randomUUID();
   return [
     db.prepare(
       `INSERT INTO activity_logs (
         id, household_id, task_occurrence_id, action, actor_user_id,
-        occurred_at, previous_due_at, new_due_at
-      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7
+        occurred_at, previous_due_at, new_due_at, idempotency_key
+      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7, ?8
         WHERE EXISTS (SELECT 1 FROM task_occurrences
           WHERE id = ?3 AND household_id = ?2 AND status = 'pending')`,
     ).bind(logId, householdId, occurrence.id, userId, at,
-      occurrence.due_at, input.dueAt),
+      occurrence.due_at, input.dueAt, suffixedKey(idempotencyKey, "due")),
     db.prepare(
       `UPDATE task_occurrences SET due_at = ?1
         WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
