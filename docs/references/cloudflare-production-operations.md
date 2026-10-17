@@ -59,6 +59,16 @@ SecretsはCloudflare側で管理され、読み戻せない。デプロイは`--
 
 Auth.jsのホスト信頼は`src/auth.config.ts`の`trustHost: true`で明示している。Cloudflare Workersは受信したHostヘッダーを実際の公開URLから設定するため、公式リファレンスに従いlocal / preview / productionで同じ値を使う。ログイン画面で`There was a problem with the server configuration.`が表示され、`wrangler tail`のログに`UntrustedHost`が出る場合は、この設定が反映されたビルドが配備されているかを確認する(#137)。
 
+## 外部クライアント連携(OAuth)を有効にする
+
+会話エージェントなどの外部クライアント連携([YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md))は、既定で無効である。migration `0031_oauth_connections`の適用と新Workerの配備だけでは接続を受け付けない。
+
+有効にするのは、実際の接続先との接続確認(設計のE1、#439/#444)を行う環境だけとし、Cloudflare Dashboardのruntime変数`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`へ、その接続先のclient_id(CIMDのURL)を完全一致で設定する。複数あるときは空白かカンマで区切る。`--keep-vars`で配備するため、`wrangler.jsonc`へは書かない。Secretではないが、受付範囲を決める値なので変更は記録を残して行う。
+
+- 無効に戻すには変数を削除する。metadata・同意画面・token endpointが404になり、新しい接続とtokenの発行・更新が止まる。発行済みaccess tokenは最長1時間有効だが、利用者が接続管理画面(`/settings/integrations`)で解除すれば即時に無効になる。
+- 特定のクライアントだけを止めるには、そのclient_idをリストから外す。refreshと新規接続が止まる。
+- ログは`yamoru.oauth.*`のイベント名で、接続ID・client_id・理由コードだけを出す。token・codeは出力しない。
+
 ## previewへ初回配備して確認する
 
 まずpreview D1へマイグレーションを適用する。コマンドが求める確認には`yamoru-preview`を完全一致で入力する。

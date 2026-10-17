@@ -6,6 +6,11 @@ function isPublicPath(pathname: string): boolean {
     pathname.startsWith("/api/auth/") ||
     pathname === "/invitations/accept" ||
     pathname.startsWith("/invitations/accept/") ||
+    // 外部クライアント向けOAuth(#436)。metadataとtoken/revoke endpointは
+    // Cookieを使わない。同意画面(/oauth/authorize)は未ログインならページ自身が
+    // 元の認可要求へ戻る形でログインへ誘導する。
+    pathname.startsWith("/.well-known/oauth-") ||
+    pathname.startsWith("/oauth/") ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/favicon.ico" ||
     /\.(?:svg|png|jpg|jpeg|gif|webp)$/u.test(pathname)

@@ -27,6 +27,13 @@ describe("Auth.js認証境界", () => {
     "/invitations/accept/confirm",
     "/manifest.webmanifest",
     "/icon.png",
+    // #436: OAuthのmetadataとendpointはCookieを使わない。同意画面は
+    // ページ自身が未ログインをログインへ誘導する。
+    "/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-protected-resource/mcp",
+    "/oauth/authorize",
+    "/oauth/token",
+    "/oauth/revoke",
   ])("公開経路 %s は未認証でも通す", async (pathname) => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
       auth: null,
@@ -38,6 +45,9 @@ describe("Auth.js認証境界", () => {
     "/login-help",
     "/invitations/acceptance",
     "/invitations/accepted",
+    "/oauth",
+    "/oauth-help",
+    "/settings/integrations",
   ])("公開経路に似た保護経路 %s は未認証で通さない", async (pathname) => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
       auth: null,

@@ -37,6 +37,11 @@ export default async function AccountPage() {
         </section>
       ) : null}
       <PasswordChangePanel />
+      <section aria-labelledby="integrations-section-title" className="detail-card">
+        <h2 id="integrations-section-title">外部サービスとの連携</h2>
+        <p>会話アシスタントなどに許可した連携先と範囲を確認し、解除できます。</p>
+        <Link href="/settings/integrations">連携を確認する</Link>
+      </section>
     </main>
   );
 }

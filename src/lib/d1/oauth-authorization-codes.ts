@@ -1,0 +1,118 @@
+// OAuthのauthorization code(#436、YDR-052)。一回限り・短命で、同意した
+// 利用者・家庭・scope・redirect_uri・resource・PKCE challengeを束縛する。
+// 生のcodeは保存せず、呼び出し側がhash化した値だけを受け取る。
+
+export type AuthorizationCodeRecord = {
+  clientId: string;
+  codeChallenge: string;
+  codeChallengeMethod: "S256";
+  codeHash: string;
+  createdAt: string;
+  expiresAt: string;
+  householdId: string;
+  redirectUri: string;
+  resource: string;
+  scopes: string;
+  userId: string;
+};
+
+export type StoredAuthorizationCode = AuthorizationCodeRecord & {
+  connectionId: string | null;
+  consumedAt: string | null;
+};
+
+type AuthorizationCodeRow = {
+  client_id: string;
+  code_challenge: string;
+  code_challenge_method: "S256";
+  code_hash: string;
+  connection_id: string | null;
+  consumed_at: string | null;
+  created_at: string;
+  expires_at: string;
+  household_id: string;
+  redirect_uri: string;
+  resource: string;
+  scopes: string;
+  user_id: string;
+};
+
+// 同意した時点で利用者がその家庭に所属していることを、INSERTと同じ文で
+// 確かめる。所属していなければ0件となり、codeを発行しない。
+export async function saveAuthorizationCode(
+  db: D1Database,
+  record: AuthorizationCodeRecord,
+): Promise<boolean> {
+  const [, inserted] = await db.batch([
+    // 期限切れのcodeは再使用検知にも使えないため、発行のたびに掃除する。
+    db.prepare("DELETE FROM oauth_authorization_codes WHERE expires_at < ?1")
+      .bind(record.createdAt),
+    db.prepare(
+      `INSERT INTO oauth_authorization_codes (
+         code_hash, household_id, user_id, client_id, scopes, redirect_uri,
+         resource, code_challenge, code_challenge_method, created_at, expires_at
+       )
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
+        WHERE EXISTS (
+          SELECT 1 FROM household_members
+           WHERE household_id = ?2 AND user_id = ?3
+        )`,
+    ).bind(
+      record.codeHash,
+      record.householdId,
+      record.userId,
+      record.clientId,
+      record.scopes,
+      record.redirectUri,
+      record.resource,
+      record.codeChallenge,
+      record.codeChallengeMethod,
+      record.createdAt,
+      record.expiresAt,
+    ),
+  ]);
+  return inserted.meta.changes === 1;
+}
+
+export async function findAuthorizationCode(
+  db: D1Database,
+  codeHash: string,
+): Promise<StoredAuthorizationCode | null> {
+  const row = await db.prepare(
+    `SELECT code_hash, household_id, user_id, client_id, scopes, redirect_uri,
+            resource, code_challenge, code_challenge_method, created_at,
+            expires_at, consumed_at, connection_id
+       FROM oauth_authorization_codes
+      WHERE code_hash = ?1`,
+  ).bind(codeHash).first<AuthorizationCodeRow>();
+  if (row === null) return null;
+  return {
+    clientId: row.client_id,
+    codeChallenge: row.code_challenge,
+    codeChallengeMethod: row.code_challenge_method,
+    codeHash: row.code_hash,
+    connectionId: row.connection_id,
+    consumedAt: row.consumed_at,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    householdId: row.household_id,
+    redirectUri: row.redirect_uri,
+    resource: row.resource,
+    scopes: row.scopes,
+    userId: row.user_id,
+  };
+}
+
+// 条件付き更新で一度だけ消費する。同時に2つの交換が来ても1件だけが成功する。
+export async function consumeAuthorizationCode(
+  db: D1Database,
+  codeHash: string,
+  now: string,
+): Promise<boolean> {
+  const result = await db.prepare(
+    `UPDATE oauth_authorization_codes
+        SET consumed_at = ?2
+      WHERE code_hash = ?1 AND consumed_at IS NULL AND expires_at > ?2`,
+  ).bind(codeHash, now).run();
+  return result.meta.changes === 1;
+}

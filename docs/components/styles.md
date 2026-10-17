@@ -39,6 +39,8 @@ status: stable
 | 初回操作ヒント | `src/app/first-run-hint.module.css` |
 | ヘルプの使い方・アイコン一覧 | `src/app/help/help.module.css` |
 | 招待の一覧・発行結果 | `src/app/household/invitations.module.css` |
+| 外部サービス連携の同意画面 | `src/app/oauth/authorize/consent.module.css` |
+| 外部サービス連携の管理(接続の一覧・解除) | `src/app/settings/integrations/integrations.module.css` |
 
 ## 重要な不変条件
 
