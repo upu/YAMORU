@@ -8,4 +8,9 @@ export const REASON_LABELS: Record<string, string> = {
   disabled: "通知が無効、または通知先が変更済み", connection_unavailable: "連携が解除・失効したか、必要な許可がありません",
   candidate_resolved: "用事が完了したか、通知の条件が解消済み", already_delivered: "すでに案内用の通知を送信済み",
   delivery_unknown: "前回の送信結果を確認できないため、自動再送を停止", repeat_limit: "再通知の上限に到達", eligible: "配信可能",
+  notification_mode_changed: "通知のまとめ方が変更されたため、以前の通知を取りやめ",
+  recipient_result_unknown: "通知先の受領を確認できないため、自動再送を停止",
+  recipient_failed: "通知先への送信に失敗しました。連携を確認してください",
+  recipients_cancelled: "未送信の通知を取りやめました",
+  retry_limit: "送信の再試行上限に達したため、配信を停止",
 };
