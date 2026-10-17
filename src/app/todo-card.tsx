@@ -9,6 +9,7 @@ import type { TodoListSchedule, TodoTone } from "./task-schedule";
 // 同じ見た目・同じ操作で扱う(Issue #201)。カードの表示と操作はここに一つだけ
 // 置き、画面側は「どのTodoを、どの順序で並べるか」だけを決める。
 export type TodoCardItem = {
+  mustCompleteBy?: string;
   // pending Todoにだけ設定する。未設定(誰でも可)はnull。
   assigneeUserId?: string | null;
   badge?: string;

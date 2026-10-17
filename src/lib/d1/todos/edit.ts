@@ -10,6 +10,7 @@ import { type OccurrenceWithRule, loadOccurrence, requireHouseholdUser, requireM
 // を一つの読み取りにまとめる。完了済みの場合は、現在有効な実施日時・実施者
 // (訂正済みなら訂正後、YDR-026)も返す。現在の家庭のOccurrenceだけを返す。
 export type TodoDetailRow = {
+  must_complete_by?: string | null;
   assignee_user_id: string | null;
   // 完了済みTodoでだけ非null。実施記録の訂正・取消が対象にする完了ログ。
   completed_activity_log_id: string | null;
@@ -58,7 +59,7 @@ const TODO_DETAIL_SQL = `WITH completion AS (
         ORDER BY l.recorded_at DESC, l.id DESC
         LIMIT 1
      )
-     SELECT o.id, o.task_rule_id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status,
+     SELECT o.id, o.task_rule_id, o.scheduled_for, o.due_at, o.assignee_user_id, o.status, o.must_complete_by,
             r.note,
             CASE WHEN json_type(o.rule_snapshot, '$.title') IS NULL
               THEN r.title ELSE json_extract(o.rule_snapshot, '$.title') END AS title,

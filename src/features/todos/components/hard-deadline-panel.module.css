@@ -1,0 +1,8 @@
+.disclosure > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.disclosure > form {
+  margin-top: 12px;
+}

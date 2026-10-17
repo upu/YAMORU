@@ -26,6 +26,7 @@ import {
 // 案内もずれない。
 
 export type RegisteredTodoSchedule = {
+  mustCompleteBy?: string | null;
   deadlineKind: DeadlineKind;
   dueAt: string | null;
   recurrenceBasis: RecurrenceBasis;
@@ -97,6 +98,7 @@ function describeHomeNotice(
   saved: RegisteredTodoSchedule,
 ): string | null {
   if (isHomePendingCategory(entry.category)) return null;
+  if (saved.mustCompleteBy) return "ホームに表示されるまではTodo一覧で確認できます。";
   if (entry.category === "undated") {
     return saved.recurrenceBasis === "manual"
       ? "ホームには表示されません。必要になったらTodo一覧から実施できます。"
@@ -116,6 +118,7 @@ function registeredRow(saved: RegisteredTodoSchedule): PendingOccurrenceRow {
     assignee_user_id: null,
     due_at: saved.dueAt,
     id: "registered",
+    must_complete_by: saved.mustCompleteBy ?? null,
     scheduled_for: saved.scheduledFor,
     task_rules: {
       deadline_kind: saved.deadlineKind,
@@ -150,6 +153,6 @@ export function summarizeRegisteredTodo(
   }
   return {
     homeNotice: describeHomeNotice(entry, saved),
-    schedule: describeSchedule(entry, saved),
+    schedule: [describeSchedule(entry, saved), saved.mustCompleteBy ? `今回の必達日: ${saved.mustCompleteBy}` : null].filter(Boolean).join(" ・ "),
   };
 }

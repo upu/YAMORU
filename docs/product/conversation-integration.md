@@ -199,7 +199,7 @@ recurrenceの値は既存の入力検証と暦規則を再利用する。one_tim
 ## 6. 日付・履歴・在庫の不変条件
 
 - `occurred_at`は実施、`recorded_at`はサーバー記録時刻。日付だけの入力は既存Webと同じAsia/Tokyoの変換を使い、`date_precision: day`も返す。「今日/昨日」は接続の家庭基準日を示して絶対日に解決する。未来の完了を拒否する。
-- `scheduled_for`は本来の予定、`due_at`は現在の期限。必達日は#51で独立した`must_complete_by`としてAPIへ投影し、推奨上限やdue_atの別名にしない。永続列名は#51で決定する。
+- `scheduled_for`は本来の予定、`due_at`は現在の期限。必達日は#51で独立した`must_complete_by`としてAPIへ投影し、推奨上限やdue_atの別名にしない。永続列は`task_occurrences.must_complete_by`（任意の東京暦日）。[YDR-051](../decisions/ydr-051-occurrence-hard-deadline.md)に従い各回で設定・変更・解除し、次回へコピーしない。
 - 推奨範囲は`recommended_window{start,end,state}`、必達日は別の期限区分として返す。予定なし、目安前、そろそろ、範囲内、超過を既存ホームと整合させる。manualに日付を創作しない。
 - 予定計算はAsia/Tokyoの既存YDRを維持する。本人の通知time_zoneは表示・配信時間帯だけに作用し、Ruleの暦計算を変えない。DSTのない時刻は次の有効時刻、重複時刻は最初の一回とし、設定previewに次回の実時刻を返す。
 - 完了は発生時のsnapshot、次回以降の編集は現在のRuleを使う。延期、実施日訂正、完了取消でそれぞれ何が変わるかをprepare結果へ出す。

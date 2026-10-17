@@ -1,0 +1,55 @@
+import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+import { createManualTask } from "../src/lib/d1/todos";
+import { addDaysToTokyoDateUtcIso, formatTokyoDateInput } from "../src/app/time-zone";
+
+test("必要時Todoの必達日を設定・解除し、ホームの期限超過へ反映する", async ({ page, db }) => {
+  await seedOwnerHousehold(db);
+  await createManualTask(db, { userId: "owner" }, { title: "必達日のある点検", managedItemId: null });
+  const yesterday = addDaysToTokyoDateUtcIso(formatTokyoDateInput(new Date().toISOString()), -1);
+  if (!yesterday) throw Error("Cannot calculate yesterday");
+  await login(page);
+  await page.goto("/todos");
+  await page.getByRole("link", { name: /必達日のある点検/ }).click();
+  await expect(page).toHaveURL(/\/todos\/[^/]+$/);
+  const detailUrl = page.url();
+  await page.getByText("今回の必達日を設定・変更", { exact: true }).click();
+  await page.getByLabel("今回の必達日（任意）").fill(formatTokyoDateInput(yesterday));
+  await page.getByRole("button", { name: "必達日を保存" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "必達日を保存しました" })).toBeVisible();
+  await page.goto("/");
+  await expect(page.getByText("必達日超過", { exact: true })).toBeVisible();
+  await page.goto(detailUrl);
+  await page.getByText("今回の必達日を設定・変更", { exact: true }).click();
+  await page.getByLabel("今回の必達日（任意）").fill("");
+  await page.getByRole("button", { name: "必達日を保存" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "必達日を解除しました" })).toBeVisible();
+  await page.goto("/");
+  await expect(page.getByText("必達日超過", { exact: true })).toHaveCount(0);
+});
+
+test("モバイル幅で必達日を登録し、同じ詳細画面から変更・解除できる", async ({ page, db }, testInfo) => {
+  await seedOwnerHousehold(db);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto("/todos/new");
+  await page.getByLabel("Todo名").fill("通知書の手続き");
+  await page.getByRole("radio", { name: "必要になったら繰り返す" }).check();
+  await page.getByLabel("今回の必達日（任意）").fill("2027-01-10");
+  await page.getByRole("button", { name: "Todoを登録" }).click();
+  await expect(page.getByRole("status")).toContainText("今回の必達日: 2027-01-10");
+  await page.goto("/todos");
+  await page.getByRole("link", { name: /通知書の手続き/ }).click();
+  await page.getByText("今回の必達日を設定・変更", { exact: true }).click();
+  const field = page.getByLabel("今回の必達日（任意）");
+  await expect(field).toHaveValue("2027-01-10");
+  await field.fill("2027-01-11");
+  await page.getByRole("button", { name: "必達日を保存" }).click();
+  await expect(page.locator("dd").filter({ hasText: "2027-01-11" })).toBeVisible();
+  await expect(field).toHaveValue("2027-01-11");
+  await page.getByText("今回の必達日を設定・変更", { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("hard-deadline-mobile.png") });
+  await field.fill("");
+  await page.getByRole("button", { name: "必達日を保存" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "必達日を解除しました" })).toBeVisible();
+  await expect(field).toHaveValue("");
+});
