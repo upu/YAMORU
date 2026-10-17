@@ -58,6 +58,8 @@ status: stable
 
 Eventsの購読APIは同じ認証入口を使い、household.readとevents.subscribeを要する。subscribe/unsubscribeはcommitの回数・同時枠・DB時刻のfenceを共有する。callback失敗は静的な分類付きの-32015で返し、URLや秘密を応答へ載せない。runtimeに検証済みproviderがない間はEventsを公開しない。[通知outbox](notification-outbox.md)に購読と実送信の実装・未完了の境界を示す。
 
+Mcp-NameはTool・Resource・Prompt向けの標準ヘッダーであり、Events購読では必須にしない。EventsでもMcp-MethodとprotocolVersionは本文と照合する。[Streamable HTTPの標準ヘッダー](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)（2026-10-18確認）。
+
 ```sh
 npm test -- tests/integration-mcp-http.test.ts tests/auth-boundary.test.ts
 npm run test:d1 -- src/lib/d1/integration-mcp.d1-test.ts

@@ -20,7 +20,7 @@ beforeEach(async () => {
 async function rpc(method: string, params: Record<string, unknown> = {}, headers: Record<string, string> = {}, accessToken = token) {
   return handleMcpRequest(new Request(testOAuthConfig.resource, { method: "POST", headers: {
     authorization: `Bearer ${accessToken}`, "content-type": "application/json", accept: "application/json, text/event-stream",
-    "mcp-protocol-version": version, "mcp-method": method, ...(typeof params.name === "string" ? { "mcp-name": params.name } : {}), ...headers,
+    "mcp-protocol-version": version, "mcp-method": method, ...(method === "tools/call" && typeof params.name === "string" ? { "mcp-name": params.name } : {}), ...headers,
   }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: { _meta: meta, ...params } }) }),
   { db, config: testOAuthConfig, cursorSecret: "fictional-modern-mcp-secret-at-least-32-characters", ...(events ? { events } : {}) });
 }
@@ -89,7 +89,7 @@ it("権限不足の再認証案内・大きな入力・未知のmethodを区別�
   expect((await rpc("server/discover", {}, { accept: "application/json;q=0, text/event-stream" })).status).toBe(406);
   expect((await rpc("server/discover", {}, { "content-type": "text/plain" })).status).toBe(415);
 });
-it("検証済み送信providerを渡した場合だけEventsを公開し、購読を本人のgrantで保存する", async () => {
+it("検証済み送信providerを渡した場合だけEventsを公開し、Mcp-Nameなしの購読を本人のgrantで保存する", async () => {
   expect(await (await rpc("server/discover")).json()).not.toMatchObject({ result: { capabilities: { events: {} } } });
   expect((await rpc("events/list")).status).toBe(404);
   events = { providerId: "fictional-test-provider", transport: { post: async (_url, request) => Response.json(JSON.parse(request.body) as unknown) } };
@@ -116,7 +116,7 @@ it("Eventsのscope不足・callback失敗・header不一致を区別し、秘密
   expect(denied.headers.get("www-authenticate")).toContain("events.subscribe");
   expect(calls).toBe(0);
   const access = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
-  const wrongHeader = await rpc("events/subscribe", params, { "mcp-name": "other.event" }, access);
+  const wrongHeader = await rpc("events/subscribe", params, { "mcp-method": "events/unsubscribe" }, access);
   expect(await wrongHeader.json()).toMatchObject({ error: { code: -32020 } });
   expect(calls).toBe(0);
   const failed = await rpc("events/subscribe", params, {}, access);

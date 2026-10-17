@@ -37,7 +37,7 @@ function headerMismatch() { throw new ModernMcpError(400, -32020, "Required MCP 
 function validateHeaders(request: Request, method: string, params: Record<string, unknown>) {
   const version = record(params._meta)["io.modelcontextprotocol/protocolVersion"];
   if (typeof version !== "string" || request.headers.get("mcp-protocol-version") !== version || request.headers.get("mcp-method") !== method) headerMismatch();
-  if (method === "tools/call" || method === "prompts/get" || method === "events/subscribe" || method === "events/unsubscribe") {
+  if (method === "tools/call" || method === "prompts/get") {
     if (typeof params.name !== "string" || decodeName(request.headers.get("mcp-name")) !== params.name) headerMismatch();
   }
   if (method === "resources/read" && (typeof params.uri !== "string" || decodeName(request.headers.get("mcp-name")) !== params.uri)) headerMismatch();
