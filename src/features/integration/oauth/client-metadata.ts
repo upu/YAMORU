@@ -58,11 +58,12 @@ function includesOrAbsent(value: unknown, expected: string): boolean {
   return value === undefined || (Array.isArray(value) && value.includes(expected));
 }
 
-// 表示名は外部が自由に書ける値なので、制御文字を除き、長さを制限する。
-// 同意画面では名前と並べてclient_idのホスト名も表示する。
+// 表示名は外部が自由に書ける値なので、制御文字と書式文字(双方向テキストの
+// 上書き等)を除き、長さを制限する。同意画面では名前と並べてclient_idの
+// ホスト名も表示するため、名前の文字でホスト名の見え方を変えさせない。
 function displayName(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
-  const cleaned = value.replaceAll(/\p{Cc}/gu, "").trim().slice(0, CLIENT_NAME_MAX_LENGTH);
+  const cleaned = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, "").trim().slice(0, CLIENT_NAME_MAX_LENGTH);
   return cleaned.length > 0 ? cleaned : fallback;
 }
 

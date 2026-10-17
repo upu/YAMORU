@@ -184,6 +184,16 @@ describe("CIMDのclient_idと文書", () => {
     }
   });
 
+  it("表示名から双方向テキストの上書きなどの書式文字を除く", () => {
+    const parsed = parseClientMetadata({
+      client_id: CLIENT_ID,
+      client_name: "Assistant\u202E(moc.elpmaxe)\u200B",
+      redirect_uris: [REDIRECT_URI],
+      token_endpoint_auth_method: "none",
+    }, CLIENT_ID, "t");
+    expect(parsed?.clientName).toBe("Assistant(moc.elpmaxe)");
+  });
+
   it("公開クライアント(none)への対応を明示しない文書を拒否する", () => {
     const base = { client_id: CLIENT_ID, redirect_uris: [REDIRECT_URI] };
     expect(parseClientMetadata(base, CLIENT_ID, "t")).toBeNull();
