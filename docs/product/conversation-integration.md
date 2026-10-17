@@ -102,7 +102,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `entity_get` | `kind, id` | 対象と関連ID、revision、現在状態、日付projection、許可操作。関連の全件展開はしない |
 | `history_list` | `kind, id, cursor?, limit?` | 記録ID、実施/記録日時、actor/client/performer、有効値と訂正元ID。既定20、最大50 |
 | `attention_get` | `cursor?, limit?, candidate_ids?` | `candidates, removed_ids, next_cursor, generated_at, next_check_at`。候補は既定20、最大50、ID指定も最大50 |
-| `operation_get` | `operation_id` | `prepared / succeeded / rejected / expired / unknown`、保存結果、再取得方法。別接続のreceiptは返さない |
+| `operation_get` | `operation_id` | `prepared / succeeded / rejected / expired / unknown`、保存結果、再取得方法、確認状態。確認済みで未実行なら元commandのscopeも検証し`confirmation_token`を返す。別接続のreceipt/tokenは返さない |
 | `notification_settings_get` | `{}` | 本人の設定とrevision、適用中の次回通知時刻 |
 | `delivery_list` | `cursor?, limit?` | 本人向け候補ID・状態・見送り理由・最終試行時刻。既定20、最大50。callback URLやsecretは返さない |
 
@@ -126,11 +126,18 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 }
 ```
 
-出力は`operation_id, status, preview_id, expires_at, normalized_command, affected_entities, diff, schedule_effect, confirmation, fingerprint`。`confirmation`は`not_needed / required / unresolved`と理由コードを持つ。未解決の必須値があればcommit可能なpreviewを発行しない。previewは10分有効で、期限はサーバーが返す。prepareは業務データを変更しないがpreview/receiptを永続化するため、MCPのreadOnly扱いにはしない。
+出力は`operation_id, status, preview_id, expires_at, normalized_command, affected_entities, diff, schedule_effect, confirmation, fingerprint`。`confirmation`は`state(not_needed / required / unresolved), reason_codes[]`を持ち、requiredでは`confirmation_url`と`expires_at`も返す。未解決の必須値があればcommit可能なpreviewを発行しない。previewは10分有効で、期限はサーバーが返す。prepareは業務データを変更しないがpreview/receiptを永続化するため、MCPのreadOnly扱いにはしない。
 
 対象を新規作成するcommandではtarget/revisionを省略し、関連する既存IDのrevisionをaffected_entitiesへ含める。個人設定は本人の設定revision、訂正は対象記録と現在の投影のrevisionを使う。prepareとcommitの両方でcommand別のscopeをサーバー側から引き、要求内に書かれたscopeは採用しない。
 
 `command_commit`入力は`operation_id, preview_id, fingerprint`と、確認必須の場合のサーバー発行`confirmation_token`のみ。payloadを再入力させない。tokenは認証済みYAMORU確認画面で該当previewへ同意したとき発行し、同じ主体・内容・期限へ束縛する。日常の明確な操作では追加確認画面を要求しない。MCPクライアント固有の確認UIが追加で要求される場合はそれに従う。
+
+追加確認は次の手順で完結させる。URL/画面/Toolは#436・#437・#439で実装する契約であり、現存する導線ではない。
+
+1. `confirmation_url`はYAMORU自身の`/settings/integrations/operations/{preview_id}/confirm`を指す。IDは推測困難とし、URLへtokenや家庭情報を含めない。リンクを開くGETだけでは承認しない。
+2. Webログイン後、previewの本人・家庭・接続・元commandのscopeを確認する。接続元と確定差分、次回への影響を表示し、承認/拒否をCSRF保護されたPOSTで記録する。承認時もpreview期限とrevisionを再確認し、変更済みなら承認せず再prepareへ戻す。
+3. 画面は利用者へ元の会話へ戻るよう案内する。クライアントは同じ`operation_id`の`operation_get`から`confirmation_status: pending / approved / denied / expired`を取得する。approvedかつ未実行の場合だけ、元と同じ本人・家庭・client・接続と必要scopeへ`confirmation_token`を返す。利用者にtokenのコピーや貼り付けを求めない。
+4. tokenはpreview/fingerprint/接続/期限に束縛し、暗号化保存、ログ非出力とする。commitで検証して一回だけ消費する。同じ操作の成功後の再送は消費済みtokenで再実行せず保存結果を返す。拒否・解除・期限切れはtokenを無効化し、競合は確認を引き継がず新しいpreviewへ戻す。
 
 成功出力は`status: succeeded, operation_id, replayed, recorded_at, result`。resultは対象ID・新revision・実施日・次回Occurrence/予定・履歴ID・`undo_available`と理由・詳細リンクを持つ。すでに他の家族が完了した場合は`already_resolved`と現在状態を返し、この操作が完了したと表示しない。
 
@@ -144,7 +151,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `managed_item.update` | ManagedItem対象/revisionと既存Webで編集可能な`changes` | 家庭内の管理対象を変更。削除/アーカイブを含めない。#437 |
 | `todo.create` | `title, recurrence`、任意`managed_item_id, note, assignee_id`。recurrenceは`one_time / manual / completion / calendar / interval`の型別入力 | Ruleと最初のOccurrenceを一括作成。#437 |
 | `managed_item_with_todo.create` | 上記2つのpayload。Todoは作成対象へ関連付け | 2つの独立commitにせず全成功/全取消。#437 |
-| `todo.update` | `edit_scope(current_occurrence/future_rule), changes`、対象revision。繰返し方式そのものの変更は不可 | 現在回と次回以降を混同しない編集と履歴。#437 |
+| `todo.update` | `edit_scope(current_occurrence/future_rule/manual_combined), changes`、対象revision。manual_combinedは`rule_changes`と`occurrence_changes`を受け取り、一方または両方を指定可。繰返し方式そのものの変更は不可 | 暦を持つ繰り返しは現在回と次回以降を分離。manualは[YDR-046](../decisions/ydr-046-manual-recurrence-todos.md)どおりRuleの名前・関連対象・メモ、現在Occurrenceの担当・snapshot・変更履歴を一つのpreview/commitで全成功/全取消にする。過去回は変更しない。#437 |
 | `todo.complete` | Occurrence対象、`occurred_on`または`occurred_at`の一方、任意`performer_id`。日時省略は「今」としてprepare時刻へ固定しpreviewに明示 | 完了履歴、現在状態、次回を一括更新。#437 |
 | `todo.correct` | `completion_log_id, changes`。changesは`occurred_on`・`performer_id`の一方または両方を含む空でないオブジェクト | 全項目を一つのpreview/commitで追記訂正。日時訂正は次回未変更ガード。入力検証・revision確認・訂正履歴・現在値・次回更新を全成功/全取消とし、項目別commitへ分割しない。#437 |
 | `todo.undo` | `completion_log_id`、対象revision | 次回が未変更のときのみ完了取消。#437 |
@@ -264,7 +271,7 @@ SQL名・制約・index・移行テストは担当Issueの実装と同時に決�
 | #51 | 必達日の永続化と表示。6節 | 目安との併存、必達日前/当日/超過、延期/訂正/取消、旧データの回帰 |
 | #435 | 2〜4節、6節。共通読み取りとprojection | Web/API一致、候補の曖昧さ・別名、家庭境界、ページング、日付境界 |
 | #436 | 3節、8節。認証・接続管理 | PKCE/metadata/resource/scope/期限、他家庭、解除後操作・配信停止、実認証の証拠 |
-| #437 | 5〜6節。共通commandとreceipt | 同ID同内容/別内容、応答喪失、同時完了、古いpreview、旧Web更新、後続更新と取消、複合作成の途中失敗。実施日と実施者の同時訂正で一項目の検証失敗/競合が起きても全項目が未変更 |
+| #437 | 5〜6節。共通commandとreceipt | 同ID同内容/別内容、応答喪失、同時完了、古いpreview、旧Web更新、後続更新と取消、複合作成の途中失敗。複数項目訂正/manual一括編集の検証失敗・競合で全項目が未変更。requiredの確認URL→本人承認→同じ接続でtoken取得→commitと、他人・別接続・拒否・期限切れ・確認後競合の拒否 |
 | #438 | 在庫の観測/補充/訂正 | 二重補充、過去日/同日競合、観測のみで補充日不変、未知情報の保存、家庭境界 |
 | #439 | OAuth付きMCPアダプタ | 実dotで読み取り→登録→取得→完了→次回確認、再接続、切断・権限不足・データ内の命令文 |
 | #440 | 7節の候補生成 | 空/多数/日付経過、必達日と目安、差分削除、安定順序、完了等の除外 |
