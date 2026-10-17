@@ -264,7 +264,32 @@ function evidenceValue(evidence: BusinessEvidence): string {
 //
 // 結果には読み取りToolと同じ形式のrevisionを加える。通知設定は整数、
 // 候補は[1,id,candidateRevision]、通常の家庭データは[1,kind,id,epoch,version]。
+// 複数の対象を作る操作は、それぞれの結果の位置(path)にも同じ形で加える。
 // 書き込み後の世代はbatchの中でしか分からないため、この文で読み取って保存する。
+export type RevisionPlacement = { id: string; kind: string; path: string };
+
+const REVISION_PATH = /^\$(?:\.[a-z_]+)+$/u;
+
+function revisionValue(kindParameter: number): string {
+  const kind = `?${String(kindParameter)}`;
+  const id = `?${String(kindParameter + 1)}`;
+  return `CASE ${kind}
+              WHEN 'notification_settings' THEN (
+                SELECT revision FROM notification_settings
+                 WHERE household_id = integration_operations.household_id
+                   AND user_id = integration_operations.user_id AND user_id = ${id}
+              )
+              WHEN 'attention_candidate' THEN (
+                SELECT '[1,' || json_quote(id) || ',' || revision || ']' FROM attention_candidates
+                 WHERE household_id = integration_operations.household_id AND id = ${id}
+              )
+              ELSE (
+                SELECT '[1,' || json_quote(${kind}) || ',' || json_quote(${id}) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
+                  FROM household_read_versions v
+                 WHERE v.household_id = integration_operations.household_id
+              ) END`;
+}
+
 export function commitReceiptStatement(
   db: D1Database,
   input: {
@@ -273,10 +298,16 @@ export function commitReceiptStatement(
     id: string;
     result: string;
     revisionEntity: { id: string; kind: string };
+    revisionPlacements?: RevisionPlacement[];
   },
 ): D1PreparedStatement {
   if (input.evidence.length === 0) throw new Error("commit requires business evidence");
-  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + 6));
+  const placements = [{ ...input.revisionEntity, path: "$.revision" }, ...(input.revisionPlacements ?? [])];
+  if (placements.some(({ path }) => !REVISION_PATH.test(path))) throw new Error("invalid revision path");
+  // ?4から、placementごとに(path, kind, id)の3つを使う。
+  const assignments = placements.map((_, index) => `?${String(4 + index * 3)}, ${revisionValue(5 + index * 3)}`);
+  const evidenceStart = 4 + placements.length * 3;
+  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + evidenceStart));
   return db.prepare(
     `UPDATE integration_operations
         SET status = CASE
@@ -285,29 +316,14 @@ export function commitReceiptStatement(
                 AND ${conditions.join("\n                AND ")}
               THEN 'succeeded'
             END,
-            result = json_set(?3, '$.revision', CASE ?4
-              WHEN 'notification_settings' THEN (
-                SELECT revision FROM notification_settings
-                 WHERE household_id = integration_operations.household_id
-                   AND user_id = integration_operations.user_id AND user_id = ?5
-              )
-              WHEN 'attention_candidate' THEN (
-                SELECT '[1,' || json_quote(id) || ',' || revision || ']' FROM attention_candidates
-                 WHERE household_id = integration_operations.household_id AND id = ?5
-              )
-              ELSE (
-                SELECT '[1,' || json_quote(?4) || ',' || json_quote(?5) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
-                  FROM household_read_versions v
-                 WHERE v.household_id = integration_operations.household_id
-              ) END),
+            result = json_set(?3, ${assignments.join(", ")}),
             resolved_at = ?2
       WHERE id = ?1`,
   ).bind(
     input.id,
     input.at,
     input.result,
-    input.revisionEntity.kind,
-    input.revisionEntity.id,
+    ...placements.flatMap(({ id, kind, path }) => [path, kind, id]),
     ...input.evidence.map(evidenceValue),
   );
 }

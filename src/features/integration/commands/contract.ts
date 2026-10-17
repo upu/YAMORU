@@ -2,7 +2,16 @@
 // 入出力とエラーの契約。docs/product/conversation-integration.md 5節を正本とし、
 // 値はMCP等の外部へそのまま返すためsnake_caseで組み立てる。
 
-export const COMMAND_NAMES = ["todo.complete", "todo.correct", "todo.create", "todo.undo", "notification.configure", "notification.snooze"] as const;
+export const COMMAND_NAMES = [
+  "managed_item.create",
+  "managed_item_with_todo.create",
+  "notification.configure",
+  "notification.snooze",
+  "todo.complete",
+  "todo.correct",
+  "todo.create",
+  "todo.undo",
+] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
 export function isCommandName(value: unknown): value is CommandName {
@@ -14,7 +23,7 @@ export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" };
 
-// 対象を新しく作るcommand(todo.create)は対象を持たない(5節)。
+// 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。
 export type NormalizedCommand = {
   command: CommandName;
   payload: Record<string, unknown>;

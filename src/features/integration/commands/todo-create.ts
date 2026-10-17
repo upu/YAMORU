@@ -59,7 +59,7 @@ function completionInsert(payload: CreatePayload, recurrence: Extract<CreateRecu
 
 // 正規化したpayloadから保存形を作る。「今日」はprepare時刻(reference_at)に
 // 固定し、commitで計算し直しても同じ初回予定になる。
-function taskInsert(payload: CreatePayload): TaskInsert {
+export function taskInsert(payload: CreatePayload): TaskInsert {
   const now = new Date(payload.reference_at);
   const recurrence = payload.recurrence;
   const insert = ((): TaskInsert => {
@@ -103,7 +103,7 @@ function followingScheduledFor(payload: CreatePayload, insert: TaskInsert): stri
   return null;
 }
 
-function scheduleEffect(payload: CreatePayload, insert: TaskInsert) {
+export function scheduleEffect(payload: CreatePayload, insert: TaskInsert) {
   const following = followingScheduledFor(payload, insert);
   const recurrence = payload.recurrence;
   return {
@@ -116,6 +116,17 @@ function scheduleEffect(payload: CreatePayload, insert: TaskInsert) {
   };
 }
 
+export function todoDiff(payload: CreatePayload) {
+  return {
+    assignee_id: payload.assignee_id,
+    managed_item_id: payload.managed_item_id,
+    must_complete_by: payload.must_complete_by,
+    note: payload.note,
+    recurrence: payload.recurrence,
+    title: payload.title,
+  };
+}
+
 function preview(payload: CreatePayload, creation: TodoCreationPlan) {
   const affected: Record<string, unknown>[] = [{ change: "create", id: null, kind: "todo_rule", title: payload.title }];
   if (payload.managed_item_id !== null) {
@@ -123,40 +134,47 @@ function preview(payload: CreatePayload, creation: TodoCreationPlan) {
   }
   return {
     affected_entities: affected,
-    diff: {
-      assignee_id: payload.assignee_id,
-      managed_item_id: payload.managed_item_id,
-      must_complete_by: payload.must_complete_by,
-      note: payload.note,
-      recurrence: payload.recurrence,
-      title: payload.title,
-    },
+    diff: todoDiff(payload),
     schedule_effect: scheduleEffect(payload, creation.insert),
   };
 }
 
-async function plan(context: CommandContext, normalized: NormalizedCommand) {
-  const payload = normalized.payload as CreatePayload;
-  const creation = await planTodoCreation(context.db, context.householdId, taskInsert(payload))
+// 登録の文と結果。managed_item_with_todo.createも、作る管理対象へ関連付けた
+// creationで同じものを使う。
+export function buildTodoCreation(context: CommandContext, payload: CreatePayload, creation: TodoCreationPlan) {
+  const ids = { occurrenceId: crypto.randomUUID(), taskRuleId: crypto.randomUUID() };
+  return {
+    ...todoCreationStatements(context.db, context.householdId, creation, ids),
+    occurrenceId: ids.occurrenceId,
+    result: {
+      detail_url: todoDetailUrl(ids.occurrenceId),
+      first_occurrence: { id: ids.occurrenceId, ...scheduleView(creation.insert) },
+      recurrence: recurrenceName(creation.insert.recurrenceBasis),
+      title: payload.title,
+      todo_rule_id: ids.taskRuleId,
+    },
+  };
+}
+
+export async function planTodo(context: CommandContext, payload: CreatePayload): Promise<TodoCreationPlan> {
+  return planTodoCreation(context.db, context.householdId, taskInsert(payload))
     .catch((error: unknown) => mapD1Error(error, {
       ASSIGNEE_NOT_FOUND: () => invalidInput("payload.assignee_id", "not_in_household"),
       MANAGED_ITEM_NOT_FOUND: () => invalidInput("payload.managed_item_id", "not_found"),
     }));
+}
+
+async function plan(context: CommandContext, normalized: NormalizedCommand) {
+  const payload = normalized.payload as CreatePayload;
+  const creation = await planTodo(context, payload);
   return {
     build({ recordedAt }: { recordedAt: string }) {
-      const ids = { occurrenceId: crypto.randomUUID(), taskRuleId: crypto.randomUUID() };
-      const result = {
-        detail_url: todoDetailUrl(ids.occurrenceId),
-        first_occurrence: { id: ids.occurrenceId, ...scheduleView(creation.insert) },
-        recorded_at: recordedAt,
-        recurrence: recurrenceName(creation.insert.recurrenceBasis),
-        title: payload.title,
-        todo_rule_id: ids.taskRuleId,
-      };
+      const { evidence, occurrenceId, result, statements } = buildTodoCreation(context, payload, creation);
       return {
-        ...todoCreationStatements(context.db, context.householdId, creation, ids),
-        result,
-        revisionEntity: { id: ids.occurrenceId, kind: "todo_occurrence" as const },
+        evidence,
+        result: { ...result, recorded_at: recordedAt },
+        revisionEntity: { id: occurrenceId, kind: "todo_occurrence" as const },
+        statements,
       };
     },
     preview: preview(payload, creation),

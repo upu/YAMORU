@@ -1,5 +1,5 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
-import { D1NotFoundError } from "./errors";
+import { D1Error, D1NotFoundError } from "./errors";
 import {
   assertManagedItemTagLimit,
   buildManagedItemTagStatements,
@@ -200,12 +200,12 @@ export async function listHouseholdCustomItemTypes(
   return results;
 }
 
-async function requireActiveClassification(
+export async function requireActiveClassification(
   db: D1Database,
   input: ManagedItemClassificationInput,
 ): Promise<ClassificationDefinition> {
   if (input.itemTypeCode !== null && input.customItemType !== null) {
-    throw new Error("管理対象の分類を選択し直してください。");
+    throw new D1Error("管理対象の分類を選択し直してください。", "MANAGED_ITEM_CLASSIFICATION_INVALID");
   }
   const definition = await db.prepare(
     `SELECT coalesce(p.legacy_kind, k.legacy_kind) AS legacyKind
@@ -216,14 +216,14 @@ async function requireActiveClassification(
         AND (?2 IS NULL OR p.code IS NOT NULL)`,
   ).bind(input.kindCode, input.itemTypeCode).first<ClassificationDefinition>();
   if (definition === null) {
-    throw new Error("管理対象の分類を選択し直してください。");
+    throw new D1Error("管理対象の分類を選択し直してください。", "MANAGED_ITEM_CLASSIFICATION_INVALID");
   }
   return definition;
 }
 
 // Issue #226: tagsを省略した呼び出し(タグを扱わない既存の経路)は、付与済み
 // タグに触れない。指定した場合は、その内容へ付け替える(空なら全て外す)。
-type ManagedItemWriteInput = ManagedItemClassificationInput
+export type ManagedItemWriteInput = ManagedItemClassificationInput
   & ManagedItemOptionalAttributes
   & {
     externalUrl: string | null;
@@ -240,18 +240,22 @@ export async function createManagedItem(
   const classification = await requireActiveClassification(db, input);
   if (input.tags !== undefined) await assertManagedItemTagLimit(db, householdId, input.tags);
   const itemId = crypto.randomUUID();
+  await db.batch(managedItemInsertStatements(db, householdId, itemId, { ...input, legacyKind: classification.legacyKind }));
+  return itemId;
+}
+
+// 登録の文。Webの登録と外部command(#437)が同じbatchの中身を使う。
+// legacyKindはrequireActiveClassificationで確かめた分類から決まる値。
+export function managedItemInsertStatements(
+  db: D1Database,
+  householdId: string,
+  itemId: string,
+  input: ManagedItemWriteInput & ClassificationDefinition,
+): D1PreparedStatement[] {
   const statements = [db.prepare(`INSERT INTO managed_items (
       id, household_id, name, kind, note, product_info, started_on
     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`)
-    .bind(
-      itemId,
-      householdId,
-      input.name,
-      classification.legacyKind,
-      input.note,
-      input.productInfo,
-      input.startedOn,
-    ),
+    .bind(itemId, householdId, input.name, input.legacyKind, input.note, input.productInfo, input.startedOn),
   db.prepare(`INSERT INTO managed_item_classifications (
       managed_item_id, household_id, kind_code, item_type_code, custom_item_type
     ) VALUES (?1, ?2, ?3, ?4, ?5)`)
@@ -261,8 +265,7 @@ export async function createManagedItem(
   if (input.tags !== undefined) {
     statements.push(...buildManagedItemTagStatements(db, householdId, itemId, input.tags));
   }
-  await db.batch(statements);
-  return itemId;
+  return statements;
 }
 
 export async function getManagedItem(db: D1Database, session: D1Session, id: string): Promise<ManagedItemSummary | null> {

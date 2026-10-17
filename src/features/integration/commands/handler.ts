@@ -1,4 +1,5 @@
 import { d1ErrorCode, type D1ErrorCode } from "../../../lib/d1/errors";
+import type { RevisionPlacement } from "../../../lib/d1/integration-operations";
 import type { BusinessStatements } from "../../../lib/d1/todos/command-plans";
 import { tokyoDate } from "./input";
 import { CommandError, type CommandPreview, type CommandTarget, type NormalizedCommand } from "./contract";
@@ -19,7 +20,9 @@ export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
   // 対応する読み取りToolと同じ形式のrevisionを返す対象。次の操作の
   // expected_revision/settings_revision/candidate_revisionに使える。
-  revisionEntity: { id: string; kind: "todo_occurrence" | "notification_settings" | "attention_candidate" };
+  revisionEntity: { id: string; kind: "attention_candidate" | "managed_item" | "notification_settings" | "todo_occurrence" };
+  // 複数の対象を作る操作で、結果の中の各対象にもrevisionを付ける位置。
+  revisionPlacements?: RevisionPlacement[];
 };
 
 export type CommandPlan = {
@@ -57,6 +60,10 @@ export function performerNotFound(field: string): CommandError {
 // 結果から利用者が開ける詳細画面。読み取りToolのdetail_urlと同じ相対パス。
 export function todoDetailUrl(occurrenceId: string): string {
   return `/todos/${encodeURIComponent(occurrenceId)}`;
+}
+
+export function managedItemDetailUrl(itemId: string): string {
+  return `/managed-items/${encodeURIComponent(itemId)}`;
 }
 
 // 外部へ返す繰り返し方式の名前。DBの'once'は契約上one_timeと呼ぶ。

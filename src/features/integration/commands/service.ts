@@ -28,6 +28,7 @@ import {
   sameRevision,
   type HouseholdRevision,
 } from "./revision";
+import { managedItemCreateHandler, managedItemWithTodoCreateHandler } from "./managed-item-create";
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
@@ -43,6 +44,8 @@ import { notificationSnoozeHandler } from "./notification-snooze";
 // 追加確認(confirmation_url)はまだ扱わない。
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
+  "managed_item.create": managedItemCreateHandler,
+  "managed_item_with_todo.create": managedItemWithTodoCreateHandler,
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
   "todo.create": todoCreateHandler,
@@ -310,6 +313,7 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
         id: operation.id,
         result: canonicalJson(execution.result),
         revisionEntity: execution.revisionEntity,
+        revisionPlacements: execution.revisionPlacements,
       }),
     ]);
   } catch (error) {
