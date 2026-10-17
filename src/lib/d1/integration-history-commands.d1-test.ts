@@ -186,7 +186,9 @@ describe("todo.correct", () => {
     });
     const committed = await service.commit(principal, commitRequest(prepared));
 
-    expect(committed).toMatchObject({ result: { occurred_on: "2026-10-10", performer_id: familyMember.userId } });
+    expect(committed).toMatchObject({
+      result: { date_precision: "day", occurred_on: "2026-10-10", performer_id: familyMember.userId },
+    });
     await expect(corrections()).resolves.toBe(2);
     await expect(db.prepare("SELECT scheduled_for FROM task_occurrences WHERE id = ?1").bind(nextOccurrenceId).first())
       .resolves.toEqual({ scheduled_for: "2026-10-16T15:00:00.000Z" });

@@ -337,10 +337,11 @@ describe("権限と家庭の境界", () => {
 
     await expectCommandError(service.prepare(memberB, completeRequest(occurrenceId)), "not_found");
     await expectCommandError(service.commit(memberB, commitRequest(prepared)), "not_found");
-    await expectCommandError(service.get(memberB, { operation_id: prepared.operation_id }), "not_found");
+    await expect(service.get(memberB, { operation_id: prepared.operation_id })).resolves.toMatchObject({ status: "unknown" });
     // 同じ本人でも、再接続した別の接続からは旧接続の操作を引けない。
     const reconnected = await connectPrincipal(db, memberA);
-    await expectCommandError(service.get(reconnected, { operation_id: prepared.operation_id }), "not_found");
+    await expect(service.get(reconnected, { operation_id: prepared.operation_id }))
+      .resolves.toEqual({ operation_id: prepared.operation_id, recovery: "prepare_same_operation", status: "unknown" });
     await expect(completedLogs(occurrenceId)).resolves.toBe(0);
   });
 });

@@ -161,6 +161,7 @@ export const todoCorrectHandler: CommandHandler = {
         });
         const effect = correctionScheduleEffect(correction);
         const result = {
+          ...(changes.date_precision === undefined ? {} : { date_precision: changes.date_precision }),
           completion_log_id: correction.effective.completionLogId,
           detail_url: todoDetailUrl(correction.occurrence.id),
           next_occurrence: effect.next_occurrence === null ? null : { id: effect.next_occurrence.id, ...effect.next_occurrence.to },

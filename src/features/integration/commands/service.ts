@@ -333,7 +333,11 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
   requireScope(request.principal, "household.read");
   const parsed = parseOperationGetRequest(input);
   const operation = await findIntegrationOperation(request.deps.db, request.principal.connectionId, parsed.operationId);
-  if (operation === null) throw new CommandError("not_found", { operationId: parsed.operationId });
+  // prepareの応答を失い、受付記録が作られなかった操作。対象が無いという意味の
+  // not_foundとは区別し、同じ操作IDでprepareからやり直せることを示す。
+  if (operation === null) {
+    return { operation_id: parsed.operationId, recovery: "prepare_same_operation", status: "unknown" };
+  }
   return {
     operation_id: operation.operationId,
     command: operation.command,
