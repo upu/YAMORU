@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createMaintenanceTaskMock, createOneTimeTaskMock, getD1ContextMock, revalidatePathMock } = vi.hoisted(() => ({
   createMaintenanceTaskMock: vi.fn(),
@@ -59,9 +59,16 @@ function maintenanceTodoForm({
 describe("完了日基準メンテナンスTodo登録操作", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 推奨期間の表示が実行日に依存しないよう、期間開始前の日付に固定する。
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T00:00:00+09:00"));
     getD1ContextMock.mockResolvedValue({ db: "db", session: "session" });
     createMaintenanceTaskMock.mockResolvedValue("task-rule-id");
     createOneTimeTaskMock.mockResolvedValue("task-rule-id");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("1〜2週間と前回実施日から初回期間を計算して限定RPCへ渡す", async () => {
