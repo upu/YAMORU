@@ -86,14 +86,15 @@ function fromRow(row: OperationRow): IntegrationOperation {
 
 // 業務の記録(activity_logs・completion_corrections)を書いた外部commandの
 // 受付記録を、その記録のidempotency_keyで引く条件。訂正は項目ごとに
-// `<business_key>:occurred_at`・`:performer`、Todoの編集は担当・期限ごとに
-// `:assignee`・`:due`のキーを使う。
+// `<business_key>:occurred_at`・`:performer`、Todoの編集は担当・期限・
+// 繰り返し条件・必達日ごとに`:assignee`・`:due`・`:rule`・`:deadline`のキーを使う。
 function operationOf(alias: string): string {
   return `io.household_id = ${alias}.household_id
       AND ${alias}.idempotency_key LIKE 'integration:%'
       AND (io.business_key = ${alias}.idempotency_key
         OR ${alias}.idempotency_key IN (io.business_key || ':occurred_at', io.business_key || ':performer', io.business_key || ':current_observation',
-          io.business_key || ':assignee', io.business_key || ':due'))`;
+          io.business_key || ':assignee', io.business_key || ':due', io.business_key || ':rule',
+          io.business_key || ':deadline'))`;
 }
 
 // 外部commandの接続元(client_id)を引くSQL式。Webからの記録はNULL。

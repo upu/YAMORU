@@ -187,6 +187,19 @@ describe("履歴の接続元", () => {
     await expect(clients(recurring)).resolves.toEqual([["assignee_changed", principal.clientId], ["postponed", principal.clientId]]);
     await expect(clients(oneTime)).resolves.toEqual([["assignee_changed", principal.clientId]]);
   });
+
+  it("繰り返し条件・必達日の変更履歴にも、外部commandの接続元を残す", async () => {
+    const recurring = await createEverySaturdayTodo(db);
+    await run(commandService(db), updateRequest(recurring, { changes: { title: "資源ごみ" }, edit_scope: "future_rule" }));
+    await run(commandService(db), updateRequest(recurring, { changes: { must_complete_by: "2026-10-20" }, edit_scope: "current_occurrence" }));
+    const manual = await createTodo({ type: "manual" }, "電池交換");
+    await run(commandService(db), updateRequest(manual, { edit_scope: "manual_combined", rule_changes: { title: "電池の交換" } }));
+    const clients = async (occurrenceId: string) => (await readHistoryRows(db, "household-a", "todo_occurrence", occurrenceId, "", 20))
+      .filter((row) => row.kind === "rule_changed" || row.kind === "hard_deadline_changed")
+      .map((row) => [row.kind, row.client_id]).sort();
+    await expect(clients(recurring)).resolves.toEqual([["hard_deadline_changed", principal.clientId], ["rule_changed", principal.clientId]]);
+    await expect(clients(manual)).resolves.toEqual([["rule_changed", principal.clientId]]);
+  });
 });
 
 describe("一回限り・必要時", () => {

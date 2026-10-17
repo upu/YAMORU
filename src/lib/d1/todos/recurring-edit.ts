@@ -355,6 +355,8 @@ export function recurringRuleStatements(
   input: {
     changeId: string;
     householdId: string;
+    // 外部command(#437)の操作キー(`<key>:rule`として残す)。Webからの編集はnull。
+    idempotencyKey?: string | null;
     input: RecurringTaskRuleUpdate | RuleBasicsUpdate;
     occurrence: OccurrenceWithRule;
     occurrenceId: string;
@@ -381,16 +383,16 @@ export function recurringRuleStatements(
       db.prepare(
         `INSERT INTO task_rule_changes (
           id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
-          previous_rule_snapshot, new_rule_snapshot
+          previous_rule_snapshot, new_rule_snapshot, idempotency_key
         )
-        SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
+        SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}, ?5
          FROM task_occurrences o
           JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
           LEFT JOIN managed_items i
             ON i.id = r.managed_item_id AND i.household_id = r.household_id
          WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
            AND o.rule_snapshot <> ${snapshot}`,
-      ).bind(changeId, householdId, userId, occurrenceId),
+      ).bind(changeId, householdId, userId, occurrenceId, suffixedKey(input.idempotencyKey, "rule")),
       db.prepare(
         `UPDATE task_occurrences
             SET rule_snapshot = (

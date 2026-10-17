@@ -44,7 +44,7 @@ status: stable
 - 生のcode・tokenはD1にもログにも残さない。保存はSHA-256だけ。ログは`logOAuthEvent`を通し、ID・理由コードだけを出す。
 - 接続管理は本人の接続だけを扱う。同じ家庭の家族でも他人の接続を見たり解除したりできない。
 - 変更操作は、業務の更新と受付記録の成功を同じD1 batchへ載せる。最初の`revisionGuardStatement`がpreview時の家庭の世代を、最後の`commitReceiptStatement`が条件(未確定・期限内・接続が有効・業務の記録が存在・取消/訂正の対象が最新の完了)を確かめ、満たさなければbatch全体を取り消す([YDR-054](../decisions/ydr-054-integration-command-receipts.md))。業務の更新はWeb操作と同じ条件付きSQL(`completionStatements`等)を使い、外部向けに判定を複製しない。
-- 外部commandが書いた履歴(activity_logs・completion_corrections)は、idempotency_keyから受付記録を引いて接続元(`client_id`)を履歴の読み取りへ返す(`operationClientExpression`)。一つの操作が複数の履歴を書く場合は、`<business_key>:assignee`・`:due`のように項目ごとのキーを使う。業務テーブルへ接続元の列は足していない。
+- 外部commandが書いた履歴(activity_logs・completion_corrections)は、idempotency_keyから受付記録を引いて接続元(`client_id`)を履歴の読み取りへ返す(`operationClientExpression`)。一つの操作が複数の履歴を書く場合は、`<business_key>:assignee`・`:due`・`:rule`・`:deadline`のように項目ごとのキーを使う。繰り返し条件・必達日の変更履歴(task_rule_changes・task_deadline_changes)のキー列は`d1/migrations/0038_integration_edit_history_keys.sql`で足した(追加だけのexpand migrationで、旧Workerの書き込みはNULLのまま通る。contract migrationは不要)。業務テーブルへ接続元の列は足していない。
 - `todo.create`は、繰り返し条件の解釈と保存形(`*TaskInsert`・`taskInsertStatements`)をWebの登録と共有し、外部向けに別の暦計算や検証を持たない。完了日基準の初回は前回の実施日(`last_completed_on`)か最初の目安の始まり(`first_scheduled_on`)を必須とし、無ければ`missing_required`で聞き返す。定例日・固定間隔の初回はprepare時刻(`reference_at`)を基準に決める。
 - `managed_item.create`は、名前・詳しい種類・外部リンク・メモ・商品情報・開始時期の規則(`form-input.ts`・`started-on.ts`)と保存の文をWebの登録と共有する。タグは既存タグのIDだけを受け付け、他の家庭のタグIDはbatchの前に`invalid_input`にする(Webは複合外部キー違反で取り消す)。
 - `todo.reschedule`はWebの延期(`requirePostponable`・`postponeStatements`)と同じ判定・文を使い、今回の期限だけを動かす。延期の履歴にidempotency_keyを付け、受付記録の成功条件にする。必要時・予定日未定のTodoは拒否する。
@@ -67,7 +67,7 @@ status: stable
 ```
 npm test -- tests/integration-oauth-request.test.ts tests/integration-connections-ui.test.tsx tests/auth-boundary.test.ts tests/integration-command-input.test.ts
 npm run test:d1 -- src/lib/d1/oauth-flow.d1-test.ts src/lib/d1/oauth-connections-authorization.d1-test.ts src/lib/d1/oauth-clients.d1-test.ts src/lib/d1/oauth-connections-migration.d1-test.ts
-npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-update-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts
+npm run test:d1 -- src/lib/d1/integration-commands.d1-test.ts src/lib/d1/integration-history-commands.d1-test.ts src/lib/d1/integration-create-commands.d1-test.ts src/lib/d1/integration-managed-item-commands.d1-test.ts src/lib/d1/integration-edit-commands.d1-test.ts src/lib/d1/integration-update-commands.d1-test.ts src/lib/d1/integration-operations-migration.d1-test.ts src/lib/d1/integration-edit-history-keys-migration.d1-test.ts
 ```
 
 D1テストは検証済みのOAuthクライアントライブラリ`oauth4webapi`をクライアント役にして流れ全体を確かめる。これは実際の接続先との接続確認(設計のE1)の代わりにはならない。変更操作のテストは、確認と実行の間に家族の更新や接続の解除を割り込ませ(`interruptBeforeBatch`)、業務データと受付記録が全成功か全取消になることを確かめる。

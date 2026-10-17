@@ -117,11 +117,11 @@ export async function readHistoryRows(db: D1Database, householdId: string, kind:
       json_object('previous_occurred_at',c.previous_occurred_at,'previous_performer_user_id',c.previous_performed_by_user_id)
     FROM completion_corrections c WHERE c.household_id=?1 AND c.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT c.id,'rule_changed',c.task_occurrence_id,NULL,NULL,c.changed_at,c.actor_user_id,NULL,NULL,NULL,NULL,
+    SELECT c.id,'rule_changed',c.task_occurrence_id,NULL,NULL,c.changed_at,c.actor_user_id,NULL,NULL,${operationClientExpression("c")},NULL,
       json_object('previous_rule',json(c.previous_rule_snapshot),'new_rule',json(c.new_rule_snapshot))
     FROM task_rule_changes c WHERE c.household_id=?1 AND c.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT d.id,'hard_deadline_changed',d.task_occurrence_id,NULL,NULL,d.recorded_at,d.actor_user_id,NULL,NULL,NULL,NULL,
+    SELECT d.id,'hard_deadline_changed',d.task_occurrence_id,NULL,NULL,d.recorded_at,d.actor_user_id,NULL,NULL,${operationClientExpression("d")},NULL,
       json_object('previous_date',d.previous_date,'new_date',d.new_date)
     FROM task_deadline_changes d WHERE d.household_id=?1 AND d.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL

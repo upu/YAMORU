@@ -636,7 +636,7 @@ CREATE TABLE task_deadline_changes (
   actor_user_id TEXT NOT NULL,
   previous_date TEXT,
   new_date TEXT,
-  recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), idempotency_key TEXT,
   FOREIGN KEY(task_occurrence_id, household_id) REFERENCES task_occurrences(id, household_id) ON DELETE CASCADE,
   FOREIGN KEY(household_id, actor_user_id) REFERENCES household_members(household_id, user_id),
   CHECK(previous_date IS NOT new_date)
@@ -683,7 +683,7 @@ CREATE TABLE "task_rule_changes" (
   actor_user_id TEXT NOT NULL,
   previous_rule_snapshot TEXT NOT NULL CHECK (json_valid(previous_rule_snapshot)),
   new_rule_snapshot TEXT NOT NULL CHECK (json_valid(new_rule_snapshot)),
-  changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  changed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), idempotency_key TEXT,
   FOREIGN KEY (task_rule_id, household_id)
     REFERENCES "task_rules"(id, household_id) ON DELETE CASCADE,
   FOREIGN KEY (task_occurrence_id, household_id)
@@ -1001,6 +1001,11 @@ CREATE INDEX oauth_connections_user_created_idx
 CREATE INDEX oauth_tokens_connection_idx
   ON oauth_tokens(connection_id, kind, expires_at);
 
+-- index: task_deadline_changes_idempotency_key_idx
+CREATE UNIQUE INDEX task_deadline_changes_idempotency_key_idx
+  ON task_deadline_changes(household_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
 -- index: task_deadline_changes_occurrence_idx
 CREATE INDEX task_deadline_changes_occurrence_idx
   ON task_deadline_changes(task_occurrence_id, household_id);
@@ -1020,6 +1025,11 @@ CREATE UNIQUE INDEX task_occurrences_one_pending_per_rule_idx
 -- index: task_rule_changes_household_id_idx
 CREATE INDEX task_rule_changes_household_id_idx
   ON task_rule_changes(household_id);
+
+-- index: task_rule_changes_idempotency_key_idx
+CREATE UNIQUE INDEX task_rule_changes_idempotency_key_idx
+  ON task_rule_changes(household_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 -- index: task_rule_changes_occurrence_idx
 CREATE INDEX task_rule_changes_occurrence_idx

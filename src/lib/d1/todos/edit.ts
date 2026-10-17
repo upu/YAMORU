@@ -193,21 +193,22 @@ function manualRuleChangeStatement(
   householdId: string,
   occurrence: OccurrenceWithRule,
   actorId: string,
+  idempotencyKey: string | null,
 ): D1PreparedStatement {
   const snapshot = taskRuleSnapshotExpression();
   return db.prepare(
     `INSERT INTO task_rule_changes (
       id, household_id, task_rule_id, task_occurrence_id, actor_user_id,
-      previous_rule_snapshot, new_rule_snapshot
+      previous_rule_snapshot, new_rule_snapshot, idempotency_key
     )
-    SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}
+    SELECT ?1, ?2, o.task_rule_id, o.id, ?3, o.rule_snapshot, ${snapshot}, ?5
       FROM task_occurrences o
       JOIN task_rules r ON r.id = o.task_rule_id AND r.household_id = o.household_id
       LEFT JOIN managed_items i
         ON i.id = r.managed_item_id AND i.household_id = r.household_id
      WHERE o.id = ?4 AND o.household_id = ?2 AND o.status = 'pending'
        AND o.rule_snapshot <> ${snapshot}`,
-  ).bind(crypto.randomUUID(), householdId, actorId, occurrence.id);
+  ).bind(crypto.randomUUID(), householdId, actorId, occurrence.id, idempotencyKey);
 }
 
 function oneTimeTodoStatements(
@@ -340,17 +341,21 @@ export function oneTimeEditStatements(
   },
 ): D1PreparedStatement[] {
   const { actorId, householdId, input, occurrence } = edit;
+  // 外部command(#437)の操作キー。履歴ごとに`<key>:rule`・`:assignee`として残す。
+  const keyFor = (suffix: string) => edit.idempotencyKey === undefined || edit.idempotencyKey === null
+    ? null
+    : `${edit.idempotencyKey}:${suffix}`;
   const statements = oneTimeTodoStatements(db, householdId, occurrence, input);
   if (occurrence.recurrence_basis === "manual") {
     // TaskRuleの更新の後、現在のsnapshotを読み替える前に挟む。
-    statements.splice(1, 0, manualRuleChangeStatement(db, householdId, occurrence, actorId));
+    statements.splice(1, 0, manualRuleChangeStatement(db, householdId, occurrence, actorId, keyFor("rule")));
   }
   if (occurrence.assignee_user_id !== input.assigneeUserId) {
     statements.unshift(assigneeChangeStatement(db, {
       actorId,
       at: edit.at,
       householdId,
-      idempotencyKey: edit.idempotencyKey === undefined || edit.idempotencyKey === null ? null : `${edit.idempotencyKey}:assignee`,
+      idempotencyKey: keyFor("assignee"),
       logId: crypto.randomUUID(),
       newAssigneeUserId: input.assigneeUserId,
       occurrenceId: occurrence.id,

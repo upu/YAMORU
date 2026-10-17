@@ -109,7 +109,7 @@ function deadlineStatements(
   db: D1Database,
   current: TodoEditCurrent,
   mustCompleteBy: string | null,
-  actor: { actorId: string; householdId: string },
+  actor: { actorId: string; householdId: string; idempotencyKey: string },
 ): D1PreparedStatement[] {
   if (mustCompleteBy === current.mustCompleteBy) return [];
   return hardDeadlineStatements(db, {
@@ -154,7 +154,8 @@ export function todoUpdateStatements(
     return {
       evidence: [ruleEvidence, occurrenceEvidence(id, {})],
       statements: recurringRuleStatements(db, {
-        ...base, changeId: crypto.randomUUID(), input: plan.rule, occurrenceId: id, userId: actor.actorId,
+        ...base, changeId: crypto.randomUUID(), idempotencyKey: actor.idempotencyKey, input: plan.rule, occurrenceId: id,
+        userId: actor.actorId,
       }).statements,
     };
   }
