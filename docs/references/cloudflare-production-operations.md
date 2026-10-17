@@ -69,6 +69,8 @@ Auth.jsのホスト信頼は`src/auth.config.ts`の`trustHost: true`で明示し
 - 特定のクライアントだけを止めるには、そのclient_idをリストから外す。refreshと新規接続が止まる。
 - ログは`yamoru.oauth.*`のイベント名で、接続ID・client_id・理由コードだけを出す。token・codeは出力しない。
 
+MCPの接続先は公開URLの`/mcp`。[MCP Component](../components/mcp.md)に対応Toolと制約を記載する。初回の実接続は通常のmain自動配備が成功したpreviewで、架空の家庭を使い、読み取り→登録→取得→完了→次回確認→再接続の順に検証する。ローカルの架空clientを許可リストへ持ち込まない。ブラウザーから直接呼ぶクライアントのOriginを追加する必要がある場合だけ、runtime変数`YAMORU_MCP_ALLOWED_ORIGINS`へ検証するoriginを完全一致で設定する(空白/カンマ区切り)。既定は同一originだけを許可する。サーバー間接続もBearer検証を必須とする。
+
 ## previewへ初回配備して確認する
 
 まずpreview D1へマイグレーションを適用する。コマンドが求める確認には`yamoru-preview`を完全一致で入力する。

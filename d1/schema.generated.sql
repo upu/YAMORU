@@ -276,6 +276,24 @@ CREATE TABLE households (
   CHECK (name = trim(name) AND length(name) BETWEEN 1 AND 100)
 );
 
+-- table: integration_mcp_commit_leases
+CREATE TABLE integration_mcp_commit_leases (
+  connection_id TEXT NOT NULL REFERENCES oauth_connections(id) ON DELETE CASCADE,
+  slot INTEGER NOT NULL CHECK(slot IN (0,1)),
+  lease_id TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY(connection_id,slot)
+);
+
+-- table: integration_mcp_rate_windows
+CREATE TABLE integration_mcp_rate_windows (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bucket TEXT NOT NULL CHECK(bucket IN ('read','prepare','commit')),
+  window_start INTEGER NOT NULL,
+  request_count INTEGER NOT NULL CHECK(request_count > 0),
+  PRIMARY KEY(user_id,bucket,window_start)
+);
+
 -- table: integration_operations
 CREATE TABLE integration_operations (
   id TEXT PRIMARY KEY,
@@ -941,6 +959,9 @@ CREATE UNIQUE INDEX household_members_source_id_idx
 
 -- index: household_members_user_id_idx
 CREATE INDEX household_members_user_id_idx ON household_members(user_id);
+
+-- index: integration_mcp_rate_window_cleanup
+CREATE INDEX integration_mcp_rate_window_cleanup ON integration_mcp_rate_windows(window_start);
 
 -- index: integration_operations_household_created_idx
 CREATE INDEX integration_operations_household_created_idx

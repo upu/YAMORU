@@ -69,6 +69,7 @@
 | YDR-055 | 通知候補の発生区間と差分を永続化する | Accepted | [ydr-055-attention-candidate-intervals.md](ydr-055-attention-candidate-intervals.md) |
 | YDR-056 | 個人の通知設定と配信判定を共有予定から分離する | Accepted | [ydr-056-personal-notification-policy.md](ydr-056-personal-notification-policy.md) |
 | YDR-057 | 在庫の観測と補充を分け、訂正を追記する | Accepted | [ydr-057-stock-observation-and-refill-history.md](ydr-057-stock-observation-and-refill-history.md) |
+| YDR-058 | MCPの回数制限と同時実行枠をD1で共有する | Accepted | [ydr-058-mcp-request-budgets.md](ydr-058-mcp-request-budgets.md) |
 
 ## 新しい意思決定の追加
 

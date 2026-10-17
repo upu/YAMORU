@@ -46,6 +46,7 @@ import notificationSql from "../../../../d1/migrations/0035_notification_setting
 import notificationIntervalsSql from "../../../../d1/migrations/0036_notification_candidate_intervals.sql?raw";
 import stockHistorySql from "../../../../d1/migrations/0037_consumable_stock_history.sql?raw";
 import integrationEditHistoryKeysSql from "../../../../d1/migrations/0038_integration_edit_history_keys.sql?raw";
+import mcpLimitsSql from "../../../../d1/migrations/0039_integration_mcp_limits.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -87,6 +88,7 @@ const MIGRATIONS = [
   { name: "0036_notification_candidate_intervals", sql: notificationIntervalsSql },
   { name: "0037_consumable_stock_history", sql: stockHistorySql },
   { name: "0038_integration_edit_history_keys", sql: integrationEditHistoryKeysSql },
+  { name: "0039_integration_mcp_limits", sql: mcpLimitsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

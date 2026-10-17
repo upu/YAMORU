@@ -33,6 +33,9 @@
   ],
   "env": {
     "e2e": {
+      "vars": {
+        "YAMORU_OAUTH_ALLOWED_CLIENT_IDS": "https://client.example.test/oauth/client.json"
+      },
       "d1_databases": [
         {
           "binding": "DB",

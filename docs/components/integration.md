@@ -10,7 +10,7 @@ status: stable
 
 ## 責務
 
-利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・編集(`todo.update`)・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の9つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。追加確認(confirmation_url)はまだ無い。MCPのTool(#439)と通知(#440〜#442)もまだ無く、変更操作を外部へ公開する入口は存在しない。
+利用者本人が、会話エージェントなどの外部クライアントへ家庭データへのアクセスを委任する仕組みを扱う([#436](https://github.com/upu/YAMORU/issues/436))。OAuth 2.1の認可サーバー(metadata、同意画面、token・revocation endpoint)、接続(grant)の保存と失効、外部入口でのaccess token検証、接続管理画面を含む。変更操作の共通基盤(command_prepare / command_commit / operation_getと受付記録、[#437](https://github.com/upu/YAMORU/issues/437))は、#437のcommandとしてTodoの登録・編集(`todo.update`)・完了・訂正・取消・延期(`todo.reschedule`)、管理対象の登録・編集、管理対象とTodoの同時登録の9つを持ち(本人の通知設定・スヌーズのcommandは[個人の通知](notifications.md))、競合は家庭の世代([YDR-053](../decisions/ydr-053-conversation-read-revisions.md))で検出する。追加確認(confirmation_url)はまだ無い。公開入口は[認証付きMCP](mcp.md)、候補生成は[通知候補](attention.md)に実装する。実dotとの接続と通知配信(#442)は未実証である。
 
 ## 主要入口
 

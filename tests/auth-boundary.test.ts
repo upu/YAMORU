@@ -34,6 +34,7 @@ describe("Auth.js認証境界", () => {
     "/oauth/authorize",
     "/oauth/token",
     "/oauth/revoke",
+    "/mcp",
   ])("公開経路 %s は未認証でも通す", async (pathname) => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
       auth: null,
@@ -47,6 +48,8 @@ describe("Auth.js認証境界", () => {
     "/invitations/accepted",
     "/oauth",
     "/oauth-help",
+    "/mcp-help",
+    "/mcp/private",
     "/settings/integrations",
   ])("公開経路に似た保護経路 %s は未認証で通さない", async (pathname) => {
     await expect(Promise.resolve(authConfig.callbacks.authorized({
