@@ -5,14 +5,14 @@ import { resetHouseholdFixtures } from "./test-support/households";
 import { connect, registerTestClient } from "./test-support/oauth";
 const db = env.DB;
 beforeAll(async () => {
-  await applyMigrationsThrough(db, "0037_consumable_stock_history");
+  await applyMigrationsThrough(db, "0038_integration_edit_history_keys");
   await resetHouseholdFixtures(db);
   await registerTestClient(db);
   await connect(db, { householdId: "household-a", userId: "user-a" });
   await db.prepare("UPDATE households SET created_at='2026-01-02T03:04:05Z' WHERE id='household-a'").run();
-  await applyMigrations(db, ["0038_integration_mcp_limits"]);
+  await applyMigrations(db, ["0039_integration_mcp_limits"]);
 });
-it("0038は既存ID・時刻・接続を保ち、旧WorkerのSQLも引き続き使える", async () => {
+it("0039は既存ID・時刻・接続を保ち、旧WorkerのSQLも引き続き使える", async () => {
   expect(await db.prepare("SELECT name,created_at FROM households WHERE id='household-a'").first()).toEqual({ name: "Household A", created_at: "2026-01-02T03:04:05Z" });
   expect(await db.prepare("SELECT count(*) AS count FROM oauth_connections WHERE user_id='user-a'").first()).toEqual({ count: 1 });
   await db.prepare("UPDATE managed_items SET name='old Worker write' WHERE id='item-a' AND household_id='household-a'").run();

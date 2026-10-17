@@ -18,11 +18,11 @@ beforeEach(async () => {
   await registerTestClient(db);
   token = (await connect(db, { householdId: "household-a", userId: "user-a" })).access_token;
 });
-async function rpc(method: string, params: Record<string, unknown>, accessToken = token, now?: () => Date) {
+async function rpc(method: string, params: Record<string, unknown>, accessToken = token, now?: () => Date, origin?: string) {
   return handleMcpRequest(new Request(testOAuthConfig.resource, { method: "POST", headers: {
-    authorization: `Bearer ${accessToken}`, "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25",
+    authorization: `Bearer ${accessToken}`, "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25", ...(origin ? { origin } : {}),
   }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }),
-  { db, config: testOAuthConfig, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters", now });
+  { db, config: testOAuthConfig, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters", now, allowedOrigins: origin ? [origin] : undefined });
 }
 type ToolResult = { isError?: boolean; structuredContent: Record<string, unknown> };
 async function tool(name: string, args: Record<string, unknown>, accessToken = token): Promise<ToolResult> {
@@ -99,6 +99,21 @@ it("Toolで登録→取得→完了→次回確認を通し、再送と応答喪
   expect(next.id).not.toBe(occurrenceId);
   expect(await tool("entity_get", { kind: "todo_occurrence", id: next.id })).toMatchObject({ structuredContent: { entity: { attributes: { status: "pending" } } } });
 });
+it("mainに加わった3つの編集commandもMCP schemaから共通層へ届く", async () => {
+  const created = await tool("command_commit", commitInput(await prepare("todo.create", { title: "MCPで編集する用事", recurrence: { type: "one_time", scheduled_on: "2099-01-01" } })));
+  const result = created.structuredContent.result as Record<string, unknown>;
+  const target = { kind: "todo_occurrence", id: (result.first_occurrence as Record<string, unknown>).id };
+  const postponed = await tool("command_commit", commitInput(await prepare("todo.reschedule", { new_due_on: "2099-01-02" }, target)));
+  expect(postponed).toMatchObject({ structuredContent: { status: "succeeded", result: { due_on: "2099-01-02" } } });
+  const updated = await tool("command_commit", commitInput(await prepare("todo.update", { edit_scope: "one_time_combined", rule_changes: { title: "MCPで編集した用事" }, occurrence_changes: { must_complete_by: "2099-01-03" } }, target)));
+  expect(updated).toMatchObject({ structuredContent: { status: "succeeded" } });
+  expect(await tool("entity_get", target)).toMatchObject({ structuredContent: { entity: { name: "MCPで編集した用事" } } });
+  const createdItem = await tool("command_commit", commitInput(await prepare("managed_item.create", { name: "MCPで編集する器具", kind: "asset" })));
+  const itemId = (createdItem.structuredContent.result as Record<string, unknown>).managed_item_id;
+  const editedItem = await tool("command_commit", commitInput(await prepare("managed_item.update", { changes: { name: "MCPで編集した器具", note: null } }, { kind: "managed_item", id: itemId })));
+  expect(editedItem).toMatchObject({ structuredContent: { status: "succeeded" } });
+  expect(await tool("entity_get", { kind: "managed_item", id: itemId })).toMatchObject({ structuredContent: { entity: { name: "MCPで編集した器具" } } });
+});
 it("権限不足を説明し、失効した接続では再実行しない", async () => {
   const readOnly = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read" })).access_token;
   const insufficient = await tool("command_prepare", { command: "todo.create", operation_id: crypto.randomUUID(), payload: {} }, readOnly);
@@ -158,9 +173,12 @@ it("prepare上限をHTTP 429とRetry-Afterで返し、照合用の読み取り�
   const now = new Date();
   const window = Math.floor(now.getTime() / 60_000) * 60_000;
   await db.prepare("INSERT INTO integration_mcp_rate_windows VALUES('user-a','prepare',?,20)").bind(window).run();
-  const response = await rpc("tools/call", { name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create", payload: { title: "must not be created", recurrence: { type: "manual" } } } }, token, () => now);
+  const origin = "https://inspector.example.test";
+  const response = await rpc("tools/call", { name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create", payload: { title: "must not be created", recurrence: { type: "manual" } } } }, token, () => now, origin);
   expect(response.status).toBe(429);
   expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+  expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+  expect(response.headers.get("access-control-expose-headers")?.toLowerCase().split(",").map((name) => name.trim())).toContain("retry-after");
   expect(await response.json()).toMatchObject({ error: { data: { code: "rate_limited", retryable: true } } });
   expect(await db.prepare("SELECT count(*) AS count FROM integration_operations").first()).toEqual({ count: 0 });
   expect((await tool("connection_get", {})).isError).not.toBe(true);

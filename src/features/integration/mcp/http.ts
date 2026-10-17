@@ -15,7 +15,7 @@ function responseHeaders(response: Response, origin: string | null) {
   headers.set("cache-control", "no-store");
   if (origin) {
     headers.set("access-control-allow-origin", origin);
-    headers.set("access-control-expose-headers", "WWW-Authenticate, MCP-Protocol-Version");
+    headers.set("access-control-expose-headers", "WWW-Authenticate, MCP-Protocol-Version, Retry-After");
     headers.append("vary", "Origin");
   }
   return new Response(response.body, { status: response.status, headers });

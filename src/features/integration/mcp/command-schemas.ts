@@ -11,13 +11,25 @@ const recurrence = z.discriminatedUnion("type", [
 ]);
 const todo = z.strictObject({ title: text.optional(), recurrence: recurrence.optional(), note: nullableText, managed_item_id: nullableText, assignee_id: nullableText, must_complete_by: nullableText });
 const item = z.strictObject({ name: text.optional(), kind: text.optional().describe("asset / service"), item_type: nullableText, custom_item_type: nullableText, product_info: nullableText, note: nullableText, external_url: nullableText, started_on: nullableText, tag_ids: z.array(text).optional() });
+const editRecurrence = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("completion"), unit: text.optional(), min: z.number().optional(), max: z.number().optional() }),
+  recurrence.options[3], recurrence.options[4],
+]);
+const ruleChanges = { title: text.optional(), managed_item_id: nullableText, note: nullableText, recurrence: editRecurrence.optional() };
+const occurrenceChanges = { assignee_id: nullableText, due_on: text.optional(), must_complete_by: nullableText, scheduled_on: nullableText };
 const current = z.strictObject({ stock_status: text.optional().describe("available / low / out"), performer_id: nullableText }).optional();
 const application = text.optional().describe("auto / history_only");
 const observed = { observed_on: text.optional(), observed_at: text.optional().describe("offset付きISO 8601 または now"), stock_status: text.optional().describe("available / low / out"), performer_id: nullableText };
 const refilled = { refilled_on: text.optional(), refilled_at: text.optional().describe("offset付きISO 8601 または now"), performer_id: nullableText };
 const payloads = {
   "todo.create": todo,
+  "todo.reschedule": z.strictObject({ new_due_on: text.optional().describe("今回の期限を今日より後へ延期する。予定日・必達日や通知の延期とは異なる。") }),
+  "todo.update": z.strictObject({ edit_scope: z.enum(["current_occurrence", "future_rule", "manual_combined", "one_time_combined"]).optional(),
+    changes: z.strictObject({ ...ruleChanges, ...occurrenceChanges }).optional().describe("current_occurrenceでは担当/期限/必達日、future_ruleでは名前/関連/メモ/繰返し条件"),
+    rule_changes: z.strictObject(ruleChanges).optional().describe("combinedで名前/関連/メモを変更"),
+    occurrence_changes: z.strictObject(occurrenceChanges).optional().describe("combinedで担当/必達日を変更。一回限りはscheduled_onで予定日も変更可能") }),
   "managed_item.create": item,
+  "managed_item.update": z.strictObject({ changes: item.extend({ tag_ids: z.array(text).nullable().optional() }).optional() }),
   "managed_item_with_todo.create": z.strictObject({ managed_item: item.optional(), todo: todo.omit({ managed_item_id: true }).optional() }),
   "todo.complete": z.strictObject({ occurred_on: text.optional(), occurred_at: text.optional(), performer_id: nullableText }),
   "todo.undo": z.strictObject({ completion_log_id: text.optional() }),
@@ -33,10 +45,13 @@ const envelope = { operation_id: text, target: z.strictObject({ kind: text, id: 
 // 必須の業務値を欠く入力も共通層へ渡し、missing_requiredとして質問項目を返す。
 export const commandPrepareSchema = z.discriminatedUnion("command", [
   z.strictObject({ ...envelope, command: z.literal("todo.create"), payload: payloads["todo.create"].optional() }),
+  z.strictObject({ ...envelope, command: z.literal("todo.reschedule"), payload: payloads["todo.reschedule"].optional() }),
+  z.strictObject({ ...envelope, command: z.literal("todo.update"), payload: payloads["todo.update"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("todo.complete"), payload: payloads["todo.complete"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("todo.correct"), payload: payloads["todo.correct"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("todo.undo"), payload: payloads["todo.undo"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("managed_item.create"), payload: payloads["managed_item.create"].optional() }),
+  z.strictObject({ ...envelope, command: z.literal("managed_item.update"), payload: payloads["managed_item.update"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("managed_item_with_todo.create"), payload: payloads["managed_item_with_todo.create"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("stock.observe"), payload: payloads["stock.observe"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("stock.refill"), payload: payloads["stock.refill"].optional() }),

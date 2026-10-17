@@ -38,9 +38,9 @@ status: stable
 
 `YAMORU_OAUTH_ALLOWED_CLIENT_IDS`が既定で空のため、MCPも既定で無効。設定は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
 
-回数制限と同時commit枠は[YDR-058](../decisions/ydr-058-mcp-request-budgets.md)とmigration `0038`で追加する。利用者の固定1分窓を全接続で共有し、read 60回・prepare/commit各20回、接続別の有効commit leaseは2件まで。429とRetry-Afterを返し、leaseを業務batch内のDB時刻でfenceする。期限切れのWorkerは書き込めず、古いreleaseは新しい枠へ作用しない。
+回数制限と同時commit枠は[YDR-058](../decisions/ydr-058-mcp-request-budgets.md)とmigration `0039`で追加する。利用者の固定1分窓を全接続で共有し、read 60回・prepare/commit各20回、接続別の有効commit leaseは2件まで。429とRetry-Afterを返し、leaseを業務batch内のDB時刻でfenceする。期限切れのWorkerは書き込めず、古いreleaseは新しい枠へ作用しない。
 
-0038は追加表だけで、新しい秘密・contract migrationはない。旧Worker/追加schemaと新Worker/追加schemaの両方で既存操作を保持する。Workerを戻しても共通の操作receiptは保持され、MCP入口だけが利用不可になる。previewはmainのCI成功後に通常の自動配備で検証し、ローカルからの手動配備を常用しない。
+0039は追加表だけで、新しい秘密・contract migrationはない。旧Worker/追加schemaと新Worker/追加schemaの両方で既存操作を保持する。Workerを戻しても共通の操作receiptは保持され、MCP入口だけが利用不可になる。previewはmainのCI成功後に通常の自動配備で検証し、ローカルからの手動配備を常用しない。
 
 ## 検証と未完了の境界
 
