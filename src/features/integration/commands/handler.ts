@@ -19,7 +19,7 @@ export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
   // 結果に書き込み後のrevisionを付ける対象。続けて訂正・取消するときの
   // expected_revisionに使える。
-  revisionEntity: { id: string; kind: "todo_occurrence" };
+  revisionEntity: { id: string; kind: "managed_item" | "todo_occurrence" };
 };
 
 export type CommandPlan = {
@@ -57,6 +57,10 @@ export function performerNotFound(field: string): CommandError {
 // 結果から利用者が開ける詳細画面。読み取りToolのdetail_urlと同じ相対パス。
 export function todoDetailUrl(occurrenceId: string): string {
   return `/todos/${encodeURIComponent(occurrenceId)}`;
+}
+
+export function managedItemDetailUrl(itemId: string): string {
+  return `/managed-items/${encodeURIComponent(itemId)}`;
 }
 
 // 外部へ返す繰り返し方式の名前。DBの'once'は契約上one_timeと呼ぶ。

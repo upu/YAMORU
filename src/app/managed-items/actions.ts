@@ -11,16 +11,19 @@ import {
   createManagedItem as createManagedItemInD1,
   updateManagedItem as updateManagedItemInD1,
 } from "../../lib/d1/managed-items";
-import { isSafeExternalUrl, startedOnLabel } from "./model";
+import {
+  CUSTOM_ITEM_TYPE_MAX_LENGTH,
+  MANAGED_ITEM_NAME_MAX_LENGTH,
+  normalizeExternalUrl,
+  normalizeOptionalText,
+  normalizeRequiredText,
+  NOTE_MAX_LENGTH,
+  PRODUCT_INFO_MAX_LENGTH,
+} from "./form-input";
+import { startedOnLabel } from "./model";
 import { toStartedOn } from "./started-on";
 import type { ManagedItemActionState } from "./state";
 import { parseTagInput, TAG_LIMIT_EXCEEDED_STATE } from "./tag-input";
-
-const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
-const CUSTOM_ITEM_TYPE_MAX_LENGTH = 50;
-const EXTERNAL_URL_MAX_LENGTH = 2048;
-const NOTE_MAX_LENGTH = 1000;
-const PRODUCT_INFO_MAX_LENGTH = 200;
 
 function invalidName(): ManagedItemActionState {
   return {
@@ -58,18 +61,15 @@ type ParsedClassification = {
   status: "ok";
 } | ManagedItemActionState;
 
+function formValue(formData: FormData, field: string): string {
+  const raw = formData.get(field);
+  return typeof raw === "string" ? raw : "";
+}
+
 function parseName(formData: FormData): string | ManagedItemActionState {
   const rawName = formData.get("name");
   if (typeof rawName !== "string") return invalidName();
-
-  const name = rawName.trim();
-  if (
-    name.length === 0 ||
-    Array.from(name).length > MANAGED_ITEM_NAME_MAX_LENGTH
-  ) {
-    return invalidName();
-  }
-  return name;
+  return normalizeRequiredText(rawName, MANAGED_ITEM_NAME_MAX_LENGTH) ?? invalidName();
 }
 
 function parseClassification(formData: FormData): ParsedClassification {
@@ -92,13 +92,11 @@ function parseClassification(formData: FormData): ParsedClassification {
   }
 
   const rawCustomItemType = formData.get("customItemType");
-  const customItemType = typeof rawCustomItemType === "string"
-    ? rawCustomItemType.trim()
-    : "";
-  if (
-    customItemType.length === 0
-    || Array.from(customItemType).length > CUSTOM_ITEM_TYPE_MAX_LENGTH
-  ) {
+  const customItemType = normalizeRequiredText(
+    typeof rawCustomItemType === "string" ? rawCustomItemType : "",
+    CUSTOM_ITEM_TYPE_MAX_LENGTH,
+  );
+  if (customItemType === null) {
     return {
       message: "詳しい種類は1文字以上50文字以内で入力してください。",
       status: "error",
@@ -115,44 +113,31 @@ function parseClassification(formData: FormData): ParsedClassification {
 function parseExternalUrl(formData: FormData):
   | { status: "ok"; value: string | null }
   | ManagedItemActionState {
-  const rawExternalUrl = formData.get("externalUrl");
-  const externalUrl =
-    typeof rawExternalUrl === "string" ? rawExternalUrl.trim() : "";
-  if (
-    externalUrl.length > EXTERNAL_URL_MAX_LENGTH ||
-    (externalUrl.length > 0 && !isSafeExternalUrl(externalUrl))
-  ) {
+  const externalUrl = normalizeExternalUrl(formValue(formData, "externalUrl"));
+  if (externalUrl.status !== "ok") {
     return {
       message: "外部リンクはhttpまたはhttpsの絶対URLで入力してください。",
       status: "error",
     };
   }
-  return { status: "ok", value: externalUrl.length === 0 ? null : externalUrl };
+  return externalUrl;
 }
 
-// Issue #42: 任意の自由入力。空欄は未設定として扱う。前後の空白だけを落とし、
-// 大文字小文字・記号・語中の空白・改行は入力どおり保存する(型番の表記を
-// 勝手に変えない)。
+// 任意の自由入力(Issue #42)。値の規則はform-input.tsのnormalizeOptionalText。
 function parseOptionalText(
   formData: FormData,
   field: string,
   label: string,
   maxLength: number,
 ): { status: "ok"; value: string | null } | ManagedItemActionState {
-  const raw = formData.get(field);
-  const value = typeof raw === "string" ? raw.trim() : "";
-  if (Array.from(value).length > maxLength) {
+  const value = normalizeOptionalText(formValue(formData, field), maxLength);
+  if (value.status !== "ok") {
     return {
       message: `${label}は${String(maxLength)}文字以内で入力してください。`,
       status: "error",
     };
   }
-  return { status: "ok", value: value.length === 0 ? null : value };
-}
-
-function formValue(formData: FormData, field: string): string {
-  const raw = formData.get(field);
-  return typeof raw === "string" ? raw : "";
+  return value;
 }
 
 // Issue #239: 入力エラーの文言も、選択中の大分類に合う見出し語(「購入時期」

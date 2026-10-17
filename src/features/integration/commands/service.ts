@@ -28,6 +28,7 @@ import {
   sameRevision,
   type HouseholdRevision,
 } from "./revision";
+import { managedItemCreateHandler, managedItemWithTodoCreateHandler } from "./managed-item-create";
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
@@ -41,6 +42,8 @@ import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 // 追加確認(confirmation_url)はまだ扱わない。
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
+  "managed_item.create": managedItemCreateHandler,
+  "managed_item_with_todo.create": managedItemWithTodoCreateHandler,
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
   "todo.create": todoCreateHandler,

@@ -32,7 +32,7 @@ export type BusinessEvidence =
   | { activeCompletionLogId: string }
   // 登録で作った行が存在すること。作成の文は条件付きではないが、関連する行
   // (TaskRule)が無ければOccurrenceは作られないため、最後に作る行で確かめる。
-  | { rowId: string; table: "task_occurrences" };
+  | { rowId: string; table: "managed_items" | "task_occurrences" };
 
 export type BusinessStatements = {
   evidence: BusinessEvidence[];
