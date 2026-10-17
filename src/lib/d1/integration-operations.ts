@@ -172,9 +172,23 @@ export async function isWriteConnectionActive(db: D1Database, operationRowId: st
 }
 
 function evidenceCondition(evidence: BusinessEvidence, parameter: number): string {
+  const placeholder = `?${String(parameter)}`;
+  if ("activeCompletionLogId" in evidence) {
+    return `EXISTS (SELECT 1 FROM activity_logs t
+      WHERE t.id = ${placeholder} AND t.household_id = integration_operations.household_id
+        AND t.action = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM activity_logs n
+          WHERE n.household_id = t.household_id AND n.task_occurrence_id = t.task_occurrence_id
+            AND n.action = 'completed' AND n.id <> t.id
+            AND (n.recorded_at > t.recorded_at OR (n.recorded_at = t.recorded_at AND n.id > t.id))))`;
+  }
   // tableはコード内の定数だけを取り、利用者の入力を埋め込まない。
   return `EXISTS (SELECT 1 FROM ${evidence.table} b
-    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ?${String(parameter)})`;
+    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder})`;
+}
+
+function evidenceValue(evidence: BusinessEvidence): string {
+  return "activeCompletionLogId" in evidence ? evidence.activeCompletionLogId : evidence.idempotencyKey;
 }
 
 // commitのbatchの最後に置く文。次のすべてを満たすときだけstatusを
@@ -183,7 +197,7 @@ function evidenceCondition(evidence: BusinessEvidence, parameter: number): strin
 // 1. 操作がまだpreparedであること(同じ操作の二重実行を防ぐ)
 // 2. previewの期限内であること
 // 3. 接続が書き込みに使えること(batchの直前に解除された場合を含む)
-// 4. 業務の記録(evidence)がすべて存在すること(条件付き更新が0件だった場合)
+// 4. 業務の記録(evidence)がすべて存在し、対象の完了記録が今も最新であること
 export function commitReceiptStatement(
   db: D1Database,
   input: { at: string; evidence: BusinessEvidence[]; id: string; result: string },
@@ -201,7 +215,7 @@ export function commitReceiptStatement(
             result = ?3,
             resolved_at = ?2
       WHERE id = ?1`,
-  ).bind(input.id, input.at, input.result, ...input.evidence.map((evidence) => evidence.idempotencyKey));
+  ).bind(input.id, input.at, input.result, ...input.evidence.map(evidenceValue));
 }
 
 // commitReceiptStatementが条件を満たさずにbatchを取り消したときのD1のエラーか。

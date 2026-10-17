@@ -24,10 +24,12 @@ export type ScheduleSlot = { dueAt: string | null; scheduledFor: string | null }
 
 // batchの後に、業務の記録が実際に書けたかを確かめるための手掛かり。
 // 受付記録の成功はこの全件が存在することを条件にする。
-export type BusinessEvidence = {
-  idempotencyKey: string;
-  table: "activity_logs" | "completion_corrections";
-};
+export type BusinessEvidence =
+  | { idempotencyKey: string; table: "activity_logs" | "completion_corrections" }
+  // 指定した完了記録が、batchの後も対象Occurrenceの最新の完了であること
+  // (loadActiveCompletionと同じ順序)。previewの後に取消→再完了されていれば、
+  // 取消や訂正が置き換わった別の完了へ作用しないよう、batch全体を取り消す。
+  | { activeCompletionLogId: string };
 
 export type BusinessStatements = {
   evidence: BusinessEvidence[];
@@ -225,7 +227,10 @@ export function undoPlanStatements(
   actor: CommandActor & { logId: string },
 ): BusinessStatements {
   return {
-    evidence: [{ idempotencyKey: actor.idempotencyKey, table: "activity_logs" }],
+    evidence: [
+      { idempotencyKey: actor.idempotencyKey, table: "activity_logs" },
+      { activeCompletionLogId: plan.effective.completionLogId },
+    ],
     statements: undoStatements(db, {
       ...actor,
       nextOccurrenceId: plan.next?.id ?? null,
@@ -300,7 +305,10 @@ export function correctionPlanStatements(
   plan: CorrectionPlan,
   actor: CommandActor,
 ): BusinessStatements {
-  const result: BusinessStatements = { evidence: [], statements: [] };
+  const result: BusinessStatements = {
+    evidence: [{ activeCompletionLogId: plan.effective.completionLogId }],
+    statements: [],
+  };
   const base = {
     actorId: actor.actorId,
     completedActivityLogId: plan.effective.completionLogId,

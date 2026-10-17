@@ -9,10 +9,12 @@ import {
   commandService,
   connectPrincipal,
   countRows,
+  createOneTimeTodo,
   createSevenDaysAfterTodo,
   expectCommandError,
   familyCompletes,
   familyMember,
+  familyRedoesCompletion,
   interruptBeforeBatch,
 } from "./test-support/integration-commands";
 import { applyAllMigrations } from "./test-support/migrations";
@@ -61,6 +63,21 @@ async function occurrenceStatus(id: string): Promise<string | null> {
 
 async function corrections(): Promise<number> {
   return countRows(db, "SELECT count(*) AS count FROM completion_corrections");
+}
+
+// 外部commandで完了させた記録を、家族のやり直しより前の時刻にしておく
+// (同じミリ秒に記録されると、どちらが最新かをIDの順で決めることになるため)。
+async function completeOneTimeEarlier(service: Service, occurrenceId: string): Promise<string> {
+  const committed = await run(service, { command: "todo.complete", target: { id: occurrenceId, kind: "todo_occurrence" } });
+  const completionLogId = (committed.result as { completion_log_id: string }).completion_log_id;
+  await db.prepare("UPDATE activity_logs SET recorded_at = '2026-10-12T03:00:00.000Z' WHERE id = ?1").bind(completionLogId).run();
+  return completionLogId;
+}
+
+async function latestCompletionPerformer(occurrenceId: string): Promise<unknown> {
+  return db.prepare(`SELECT performed_by_user_id FROM activity_logs
+    WHERE task_occurrence_id = ?1 AND action = 'completed' ORDER BY recorded_at DESC, id DESC LIMIT 1`)
+    .bind(occurrenceId).first();
 }
 
 describe("todo.undo", () => {
@@ -114,6 +131,23 @@ describe("todo.undo", () => {
     await expect(occurrenceStatus(occurrenceId)).resolves.toBe("completed");
     await expect(occurrenceStatus(nextOccurrenceId)).resolves.toBe("completed");
     await expect(countRows(db, "SELECT count(*) AS count FROM activity_logs WHERE action = 'completion_undone'")).resolves.toBe(0);
+  });
+
+  it("確認の後に家族が取消と再完了をしていれば、置き換わった完了を取り消さない", async () => {
+    const occurrenceId = await createOneTimeTodo(db);
+    const service = commandService(db);
+    const completionLogId = await completeOneTimeEarlier(service, occurrenceId);
+    const prepared = await service.prepare(principal, {
+      command: "todo.undo",
+      operation_id: crypto.randomUUID(),
+      payload: { completion_log_id: completionLogId },
+    }) as Prepared;
+    const racing = interruptBeforeBatch(db, () => familyRedoesCompletion(db, occurrenceId));
+
+    await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "already_resolved");
+    await expect(occurrenceStatus(occurrenceId)).resolves.toBe("completed");
+    await expect(latestCompletionPerformer(occurrenceId)).resolves.toEqual({ performed_by_user_id: familyMember.userId });
+    await expect(countRows(db, "SELECT count(*) AS count FROM activity_logs WHERE action = 'completion_undone'")).resolves.toBe(1);
   });
 
   it("取消済みの完了記録は、もう一度取り消さない", async () => {
@@ -170,6 +204,21 @@ describe("todo.correct", () => {
     await expect(corrections()).resolves.toBe(0);
     await expect(db.prepare("SELECT status, reason_code FROM integration_operations WHERE operation_id = ?1")
       .bind(prepared.operation_id).first()).resolves.toEqual({ reason_code: "unsafe_undo", status: "rejected" });
+  });
+
+  it("確認の後に家族が取消と再完了をしていれば、古い完了記録を訂正しない", async () => {
+    const occurrenceId = await createOneTimeTodo(db);
+    const service = commandService(db);
+    const completionLogId = await completeOneTimeEarlier(service, occurrenceId);
+    const prepared = await service.prepare(principal, {
+      command: "todo.correct",
+      operation_id: crypto.randomUUID(),
+      payload: { changes: { occurred_on: "2026-10-11" }, completion_log_id: completionLogId },
+    }) as Prepared;
+    const racing = interruptBeforeBatch(db, () => familyRedoesCompletion(db, occurrenceId));
+
+    await expectCommandError(commandService(racing).commit(principal, commitRequest(prepared)), "already_resolved");
+    await expect(corrections()).resolves.toBe(0);
   });
 
   it("空の訂正や現在と同じ値は受け付けない", async () => {

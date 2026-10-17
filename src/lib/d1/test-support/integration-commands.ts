@@ -5,7 +5,7 @@ import { CommandError, type CommandErrorCode } from "../../../features/integrati
 import { createCommandService } from "../../../features/integration/commands/service";
 import { verifyAccessToken } from "../../../features/integration/oauth/bearer";
 import type { IntegrationPrincipal } from "../../../features/integration/principal";
-import { completeTask, createCalendarTask, createMaintenanceTask } from "../todos";
+import { completeTask, createCalendarTask, createMaintenanceTask, createOneTimeTask, undoTaskCompletion } from "../todos";
 import { householdAMember, occurrenceForRule } from "./households";
 import { connect, registerTestClient, testOAuthConfig } from "./oauth";
 
@@ -106,6 +106,22 @@ export async function createEverySaturdayTodo(db: D1Database): Promise<string> {
     title: "ごみ出し",
   }, new Date("2026-10-08T03:00:00.000Z"));
   return (await occurrenceForRule(db, ruleId)).id;
+}
+
+// 一回限りのTodo。完了しても次回を作らない。
+export async function createOneTimeTodo(db: D1Database): Promise<string> {
+  const ruleId = await createOneTimeTask(db, householdAMember, {
+    managedItemId: null,
+    scheduledFor: "2026-10-10T15:00:00.000Z",
+    title: "粗大ごみの申込み",
+  });
+  return (await occurrenceForRule(db, ruleId)).id;
+}
+
+// 家族がWebで完了を取り消し、すぐにもう一度完了させる。
+export async function familyRedoesCompletion(db: D1Database, occurrenceId: string): Promise<void> {
+  await undoTaskCompletion(db, familyMember, occurrenceId, crypto.randomUUID());
+  await familyCompletes(db, occurrenceId, "2026-10-12T04:00:00.000Z");
 }
 
 export async function familyCompletes(db: D1Database, occurrenceId: string, occurredAt: string): Promise<void> {
