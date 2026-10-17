@@ -48,6 +48,8 @@ status: stable
 
 ## 関連YDR
 
+個人設定の読み取りと`notification.configure` / `notification.snooze`の入口・権限・配信との境界は[個人の通知](notifications.md)を参照する。
+
 - 有効: [YDR-049](../decisions/ydr-049-conversation-command-boundary.md)、[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、[YDR-054](../decisions/ydr-054-integration-command-receipts.md)、[YDR-015](../decisions/ydr-015-occurrence-state-activitylog-history-safe-undo.md)、[YDR-026](../decisions/ydr-026-completion-correction-events.md)、[YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md)
 
 ## 検証方法

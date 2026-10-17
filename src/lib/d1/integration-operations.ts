@@ -197,14 +197,17 @@ const ACTIVE_WRITE_CONNECTION = `EXISTS (
    WHERE c.id = integration_operations.connection_id
      AND c.household_id = integration_operations.household_id
      AND c.revoked_at IS NULL
+     AND c.expires_at > ?2
      AND u.session_version = c.user_session_version
-     AND (' ' || c.scopes || ' ') LIKE '% household.write %'
+     AND (' ' || c.scopes || ' ') LIKE '% household.read %'
+     AND instr(' ' || c.scopes || ' ', CASE WHEN integration_operations.command LIKE 'notification.%'
+       THEN ' notifications.manage ' ELSE ' household.write ' END)>0
 )`;
 
-export async function isWriteConnectionActive(db: D1Database, operationRowId: string): Promise<boolean> {
+export async function isWriteConnectionActive(db: D1Database, operationRowId: string, at: string): Promise<boolean> {
   const row = await db.prepare(
     `SELECT ${ACTIVE_WRITE_CONNECTION} AS active FROM integration_operations WHERE id = ?1`,
-  ).bind(operationRowId).first<{ active: number }>();
+  ).bind(operationRowId, at).first<{ active: number }>();
   return row?.active === 1;
 }
 

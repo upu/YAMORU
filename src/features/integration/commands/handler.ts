@@ -19,7 +19,7 @@ export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
   // 結果に書き込み後のrevisionを付ける対象。続けて訂正・取消するときの
   // expected_revisionに使える。
-  revisionEntity: { id: string; kind: "todo_occurrence" };
+  revisionEntity: { id: string; kind: "todo_occurrence" | "notification_settings" | "attention_candidate" };
 };
 
 export type CommandPlan = {

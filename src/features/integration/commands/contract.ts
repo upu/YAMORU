@@ -2,7 +2,7 @@
 // 入出力とエラーの契約。docs/product/conversation-integration.md 5節を正本とし、
 // 値はMCP等の外部へそのまま返すためsnake_caseで組み立てる。
 
-export const COMMAND_NAMES = ["todo.complete", "todo.correct", "todo.undo"] as const;
+export const COMMAND_NAMES = ["todo.complete", "todo.correct", "todo.undo", "notification.configure", "notification.snooze"] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
 export function isCommandName(value: unknown): value is CommandName {
@@ -12,7 +12,7 @@ export function isCommandName(value: unknown): value is CommandName {
 // previewの有効期間(5節「previewは10分有効」)。
 export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
-export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" };
+export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" };
 
 export type NormalizedCommand = {
   command: CommandName;
@@ -30,7 +30,7 @@ const COMMAND_ERRORS = {
   already_resolved: { message: "対象はすでに別の操作で処理されています。現在の状態を確認してください。", recovery: "reread", retryable: false },
   connection_revoked: { message: "この接続は解除されています。再接続してください。", recovery: "reconnect", retryable: false },
   idempotency_conflict: { message: "同じ操作IDで別の内容が送られました。新しい操作として作り直してください。", recovery: "new_operation", retryable: false },
-  insufficient_scope: { message: "この操作には家庭のデータを変更する権限が必要です。", recovery: "reconnect", retryable: false },
+  insufficient_scope: { message: "この操作に必要な権限がありません。許可する範囲を確認してください。", recovery: "reconnect", retryable: false },
   invalid_input: { message: "入力内容を確認してください。", recovery: "check_request", retryable: false },
   not_found: { message: "対象を取得できません。", recovery: "reread", retryable: false },
   preview_expired: { message: "確認内容の有効期限が切れました。現在の状態を読み直して、新しい操作として作り直してください。", recovery: "reread", retryable: false },

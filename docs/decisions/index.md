@@ -67,6 +67,7 @@
 | YDR-053 | 会話読み取りのrevisionを家庭世代で保守的に管理する | Accepted | [ydr-053-conversation-read-revisions.md](ydr-053-conversation-read-revisions.md) |
 | YDR-054 | 外部commandの受付記録を業務更新と同じD1 batchで確定させる | Accepted | [ydr-054-integration-command-receipts.md](ydr-054-integration-command-receipts.md) |
 | YDR-055 | 通知候補の発生区間と差分を永続化する | Accepted | [ydr-055-attention-candidate-intervals.md](ydr-055-attention-candidate-intervals.md) |
+| YDR-056 | 個人の通知設定と配信判定を共有予定から分離する | Accepted | [ydr-056-personal-notification-policy.md](ydr-056-personal-notification-policy.md) |
 
 ## 新しい意思決定の追加
 
