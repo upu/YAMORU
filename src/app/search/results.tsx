@@ -203,6 +203,7 @@ function ConsumableResults({
                 consumableId={consumable.id}
                 label={`${consumable.name}の在庫状態を変更`}
                 stockStatus={consumable.stockStatus}
+                stockRevision={consumable.stockRevision}
               />
             </div>
           </li>

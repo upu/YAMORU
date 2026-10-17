@@ -26,7 +26,10 @@ const entityQueries: Record<EntityKind, string> = {
     WHERE m.household_id=?1`,
   consumable: `SELECT 'consumable' AS kind,c.id,c.name,NULL AS related_name,c.created_at,
     json_object('note',c.note,'product_code',c.product_code,'stock_status',c.stock_status,
-      'last_refilled_on',(SELECT max(refilled_on) FROM consumable_refills f WHERE f.consumable_id=c.id AND f.household_id=c.household_id)) AS data
+      'stock_revision',c.stock_revision,
+      'stock_basis_record_id',(SELECT h.record_id FROM consumable_stock_heads h WHERE h.consumable_id=c.id AND h.household_id=c.household_id),
+      'last_refilled_on',(SELECT max(f.occurred_on) FROM consumable_stock_current f WHERE f.consumable_id=c.id AND f.household_id=c.household_id AND f.kind='refill' AND f.voided=0
+        AND date(f.occurred_on,'+0 days')=f.occurred_on)) AS data
     FROM consumables c WHERE c.household_id=?1`,
   todo_rule: `SELECT 'todo_rule' AS kind,r.id,r.title AS name,i.name AS related_name,r.created_at,
     json_object('note',r.note,'current_rule',json(${ruleSnapshot}),
@@ -122,8 +125,17 @@ export async function readHistoryRows(db: D1Database, householdId: string, kind:
       json_object('previous_date',d.previous_date,'new_date',d.new_date)
     FROM task_deadline_changes d WHERE d.household_id=?1 AND d.task_occurrence_id IN (SELECT id FROM selected_occurrences)
     UNION ALL
-    SELECT f.id,'refilled',NULL,NULL,f.refilled_on,f.recorded_at,NULL,NULL,NULL,NULL,NULL,json('{}') FROM consumable_refills f
-    WHERE f.household_id=?1 AND ?2='consumable' AND f.consumable_id=?3
+    SELECT CASE WHEN f.action='created' AND f.kind='refill' THEN f.refill_id ELSE f.id END,
+      CASE WHEN f.action='voided' THEN 'stock_voided' WHEN f.action='corrected' THEN 'stock_corrected'
+        WHEN f.kind='refill' THEN 'refilled' WHEN f.kind='observation' THEN 'stock_observed' ELSE 'stock_saved_state' END,
+      NULL,f.occurred_at,CASE WHEN date(f.occurred_on,'+0 days')=f.occurred_on THEN f.occurred_on END,f.recorded_at,f.actor_user_id,f.performer_user_id,
+      CASE WHEN f.action<>'created' THEN f.record_id END,${operationClientExpression("f")},
+      CASE WHEN f.occurred_at IS NOT NULL THEN 'instant' WHEN date(f.occurred_on,'+0 days')=f.occurred_on THEN 'day' ELSE 'unknown' END,
+      json_object('record_id',f.record_id,'record_revision',f.revision,'record_kind',f.kind,'stock_status',f.stock_status,'source',f.source,'original_occurred_on',f.occurred_on,
+        'previous_event_id',f.previous_event_id,'effective_revision',c.revision,'effective_stock_status',c.stock_status,'effective_occurred_on',c.occurred_on,
+        'effective_occurred_at',c.occurred_at,'voided',json(CASE WHEN c.voided=1 THEN 'true' ELSE 'false' END))
+      FROM consumable_stock_events f JOIN consumable_stock_current c ON c.record_id=f.record_id
+    WHERE f.household_id=?1 AND ?2='consumable' AND f.consumable_id=?3 AND f.kind<>'state_snapshot'
   ) SELECT *,recorded_at||':'||kind||':'||id AS key FROM history
     WHERE (?4='' OR (recorded_at||':'||kind||':'||id)<?4) ORDER BY key DESC LIMIT ?5`;
   return (await db.prepare(sql).bind(householdId, kind, id, after, limit).all<HistoryRow>()).results;

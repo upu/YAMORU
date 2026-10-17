@@ -108,7 +108,7 @@ const MANAGED_ITEM_SEARCH_SQL = `SELECT item.id, item.name, item.kindCode, item.
       ORDER BY item.name COLLATE NOCASE, item.id
       LIMIT ?3`;
 
-const CONSUMABLE_SEARCH_SQL = `SELECT id, name, stock_status AS stockStatus
+const CONSUMABLE_SEARCH_SQL = `SELECT id, name, stock_status AS stockStatus, stock_revision AS stockRevision
        FROM consumables
       WHERE household_id = ?1
         AND LOWER(name) LIKE ?2 ESCAPE '\\'

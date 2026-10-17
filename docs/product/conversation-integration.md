@@ -164,13 +164,15 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `todo.correct` | `completion_log_id, changes`。changesは`occurred_on`・`performer_id`の一方または両方を含む空でないオブジェクト | 全項目を一つのpreview/commitで追記訂正。日時訂正は次回未変更ガード。入力検証・revision確認・訂正履歴・現在値・次回更新を全成功/全取消とし、項目別commitへ分割しない。#437 |
 | `todo.undo` | `completion_log_id`、対象revision | 次回が未変更のときのみ完了取消。#437 |
 | `todo.reschedule` | `new_due_on`、対象Occurrence/revision | 今回の期限を変更。本来の予定・必達日は変更しない。必要時Todoは拒否。#437 |
-| `stock.observe` | Consumable対象、`observed_on, status(available/low/out)` | 観測履歴と現在の在庫表示。補充日は不変。#438 |
-| `stock.refill` | Consumable対象、`refilled_on` | 補充履歴と在庫「ある」。購入/使用開始日時や数量を創作しない。#438 |
-| `stock.correct` | `record_id, replacement`または`void: true`、対象revision | 元記録を消さず訂正。後続観測を過去の状態で上書きしない。#438 |
+| `stock.observe` | Consumable対象、`observed_on`または`observed_at`、`stock_status(available/low/out)`、任意の`performer_id` | 観測履歴と順序が確定した現在の在庫表示。補充日は不変。#438 |
+| `stock.refill` | Consumable対象、`refilled_on`または`refilled_at`、任意の`performer_id` | 補充履歴と順序が確定した在庫「ある」。購入/使用開始日時や数量を創作しない。#438 |
+| `stock.correct` | Consumable対象、`record_id, record_revision`と`changes`または`void: true` | 元記録を消さず訂正。`changes`は元記録の実施日/時刻・`stock_status`・`performer_id`の指定項目だけを変更。後続観測を過去の状態で上書きしない。#438 |
 | `notification.configure` | 設定revisionと`enabled, time_zone, digest_time, quiet_hours, repeat_policy, muted`の変更値 | 本人の設定のみ。#441 |
 | `notification.snooze` | `candidate_id, until`、候補revision | 本人の候補を延期。家庭の期限や他人の通知は不変。#441 |
 
 recurrenceの値は既存の入力検証と暦規則を再利用する。one_timeは予定暦日または未定、manualは日付なし、completionは日/月/年と推奨範囲・初回予定、calendarは曜日/月日等の構造化候補列、intervalは起点暦日と日/週の間隔を必要とする。自然言語から未指定の初回予定や期間を創作しない。必達日の保存/更新規則は#51のYDRを共通入力へ反映し、未対応の間はcapabilitiesで返して黙って捨てない。
+
+在庫の日時は日付かタイムゾーン付き時刻の一方だけを指定する。時刻の`now`はprepare時の絶対参照時刻へ固定する。`application: history_only`なら現在表示を変更しない。同日の異なる状態など実施順序が不明なら`missing_required`を返し、実際の時刻、履歴だけを加える意図、または`current_observation: { stock_status, performer_id? }`を求める。現在の観測を補充・訂正と同時に記録する場合も原子的に保存する。`performer_id`省略は本人、明示nullは不明、訂正で省略した実施者は元の値を保持する。取消後は訂正で再び有効にできる。詳細な移行と状態計算は[YDR-057](../decisions/ydr-057-stock-observation-and-refill-history.md)を参照する。
 
 台帳削除・アーカイブ、任意の過去履歴削除、消費予測、数量管理、繰返し方式変更は本契約に含めない。消耗品の追加登録/名称等の編集は既存Webを案内し、v0.21.0の会話変更は観測・補充・訂正へ限定する。
 

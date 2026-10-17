@@ -97,6 +97,7 @@ async function historyPage(deps: ReadDependencies, context: ReadContext, value: 
 // 補充日など日付だけの記録はday。外部commandで記録した完了・訂正は、
 // 受付記録に残る指定時の精度を使う。精度が分からない旧来の記録はunknown。
 function historyDate(row: HistoryRow): { date_precision: string; occurred_on: string | null } {
+  if (row.date_precision === "instant") return { date_precision: "instant", occurred_on: row.occurred_on };
   if (row.occurred_on !== null) return { date_precision: "day", occurred_on: row.occurred_on };
   const precision = row.date_precision ?? "unknown";
   const day = precision === "day" && row.occurred_at !== null ? tokyoDateFromIso(row.occurred_at) : null;

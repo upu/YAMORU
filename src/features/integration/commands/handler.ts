@@ -20,7 +20,7 @@ export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
   // 対応する読み取りToolと同じ形式のrevisionを返す対象。次の操作の
   // expected_revision/settings_revision/candidate_revisionに使える。
-  revisionEntity: { id: string; kind: "attention_candidate" | "managed_item" | "notification_settings" | "todo_occurrence" };
+  revisionEntity: { id: string; kind: "attention_candidate" | "consumable" | "managed_item" | "notification_settings" | "todo_occurrence" };
   // 複数の対象を作る操作で、結果の中の各対象にもrevisionを付ける位置。
   revisionPlacements?: RevisionPlacement[];
 };
