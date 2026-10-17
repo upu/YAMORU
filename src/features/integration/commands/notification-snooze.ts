@@ -7,7 +7,8 @@ import { targetOf, type CommandContext, type CommandHandler, type CommandPlan } 
 import { idValue, objectValue } from "./input";
 
 function controlFrom(muted: unknown, until: unknown, now: Date) {
-  try { return parseControl({ muted: muted as boolean, snoozedUntil: until as string | null }, now); }
+  if (typeof muted !== "boolean") throw invalidInput("muted", "boolean_required");
+  try { return parseControl({ muted, snoozedUntil: until as string | null }, now); }
   catch (error) { if (error instanceof NotificationError) throw invalidInput("until", "future_instant_required"); throw error; }
 }
 function normalize(context: CommandContext, request: { payload: unknown; target: unknown }): NormalizedCommand {
