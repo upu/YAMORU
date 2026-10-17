@@ -45,7 +45,7 @@ export async function setTaskOccurrenceAssignee(
           )`,
     ).bind(assigneeUserId, occurrenceId, householdId, logId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
+  if ((results[0]?.meta.changes ?? 0) === 0) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 
 // Issue #77: 未担当のOccurrenceを、操作主体自身の担当として一操作で引き受け
@@ -86,7 +86,7 @@ export async function claimTaskOccurrenceAssignee(
           )`,
     ).bind(user.userId, occurrenceId, householdId, logId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) {
+  if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Occurrence already has an assignee", "OCCURRENCE_ALREADY_ASSIGNED");
   }
 }
@@ -133,7 +133,7 @@ export async function postponeTaskOccurrence(
           )`,
     ).bind(dueAt, occurrenceId, householdId, logId),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
+  if ((results[0]?.meta.changes ?? 0) === 0) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 
 // YDR-030: 一回限りのpending Occurrenceだけ、具体日と予定日未定を往復
@@ -158,7 +158,7 @@ export async function setOneTimeTaskSchedule(
         SET scheduled_for = ?1, due_at = ?1
       WHERE id = ?2 AND household_id = ?3 AND status = 'pending'`,
   ).bind(scheduledFor, occurrenceId, householdId).run();
-  if (result.meta.changes !== 1) {
+  if (result.meta.changes === 0) {
     throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
 }

@@ -372,7 +372,7 @@ export async function updateManagedItem(
     statements.push(...buildManagedItemTagStatements(db, householdId, id, input.tags));
   }
   const results = await db.batch(statements);
-  if ((results[0]?.meta.changes ?? 0) !== 1) {
+  if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1NotFoundError("管理対象が見つかりません。");
   }
 }

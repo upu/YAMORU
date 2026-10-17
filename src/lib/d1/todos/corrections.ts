@@ -180,7 +180,7 @@ export async function correctCompletionOccurredAt(
       previousOccurredAt: effective.occurredAt,
     }),
   );
-  if ((results[0]?.meta.changes ?? 0) !== 1) {
+  if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Next occurrence has been modified", "NEXT_OCCURRENCE_MODIFIED");
   }
 }
@@ -227,7 +227,7 @@ export async function correctCompletionPerformer(
       newPerformerId,
     ),
   ]);
-  if ((results[0]?.meta.changes ?? 0) !== 1) {
+  if ((results[0]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Occurrence is not completed", "OCCURRENCE_NOT_COMPLETED");
   }
 }

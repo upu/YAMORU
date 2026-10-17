@@ -66,3 +66,9 @@ remote操作ではbinding名`DB`だけに依存せず、不変のD1名`yamoru-pr
 - [YDR-022](../decisions/ydr-022-cloudflare-workers-d1-migration.md) - Workers + D1とアプリ層認可の採用
 - [YDR-023](../decisions/ydr-023-invitation-only-account-lifecycle.md) - 招待限定アカウントと招待トークンの契約
 - [Cloudflare Workers + D1スパイク](../spikes/cloudflare-workers-d1.md) - 採用前に確認した制約と比較
+
+## D1の更新件数とtrigger
+
+`D1Result.meta.changes`にはtriggerの副作用による更新も含まれる。主キーや一意条件で最大一行を変更するSQLは、成功を`=== 1`で判定せず、`=== 0`を失敗として扱う。複数行を変更するSQLにこの規則を無条件で適用しない。0件の条件付き更新を成功にせず、batch内の履歴や後続更新も従来の条件へ束縛する。
+
+#450の互換Workerを各環境へ先に配備した後で、#435のrevision trigger migrationを適用する。mainへのmergeだけではproduction配備の証拠にならない。productionは既存のRelease経路で互換Workerを配備し、確認済みcommitを記録してから次段へ進む。trigger導入後のロールバック先もこの互換対応以降に限定する。

@@ -46,5 +46,6 @@ export async function updateAuthorizedManagedItemName(db: D1Database, session: D
   await requireHouseholdMembership(db, session, householdId);
   const result = await db.prepare("UPDATE managed_items SET name = ?1 WHERE id = ?2 AND household_id = ?3")
     .bind(name, id, householdId).run();
-  return result.meta.changes;
+  // The predicate identifies at most one row. D1 also counts trigger side effects.
+  return result.meta.changes > 0 ? 1 : 0;
 }

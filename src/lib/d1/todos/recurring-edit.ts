@@ -298,7 +298,7 @@ export async function updateRecurringOccurrence(
   ];
   if (statements.length === 0) return { managedItemId: occurrence.managed_item_id };
   const results = await db.batch(statements);
-  const missingLog = results.some((result, index) => index % 2 === 0 && result.meta.changes !== 1);
+  const missingLog = results.some((result, index) => index % 2 === 0 && result.meta.changes === 0);
   if (missingLog) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   return { managedItemId: occurrence.managed_item_id };
 }
@@ -405,7 +405,7 @@ export async function updateRecurringTaskRule(
     if (pending === null) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
     return { previousManagedItemId: occurrence.managed_item_id };
   }
-  if ((results[changeIndex + 1]?.meta.changes ?? 0) !== 1) {
+  if ((results[changeIndex + 1]?.meta.changes ?? 0) === 0) {
     throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
   }
   return { previousManagedItemId: occurrence.managed_item_id };
