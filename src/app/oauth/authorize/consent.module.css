@@ -1,0 +1,100 @@
+/* 外部サービス連携の同意画面(Issue #436)。/oauth/authorizeだけで使う。 */
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 16px 0;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.scopes {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.scopes legend {
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+.scopes > p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.scopes ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scope label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: var(--tap-target);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.scope input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.scopeText {
+  display: grid;
+  gap: 2px;
+}
+
+.scopeText span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.denyButton {
+  min-height: var(--tap-target);
+  margin-top: 10px;
+  padding: 0 16px;
+  border: 1px solid rgb(49 92 73 / 24%);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}

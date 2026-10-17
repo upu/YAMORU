@@ -8,6 +8,7 @@ describe("共通UIを隠す公開画面の境界", () => {
     "/invitations/accept",
     "/invitations/accept/confirm",
     "/invitations/accept/resume",
+    "/oauth/authorize",
   ])("公開画面 %s を判定する", (pathname) => {
     expect(isPublicPath(pathname)).toBe(true);
   });
@@ -18,6 +19,8 @@ describe("共通UIを隠す公開画面の境界", () => {
     "/login-help",
     "/invitations/acceptance",
     "/invitations/accepted",
+    "/oauth-help",
+    "/settings/integrations",
   ])("似た名前を含む保護画面 %s は公開扱いしない", (pathname) => {
     expect(isPublicPath(pathname)).toBe(false);
   });

@@ -29,6 +29,7 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
+    "src/app/.well-known/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [

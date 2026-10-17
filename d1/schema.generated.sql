@@ -265,6 +265,95 @@ CREATE TABLE managed_items (
   CHECK (kind IN ('pet_supplies', 'appliance', 'housing_equipment', 'contract', 'other'))
 );
 
+-- table: oauth_authorization_codes
+CREATE TABLE oauth_authorization_codes (
+  code_hash TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL REFERENCES oauth_clients(id),
+
+
+  client_name TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  code_challenge TEXT NOT NULL,
+  code_challenge_method TEXT NOT NULL,
+
+
+  user_session_version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+
+
+  replayed_at TEXT,
+  connection_id TEXT REFERENCES oauth_connections(id) ON DELETE CASCADE,
+  CHECK (length(client_name) BETWEEN 1 AND 100),
+  CHECK (code_challenge_method = 'S256'),
+  CHECK (length(code_challenge) BETWEEN 43 AND 128),
+  CHECK (expires_at > created_at)
+);
+
+-- table: oauth_clients
+CREATE TABLE oauth_clients (
+  id TEXT PRIMARY KEY,
+  client_name TEXT NOT NULL,
+  client_uri TEXT,
+  redirect_uris TEXT NOT NULL,
+  metadata_fetched_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  CHECK (id LIKE 'https://%' AND length(id) <= 2048),
+  CHECK (length(client_name) BETWEEN 1 AND 100),
+  CHECK (json_valid(redirect_uris) AND json_type(redirect_uris) = 'array')
+);
+
+-- table: oauth_connections
+CREATE TABLE oauth_connections (
+  id TEXT PRIMARY KEY,
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL REFERENCES oauth_clients(id),
+
+
+  client_name TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  issuer TEXT NOT NULL,
+
+  user_session_version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+
+  expires_at TEXT NOT NULL,
+  last_used_at TEXT,
+  revoked_at TEXT,
+  revoked_reason TEXT,
+  CHECK (length(client_name) BETWEEN 1 AND 100),
+  CHECK (length(scopes) BETWEEN 1 AND 200),
+  CHECK (expires_at > created_at),
+  CHECK (
+    revoked_reason IS NULL
+    OR revoked_reason IN (
+      'user_revoked', 'client_revoked', 'membership_changed', 'credentials_changed', 'token_reuse_detected'
+    )
+  ),
+  CHECK ((revoked_at IS NULL) = (revoked_reason IS NULL))
+);
+
+-- table: oauth_tokens
+CREATE TABLE oauth_tokens (
+  token_hash TEXT PRIMARY KEY,
+  connection_id TEXT NOT NULL REFERENCES oauth_connections(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  rotated_at TEXT,
+  CHECK (kind IN ('access', 'refresh')),
+  CHECK (kind = 'refresh' OR rotated_at IS NULL),
+  CHECK (expires_at > created_at)
+);
+
 -- table: profiles
 CREATE TABLE profiles (
   user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -590,6 +679,18 @@ CREATE INDEX managed_item_type_suggestions_adopted_idx
 
 -- index: managed_items_household_id_idx
 CREATE INDEX managed_items_household_id_idx ON managed_items(household_id);
+
+-- index: oauth_authorization_codes_expires_idx
+CREATE INDEX oauth_authorization_codes_expires_idx
+  ON oauth_authorization_codes(expires_at);
+
+-- index: oauth_connections_user_created_idx
+CREATE INDEX oauth_connections_user_created_idx
+  ON oauth_connections(user_id, created_at DESC);
+
+-- index: oauth_tokens_connection_idx
+CREATE INDEX oauth_tokens_connection_idx
+  ON oauth_tokens(connection_id, kind, expires_at);
 
 -- index: task_deadline_changes_occurrence_idx
 CREATE INDEX task_deadline_changes_occurrence_idx

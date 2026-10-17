@@ -10,6 +10,13 @@ void initOpenNextCloudflareForDev();
 
 const appVersionInfo = loadAppVersionBuildInfo();
 
+// 外部サービス連携の同意・解除の画面を他サイトのframeへ埋め込ませない。
+// 透明なframeで「許可する」を押させるclickjackingを防ぐ(Issue #436)。
+const FRAME_DENY_HEADERS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+  { key: "X-Frame-Options", value: "DENY" },
+];
+
 const nextConfig: NextConfig = {
   // プロジェクト固有のAGENTS.mdをNext.jsが自動変更しないようにします。
   agentRules: false,
@@ -23,6 +30,12 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_YAMORU_BUILD_ID: appVersionInfo.buildId,
     NEXT_PUBLIC_YAMORU_ENVIRONMENT: appVersionInfo.environment,
     NEXT_PUBLIC_YAMORU_VERSION: appVersionInfo.version,
+  },
+  headers() {
+    return Promise.resolve([
+      { headers: FRAME_DENY_HEADERS, source: "/oauth/:path*" },
+      { headers: FRAME_DENY_HEADERS, source: "/settings/integrations" },
+    ]);
   },
 };
 
