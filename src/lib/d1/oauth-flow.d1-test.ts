@@ -341,6 +341,8 @@ describe("ログ", () => {
     const code = consentResult.redirectUrl.searchParams.get("code") ?? "";
     const output = lines.join("\n");
     expect(output).toContain("yamoru.oauth.token_issued");
+    // 利用者が選んだscopeもログへ残さない(YDR-052 §10)。
+    expect(output).not.toContain("household.write");
     for (const secret of [code, consentResult.verifier, tokens.access_token, tokens.refresh_token ?? ""]) {
       expect(output).not.toContain(secret);
     }

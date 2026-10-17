@@ -1,6 +1,6 @@
 // 外部接続の運用ログ。docs/product/conversation-integration.md 8節に従い、
 // 接続ID・client_id・理由コードだけを残す。token・code・PKCEの値、家庭名や
-// 家庭データ、利用者のメールアドレスは型の上でも受け取らない。
+// 家庭データ、利用者のメールアドレス、利用者が選んだscopeは型の上でも受け取らない。
 
 export type OAuthLogEvent = {
   clientId?: string;
@@ -16,7 +16,6 @@ export type OAuthLogEvent = {
     | "token_issued";
   grantType?: string;
   reason?: string;
-  scopes?: readonly string[];
 };
 
 export function logOAuthEvent(entry: OAuthLogEvent): void {

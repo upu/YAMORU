@@ -56,7 +56,7 @@ export async function approveAuthorization(
       new OAuth2Server.Response(),
       { authenticateHandler: { handle: () => user } },
     );
-    logOAuthEvent({ clientId: request.clientId, event: "authorization_granted", scopes: user.scopes });
+    logOAuthEvent({ clientId: request.clientId, event: "authorization_granted" });
     return buildAuthorizationResponseUrl(
       request.redirectUri, config, { code: code.authorizationCode }, request.state,
     );
