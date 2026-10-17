@@ -122,7 +122,7 @@ export async function consumeAuthorizationCode(
 }
 
 // 消費済みのcodeが再び提示された(または同時の交換で消費に負けた)ことを記録し、
-// そのcodeから作られた接続があればIDを返す。記録とIDの読み取りを同じbatchで
+// そのcodeから作られた接続があればIDを返す。期限を過ぎたcodeは対象にしない。記録とIDの読み取りを同じbatchで
 // 行うため、交換の勝者が接続を作るのはこの記録より前(IDが返る)か、後
 // (createConnectionFromCodeがreplayed_atを見て作らない)のどちらかになる。
 export async function markAuthorizationCodeReplayed(
@@ -132,9 +132,12 @@ export async function markAuthorizationCodeReplayed(
 ): Promise<string | null> {
   const [, selected] = await db.batch([
     db.prepare(
-      "UPDATE oauth_authorization_codes SET replayed_at = ?2 WHERE code_hash = ?1 AND replayed_at IS NULL",
+      `UPDATE oauth_authorization_codes SET replayed_at = ?2
+        WHERE code_hash = ?1 AND replayed_at IS NULL AND expires_at > ?2`,
     ).bind(codeHash, now),
-    db.prepare("SELECT connection_id FROM oauth_authorization_codes WHERE code_hash = ?1").bind(codeHash),
+    db.prepare(
+      "SELECT connection_id FROM oauth_authorization_codes WHERE code_hash = ?1 AND expires_at > ?2",
+    ).bind(codeHash, now),
   ]);
   const row = (selected.results as { connection_id: string | null }[])[0] as
     | { connection_id: string | null }

@@ -129,6 +129,20 @@ describe("authorization code + PKCE", () => {
     expect(await connectionRow()).toBeNull();
   });
 
+  it("期限を過ぎた使用済みcodeが再提示されても、接続を失効させない", async () => {
+    const consentResult = await consent(db, memberA);
+    const tokens = await oauth.processAuthorizationCodeResponse(
+      await discoverTestServer(), testClient, await exchangeCode(db, consentResult),
+    );
+    await db.prepare(
+      "UPDATE oauth_authorization_codes SET created_at = '1999-12-31T00:00:00.000Z', expires_at = '2000-01-01T00:00:00.000Z'",
+    ).run();
+    const replay = await exchangeCode(db, consentResult);
+    expect(await tokenError(replay)).toBe("invalid_grant");
+    expect((await connectionRow())?.revoked_reason).toBeNull();
+    expect((await verifyAccessToken({ config, db }, tokens.access_token, [])).ok).toBe(true);
+  });
+
   it("code_verifierが一致しなければtokenを発行しない", async () => {
     const consentResult = await consent(db, memberA);
     const response = await exchangeCode(db, consentResult, { verifier: oauth.generateRandomCodeVerifier() });

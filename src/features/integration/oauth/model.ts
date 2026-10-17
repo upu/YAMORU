@@ -137,6 +137,9 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
       const codeHash = await hashSecret(authorizationCode);
       const code = await findAuthorizationCode(db, codeHash);
       if (code === null || code.resource !== config.resource) return false;
+      // 期限を過ぎたcodeは何にも使えない。再提示されても接続を失効させず、
+      // 短命のcodeが後から接続を切る手段として残らないようにする。
+      if (code.expiresAt <= now().toISOString()) return false;
       if (code.consumedAt !== null) {
         // 一回限りのcodeが再提示された。漏えいの可能性があるため、そのcodeで
         // 作られた接続を失効させる(OAuth 2.1 4.1.3)。

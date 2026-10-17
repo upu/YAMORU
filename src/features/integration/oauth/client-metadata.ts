@@ -61,10 +61,12 @@ function includesOrAbsent(value: unknown, expected: string): boolean {
 // 表示名は外部が自由に書ける値なので、制御文字と書式文字(双方向テキストの
 // 上書き等)を除き、長さを制限する。同意画面では名前と並べてclient_idの
 // ホスト名も表示するため、名前の文字でホスト名の見え方を変えさせない。
+// 名前が無いときに使うホスト名も同じ上限に収める(DNS名は最大253文字)。
 function displayName(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
+  const limitedFallback = fallback.slice(0, CLIENT_NAME_MAX_LENGTH);
+  if (typeof value !== "string") return limitedFallback;
   const cleaned = value.replaceAll(/[\p{Cc}\p{Cf}]/gu, "").trim().slice(0, CLIENT_NAME_MAX_LENGTH);
-  return cleaned.length > 0 ? cleaned : fallback;
+  return cleaned.length > 0 ? cleaned : limitedFallback;
 }
 
 export function parseClientMetadata(

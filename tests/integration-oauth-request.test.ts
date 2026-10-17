@@ -184,6 +184,14 @@ describe("CIMDのclient_idと文書", () => {
     }
   });
 
+  it("表示名が無く、ホスト名が長いときも上限の100文字に収める", () => {
+    const longHostClientId = `https://${"a".repeat(60)}.${"b".repeat(60)}.example.test/client.json`;
+    const parsed = parseClientMetadata({
+      client_id: longHostClientId, redirect_uris: [REDIRECT_URI], token_endpoint_auth_method: "none",
+    }, longHostClientId, "t");
+    expect(parsed?.clientName).toHaveLength(100);
+  });
+
   it("表示名から双方向テキストの上書きなどの書式文字を除く", () => {
     const parsed = parseClientMetadata({
       client_id: CLIENT_ID,
