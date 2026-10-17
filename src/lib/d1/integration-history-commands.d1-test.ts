@@ -276,6 +276,7 @@ describe("受付記録の成功条件", () => {
       evidence: [{ idempotencyKey: row.business_key, table: "activity_logs" }],
       id: row.id,
       result: "{}",
+      revisionEntity: { id: occurrenceId, kind: "todo_occurrence" },
     })]).then(() => null, (reason: unknown) => reason);
 
     expect(isCommitReceiptRejection(error)).toBe(true);

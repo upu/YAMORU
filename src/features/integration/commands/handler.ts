@@ -15,7 +15,12 @@ export type CommandContext = {
   userId: string;
 };
 
-export type CommandExecution = BusinessStatements & { result: Record<string, unknown> };
+export type CommandExecution = BusinessStatements & {
+  result: Record<string, unknown>;
+  // 結果に書き込み後のrevisionを付ける対象。続けて訂正・取消するときの
+  // expected_revisionに使える。
+  revisionEntity: { id: string; kind: "todo_occurrence" };
+};
 
 export type CommandPlan = {
   build(input: { businessKey: string; recordedAt: string }): CommandExecution;

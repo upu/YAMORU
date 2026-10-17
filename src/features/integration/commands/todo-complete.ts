@@ -115,7 +115,7 @@ async function plan(context: CommandContext, normalized: NormalizedCommand) {
         // 変更されると、todo.undoはunsafe_undoで拒否する。
         undo_available: true,
       };
-      return { ...business, result };
+      return { ...business, result, revisionEntity: { id: occurrenceId, kind: "todo_occurrence" as const } };
     },
     preview: preview(completion, payload),
   };

@@ -297,12 +297,14 @@ async function execute(request: Request, operation: IntegrationOperation): Promi
         evidence: execution.evidence,
         id: operation.id,
         result: canonicalJson(execution.result),
+        revisionEntity: execution.revisionEntity,
       }),
     ]);
   } catch (error) {
     return diagnose(request, operation, error);
   }
-  return successOutput({ ...operation, resolvedAt: recordedAt, result: canonicalJson(execution.result) }, false);
+  // 保存した結果(書き込み後のrevisionを含む)を返し、再送・照合と同じ内容にする。
+  return successOutput(await reload(request, operation), false);
 }
 
 async function settle(request: Request, operation: IntegrationOperation): Promise<Record<string, unknown>> {

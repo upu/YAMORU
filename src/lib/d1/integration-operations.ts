@@ -224,12 +224,22 @@ function evidenceValue(evidence: BusinessEvidence): string {
 // 2. previewの期限内であること
 // 3. 接続が書き込みに使えること(batchの直前に解除された場合を含む)
 // 4. 業務の記録(evidence)がすべて存在し、対象の完了記録が今も最新であること
+//
+// 結果には、業務の更新で進んだ後の対象のrevision(読み取りToolと同じ
+// `[1, kind, id, epoch, version]`のJSON文字列)を`revision`として加える。
+// 書き込み後の世代はbatchの中でしか分からないため、この文で読み取って保存する。
 export function commitReceiptStatement(
   db: D1Database,
-  input: { at: string; evidence: BusinessEvidence[]; id: string; result: string },
+  input: {
+    at: string;
+    evidence: BusinessEvidence[];
+    id: string;
+    result: string;
+    revisionEntity: { id: string; kind: string };
+  },
 ): D1PreparedStatement {
   if (input.evidence.length === 0) throw new Error("commit requires business evidence");
-  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + 4));
+  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + 6));
   return db.prepare(
     `UPDATE integration_operations
         SET status = CASE
@@ -238,10 +248,21 @@ export function commitReceiptStatement(
                 AND ${conditions.join("\n                AND ")}
               THEN 'succeeded'
             END,
-            result = ?3,
+            result = json_set(?3, '$.revision', (
+              SELECT '[1,' || json_quote(?4) || ',' || json_quote(?5) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
+                FROM household_read_versions v
+               WHERE v.household_id = integration_operations.household_id
+            )),
             resolved_at = ?2
       WHERE id = ?1`,
-  ).bind(input.id, input.at, input.result, ...input.evidence.map(evidenceValue));
+  ).bind(
+    input.id,
+    input.at,
+    input.result,
+    input.revisionEntity.kind,
+    input.revisionEntity.id,
+    ...input.evidence.map(evidenceValue),
+  );
 }
 
 // commitReceiptStatementが条件を満たさずにbatchを取り消したときのD1のエラーか。

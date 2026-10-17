@@ -276,6 +276,23 @@ describe("家庭の世代(revision)", () => {
     );
   });
 
+  it("成功結果に書き込み後のrevisionを含め、続く取消のexpected_revisionに使える", async () => {
+    const occurrenceId = await createSevenDaysAfterTodo(db);
+    const service = commandService(db);
+    const prepared = await prepare(service, completeRequest(occurrenceId));
+    const committed = await service.commit(principal, commitRequest(prepared));
+    const result = committed.result as { completion_log_id: string; revision: string };
+
+    expect(result.revision).toBe(await revisionOf("todo_occurrence", occurrenceId));
+    await expect(service.commit(principal, commitRequest(prepared))).resolves.toMatchObject({ result: { revision: result.revision } });
+    await expect(service.prepare(principal, {
+      command: "todo.undo",
+      expected_revision: result.revision,
+      operation_id: crypto.randomUUID(),
+      payload: { completion_log_id: result.completion_log_id },
+    })).resolves.toMatchObject({ status: "prepared" });
+  });
+
   it("確認の後に家族が無関係なものを更新しても、保守的に再確認を求める", async () => {
     const occurrenceId = await createSevenDaysAfterTodo(db);
     const service = commandService(db);

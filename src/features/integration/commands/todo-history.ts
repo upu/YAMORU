@@ -69,7 +69,7 @@ export const todoUndoHandler: CommandHandler = {
           undo_log_id: logId,
           undone_completion_log_id: undo.effective.completionLogId,
         };
-        return { ...business, result };
+        return { ...business, result, revisionEntity: { id: undo.occurrence.id, kind: "todo_occurrence" as const } };
       },
       preview: undoPreview(undo),
     };
@@ -161,7 +161,7 @@ export const todoCorrectHandler: CommandHandler = {
           performer_id: changes.performer_id ?? correction.effective.performerId,
           recorded_at: recordedAt,
         };
-        return { ...business, result };
+        return { ...business, result, revisionEntity: { id: correction.occurrence.id, kind: "todo_occurrence" as const } };
       },
       preview: {
         affected_entities: [
