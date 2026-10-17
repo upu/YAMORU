@@ -31,6 +31,8 @@ status: draft
 
 0041は本人・家庭・接続の複合FKを持つ購読表だけを追加する。callback URLと署名鍵を所有者・client・購読IDに結び付けて暗号化し、解除・失効時には暗号文を消す。更新はrevisionで照合し、確認中の解除や遅い鍵更新で復活・上書きしない。詳細は[YDR-060](../decisions/ydr-060-event-subscription-boundary.md)。
 
+暗号化鍵の更新等で旧暗号文を読めない購読は、旧署名鍵の再利用と検証cacheを止め、再検証したURL・署名鍵を現行の鍵で保存し直す。解除済み・期限切れの購読も、別購読の同URL cacheだけで復活させない。現行の暗号化鍵自体が利用不能なら保存を拒否する。
+
 `notification-event-subscriptions*.d1-test.ts`は認可・上限・TTL・解除競合・鍵更新・中断・更新DBの互換性、`notification-event-crypto.test.ts`は別所有者への暗号文移動と署名移行、`notification-webhook-transport.test.ts`はDNS再検証・private混在・redirect拒否を確認する。
 
 0042と[YDR-061](../decisions/ydr-061-notification-source-and-retention.md)は通知時の元entity IDとTodo rule IDを候補から独立して保持する。候補の解消・元実体の削除後も次回へ読み替えず、既に候補が消えた過去行は推測でbackfillしない。詳細とsourceは終端から90日後に順次削除するが、unknown/failedのID・状態・試行数は保持して自動再送を防ぐ。pendingなど非終端の記録は削除しない。`notification-outbox-context*.d1-test.ts`が元の回・消耗品・旧SQL・全取消・cascade・期限と100件の上限の入口。

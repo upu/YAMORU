@@ -12,8 +12,8 @@ const url = "https://receiver.example.com/events?token=fictional-callback-token"
 const input = (args: Record<string, unknown> = {}, callback = url) => ({ name: "attention.ready", arguments: args, delivery: { mode: "webhook", url: callback, secret }, cursor: null });
 beforeAll(() => applyAllMigrations(db));
 beforeEach(() => resetNotificationFixtures(db));
-function service(p = principal, post = vi.fn(async (_url: string, request: { body: string }) => Response.json({ challenge: (JSON.parse(request.body) as { challenge: string }).challenge }))) {
-  return { post, api: createEventSubscriptionService({ db, authorize: async () => p, secret: master, providerId: "fictional-pinned-provider", transport: { post }, now: () => new Date() }) };
+function service(p = principal, post = vi.fn(async (_url: string, request: { body: string }) => Response.json({ challenge: (JSON.parse(request.body) as { challenge: string }).challenge })), sealKey = master) {
+  return { post, api: createEventSubscriptionService({ db, authorize: async () => p, secret: sealKey, providerId: "fictional-pinned-provider", transport: { post }, now: () => new Date() }) };
 }
 it("署名付きchallengeを通した購読を暗号化保存し、同じ条件のrefreshとcacheを冪等にする", async () => {
   const { ruleId } = await notificationCandidate(db);
@@ -131,4 +131,27 @@ it.each(["http_error", "response_too_large"] as const)("%sの本文を閉じる�
   const api = createEventSubscriptionService({ db, authorize: async () => principal, secret: master, providerId: "fictional-provider", transport: { post: async () => response } });
   await expect(api.subscribe(input())).rejects.toMatchObject({ code: "callback_unavailable", reason });
   expect((await db.prepare("SELECT * FROM notification_event_subscriptions").all()).results).toEqual([]);
+});
+it("暗号化鍵を変更して古い暗号文を読めなくても、再検証した同じ購読を修復できる", async () => {
+  const first = service();
+  const before = await first.api.subscribe(input());
+  const nextMaster = `${master}-rotated`;
+  const rotated = service(principal, first.post, nextMaster);
+  expect((await rotated.api.subscribe(input())).id).toBe(before.id);
+  expect(first.post).toHaveBeenCalledTimes(2);
+  const row = await eventSubscription(db, principal, before.id);
+  expect(await decryptWebhookDestination(nextMaster, principal, before.id, row?.encrypted_destination ?? "")).toEqual({ url, secret });
+  await expect(decryptWebhookDestination(master, principal, before.id, row?.encrypted_destination ?? "")).rejects.toThrow();
+  const unavailable = service(principal, first.post, "short");
+  await expect(unavailable.api.subscribe(input())).rejects.toMatchObject({ code: "key_unavailable" });
+  expect(await eventSubscription(db, principal, before.id)).toEqual(row);
+});
+it("同じURLの別購読に検証cacheがあっても、解除した購読では検証をやり直す", async () => {
+  const { api, post } = service();
+  await api.subscribe(input());
+  await api.subscribe(input({ kinds: ["consumable"] }));
+  expect(post).toHaveBeenCalledTimes(1);
+  await api.unsubscribe({ name: "attention.ready", delivery: { mode: "webhook", url } });
+  await api.subscribe(input());
+  expect(post).toHaveBeenCalledTimes(2);
 });

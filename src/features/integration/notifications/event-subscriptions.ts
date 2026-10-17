@@ -61,11 +61,15 @@ async function verifyCallback(deps: Dependencies, id: string, url: string, secre
   }
   return (deps.now ?? systemNow)().toISOString();
 }
-async function sealedDestination(deps: Dependencies, principal: IntegrationPrincipal, target: EventSubscriptionIdentity, previous: EventSubscriptionRow | null, url: string, secret: string, now: Date) {
+async function previousDestination(deps: Dependencies, principal: IntegrationPrincipal, target: EventSubscriptionIdentity, previous: EventSubscriptionRow | null, now: Date) {
+  if (previous?.state !== "active" || !previous.encrypted_destination || previous.expires_at <= now.toISOString()) return null;
+  try { return await decryptWebhookDestination(deps.secret, principal, target.id, previous.encrypted_destination); }
+  catch (error) { if (error instanceof WebhookCryptoError) return null; throw error; }
+}
+async function sealedDestination(deps: Dependencies, principal: IntegrationPrincipal, target: EventSubscriptionIdentity, old: WebhookDestination | null, url: string, secret: string, now: Date) {
   try {
     const value: WebhookDestination = { url, secret };
-    if (previous?.state === "active" && previous.encrypted_destination && previous.expires_at > now.toISOString()) {
-      const old = await decryptWebhookDestination(deps.secret, principal, target.id, previous.encrypted_destination);
+    if (old) {
       if (old.secret !== secret) value.previous = { secret: old.secret, expiresAt: new Date(now.getTime() + 300_000).toISOString() };
       else if (old.previous && old.previous.expiresAt > now.toISOString()) value.previous = old.previous;
     }
@@ -87,8 +91,9 @@ export function createEventSubscriptionService(deps: Dependencies) {
       const target = await identity(principal, url, filter);
       const previous = await eventSubscription(deps.db, principal, target.id);
       if (await activeEventSubscriptionCount(deps.db, principal, target.id, clock()) >= 20) throw new EventSubscriptionError("subscription_limit");
+      const old = await previousDestination(deps, principal, target, previous, clock());
       const keyFingerprint = await sha256Hex(secret);
-      const cached = await recentWebhookVerification(deps.db, principal, target.callbackHash, keyFingerprint, deps.providerId, clock());
+      const cached = previous !== null && old === null ? null : await recentWebhookVerification(deps.db, principal, target.callbackHash, keyFingerprint, deps.providerId, clock());
       const verifiedAt = cached?.verified_at ?? await verifyCallback(deps, target.id, url, secret);
       const current = await currentOwner(deps);
       if (!sameOwner(principal, current.principal)) throw new EventSubscriptionError("connection_unavailable");
@@ -96,7 +101,7 @@ export function createEventSubscriptionService(deps: Dependencies) {
       const now = clock();
       const ttl = Math.max(60_000, Math.min(parsed.data.ttlMs ?? 86_400_000, 86_400_000));
       const expiresAt = new Date(Math.min(now.getTime() + ttl, Date.parse(current.grant.expires_at))).toISOString();
-      const encryptedDestination = await sealedDestination(deps, principal, target, previous, url, secret, now);
+      const encryptedDestination = await sealedDestination(deps, principal, target, old, url, secret, now);
       await saveEventSubscription(deps.db, principal, { ...target, encryptedDestination, keyFingerprint, providerId: deps.providerId, verifiedAt, expiresAt, expectedRevision: previous?.revision ?? 0 }, now, deps.commitGuard);
       return { id: target.id, refreshBefore: expiresAt, cursor: null, truncated: false };
     },
