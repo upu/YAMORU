@@ -17,8 +17,8 @@ export type CommandContext = {
 
 export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
-  // 結果に書き込み後のrevisionを付ける対象。続けて訂正・取消するときの
-  // expected_revisionに使える。
+  // 対応する読み取りToolと同じ形式のrevisionを返す対象。次の操作の
+  // expected_revision/settings_revision/candidate_revisionに使える。
   revisionEntity: { id: string; kind: "todo_occurrence" | "notification_settings" | "attention_candidate" };
 };
 

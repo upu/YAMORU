@@ -28,6 +28,8 @@ prepareでは書き込まず本人への差分を示し、commit時に設定・�
 
 会話APIの設定・preview・結果・履歴は`notifications/wire.ts`でsnake_caseへ変換する。設定は入力と同じquiet_hours/repeat_policyの構造、休止はuntil、履歴はdelivery_id/candidate_id/candidate_name/connection_id/outcome/reason/recorded_atを返す。候補の元データをライブで投影し、キャッシュのpayloadと異なる場合も古いcandidate_revisionとして拒否する。
 
+成功結果のrevisionは受付記録のbatch内で読み取って保存する。設定はsettings取得と同じ整数、候補はattention_getと同じ`[1,id,candidateRevision]`のJSON文字列とし、続く操作へそのまま渡せる。後から別の設定変更をしても、再送は最初に保存した結果を返す。
+
 ## #442への引き継ぎ
 
 この実装は配信を開始しない。画面にも準備中と表示する。MCP adapter・outbox・lease・定期実行・実接続検証を実装した後で表示を更新する。

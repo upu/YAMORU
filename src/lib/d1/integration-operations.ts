@@ -262,8 +262,8 @@ function evidenceValue(evidence: BusinessEvidence): string {
 // 3. 接続が書き込みに使えること(batchの直前に解除された場合を含む)
 // 4. 業務の記録(evidence)がすべて存在し、対象の完了記録が今も最新であること
 //
-// 結果には、業務の更新で進んだ後の対象のrevision(読み取りToolと同じ
-// `[1, kind, id, epoch, version]`のJSON文字列)を`revision`として加える。
+// 結果には読み取りToolと同じ形式のrevisionを加える。通知設定は整数、
+// 候補は[1,id,candidateRevision]、通常の家庭データは[1,kind,id,epoch,version]。
 // 書き込み後の世代はbatchの中でしか分からないため、この文で読み取って保存する。
 export function commitReceiptStatement(
   db: D1Database,
@@ -285,11 +285,21 @@ export function commitReceiptStatement(
                 AND ${conditions.join("\n                AND ")}
               THEN 'succeeded'
             END,
-            result = json_set(?3, '$.revision', (
-              SELECT '[1,' || json_quote(?4) || ',' || json_quote(?5) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
-                FROM household_read_versions v
-               WHERE v.household_id = integration_operations.household_id
-            )),
+            result = json_set(?3, '$.revision', CASE ?4
+              WHEN 'notification_settings' THEN (
+                SELECT revision FROM notification_settings
+                 WHERE household_id = integration_operations.household_id
+                   AND user_id = integration_operations.user_id AND user_id = ?5
+              )
+              WHEN 'attention_candidate' THEN (
+                SELECT '[1,' || json_quote(id) || ',' || revision || ']' FROM attention_candidates
+                 WHERE household_id = integration_operations.household_id AND id = ?5
+              )
+              ELSE (
+                SELECT '[1,' || json_quote(?4) || ',' || json_quote(?5) || ',' || json_quote(v.epoch) || ',' || v.version || ']'
+                  FROM household_read_versions v
+                 WHERE v.household_id = integration_operations.household_id
+              ) END),
             resolved_at = ?2
       WHERE id = ?1`,
   ).bind(

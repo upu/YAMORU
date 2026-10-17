@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from "../../features/integration/notifications/contr
 import { householdAMember } from "./test-support/households";
 import { interruptBeforeBatch } from "./test-support/integration-commands";
 import { createAttentionReader } from "../../features/integration/attention/service";
+import { createNotificationReader } from "../../features/integration/notifications/service";
 const db = env.DB;
 const service = createCommandService({ db, now: () => now });
 beforeAll(() => applyAllMigrations(db));
@@ -26,6 +27,11 @@ it("通知権限だけでprepare/commitでき、同じIDの再送は同じ結果
   expect(await service.commit(principal, commitInput(preview))).toMatchObject({ replayed: true, result: first.result });
   expect((await getNotificationSettings(db, householdAMember)).settings.digestTime).toBe("10:00");
   await expect(service.prepare(principal, { ...input, payload: { ...input.payload, digest_time: "11:00" } })).rejects.toMatchObject({ code: "idempotency_conflict" });
+  const reader = createNotificationReader({ db, authorize: async () => principal, now: () => now, cursorSecret: "notification-test-secret-with-32-bytes" });
+  expect(first.result.revision).toBe((await reader.notificationSettingsGet()).revision);
+  const next = await service.prepare(principal, request({ settings_revision: first.result.revision, digest_time: "11:00" }));
+  expect((await service.commit(principal, commitInput(next))).result.revision).toBe(2);
+  expect((await service.commit(principal, commitInput(preview))).result).toEqual(first.result);
 });
 it("attentionの再取得前に元の内容が変わった候補のrevisionを拒否する", async () => {
   const { candidate, occurrenceId } = await notificationCandidate(db);
@@ -63,6 +69,14 @@ it("候補revisionを確認して本人だけスヌーズし、再送や完了�
   await service.commit(principal, commitInput(preview));
   expect(await getCandidateControl(db, principal, candidate.candidate_id)).toMatchObject({ revision: 1, snoozedUntil: "2026-10-18T00:00:00.000Z" });
   await expect(service.prepare(principal, { ...input, operation_id: crypto.randomUUID(), payload: { ...input.payload, candidate_revision: "old" } })).rejects.toMatchObject({ code: "stale_preview" });
+  const reader = createAttentionReader({ db, authorize: async () => principal, now: () => now, cursorSecret: "notification-test-secret-with-32-bytes" });
+  expect(committed.result.revision).toBe((await reader.attentionGet({})).candidates[0].revision);
+  const resumed = await service.prepare(principal, { ...input, operation_id: crypto.randomUUID(), payload: {
+    ...input.payload, candidate_revision: committed.result.revision, until: null,
+  } });
+  await service.commit(principal, commitInput(resumed));
+  expect((await service.commit(principal, commitInput(preview))).result).toEqual(committed.result);
+  expect(await getCandidateControl(db, principal, candidate.candidate_id)).toMatchObject({ revision: 2, snoozedUntil: null });
 });
 it("SQL実行直前の設定変更・接続解除でも、個人設定とreceiptを一緒に取り消す", async () => {
   const preview = await service.prepare(principal, request());
