@@ -11,6 +11,7 @@ import {
   mapD1Error,
   performerNotFound,
   scheduleView,
+  targetOf,
   todoDetailUrl,
   type CommandContext,
   type CommandHandler,
@@ -58,7 +59,7 @@ export const todoUndoHandler: CommandHandler = {
   },
 
   async plan(context, normalized) {
-    const undo = await planUndo(context.db, context.householdId, normalized.target.id)
+    const undo = await planUndo(context.db, context.householdId, targetOf(normalized).id)
       .catch((error: unknown) => mapD1Error(error, HISTORY_ERRORS));
     return {
       build({ businessKey, recordedAt }) {
@@ -144,7 +145,7 @@ export const todoCorrectHandler: CommandHandler = {
   async plan(context, normalized) {
     const changes = (normalized.payload as { changes: CorrectionChanges }).changes;
     const correction = await planCorrection(context.db, context.householdId, {
-      completionLogId: normalized.target.id,
+      completionLogId: targetOf(normalized).id,
       occurredAt: changes.occurred_at ?? null,
       performerId: changes.performer_id ?? null,
     }).catch((error: unknown) => mapD1Error(error, {

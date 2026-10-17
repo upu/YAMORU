@@ -29,7 +29,10 @@ export type BusinessEvidence =
   // 指定した完了記録が、batchの後も対象Occurrenceの最新の完了であること
   // (loadActiveCompletionと同じ順序)。previewの後に取消→再完了されていれば、
   // 取消や訂正が置き換わった別の完了へ作用しないよう、batch全体を取り消す。
-  | { activeCompletionLogId: string };
+  | { activeCompletionLogId: string }
+  // 登録で作った行が存在すること。作成の文は条件付きではないが、関連する行
+  // (TaskRule)が無ければOccurrenceは作られないため、最後に作る行で確かめる。
+  | { rowId: string; table: "task_occurrences" };
 
 export type BusinessStatements = {
   evidence: BusinessEvidence[];

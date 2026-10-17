@@ -1,7 +1,7 @@
 import { d1ErrorCode, type D1ErrorCode } from "../../../lib/d1/errors";
 import type { BusinessStatements } from "../../../lib/d1/todos/command-plans";
 import { tokyoDate } from "./input";
-import { CommandError, type CommandPreview, type NormalizedCommand } from "./contract";
+import { CommandError, type CommandPreview, type CommandTarget, type NormalizedCommand } from "./contract";
 
 // command別の処理が満たす形。normalizeは要求だけから確定できる値を固める
 // (「今」や「昨日」の絶対化を含む)。planは現在の家庭データを読み、previewと、
@@ -42,6 +42,12 @@ export async function mapD1Error(
   const map = code === undefined ? undefined : mapping[code];
   if (map === undefined) throw error;
   throw await map();
+}
+
+// 既存の対象に作用するcommandの対象。normalizeで必ず決めている。
+export function targetOf(normalized: NormalizedCommand): CommandTarget {
+  if (normalized.target === null) throw new Error(`${normalized.command} requires a target`);
+  return normalized.target;
 }
 
 export function performerNotFound(field: string): CommandError {

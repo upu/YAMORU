@@ -29,6 +29,7 @@ import {
   type HouseholdRevision,
 } from "./revision";
 import { todoCompleteHandler } from "./todo-complete";
+import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 import { notificationConfigureHandler } from "./notification-configure";
 import { notificationSnoozeHandler } from "./notification-snooze";
@@ -44,6 +45,7 @@ import { notificationSnoozeHandler } from "./notification-snooze";
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
+  "todo.create": todoCreateHandler,
   "todo.undo": todoUndoHandler,
   "notification.configure": notificationConfigureHandler,
   "notification.snooze": notificationSnoozeHandler,

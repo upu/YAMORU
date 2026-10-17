@@ -3,7 +3,7 @@ import { currentNotificationCandidate } from "../../../lib/d1/notification-polic
 import { NotificationError, parseControl } from "../notifications/contract";
 import { controlToWire } from "../notifications/wire";
 import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
-import type { CommandContext, CommandHandler, CommandPlan } from "./handler";
+import { targetOf, type CommandContext, type CommandHandler, type CommandPlan } from "./handler";
 import { idValue, objectValue } from "./input";
 
 function controlFrom(muted: unknown, until: unknown, now: Date) {
@@ -22,7 +22,7 @@ function normalize(context: CommandContext, request: { payload: unknown; target:
   return { command: "notification.snooze", target: { kind: "attention_candidate", id }, payload: { candidate_revision: payload.candidate_revision, ...controlToWire(control) } };
 }
 async function plan(context: CommandContext, normalized: NormalizedCommand): Promise<CommandPlan> {
-  const id = normalized.target.id;
+  const id = targetOf(normalized).id;
   const candidate = await currentNotificationCandidate(context.db, context.householdId, id, context.now);
   if (!candidate) throw new CommandError("not_found");
   if (!candidate.projectionCurrent || JSON.stringify([1, id, candidate.revision]) !== normalized.payload.candidate_revision) throw new CommandError("stale_preview");

@@ -241,12 +241,17 @@ function evidenceCondition(evidence: BusinessEvidence, parameter: number): strin
             AND (n.recorded_at > t.recorded_at OR (n.recorded_at = t.recorded_at AND n.id > t.id))))`;
   }
   // tableはコード内の定数だけを取り、利用者の入力を埋め込まない。
+  if ("rowId" in evidence) {
+    return `EXISTS (SELECT 1 FROM ${evidence.table} b
+    WHERE b.household_id = integration_operations.household_id AND b.id = ${placeholder})`;
+  }
   return `EXISTS (SELECT 1 FROM ${evidence.table} b
     WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder})`;
 }
 
 function evidenceValue(evidence: BusinessEvidence): string {
-  return "activeCompletionLogId" in evidence ? evidence.activeCompletionLogId : evidence.idempotencyKey;
+  if ("activeCompletionLogId" in evidence) return evidence.activeCompletionLogId;
+  return "rowId" in evidence ? evidence.rowId : evidence.idempotencyKey;
 }
 
 // commitのbatchの最後に置く文。次のすべてを満たすときだけstatusを

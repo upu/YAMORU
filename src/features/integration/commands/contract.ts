@@ -2,7 +2,7 @@
 // 入出力とエラーの契約。docs/product/conversation-integration.md 5節を正本とし、
 // 値はMCP等の外部へそのまま返すためsnake_caseで組み立てる。
 
-export const COMMAND_NAMES = ["todo.complete", "todo.correct", "todo.undo", "notification.configure", "notification.snooze"] as const;
+export const COMMAND_NAMES = ["todo.complete", "todo.correct", "todo.create", "todo.undo", "notification.configure", "notification.snooze"] as const;
 export type CommandName = (typeof COMMAND_NAMES)[number];
 
 export function isCommandName(value: unknown): value is CommandName {
@@ -14,10 +14,11 @@ export const PREVIEW_TTL_MS = 10 * 60 * 1000;
 
 export type CommandTarget = { id: string; kind: "completion_log" | "todo_occurrence" | "notification_settings" | "attention_candidate" };
 
+// 対象を新しく作るcommand(todo.create)は対象を持たない(5節)。
 export type NormalizedCommand = {
   command: CommandName;
   payload: Record<string, unknown>;
-  target: CommandTarget;
+  target: CommandTarget | null;
 };
 
 export type CommandPreview = {
@@ -32,6 +33,7 @@ const COMMAND_ERRORS = {
   idempotency_conflict: { message: "同じ操作IDで別の内容が送られました。新しい操作として作り直してください。", recovery: "new_operation", retryable: false },
   insufficient_scope: { message: "この操作に必要な権限がありません。許可する範囲を確認してください。", recovery: "reconnect", retryable: false },
   invalid_input: { message: "入力内容を確認してください。", recovery: "check_request", retryable: false },
+  missing_required: { message: "必要な項目が足りません。足りない項目だけを確認してください。", recovery: "ask_user", retryable: false },
   not_found: { message: "対象を取得できません。", recovery: "reread", retryable: false },
   preview_expired: { message: "確認内容の有効期限が切れました。現在の状態を読み直して、新しい操作として作り直してください。", recovery: "reread", retryable: false },
   stale_preview: { message: "確認した後に対象が変わりました。現在の状態を読み直して、新しい操作として作り直してください。", recovery: "reread", retryable: false },
@@ -51,6 +53,7 @@ export function isCommandErrorCode(value: string): value is CommandErrorCode {
 const FINAL_CODES: ReadonlySet<CommandErrorCode> = new Set([
   "already_resolved",
   "invalid_input",
+  "missing_required",
   "not_found",
   "stale_preview",
   "unsafe_undo",
