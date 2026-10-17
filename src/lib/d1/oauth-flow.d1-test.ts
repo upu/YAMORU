@@ -153,6 +153,17 @@ describe("authorization code + PKCE", () => {
     expect(row?.client_name).toBe("Example Assistant");
   });
 
+  it("同意画面で照合した名前を記録し、その後にクライアント情報が変わっても引きずられない", async () => {
+    // 照合の後、codeの発行より前にCIMDの写しが別の名前へ更新された場合。
+    await db.prepare("UPDATE oauth_clients SET client_name = 'Renamed Assistant'").run();
+    const consentResult = await consent(db, { ...memberA, clientName: "Example Assistant" });
+    await oauth.processAuthorizationCodeResponse(
+      await discoverTestServer(), testClient, await exchangeCode(db, consentResult),
+    );
+    const row = await db.prepare("SELECT client_name FROM oauth_connections").first<{ client_name: string }>();
+    expect(row?.client_name).toBe("Example Assistant");
+  });
+
   it("code_verifierが一致しなければtokenを発行しない", async () => {
     const consentResult = await consent(db, memberA);
     const response = await exchangeCode(db, consentResult, { verifier: oauth.generateRandomCodeVerifier() });

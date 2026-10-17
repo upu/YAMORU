@@ -47,6 +47,8 @@ export function tokenFetch(db: D1Database, config: OAuthConfig, now?: () => Date
 
 export type ConsentInput = {
   approvedScopes?: readonly string[];
+  // 同意画面で表示した接続元の名前。
+  clientName?: string;
   config?: OAuthConfig;
   householdId: string;
   requestedScope?: string;
@@ -76,6 +78,7 @@ export async function consent(db: D1Database, input: ConsentInput): Promise<Cons
   if (!validated.ok) throw new Error(`認可要求が不正です: ${validated.error}`);
   const redirectUrl = await approveAuthorization({ config, db }, {
     approvedScopes: input.approvedScopes ?? validated.request.requestedScopes,
+    clientName: input.clientName ?? "Example Assistant",
     householdId: input.householdId,
     request: validated.request,
     userId: input.userId,

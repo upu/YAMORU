@@ -35,6 +35,7 @@ export async function decideAuthorization(formData: FormData): Promise<void> {
   }
   const url = await approveAuthorization({ config, db }, {
     approvedScopes: stringValues(formData.getAll("scope")),
+    clientName: client.clientName,
     householdId: household.id,
     request,
     userId: user.id,

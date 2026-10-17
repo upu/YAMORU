@@ -13,6 +13,8 @@ import { createOAuthServer } from "./server";
 
 export type AuthorizationApproval = {
   approvedScopes: readonly string[];
+  // 同意画面で表示し、送信時に照合済みの接続元の名前。codeにはこの名前を記録する。
+  clientName: string;
   householdId: string;
   request: ValidAuthorizationRequest;
   userId: string;
@@ -41,6 +43,7 @@ export async function approveAuthorization(
   const { request } = approval;
   const server = createOAuthServer(createOAuthModel(dependencies));
   const user: GrantUser = {
+    clientName: approval.clientName,
     householdId: approval.householdId,
     scopes: grantedScopes(request, approval.approvedScopes),
     userId: approval.userId,

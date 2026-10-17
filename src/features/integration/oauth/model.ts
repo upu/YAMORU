@@ -120,7 +120,9 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
       if (code.codeChallenge === undefined || code.codeChallengeMethod !== "S256") return false;
       const saved = await saveAuthorizationCode(db, {
         clientId: client.id,
-        clientName: typeof client.clientName === "string" ? client.clientName : new URL(client.id).hostname.slice(0, 100),
+        // 同意画面で照合済みの名前を使う。ここでclientを読み直した値は、照合の後に
+        // 更新されている可能性がある。
+        clientName: owner.clientName ?? new URL(client.id).hostname.slice(0, 100),
         codeChallenge: code.codeChallenge,
         codeChallengeMethod: "S256",
         codeHash: await hashSecret(code.authorizationCode),
