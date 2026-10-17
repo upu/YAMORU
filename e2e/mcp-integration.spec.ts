@@ -28,6 +28,13 @@ test("実HTTPでOAuthの同意からMCP登録・取得・完了・次回確認�
   const exchange = await request.post("/oauth/token", { form: { grant_type: "authorization_code", code, code_verifier: verifier, client_id: TEST_CLIENT_ID, redirect_uri: TEST_REDIRECT_URI, resource: `${origin}/mcp` } });
   expect(exchange.status()).toBe(200);
   const tokens = await exchange.json() as { access_token: string };
+  const modern = await request.post("/mcp", { headers: { authorization: `Bearer ${tokens.access_token}`, accept: "application/json, text/event-stream",
+    "mcp-protocol-version": "2026-07-28", "mcp-method": "tools/call", "mcp-name": "connection_get" },
+  data: { jsonrpc: "2.0", id: "modern-e2e", method: "tools/call", params: { name: "connection_get", arguments: {}, _meta: {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {},
+  } } } });
+  expect(modern.status()).toBe(200);
+  expect(await modern.json()).toMatchObject({ result: { resultType: "complete", structuredContent: { user_id: "owner", household_id: "household-a" } } });
   const client = new Client({ name: "http-e2e-client", version: "1" });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${origin}/mcp`), { requestInit: { headers: { authorization: `Bearer ${tokens.access_token}` } } }));
   expect((await client.listTools()).tools.map((tool) => tool.name)).toContain("command_prepare");
