@@ -33,7 +33,9 @@ async function resolveClient(
   if (clientId === undefined) return null;
   const resolution = await resolveOAuthClient(db, config, clientId);
   if (resolution.ok) return resolution.client;
-  logOAuthEvent({ clientId, event: "client_metadata_rejected", reason: resolution.reason });
+  // 許可リストに無いclient_idは要求元が自由に書ける値なので、ログへ書かない。
+  const loggedClientId = resolution.reason === "client_not_allowed" ? undefined : clientId;
+  logOAuthEvent({ clientId: loggedClientId, event: "client_metadata_rejected", reason: resolution.reason });
   return resolution.reason === "client_not_allowed" ? null : "unavailable";
 }
 

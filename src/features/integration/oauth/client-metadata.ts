@@ -21,6 +21,7 @@ const METADATA_MAX_BYTES = 5 * 1024;
 const METADATA_TIMEOUT_MS = 5000;
 const MAX_REDIRECT_URIS = 10;
 const CLIENT_NAME_MAX_LENGTH = 100;
+const CLIENT_ID_MAX_LENGTH = 2048;
 
 function isIpLiteral(hostname: string): boolean {
   return hostname.startsWith("[") || /^[\d.]+$/u.test(hostname);
@@ -29,7 +30,8 @@ function isIpLiteral(hostname: string): boolean {
 // CIMDのclient_idはpathを持つHTTPS URLで、fragment・認証情報・ドット区間を
 // 含まない。IPアドレスやlocalhostは、内部宛ての取得を避けるため許さない。
 export function isValidClientIdUrl(value: string): boolean {
-  if (!URL.canParse(value)) return false;
+  // D1のoauth_clients.idの上限(2048文字)を超えるものは保存できないため受け付けない。
+  if (value.length > CLIENT_ID_MAX_LENGTH || !URL.canParse(value)) return false;
   const url = new URL(value);
   return url.protocol === "https:" &&
     url.href === value &&

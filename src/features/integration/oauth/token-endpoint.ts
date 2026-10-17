@@ -62,6 +62,11 @@ function libraryRequest(request: Request, body: Map<string, string>): OAuth2Serv
   return new OAuth2Server.Request({ body: Object.fromEntries(body), headers, method: "POST", query: {} });
 }
 
+// 要求元が自由に書けるclient_idは、許可リストにあるときだけログへ書く。
+function loggableClientId(config: OAuthConfig, clientId: string | undefined): string | undefined {
+  return clientId !== undefined && config.allowedClientIds.includes(clientId) ? clientId : undefined;
+}
+
 // 5xxの説明文には内部エラー(SQL等)が入り得るため、外へ返さない。
 function responseBody(response: OAuth2Server.Response): unknown {
   if ((response.status ?? 500) >= 500) return { error: "server_error" };
@@ -82,13 +87,13 @@ export async function handleTokenRequest(
   }
   const server = createOAuthServer(createOAuthModel({ ...dependencies, config }));
   const response = new OAuth2Server.Response();
-  const grantType = body.get("grant_type");
+  const loggedClientId = loggableClientId(config, body.get("client_id"));
   try {
     await server.token(libraryRequest(request, body), response);
-    logOAuthEvent({ clientId: body.get("client_id"), event: "token_issued", grantType });
+    logOAuthEvent({ clientId: loggedClientId, event: "token_issued" });
   } catch (error) {
     const name = error instanceof OAuth2Server.OAuthError ? error.name : "server_error";
-    logOAuthEvent({ clientId: body.get("client_id"), error: name, event: "token_failed", grantType });
+    logOAuthEvent({ clientId: loggedClientId, error: name, event: "token_failed" });
     // ライブラリが応答を組み立てる前に失敗した場合でも、成功として返さない。
     if ((response.status ?? 200) < 400) response.status = 500;
   }

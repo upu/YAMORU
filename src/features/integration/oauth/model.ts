@@ -120,6 +120,7 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
       if (code.codeChallenge === undefined || code.codeChallengeMethod !== "S256") return false;
       const saved = await saveAuthorizationCode(db, {
         clientId: client.id,
+        clientName: typeof client.clientName === "string" ? client.clientName : new URL(client.id).hostname.slice(0, 100),
         codeChallenge: code.codeChallenge,
         codeChallengeMethod: "S256",
         codeHash: await hashSecret(code.authorizationCode),
@@ -233,7 +234,6 @@ function saveTokenModel({ config, db, now = () => new Date() }: OAuthModelDepend
       const saved = owner.connectionId === undefined
         ? await createConnectionFromCode(db, {
             clientId: client.id,
-            clientName: typeof client.clientName === "string" ? client.clientName : client.id,
             codeHash: owner.codeHash ?? "",
             connectionId: crypto.randomUUID(),
             householdId: owner.householdId,

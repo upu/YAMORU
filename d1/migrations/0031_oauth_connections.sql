@@ -71,6 +71,9 @@ CREATE TABLE oauth_authorization_codes (
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   client_id TEXT NOT NULL REFERENCES oauth_clients(id),
+  -- 同意画面に表示したクライアント名。交換までにCIMDが更新されても、
+  -- 利用者が同意した名前を接続へ引き継ぐ。
+  client_name TEXT NOT NULL,
   scopes TEXT NOT NULL,
   redirect_uri TEXT NOT NULL,
   resource TEXT NOT NULL,
@@ -86,6 +89,7 @@ CREATE TABLE oauth_authorization_codes (
   -- (同時に交換された場合に、後から接続が作られるのも防ぐ)。
   replayed_at TEXT,
   connection_id TEXT REFERENCES oauth_connections(id) ON DELETE CASCADE,
+  CHECK (length(client_name) BETWEEN 1 AND 100),
   CHECK (code_challenge_method = 'S256'),
   CHECK (length(code_challenge) BETWEEN 43 AND 128),
   CHECK (expires_at > created_at)

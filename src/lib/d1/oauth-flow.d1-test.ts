@@ -143,6 +143,16 @@ describe("authorization code + PKCE", () => {
     expect((await verifyAccessToken({ config, db }, tokens.access_token, [])).ok).toBe(true);
   });
 
+  it("同意から交換までにクライアント情報が更新されても、同意時の名前で接続を作る", async () => {
+    const consentResult = await consent(db, memberA);
+    await db.prepare("UPDATE oauth_clients SET client_name = 'Renamed Assistant'").run();
+    await oauth.processAuthorizationCodeResponse(
+      await discoverTestServer(), testClient, await exchangeCode(db, consentResult),
+    );
+    const row = await db.prepare("SELECT client_name FROM oauth_connections").first<{ client_name: string }>();
+    expect(row?.client_name).toBe("Example Assistant");
+  });
+
   it("code_verifierが一致しなければtokenを発行しない", async () => {
     const consentResult = await consent(db, memberA);
     const response = await exchangeCode(db, consentResult, { verifier: oauth.generateRandomCodeVerifier() });
@@ -354,6 +364,14 @@ describe("ログ", () => {
     await refresh(db, tokens.refresh_token ?? "");
     const code = consentResult.redirectUrl.searchParams.get("code") ?? "";
     const output = lines.join("\n");
+    // 要求元が自由に書ける値(grant_type、許可されていないclient_id)もログへ残さない。
+    await handleTokenRequest(new Request(`${config.issuer}/oauth/token`, {
+      body: new URLSearchParams({ client_id: "https://evil.example.test/attacker-payload", grant_type: "attacker-grant-payload" }),
+      method: "POST",
+    }), { config, db });
+    expect(output.length).toBeGreaterThan(0);
+    expect(lines.join("\n")).not.toContain("attacker-grant-payload");
+    expect(lines.join("\n")).not.toContain("attacker-payload");
     expect(output).toContain("yamoru.oauth.token_issued");
     // 利用者が選んだscopeもログへ残さない(YDR-052 §10)。
     expect(output).not.toContain("household.write");

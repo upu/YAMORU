@@ -165,6 +165,7 @@ describe("CIMDのclient_idと文書", () => {
     ["https://user:pass@client.example.test/client.json", false],
     ["https://client.example.test/client.json#x", false],
     ["https://client.example.test/a/../client.json", false],
+    [`https://client.example.test/${"a".repeat(2048)}`, false],
   ])("%s の妥当性は%s", (value, expected) => {
     expect(isValidClientIdUrl(value)).toBe(expected);
   });

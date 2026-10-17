@@ -4,6 +4,7 @@
 
 export type AuthorizationCodeRecord = {
   clientId: string;
+  clientName: string;
   codeChallenge: string;
   codeChallengeMethod: "S256";
   codeHash: string;
@@ -24,6 +25,7 @@ export type StoredAuthorizationCode = AuthorizationCodeRecord & {
 
 type AuthorizationCodeRow = {
   client_id: string;
+  client_name: string;
   code_challenge: string;
   code_challenge_method: "S256";
   code_hash: string;
@@ -55,9 +57,9 @@ export async function saveAuthorizationCode(
       `INSERT INTO oauth_authorization_codes (
          code_hash, household_id, user_id, client_id, scopes, redirect_uri,
          resource, code_challenge, code_challenge_method, user_session_version,
-         created_at, expires_at
+         created_at, expires_at, client_name
        )
-       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, u.session_version, ?10, ?11
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, u.session_version, ?10, ?11, ?13
          FROM users u
         WHERE u.id = ?3 AND u.session_version = ?12
           AND EXISTS (
@@ -77,6 +79,7 @@ export async function saveAuthorizationCode(
       record.createdAt,
       record.expiresAt,
       record.userSessionVersion,
+      record.clientName,
     ),
   ]);
   return inserted.meta.changes === 1;
@@ -87,7 +90,7 @@ export async function findAuthorizationCode(
   codeHash: string,
 ): Promise<StoredAuthorizationCode | null> {
   const row = await db.prepare(
-    `SELECT code_hash, household_id, user_id, client_id, scopes, redirect_uri,
+    `SELECT code_hash, household_id, user_id, client_id, client_name, scopes, redirect_uri,
             resource, code_challenge, code_challenge_method, created_at,
             expires_at, consumed_at, connection_id, user_session_version
        FROM oauth_authorization_codes
@@ -96,6 +99,7 @@ export async function findAuthorizationCode(
   if (row === null) return null;
   return {
     clientId: row.client_id,
+    clientName: row.client_name,
     codeChallenge: row.code_challenge,
     codeChallengeMethod: row.code_challenge_method,
     codeHash: row.code_hash,

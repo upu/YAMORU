@@ -24,7 +24,6 @@ export type IssuedTokenHashes = {
 
 export type NewConnection = {
   clientId: string;
-  clientName: string;
   codeHash: string;
   connectionId: string;
   householdId: string;
@@ -72,17 +71,17 @@ export async function createConnectionFromCode(
          id, household_id, user_id, client_id, client_name, scopes, resource,
          issuer, user_session_version, created_at, expires_at
        )
-       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, code.user_session_version, ?9, ?10
+       SELECT ?1, ?2, ?3, ?4, code.client_name, ?5, ?6, ?7, code.user_session_version, ?8, ?9
          FROM oauth_authorization_codes code
          JOIN users u ON u.id = code.user_id AND u.session_version = code.user_session_version
-        WHERE code.code_hash = ?11 AND code.consumed_at IS NOT NULL
+        WHERE code.code_hash = ?10 AND code.consumed_at IS NOT NULL
           AND code.connection_id IS NULL AND code.replayed_at IS NULL
           AND code.household_id = ?2 AND code.user_id = ?3 AND code.client_id = ?4
           AND EXISTS (
           SELECT 1 FROM household_members WHERE household_id = ?2 AND user_id = ?3
         )`,
     ).bind(
-      c.connectionId, c.householdId, c.userId, c.clientId, c.clientName, c.scopes,
+      c.connectionId, c.householdId, c.userId, c.clientId, c.scopes,
       c.resource, c.issuer, c.now, tokens.refresh.expiresAt, c.codeHash,
     ),
     db.prepare(
