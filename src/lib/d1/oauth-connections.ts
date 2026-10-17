@@ -58,8 +58,8 @@ function insertTokenStatement(
 }
 
 // authorization codeの交換で、接続と最初のtokenを一度に作る。codeが消費済み
-// かつ未交換で、利用者がまだその家庭に所属している場合だけ成功する。
-// その時点のパスワードの世代(users.session_version)を接続へ写す。
+// かつ未交換で、利用者がまだその家庭に所属し、同意した時点からパスワードが
+// 変わっていない場合だけ成功する。codeに写した世代を接続へ引き継ぐ。
 export async function createConnectionFromCode(
   db: D1Database,
   connection: NewConnection,
@@ -72,17 +72,14 @@ export async function createConnectionFromCode(
          id, household_id, user_id, client_id, client_name, scopes, resource,
          issuer, user_session_version, created_at, expires_at
        )
-       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, u.session_version, ?9, ?10
-         FROM users u
-        WHERE u.id = ?3
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, code.user_session_version, ?9, ?10
+         FROM oauth_authorization_codes code
+         JOIN users u ON u.id = code.user_id AND u.session_version = code.user_session_version
+        WHERE code.code_hash = ?11 AND code.consumed_at IS NOT NULL
+          AND code.connection_id IS NULL AND code.replayed_at IS NULL
+          AND code.household_id = ?2 AND code.user_id = ?3 AND code.client_id = ?4
           AND EXISTS (
           SELECT 1 FROM household_members WHERE household_id = ?2 AND user_id = ?3
-        )
-          AND EXISTS (
-          SELECT 1 FROM oauth_authorization_codes
-           WHERE code_hash = ?11 AND consumed_at IS NOT NULL AND connection_id IS NULL
-             AND replayed_at IS NULL
-             AND household_id = ?2 AND user_id = ?3 AND client_id = ?4
         )`,
     ).bind(
       c.connectionId, c.householdId, c.userId, c.clientId, c.clientName, c.scopes,

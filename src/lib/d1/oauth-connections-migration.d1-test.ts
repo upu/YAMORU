@@ -64,8 +64,8 @@ describe("外部接続のmigration(0031_oauth_connections)", () => {
 
   it("PKCEはS256だけを保存でき、tokenの種類はaccess/refreshに限る", async () => {
     await expect(db.prepare(
-      `INSERT INTO oauth_authorization_codes (code_hash, household_id, user_id, client_id, scopes, redirect_uri, resource, code_challenge, code_challenge_method, created_at, expires_at)
-       VALUES ('code-plain', 'household-a', 'user-a', ?1, 'household.read', 'https://client.example.test/cb', 'https://y.example.test/mcp', ?2, 'plain', ?3, ?4)`,
+      `INSERT INTO oauth_authorization_codes (code_hash, household_id, user_id, client_id, scopes, redirect_uri, resource, code_challenge, code_challenge_method, user_session_version, created_at, expires_at)
+       VALUES ('code-plain', 'household-a', 'user-a', ?1, 'household.read', 'https://client.example.test/cb', 'https://y.example.test/mcp', ?2, 'plain', 0, ?3, ?4)`,
     ).bind(CLIENT, "a".repeat(43), NOW, LATER).run()).rejects.toThrow();
     await insertConnection("conn-kind", "household-a", "user-a").run();
     await expect(db.prepare(

@@ -170,14 +170,25 @@ describe("CIMDのclient_idと文書", () => {
   });
 
   it("表示名が無ければclient_idのホスト名を使う", () => {
-    const parsed = parseClientMetadata({ client_id: CLIENT_ID, redirect_uris: [REDIRECT_URI] }, CLIENT_ID, "2026-10-17T00:00:00.000Z");
+    const parsed = parseClientMetadata({
+      client_id: CLIENT_ID, redirect_uris: [REDIRECT_URI], token_endpoint_auth_method: "none",
+    }, CLIENT_ID, "2026-10-17T00:00:00.000Z");
     expect(parsed?.clientName).toBe("client.example.test");
   });
 
   it("redirect_urisが空、fragment付き、または多すぎる文書を拒否する", () => {
     for (const redirectUris of [[], [`${REDIRECT_URI}#f`], Array.from({ length: 11 }, (_, i) => `${REDIRECT_URI}/${String(i)}`)]) {
-      expect(parseClientMetadata({ client_id: CLIENT_ID, redirect_uris: redirectUris }, CLIENT_ID, "t")).toBeNull();
+      expect(parseClientMetadata({
+        client_id: CLIENT_ID, redirect_uris: redirectUris, token_endpoint_auth_method: "none",
+      }, CLIENT_ID, "t")).toBeNull();
     }
+  });
+
+  it("公開クライアント(none)への対応を明示しない文書を拒否する", () => {
+    const base = { client_id: CLIENT_ID, redirect_uris: [REDIRECT_URI] };
+    expect(parseClientMetadata(base, CLIENT_ID, "t")).toBeNull();
+    expect(parseClientMetadata({ ...base, token_endpoint_auth_methods_supported: ["private_key_jwt"] }, CLIENT_ID, "t")).toBeNull();
+    expect(parseClientMetadata({ ...base, token_endpoint_auth_methods_supported: ["none"] }, CLIENT_ID, "t")).not.toBeNull();
   });
 });
 

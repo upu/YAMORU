@@ -76,6 +76,9 @@ CREATE TABLE oauth_authorization_codes (
   resource TEXT NOT NULL,
   code_challenge TEXT NOT NULL,
   code_challenge_method TEXT NOT NULL,
+  -- 同意した時点のusers.session_version。交換までにパスワードが変わったら、
+  -- このcodeからは接続を作らない。
+  user_session_version INTEGER NOT NULL,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,

@@ -47,10 +47,10 @@ function isValidRedirectUri(value: unknown): value is string {
 
 // トークンendpointでは"none"(公開クライアント + PKCE)だけを受け付ける。
 // 文書の既定値が別方式でも、"none"にも対応すると明示していれば使える。
+// どちらにも"none"が無い文書(省略を含む)は、対応を確かめられないため拒否する。
 function supportsPublicClientAuthentication(metadata: Record<string, unknown>): boolean {
-  const method = metadata.token_endpoint_auth_method;
   const supported = metadata.token_endpoint_auth_methods_supported;
-  if (method === undefined || method === "none") return true;
+  if (metadata.token_endpoint_auth_method === "none") return true;
   return Array.isArray(supported) && supported.includes("none");
 }
 

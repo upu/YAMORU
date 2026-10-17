@@ -13,6 +13,7 @@ import {
   connect,
   consent,
   discoverTestServer,
+  exchangeCode,
   refresh,
   registerTestClient,
   testClient,
@@ -108,6 +109,15 @@ describe("家庭と所属", () => {
     expect(await verifyAccessToken({ config, db }, tokens.access_token, [])).toEqual({ error: "invalid_token", ok: false });
     expect((await connectionState()).revoked_reason).toBe("credentials_changed");
     expect((await refresh(db, tokens.refresh_token ?? "")).status).toBe(400);
+  });
+
+  it("同意の後、交換までにパスワードが変わったら、そのcodeから接続を作らない", async () => {
+    const consentResult = await consent(db, memberA);
+    await resetPassword(db, householdAMember.email, "pbkdf2_sha256$100000$c2FsdA$aGFzaA");
+    const response = await exchangeCode(db, consentResult);
+    expect(response.status).toBe(400);
+    const rows = await db.prepare("SELECT count(*) AS count FROM oauth_connections").first<{ count: number }>();
+    expect(rows?.count).toBe(0);
   });
 
   it("tokenのPrincipalは接続時の家庭だけを指す", async () => {

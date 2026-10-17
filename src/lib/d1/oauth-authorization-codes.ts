@@ -38,7 +38,8 @@ type AuthorizationCodeRow = {
 };
 
 // 同意した時点で利用者がその家庭に所属していることを、INSERTと同じ文で
-// 確かめる。所属していなければ0件となり、codeを発行しない。
+// 確かめる。所属していなければ0件となり、codeを発行しない。その時点の
+// パスワードの世代(users.session_version)もcodeへ写す。
 export async function saveAuthorizationCode(
   db: D1Database,
   record: AuthorizationCodeRecord,
@@ -50,10 +51,13 @@ export async function saveAuthorizationCode(
     db.prepare(
       `INSERT INTO oauth_authorization_codes (
          code_hash, household_id, user_id, client_id, scopes, redirect_uri,
-         resource, code_challenge, code_challenge_method, created_at, expires_at
+         resource, code_challenge, code_challenge_method, user_session_version,
+         created_at, expires_at
        )
-       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
-        WHERE EXISTS (
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, u.session_version, ?10, ?11
+         FROM users u
+        WHERE u.id = ?3
+          AND EXISTS (
           SELECT 1 FROM household_members
            WHERE household_id = ?2 AND user_id = ?3
         )`,
