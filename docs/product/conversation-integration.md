@@ -13,9 +13,9 @@ stale_after: 2026-11-17
 
 [プロダクト計画](yamoru-project-plan.md)のv0.21.0を具体化する、[#189](https://github.com/upu/YAMORU/issues/189)の設計成果物である。[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)が共通操作、[YDR-050](../decisions/ydr-050-conversation-reminders.md)が通知方針を定める。
 
-本書のTool名・型・保存責務は後続Issueの実装契約であり、現在提供されているAPIではない。設計PRのマージで設計確定とし、#189の設計チェック項目を更新する。親Issueは全子Issueと実接続確認が完了するまで閉じない。
+本書はTool名・型・保存責務の実装契約である。提供済みの範囲と検証状況は以下の現在地と各Componentに記録する。親Issue #189は全子Issueと実接続確認が完了するまで閉じない。
 
-2026-10-17時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充処理をコードで確認した。OAuth接続、MCP操作、MCP Events、通知の実到達は未実装・未検証である。以下の「確認する」は後続Issueの合格条件を示す。
+2026-10-18時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充に加え、OAuth接続と共通commandを使うMCP操作を実装し、previewの実dotで会話操作を確認した。MCP Eventsの実配信、通知到達・返答と全体E1〜E8の実接続確認は完了していない。以下の「確認する」は各Issueの合格条件を示し、実装済みと実証済みを区別する。
 
 #435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
 

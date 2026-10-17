@@ -73,15 +73,38 @@ npm run test:e2e:worker
 
 main `529a519e2fde070150cc446aa7e4af5b31e3e5c0`の[Quality checks](https://github.com/upu/YAMORU/actions/runs/39078251715)と[自動preview配備](https://github.com/upu/YAMORU/actions/runs/39078701944)の成功後、利用者が許可したpreviewの架空家庭で、ChatGPTのカスタムMCPプラグインから実際のdotを操作した。許可リストはpreviewのDashboardだけに公式CIMD `https://chatgpt.com/oauth/client.json`を設定した。本番の受付は変更していない。
 
-| 検証 | 実際の結果 |
-|---|---|
-| OAuth・Tool発見・本人照会 | CIMDを自動検出し、PKCEで接続。dotの`connection_get`が家庭・本人・`household.read household.write`を返した |
-| 登録・取得 | 検証用Todoを1件登録し、詳細を再取得。初回2026-10-18・完了から7日後・担当がWebとD1の保存内容に一致 |
-| 完了・次回確認 | 2026-10-18の実施者を保存し、今回の完了と次回2026-10-25の未完了をdot・Web・D1で照合。業務の受付記録も成功 |
-| 接続解除 | YAMORUの接続管理で解除した後、dotの呼び出しが`oauth_token_invalid_grant`で拒否され、再接続を案内。過去の成功を現在の成功として返さなかった |
-| 再接続 | 同意画面で通知設定権限を外し、読み取りだけで再接続。本人と次回Todoを再取得できた |
-| 権限不足 | 読み取り専用で`todo.complete`のprepareだけを試し、`www_authenticate_reauth`と不足する`household.write`を案内。commitせず、次回Todoは未完了のまま |
-| 曖昧な対象 | 「掃除」の検索は14候補で完了し、dotは候補の種類・名前の違いを示して一意に決めず、変更しなかった |
+| 検証 | 期待結果 | 実際の結果 |
+|---|---|---|
+| OAuth・Tool発見・本人照会 | 許可した家庭・本人・権限で接続 | CIMDを自動検出し、PKCEで接続。dotの`connection_get`が家庭・本人・`household.read household.write`を返した |
+| 登録・取得 | 指定どおり1件だけ登録し、再取得でも一致 | 初回2026-10-18・完了から7日後・担当がWebとD1の保存内容に一致 |
+| 完了・次回確認 | 指定日の完了と7日後の次回を保存 | 2026-10-18の実施者を保存し、今回の完了と次回2026-10-25の未完了をdot・Web・D1で照合。業務の受付記録も成功 |
+| 接続解除 | 現在の取得を拒否し、過去の成功を転用しない | dotの呼び出しが`oauth_token_invalid_grant`で拒否され、再接続を案内 |
+| 再接続 | 新しい同意の権限で取得を再開 | 同意画面で通知設定権限を外し、読み取りだけで再接続。本人と次回Todoを再取得できた |
+| 権限不足 | 不足権限を説明し、業務更新をしない | 読み取り専用の`todo.complete` prepareは`www_authenticate_reauth`と不足する`household.write`を案内。commitせず、次回Todoは未完了のまま |
+| 曖昧な対象 | 複数候補を勝手に一つへ絞らない | 「掃除」は14候補で検索完了。dotは種類・名前の違いと曖昧さを示し、変更しなかった |
+
+保存済みの受付記録で照合した識別子と時刻（UTC）は次のとおり。架空の検証用Todoだけの記録であり、OAuthのcode・tokenではない。
+
+| 操作 | operation_id | preparedの時刻 | 成功記録の時刻 | 観測間隔 |
+|---|---|---|---|---|
+| `todo.create` | `d2d4c2f1-5b9e-4db1-b116-4854ef07183a` | 2026-10-17T23:34:33.053Z | 2026-10-17T23:34:44.880Z | 11.827秒 |
+| `todo.complete` | `96557b3b-3c8d-4b8c-84dc-247755c165a3` | 2026-10-17T23:36:30.514Z | 2026-10-17T23:36:41.728Z | 11.214秒 |
+
+今回のTodoは`59e3433e-2ad1-4ede-bcf6-ed1c5fe18ad9`、生成された次回は`a8492e2b-0038-4b0f-b6c2-256c553d66aa`。上の観測間隔はprepareの保存からcommitの成功記録までであり、個別HTTPの往復時間やdotの最終返答までの時間ではない。通知配信の遅延は未測定である。
+
+dotがTool応答から報告した読み取りの`request_id`と`as_of`（UTC）も記録する。prepare/commitの応答にはこの2項目が含まれず、上の保存済みoperation IDで照合した。
+
+| 照会 | request_id | as_of |
+|---|---|---|
+| 登録後の`entity_get` | `d5a03d21-83db-4a59-b0c0-3aedb2b63753` | 2026-10-17T23:34:51.938Z |
+| 完了後の`history_list` | `2c953163-fc61-4613-9ff5-febcee9c0ec9` | 2026-10-17T23:36:51.191Z |
+| 完了後の次回`entity_get` | `2ab7a884-e677-4330-b7ca-c14b7387d1d4` | 2026-10-17T23:36:55.952Z |
+| 基本スコープ設定後の再認証・`connection_get` | `3a43c11d-6524-48a1-8d06-0040cba532d3` | 2026-10-17T23:58:05.570Z |
+| 同じ接続での次回`entity_get` | `1fef2fd6-07d3-4d3a-a84d-2895da374939` | 2026-10-17T23:58:08.231Z |
+
+最後の2照会は、UI送信直前の23:57:41 UTCから最終返答を観測した23:58:58 UTCまで77秒だった。これはポーリングと報告の生成を含む観測間隔であり、個別HTTPの遅延ではない。再認証後も権限は読み取り・変更の2つだけで、次回は未完了・2026-10-25のまま一致した。
+
+配備済みサーバーのSDKは`@modelcontextprotocol/sdk` 1.32.1。実dot側のSDK versionと、実際の要求ヘッダーで使われたprotocol versionは未採取であり、サーバーの対応版から推定しない。#444でE1〜E8の最終記録を揃える際の残項目として扱う。
 
 ChatGPTのカスタムMCP設定では、会話操作用の接続に`household.read`・`household.write`をデフォルトのスコープと「基本スコープ」の両方へ指定する。デフォルトだけを指定した最初の設定では、Toolのscopeタグが採用される再接続時に書き込み権限が要求されず、代わりに通知設定権限が要求された。基本スコープは毎回の認可要求に加わる([公式仕様](https://developers.openai.com/plugins/build/plugins))。読み取りだけで使う場合は書き込みを指定しない。通知設定・Eventsは別の許可であり、今回の検証では追加していない。
 
