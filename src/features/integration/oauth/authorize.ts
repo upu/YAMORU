@@ -16,6 +16,8 @@ export type AuthorizationApproval = {
   householdId: string;
   request: ValidAuthorizationRequest;
   userId: string;
+  // 同意画面で確かめたWebセッションのパスワード世代(users.session_version)。
+  userSessionVersion: number;
 };
 
 // 利用者が外したscopeは付与しない。要求に無いscopeを画面から足すこともできない。
@@ -42,6 +44,7 @@ export async function approveAuthorization(
     householdId: approval.householdId,
     scopes: grantedScopes(request, approval.approvedScopes),
     userId: approval.userId,
+    userSessionVersion: approval.userSessionVersion,
   };
   const query: Record<string, string> = {
     client_id: request.clientId,

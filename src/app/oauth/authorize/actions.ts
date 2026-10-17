@@ -33,6 +33,7 @@ export async function decideAuthorization(formData: FormData): Promise<void> {
     householdId: household.id,
     request,
     userId: user.id,
+    userSessionVersion: user.sessionVersion,
   });
   redirect(url);
 }

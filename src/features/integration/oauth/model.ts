@@ -41,6 +41,8 @@ export type GrantUser = {
   householdId: string;
   scopes: IntegrationScope[];
   userId: string;
+  // 同意時だけ持つ。codeの発行はこの世代が現在のusersと一致するときに限る。
+  userSessionVersion?: number;
 };
 
 export type OAuthModel = OAuth2Server.AuthorizationCodeModel & OAuth2Server.RefreshTokenModel;
@@ -128,6 +130,7 @@ function authorizationCodeModel({ config, db, now = () => new Date() }: OAuthMod
         resource: config.resource,
         scopes: formatScopes(scopeArray(code.scope)),
         userId: owner.userId,
+        userSessionVersion: owner.userSessionVersion ?? -1,
       });
       if (!saved) throw new OAuth2Server.AccessDeniedError("Access denied: household membership is required");
       return { ...code, client, user };

@@ -14,6 +14,7 @@ export type AuthorizationCodeRecord = {
   resource: string;
   scopes: string;
   userId: string;
+  userSessionVersion: number;
 };
 
 export type StoredAuthorizationCode = AuthorizationCodeRecord & {
@@ -35,11 +36,13 @@ type AuthorizationCodeRow = {
   resource: string;
   scopes: string;
   user_id: string;
+  user_session_version: number;
 };
 
 // 同意した時点で利用者がその家庭に所属していることを、INSERTと同じ文で
-// 確かめる。所属していなければ0件となり、codeを発行しない。その時点の
-// パスワードの世代(users.session_version)もcodeへ写す。
+// 確かめる。所属していなければ0件となり、codeを発行しない。同意画面で
+// 確かめたパスワードの世代が現在のusersと一致することも同じ文で確かめ、
+// その世代をcodeへ写す(同意の途中でパスワードが変わったら発行しない)。
 export async function saveAuthorizationCode(
   db: D1Database,
   record: AuthorizationCodeRecord,
@@ -56,7 +59,7 @@ export async function saveAuthorizationCode(
        )
        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, u.session_version, ?10, ?11
          FROM users u
-        WHERE u.id = ?3
+        WHERE u.id = ?3 AND u.session_version = ?12
           AND EXISTS (
           SELECT 1 FROM household_members
            WHERE household_id = ?2 AND user_id = ?3
@@ -73,6 +76,7 @@ export async function saveAuthorizationCode(
       record.codeChallengeMethod,
       record.createdAt,
       record.expiresAt,
+      record.userSessionVersion,
     ),
   ]);
   return inserted.meta.changes === 1;
@@ -85,7 +89,7 @@ export async function findAuthorizationCode(
   const row = await db.prepare(
     `SELECT code_hash, household_id, user_id, client_id, scopes, redirect_uri,
             resource, code_challenge, code_challenge_method, created_at,
-            expires_at, consumed_at, connection_id
+            expires_at, consumed_at, connection_id, user_session_version
        FROM oauth_authorization_codes
       WHERE code_hash = ?1`,
   ).bind(codeHash).first<AuthorizationCodeRow>();
@@ -104,6 +108,7 @@ export async function findAuthorizationCode(
     resource: row.resource,
     scopes: row.scopes,
     userId: row.user_id,
+    userSessionVersion: row.user_session_version,
   };
 }
 

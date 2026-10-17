@@ -33,8 +33,9 @@ type ConnectionRow = {
   scopes: string;
 };
 
-// 一覧が際限なく伸びないよう、新しい順に上限まで返す。
-const CONNECTION_LIST_LIMIT = 50;
+// 解除済みの履歴は新しい順に上限まで返す。まだ解除していない接続(期限切れを
+// 含む)は、確認・解除できなくならないよう件数によらずすべて返す。
+const REVOKED_HISTORY_LIMIT = 50;
 
 function statusOf(row: ConnectionRow, now: string): ConnectionStatus {
   if (row.revoked_at !== null) return "revoked";
@@ -57,9 +58,17 @@ export async function listConnectionsForUser(
               WHERE h.id = c.household_id AND m.user_id = c.user_id) AS household_name
        FROM oauth_connections c
       WHERE c.user_id = ?1
-      ORDER BY c.created_at DESC, c.id DESC
-      LIMIT ?2`,
-  ).bind(user.userId, CONNECTION_LIST_LIMIT).all<ConnectionRow>();
+        AND (
+          c.revoked_at IS NULL
+          OR c.id IN (
+            SELECT id FROM oauth_connections
+             WHERE user_id = ?1 AND revoked_at IS NOT NULL
+             ORDER BY created_at DESC, id DESC
+             LIMIT ?2
+          )
+        )
+      ORDER BY c.created_at DESC, c.id DESC`,
+  ).bind(user.userId, REVOKED_HISTORY_LIMIT).all<ConnectionRow>();
   return results.map((row) => ({
     clientId: row.client_id,
     clientName: row.client_name,

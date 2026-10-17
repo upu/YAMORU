@@ -111,6 +111,15 @@ describe("家庭と所属", () => {
     expect((await refresh(db, tokens.refresh_token ?? "")).status).toBe(400);
   });
 
+  it("同意画面で確かめた後にパスワードが変わったら、codeを発行しない", async () => {
+    // 古いセッション(世代0)のまま、パスワードの再設定(世代1)の後に許可が届く。
+    await resetPassword(db, householdAMember.email, "pbkdf2_sha256$100000$c2FsdA$aGFzaA");
+    const { redirectUrl } = await consent(db, { ...memberA, userSessionVersion: 0 });
+    expect(redirectUrl.searchParams.get("error")).toBe("access_denied");
+    const codes = await db.prepare("SELECT count(*) AS count FROM oauth_authorization_codes").first<{ count: number }>();
+    expect(codes?.count).toBe(0);
+  });
+
   it("同意の後、交換までにパスワードが変わったら、そのcodeから接続を作らない", async () => {
     const consentResult = await consent(db, memberA);
     await resetPassword(db, householdAMember.email, "pbkdf2_sha256$100000$c2FsdA$aGFzaA");
@@ -186,6 +195,22 @@ describe("接続管理画面の一覧", () => {
     });
     expect(await listConnectionsForUser(db, familyMemberA, now())).toEqual([]);
     expect(await listConnectionsForUser(db, householdBMember, now())).toEqual([]);
+  });
+
+  it("解除済みの履歴が多くても、まだ解除していない接続はすべて返す", async () => {
+    await connect(db, memberA);
+    const { id: activeId } = await connectionState();
+    // 有効な接続より新しい解除済みの履歴を60件作る。
+    const statements = Array.from({ length: 60 }, (_, index) => db.prepare(
+      `INSERT INTO oauth_connections (id, household_id, user_id, client_id, client_name, scopes, resource, issuer,
+         user_session_version, created_at, expires_at, revoked_at, revoked_reason)
+       VALUES (?1, 'household-a', ?2, ?3, 'Old', 'household.read', ?4, ?5, 0, ?6, '2099-01-01T00:00:00.000Z', ?6, 'user_revoked')`,
+    ).bind(`revoked-${String(index)}`, householdAMember.userId, TEST_CLIENT_ID, config.resource, config.issuer,
+      new Date(Date.now() + (index + 1) * 1000).toISOString()));
+    await db.batch(statements);
+    const listed = await listConnectionsForUser(db, householdAMember, now());
+    expect(listed.filter((connection) => connection.status === "revoked")).toHaveLength(50);
+    expect(listed.some((connection) => connection.id === activeId)).toBe(true);
   });
 
   it("解除済み・期限切れを区別し、離れた家庭の名前は返さない", async () => {

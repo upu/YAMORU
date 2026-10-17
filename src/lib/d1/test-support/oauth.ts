@@ -51,6 +51,8 @@ export type ConsentInput = {
   householdId: string;
   requestedScope?: string;
   userId: string;
+  // 同意画面で確かめたWebセッションのパスワード世代。fixtureの利用者は0。
+  userSessionVersion?: number;
 };
 
 export type ConsentResult = { redirectUrl: URL; state: string; verifier: string };
@@ -77,6 +79,7 @@ export async function consent(db: D1Database, input: ConsentInput): Promise<Cons
     householdId: input.householdId,
     request: validated.request,
     userId: input.userId,
+    userSessionVersion: input.userSessionVersion ?? 0,
   });
   return { redirectUrl: new URL(redirectUrl), state, verifier };
 }
