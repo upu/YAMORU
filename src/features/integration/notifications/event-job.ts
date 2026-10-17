@@ -19,10 +19,10 @@ async function retryTransition<T>(operation: () => Promise<T>, finish = false): 
   }
 }
 // mutexは一回のjob内だけ。DBの親revisionを競合させず、HTTPは二宛先まで並行する。
-function transitionQueue() {
+function transitionQueue(onFailure: () => void) {
   let previous = Promise.resolve();
   return <T>(run: () => Promise<T>) => {
-    const next = previous.then(run);
+    const next = previous.then(run).catch((error: unknown) => { onFailure(); throw error; });
     previous = next.then(() => {}, () => {});
     return next;
   };
@@ -30,20 +30,23 @@ function transitionQueue() {
 export async function deliverFrozenNotificationEvent(deps: Dependencies, lease: NotificationLease, recipientIds: readonly string[]) {
   if (recipientIds.length < 1 || recipientIds.length > 20 || new Set(recipientIds).size !== recipientIds.length) throw new Error("invalid_recipient_set");
   const clock = deps.now ?? (() => new Date());
-  const signal = deps.signal ? AbortSignal.any([deps.signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000);
-  const serial = transitionQueue();
+  const stopped = new AbortController();
+  const signal = AbortSignal.any([stopped.signal, AbortSignal.timeout(90_000), ...(deps.signal ? [deps.signal] : [])]);
   const progress = { position: 0, started: 0, failed: false };
+  const stop = () => { progress.failed = true; stopped.abort(); };
+  // queueを解放する前に停止し、後ろで待つbeginへ失敗を確実に伝える。
+  const serial = transitionQueue(stop);
   async function work() {
     try {
       while (progress.position < recipientIds.length && !progress.failed && !signal.aborted) {
         const id = recipientIds[progress.position++];
-        const attempt = await serial(() => signal.aborted ? Promise.resolve(null) : retryTransition(() => beginEventRecipient(deps.db, deps.principal, lease, id, clock())));
+        const attempt = await serial(() => signal.aborted || progress.failed ? Promise.resolve(null) : retryTransition(() => beginEventRecipient(deps.db, deps.principal, lease, id, clock())));
         if (!attempt) continue;
         const result = await sendEventRecipient({ ...deps, signal }, attempt);
         progress.started++;
         await serial(() => retryTransition(() => finishEventRecipient(deps.db, deps.principal, lease, attempt, result, clock()), true));
       }
-    } catch { progress.failed = true; }
+    } catch { stop(); }
   }
   await Promise.all([work(), work()]);
   if (progress.failed) throw new NotificationEventJobError();

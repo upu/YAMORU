@@ -162,6 +162,22 @@ it("受領後の保存が止まった場合は新たに送信せず、回収でu
   expect((await db.prepare("SELECT count(*) AS n FROM notification_event_recipients WHERE state='pending'").first())?.n).toBe(2);
   expect((await db.prepare("SELECT state FROM notification_outbox").first())?.state).toBe("retry_wait");
 });
+it("他の宛先の結果保存待ちに入った次の開始も、保存失敗後は実行しない", async () => {
+  const { lease, frozen } = await prepared(4);
+  let finishing = false; let finishes = 0;
+  const failing = { prepare: (sql: string) => {
+    if (sql.startsWith("UPDATE notification_event_recipients SET state=?,attempt_token=NULL")) finishing = true;
+    return db.prepare(sql);
+  }, batch: (statements: D1PreparedStatement[]) => {
+    const isFinish = finishing; finishing = false;
+    if (isFinish && ++finishes >= 2) return Promise.reject(new Error("fictional result storage failure"));
+    return db.batch(statements);
+  } } as unknown as D1Database;
+  const post = vi.fn<Post>().mockResolvedValue(new Response(null, { status: 202 }));
+  await expect(deliverFrozenNotificationEvent(dependencies(post, failing), lease, frozen.recipientIds)).rejects.toThrow("notification_event_storage_unavailable");
+  expect(post).toHaveBeenCalledTimes(2);
+  expect((await db.prepare("SELECT count(*) AS n FROM notification_event_recipients WHERE state='pending'").first())?.n).toBe(2);
+});
 it("別の家庭・本人・scopeのjobでは送り出せない", async () => {
   const { lease, frozen } = await prepared();
   const post = vi.fn<Post>().mockResolvedValue(new Response(null, { status: 202 }));
