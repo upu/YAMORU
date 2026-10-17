@@ -39,6 +39,8 @@ export const D1_ERROR_CODES = [
   "UNDATED_SCHEDULE_REQUIRES_ONE_TIME",
   // 再送の取り違え
   "IDEMPOTENCY_KEY_REUSED",
+  // 入力の上限(既存タグとの突き合わせ後でないと判定できないもの)
+  "MANAGED_ITEM_TAG_LIMIT_EXCEEDED",
 ] as const;
 
 export type D1ErrorCode = (typeof D1_ERROR_CODES)[number];

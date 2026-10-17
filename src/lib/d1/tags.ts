@@ -1,5 +1,6 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
-import { D1NotFoundError } from "./errors";
+import { MANAGED_ITEM_TAG_MAX_COUNT, tagNameKey } from "../managed-items/tag-rules";
+import { D1Error, D1NotFoundError } from "./errors";
 
 // Issue #226 / YDR-048: ManagedItemへ付ける、大分類・詳しい種類とは独立した
 // 横断的な文脈のタグ。タグは家庭単位のマスタ(tags)で、ManagedItemとの関連は
@@ -70,6 +71,30 @@ export async function listTagsForManagedItem(
     `${MANAGED_ITEM_TAGS_SELECT} AND mt.managed_item_id = ?2 ORDER BY t.name, t.id`,
   ).bind(householdId, managedItemId).all<Tag & { managedItemId: string }>();
   return results.map(({ id, name }) => ({ id, name }));
+}
+
+// 付け替え後のタグ数が上限を超えないことを、batchの前に確かめる。新しいタグの
+// 名前は同じ家庭の既存タグ(選択済みのものを含む)へまとまるため、既存タグと
+// 突き合わせてから数える。他家庭のタグIDはここでは数えず、batchの複合外部キー
+// 違反として全体を取り消す。
+export async function assertManagedItemTagLimit(
+  db: D1Database,
+  householdId: string,
+  input: ManagedItemTagInput,
+): Promise<void> {
+  const { results } = await db.prepare(
+    `SELECT id, name FROM tags
+      WHERE household_id = ?1
+        AND (id IN (SELECT value FROM json_each(?2))
+          OR name IN (SELECT value FROM json_each(?3)))`,
+  ).bind(householdId, JSON.stringify(input.tagIds), JSON.stringify(input.newTagNames)).all<Tag>();
+  const existingKeys = new Set(results.map(({ name }) => tagNameKey(name)));
+  const created = new Set(
+    input.newTagNames.map(tagNameKey).filter((key) => !existingKeys.has(key)),
+  );
+  if (results.length + created.size > MANAGED_ITEM_TAG_MAX_COUNT) {
+    throw new D1Error("Too many tags for a managed item", "MANAGED_ITEM_TAG_LIMIT_EXCEEDED");
+  }
 }
 
 const MANAGED_ITEM_EXISTS =

@@ -120,6 +120,31 @@ describe("D1 ManagedItem tags", () => {
       .resolves.toEqual(["ペット", "住まい", "子どもA"]);
   });
 
+  it("上限10個は、新しいタグの名前を既存タグ(選択済みを含む)と突き合わせた後の数で判定する", async () => {
+    const tagNamesToCreate = Array.from({ length: 10 }, (_, index) => `タグ${String(index)}`);
+    const itemId = await createManagedItem(db, householdAMember, writeInput("上限ちょうど", {
+      newTagNames: tagNamesToCreate,
+      tagIds: [],
+    }));
+    const tagIds = (await listHouseholdTags(db, householdAMember)).map(({ id }) => id);
+    expect(tagIds).toHaveLength(10);
+
+    // 選択済みの10個と同じ名前(大文字小文字違いを含む)を書いても、付くのは10個のまま。
+    await updateManagedItem(db, householdAMember, itemId, writeInput("上限ちょうど", {
+      newTagNames: ["タグ0", "タグ9"],
+      tagIds,
+    }));
+    await expect(listTagsForManagedItem(db, householdAMember, itemId)).resolves.toHaveLength(10);
+
+    // 11個目の新しいタグは、名前・タグとも何も書かずに断る。
+    await expect(updateManagedItem(db, householdAMember, itemId, writeInput("改名されない", {
+      newTagNames: ["11個目"],
+      tagIds,
+    }))).rejects.toMatchObject({ code: "MANAGED_ITEM_TAG_LIMIT_EXCEEDED" });
+    await expect(getManagedItem(db, householdAMember, itemId)).resolves.toMatchObject({ name: "上限ちょうど" });
+    await expect(listHouseholdTags(db, householdAMember)).resolves.toHaveLength(10);
+  });
+
   it("タグを指定しなくても既存どおり登録・編集できる", async () => {
     const itemId = await createManagedItem(db, householdAMember, writeInput("タグなし", {
       newTagNames: [],

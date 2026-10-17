@@ -1,11 +1,16 @@
+import {
+  MANAGED_ITEM_TAG_MAX_COUNT,
+  TAG_NAME_MAX_LENGTH,
+  tagNameKey,
+} from "../../lib/managed-items/tag-rules";
 import type { ManagedItemActionState } from "./state";
 
-// Issue #226 / YDR-048: タグ名の上限。d1/migrations/0029_managed_item_tags.sqlの
-// CHECK制約と同じ値。
-export const TAG_NAME_MAX_LENGTH = 30;
-// 一つのManagedItemへ付けられるタグの上限。横断的な文脈の目印として使う
-// 想定で、一覧の1行が読めなくなるほど付けさせない。
-export const MANAGED_ITEM_TAG_MAX_COUNT = 10;
+export { TAG_NAME_MAX_LENGTH };
+
+export const TAG_LIMIT_EXCEEDED_STATE: ManagedItemActionState = {
+  message: `タグは1つの管理対象に${String(MANAGED_ITEM_TAG_MAX_COUNT)}個まで付けられます。`,
+  status: "error",
+};
 
 // 新しいタグ欄は、読点・カンマ・改行で区切って一度に複数作れる。
 const NEW_TAG_SEPARATOR = /[,、，\n]/u;
@@ -13,11 +18,6 @@ const NEW_TAG_SEPARATOR = /[,、，\n]/u;
 export type ParsedTagInput =
   | { newTagNames: string[]; status: "ok"; tagIds: string[] }
   | ManagedItemActionState;
-
-// D1のCOLLATE NOCASEと同じく、英字の大文字小文字だけを同一視する。
-function tagNameKey(name: string): string {
-  return name.replace(/[A-Z]/gu, (letter) => letter.toLowerCase());
-}
 
 function uniqueBy(values: string[], key: (value: string) => string): string[] {
   const seen = new Set<string>();
@@ -54,11 +54,12 @@ export function parseTagInput(formData: FormData): ParsedTagInput {
       status: "error",
     };
   }
-  if (tagIds.length + newTagNames.length > MANAGED_ITEM_TAG_MAX_COUNT) {
-    return {
-      message: `タグは1つの管理対象に${String(MANAGED_ITEM_TAG_MAX_COUNT)}個まで付けられます。`,
-      status: "error",
-    };
+  // 選択した既存タグと同じ名前を新しいタグ欄にも書くと、D1側で同じタグへ
+  // まとまる。合計の上限は既存タグと突き合わせたうえでD1層が判定するため、
+  // ここではそれぞれ単独で上限を超える(重複除去済みなので確実に超える)
+  // 入力だけを先に断る。
+  if (tagIds.length > MANAGED_ITEM_TAG_MAX_COUNT || newTagNames.length > MANAGED_ITEM_TAG_MAX_COUNT) {
+    return TAG_LIMIT_EXCEEDED_STATE;
   }
   return { newTagNames, status: "ok", tagIds };
 }

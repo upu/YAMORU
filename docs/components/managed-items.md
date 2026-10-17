@@ -19,7 +19,7 @@ status: stable
 | 一覧・絞り込み | `src/app/managed-items/page.tsx`、`src/app/managed-items/search-href.ts`、`src/app/ledger-category-navigation.tsx`、`src/app/ledger-page-shell.tsx` |
 | 登録・編集 | `src/app/managed-items/actions.ts`(`createManagedItem`、`updateManagedItem`)、入力は`src/app/managed-items/managed-item-form.tsx`、`classification-fields.tsx`、`optional-attribute-fields.tsx` |
 | 入力値の判定 | `src/app/managed-items/model.ts`(外部リンクの安全判定など)、`src/app/managed-items/started-on.ts` |
-| タグ | 入力は`src/app/managed-items/tag-fields.tsx`、`tag-input.ts`、表示は`tag-badges.tsx`、データアクセスは`src/lib/d1/tags.ts`(登録・編集のbatchへ`buildManagedItemTagStatements`で入る) |
+| タグ | 入力は`src/app/managed-items/tag-fields.tsx`、`tag-input.ts`、上限と名前の同一視は`src/lib/managed-items/tag-rules.ts`、表示は`tag-badges.tsx`、データアクセスは`src/lib/d1/tags.ts`(登録・編集のbatchへ`buildManagedItemTagStatements`で入る) |
 | 詳しい種類のAI提案 | `src/app/managed-items/item-type-suggestion-actions.ts` → `src/lib/managed-items/item-type-suggestion.ts`、`src/lib/ai/text-generation.ts`、記録は`src/lib/d1/item-type-suggestions.ts` |
 | データアクセス | `src/lib/d1/managed-items.ts`、詳細画面用は`src/lib/d1/managed-item-detail.ts` |
 

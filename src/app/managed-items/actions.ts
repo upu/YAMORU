@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import type { D1Session } from "../../lib/d1/authorization";
 import { getD1Context } from "../../lib/d1/context";
+import { d1ErrorCode } from "../../lib/d1/errors";
 import { recordItemTypeAdoption } from "../../lib/d1/item-type-suggestions";
 import {
   createManagedItem as createManagedItemInD1,
@@ -13,7 +14,7 @@ import {
 import { isSafeExternalUrl, startedOnLabel } from "./model";
 import { toStartedOn } from "./started-on";
 import type { ManagedItemActionState } from "./state";
-import { parseTagInput } from "./tag-input";
+import { parseTagInput, TAG_LIMIT_EXCEEDED_STATE } from "./tag-input";
 
 const MANAGED_ITEM_NAME_MAX_LENGTH = 100;
 const CUSTOM_ITEM_TYPE_MAX_LENGTH = 50;
@@ -272,7 +273,8 @@ export async function createManagedItem(
       tags: parsed.tags,
     });
     created = { db, itemId, session };
-  } catch {
+  } catch (error) {
+    if (d1ErrorCode(error) === "MANAGED_ITEM_TAG_LIMIT_EXCEEDED") return TAG_LIMIT_EXCEEDED_STATE;
     return {
       message: "管理対象を登録できませんでした。時間をおいて再度お試しください。",
       status: "error",
@@ -322,7 +324,8 @@ export async function updateManagedItem(
       tags: parsed.tags,
     });
     updated = { db, session };
-  } catch {
+  } catch (error) {
+    if (d1ErrorCode(error) === "MANAGED_ITEM_TAG_LIMIT_EXCEEDED") return TAG_LIMIT_EXCEEDED_STATE;
     return {
       message: "管理対象を更新できませんでした。時間をおいて再度お試しください。",
       status: "error",

@@ -508,14 +508,33 @@ describe("ManagedItemのタグ指定(Issue #226)", () => {
     });
   });
 
-  it("1件に付けるタグが10個を超えるとD1へ送らない", async () => {
+  it("既存タグの選択だけ、または新しいタグだけで10個を超えるとD1へ送らない", async () => {
+    const tagIds = Array.from({ length: 11 }, (_, index) => `tag-${String(index)}`);
+    const newTags = Array.from({ length: 11 }, (_, index) => `新${String(index)}`).join("、");
+
+    for (const formData of [formWithTags(tagIds, ""), formWithTags([], newTags)]) {
+      const result = await createManagedItem(INITIAL_STATE, formData);
+      expect(result).toEqual({
+        message: "タグは1つの管理対象に10個まで付けられます。",
+        status: "error",
+      });
+    }
+    expect(getD1ContextMock).not.toHaveBeenCalled();
+  });
+
+  it("既存タグと突き合わせた合計の上限はD1層が判定し、その案内を返す", async () => {
     const tagIds = Array.from({ length: 8 }, (_, index) => `tag-${String(index)}`);
+    createManagedItemInD1Mock.mockRejectedValueOnce(
+      Object.assign(new Error("Too many tags"), { code: "MANAGED_ITEM_TAG_LIMIT_EXCEEDED" }),
+    );
+
     const result = await createManagedItem(INITIAL_STATE, formWithTags(tagIds, "新1、新2、新3"));
 
-    expect(getD1ContextMock).not.toHaveBeenCalled();
+    expect(createManagedItemInD1Mock).toHaveBeenCalledOnce();
     expect(result).toEqual({
       message: "タグは1つの管理対象に10個まで付けられます。",
       status: "error",
     });
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });

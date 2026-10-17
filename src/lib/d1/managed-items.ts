@@ -1,6 +1,10 @@
 import { getCurrentHouseholdId, requireHouseholdMembership, type D1Session } from "./authorization";
 import { D1NotFoundError } from "./errors";
-import { buildManagedItemTagStatements, type ManagedItemTagInput } from "./tags";
+import {
+  assertManagedItemTagLimit,
+  buildManagedItemTagStatements,
+  type ManagedItemTagInput,
+} from "./tags";
 import { likeSearchPattern } from "./text-search";
 
 // Issue #218: 台帳一覧の検索・絞り込み。大分類(kindCode)・詳しい種類
@@ -233,6 +237,7 @@ export async function createManagedItem(
 ): Promise<string> {
   const householdId = await requireCurrentHousehold(db, session);
   const classification = await requireActiveClassification(db, input);
+  if (input.tags !== undefined) await assertManagedItemTagLimit(db, householdId, input.tags);
   const itemId = crypto.randomUUID();
   const statements = [db.prepare(`INSERT INTO managed_items (
       id, household_id, name, kind, note, product_info, started_on
@@ -323,6 +328,7 @@ export async function updateManagedItem(
 ): Promise<void> {
   const householdId = await requireCurrentHousehold(db, session);
   const classification = await requireActiveClassification(db, input);
+  if (input.tags !== undefined) await assertManagedItemTagLimit(db, householdId, input.tags);
   const statements = [
     db.prepare(
       `UPDATE managed_items
