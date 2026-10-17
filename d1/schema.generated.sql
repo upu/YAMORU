@@ -39,7 +39,7 @@ CREATE TABLE attention_candidates (
  sort_key TEXT NOT NULL,
  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0),
  generated_at TEXT NOT NULL,
- evaluated_on TEXT NOT NULL,
+ evaluated_on TEXT NOT NULL, first_detected_at TEXT,
  UNIQUE(household_id,source_key),
  CHECK((occurrence_id IS NOT NULL)+(consumable_id IS NOT NULL)=1),
  CHECK(source_key=CASE WHEN occurrence_id IS NOT NULL THEN 'todo_occurrence:'||occurrence_id ELSE 'consumable:'||consumable_id END),
@@ -382,6 +382,63 @@ CREATE TABLE managed_items (
   UNIQUE (id, household_id),
   CHECK (name = trim(name) AND length(name) BETWEEN 1 AND 100),
   CHECK (kind IN ('pet_supplies', 'appliance', 'housing_equipment', 'contract', 'other'))
+);
+
+-- table: notification_controls
+CREATE TABLE notification_controls (
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  candidate_id TEXT NOT NULL,
+  muted INTEGER NOT NULL CHECK(muted IN (0,1)),
+  snoozed_until TEXT,
+  updated_at TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  idempotency_key TEXT UNIQUE,
+  PRIMARY KEY(household_id,user_id,candidate_id),
+  FOREIGN KEY(candidate_id,household_id) REFERENCES attention_candidates(id,household_id) ON DELETE CASCADE
+);
+
+-- table: notification_delivery_history
+CREATE TABLE notification_delivery_history (
+  sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+  delivery_id TEXT NOT NULL,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  candidate_id TEXT NOT NULL,
+  candidate_name TEXT NOT NULL,
+  outcome TEXT NOT NULL CHECK(outcome IN ('accepted','reported','unknown','failed','deferred','cancelled','suppressed')),
+  reason TEXT,
+  recorded_at TEXT NOT NULL,
+  UNIQUE(delivery_id,candidate_id),
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE
+);
+
+-- table: notification_delivery_marks
+CREATE TABLE notification_delivery_marks (
+  delivery_id TEXT NOT NULL,
+  household_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  connection_id TEXT NOT NULL,
+  candidate_id TEXT NOT NULL,
+  outcome TEXT NOT NULL CHECK(outcome IN ('accepted','reported','unknown')),
+  recorded_at TEXT NOT NULL,
+  PRIMARY KEY(delivery_id,candidate_id),
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE,
+  FOREIGN KEY(candidate_id,household_id) REFERENCES attention_candidates(id,household_id) ON DELETE CASCADE
+);
+
+-- table: notification_settings
+CREATE TABLE notification_settings (
+  household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  connection_id TEXT,
+  settings TEXT NOT NULL CHECK(json_valid(settings)),
+  revision INTEGER NOT NULL CHECK(revision > 0),
+  updated_at TEXT NOT NULL,
+  idempotency_key TEXT UNIQUE,
+  PRIMARY KEY(household_id,user_id),
+  FOREIGN KEY(connection_id,household_id,user_id) REFERENCES oauth_connections(id,household_id,user_id) ON DELETE CASCADE
 );
 
 -- table: oauth_authorization_codes
@@ -728,6 +785,9 @@ CREATE UNIQUE INDEX aliases_todo_occurrence_id ON entity_aliases(household_id,to
 -- index: aliases_todo_rule_id
 CREATE UNIQUE INDEX aliases_todo_rule_id ON entity_aliases(household_id,todo_rule_id,alias) WHERE todo_rule_id IS NOT NULL;
 
+-- index: attention_candidates_household_idx
+CREATE UNIQUE INDEX attention_candidates_household_idx ON attention_candidates(id, household_id);
+
 -- index: attention_candidates_order
 CREATE INDEX attention_candidates_order ON attention_candidates(household_id,sort_key);
 
@@ -827,9 +887,21 @@ CREATE INDEX managed_item_type_suggestions_adopted_idx
 -- index: managed_items_household_id_idx
 CREATE INDEX managed_items_household_id_idx ON managed_items(household_id);
 
+-- index: notification_history_person_idx
+CREATE INDEX notification_history_person_idx ON notification_delivery_history(household_id,user_id,sequence DESC);
+
+-- index: notification_history_retention_idx
+CREATE INDEX notification_history_retention_idx ON notification_delivery_history(recorded_at);
+
+-- index: notification_marks_candidate_idx
+CREATE INDEX notification_marks_candidate_idx ON notification_delivery_marks(household_id,user_id,connection_id,candidate_id,recorded_at);
+
 -- index: oauth_authorization_codes_expires_idx
 CREATE INDEX oauth_authorization_codes_expires_idx
   ON oauth_authorization_codes(expires_at);
+
+-- index: oauth_connections_person_idx
+CREATE UNIQUE INDEX oauth_connections_person_idx ON oauth_connections(id, household_id, user_id);
 
 -- index: oauth_connections_user_created_idx
 CREATE INDEX oauth_connections_user_created_idx
@@ -915,6 +987,13 @@ CREATE TRIGGER aliases_limit_update BEFORE UPDATE ON entity_aliases
  WHEN (SELECT count(*) FROM entity_aliases a WHERE a.household_id=NEW.household_id AND a.id<>NEW.id AND
  (a.managed_item_id=NEW.managed_item_id OR a.todo_rule_id=NEW.todo_rule_id OR a.todo_occurrence_id=NEW.todo_occurrence_id OR a.consumable_id=NEW.consumable_id)) >= 10
  BEGIN SELECT RAISE(ABORT,'At most ten aliases per entity'); END;
+
+-- trigger: attention_candidates_first_detected
+CREATE TRIGGER attention_candidates_first_detected
+AFTER INSERT ON attention_candidates WHEN NEW.first_detected_at IS NULL
+BEGIN
+  UPDATE attention_candidates SET first_detected_at = NEW.generated_at WHERE id = NEW.id;
+END;
 
 -- trigger: attention_delete
 CREATE TRIGGER attention_delete AFTER DELETE ON attention_candidates BEGIN

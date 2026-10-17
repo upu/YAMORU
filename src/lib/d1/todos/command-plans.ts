@@ -25,7 +25,7 @@ export type ScheduleSlot = { dueAt: string | null; scheduledFor: string | null }
 // batchの後に、業務の記録が実際に書けたかを確かめるための手掛かり。
 // 受付記録の成功はこの全件が存在することを条件にする。
 export type BusinessEvidence =
-  | { idempotencyKey: string; table: "activity_logs" | "completion_corrections" }
+  | { idempotencyKey: string; table: "activity_logs" | "completion_corrections" | "notification_settings" | "notification_controls" }
   // 指定した完了記録が、batchの後も対象Occurrenceの最新の完了であること
   // (loadActiveCompletionと同じ順序)。previewの後に取消→再完了されていれば、
   // 取消や訂正が置き換わった別の完了へ作用しないよう、batch全体を取り消す。
