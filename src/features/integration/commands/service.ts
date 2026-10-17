@@ -29,11 +29,13 @@ import {
   type HouseholdRevision,
 } from "./revision";
 import { managedItemCreateHandler, managedItemWithTodoCreateHandler } from "./managed-item-create";
+import { managedItemUpdateHandler } from "./managed-item-update";
 import { todoCompleteHandler } from "./todo-complete";
 import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 import { notificationConfigureHandler } from "./notification-configure";
 import { notificationSnoozeHandler } from "./notification-snooze";
+import { todoRescheduleHandler } from "./todo-reschedule";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
@@ -45,10 +47,12 @@ import { notificationSnoozeHandler } from "./notification-snooze";
 
 const HANDLERS: Record<CommandName, CommandHandler> = {
   "managed_item.create": managedItemCreateHandler,
+  "managed_item.update": managedItemUpdateHandler,
   "managed_item_with_todo.create": managedItemWithTodoCreateHandler,
   "todo.complete": todoCompleteHandler,
   "todo.correct": todoCorrectHandler,
   "todo.create": todoCreateHandler,
+  "todo.reschedule": todoRescheduleHandler,
   "todo.undo": todoUndoHandler,
   "notification.configure": notificationConfigureHandler,
   "notification.snooze": notificationSnoozeHandler,

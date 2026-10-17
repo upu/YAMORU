@@ -1,6 +1,6 @@
 import { requireCurrentHouseholdId, requireD1Session, type D1Session } from "../authorization";
 import { D1ConflictError } from "../errors";
-import { loadOccurrence, requireHouseholdUser } from "./shared";
+import { loadOccurrence, requireHouseholdUser, type OccurrenceWithRule } from "./shared";
 
 // 担当予定者の変更・引き受けと、予定日の延期・設定。
 
@@ -91,6 +91,61 @@ export async function claimTaskOccurrenceAssignee(
   }
 }
 
+// 延期できるOccurrenceと日付か。nowIsoはWebでは操作時刻、外部command(#437)
+// ではprepare時刻を渡す。
+export function requirePostponable(occurrence: OccurrenceWithRule, dueAt: string, nowIso: string): void {
+  if (occurrence.scheduled_for === null || occurrence.due_at === null) {
+    throw new D1ConflictError("Cannot postpone an undated occurrence", "UNDATED_OCCURRENCE_NOT_POSTPONABLE");
+  }
+  if (dueAt <= nowIso) throw new D1ConflictError("new_due_at must be in the future", "DUE_AT_NOT_IN_FUTURE");
+  if (dueAt < occurrence.scheduled_for) throw new D1ConflictError("new_due_at must not be before scheduled_for", "DUE_AT_BEFORE_SCHEDULED_FOR");
+}
+
+// 延期の履歴と期限の更新。履歴はpendingの間だけ作り、期限は履歴があるとき
+// だけ動かす。最初の文の変更件数で、pendingだったかを判定できる。
+export function postponeStatements(
+  db: D1Database,
+  input: {
+    actorId: string;
+    dueAt: string;
+    householdId: string;
+    idempotencyKey: string | null;
+    logId: string;
+    occurrence: OccurrenceWithRule;
+    recordedAt: string;
+  },
+): D1PreparedStatement[] {
+  const { householdId, logId, occurrence } = input;
+  return [
+    db.prepare(
+      `INSERT INTO activity_logs (
+        id, household_id, task_occurrence_id, action, actor_user_id, occurred_at,
+        previous_due_at, new_due_at, idempotency_key
+      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7, ?8
+        WHERE EXISTS (
+          SELECT 1 FROM task_occurrences
+           WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
+        )`,
+    ).bind(
+      logId,
+      householdId,
+      occurrence.id,
+      input.actorId,
+      input.recordedAt,
+      occurrence.due_at,
+      input.dueAt,
+      input.idempotencyKey,
+    ),
+    db.prepare(
+      `UPDATE task_occurrences SET due_at = ?1
+        WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
+          AND EXISTS (
+            SELECT 1 FROM activity_logs WHERE id = ?4 AND household_id = ?3
+          )`,
+    ).bind(input.dueAt, occurrence.id, householdId, logId),
+  ];
+}
+
 export async function postponeTaskOccurrence(
   db: D1Database,
   session: D1Session,
@@ -100,39 +155,17 @@ export async function postponeTaskOccurrence(
   const user = requireD1Session(session);
   const householdId = await requireCurrentHouseholdId(db, session);
   const occurrence = await loadOccurrence(db, householdId, occurrenceId);
-  if (occurrence.scheduled_for === null || occurrence.due_at === null) {
-    throw new D1ConflictError("Cannot postpone an undated occurrence", "UNDATED_OCCURRENCE_NOT_POSTPONABLE");
-  }
-  if (dueAt <= new Date().toISOString()) throw new D1ConflictError("new_due_at must be in the future", "DUE_AT_NOT_IN_FUTURE");
-  if (dueAt < occurrence.scheduled_for) throw new D1ConflictError("new_due_at must not be before scheduled_for", "DUE_AT_BEFORE_SCHEDULED_FOR");
-  const logId = crypto.randomUUID();
-  const results = await db.batch([
-    db.prepare(
-      `INSERT INTO activity_logs (
-        id, household_id, task_occurrence_id, action, actor_user_id, occurred_at,
-        previous_due_at, new_due_at
-      ) SELECT ?1, ?2, ?3, 'postponed', ?4, ?5, ?6, ?7
-        WHERE EXISTS (
-          SELECT 1 FROM task_occurrences
-           WHERE id = ?3 AND household_id = ?2 AND status = 'pending'
-        )`,
-    ).bind(
-      logId,
-      householdId,
-      occurrenceId,
-      user.userId,
-      new Date().toISOString(),
-      occurrence.due_at,
-      dueAt,
-    ),
-    db.prepare(
-      `UPDATE task_occurrences SET due_at = ?1
-        WHERE id = ?2 AND household_id = ?3 AND status = 'pending'
-          AND EXISTS (
-            SELECT 1 FROM activity_logs WHERE id = ?4 AND household_id = ?3
-          )`,
-    ).bind(dueAt, occurrenceId, householdId, logId),
-  ]);
+  const now = new Date().toISOString();
+  requirePostponable(occurrence, dueAt, now);
+  const results = await db.batch(postponeStatements(db, {
+    actorId: user.userId,
+    dueAt,
+    householdId,
+    idempotencyKey: null,
+    logId: crypto.randomUUID(),
+    occurrence,
+    recordedAt: now,
+  }));
   if ((results[0]?.meta.changes ?? 0) === 0) throw new D1ConflictError("Occurrence is not pending", "OCCURRENCE_NOT_PENDING");
 }
 

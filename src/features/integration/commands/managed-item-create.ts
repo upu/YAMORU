@@ -1,7 +1,7 @@
 import {
   managedItemCreationStatements,
   planManagedItemCreation,
-  type ManagedItemCreationPlan,
+  type ManagedItemWritePlan,
 } from "../../../lib/d1/managed-item-commands";
 import { CommandError, invalidInput, type NormalizedCommand } from "./contract";
 import { mapD1Error, managedItemDetailUrl, type CommandContext, type CommandHandler } from "./handler";
@@ -14,7 +14,7 @@ import { createPayload, type CreatePayload } from "./todo-create-input";
 // managed_item_with_todo.create: 管理対象と、それへ関連付けたTodoを一つのbatchで
 // 作る。2つの独立したcommitにせず、どちらかだけが残ることはない(5節)。
 
-function planItem(context: CommandContext, item: ManagedItemPayload, field: string): Promise<ManagedItemCreationPlan> {
+function planItem(context: CommandContext, item: ManagedItemPayload, field: string): Promise<ManagedItemWritePlan> {
   return planManagedItemCreation(context.db, context.householdId, {
     customItemType: item.custom_item_type,
     externalUrl: item.external_url,
@@ -25,20 +25,25 @@ function planItem(context: CommandContext, item: ManagedItemPayload, field: stri
     productInfo: item.product_info,
     startedOn: item.started_on,
     tagIds: item.tag_ids,
-  }).catch((error: unknown) => mapD1Error(error, {
-    MANAGED_ITEM_CLASSIFICATION_INVALID: () => item.item_type === null
-      ? invalidInput(`${field}.kind`, "unknown_kind")
-      : invalidInput(`${field}.item_type`, "unknown_for_kind"),
-    MANAGED_ITEM_TAG_LIMIT_EXCEEDED: () => invalidInput(`${field}.tag_ids`, "too_many_tags"),
-    TAG_NOT_FOUND: () => invalidInput(`${field}.tag_ids`, "not_found"),
-  }));
+  }).catch((error: unknown) => mapManagedItemError(error, field, item.item_type !== null));
 }
 
-function itemDiff(item: ManagedItemPayload, plan: ManagedItemCreationPlan) {
+// 分類・タグの確認で起きる業務エラーを、入力の項目へ読み替える。
+export function mapManagedItemError(error: unknown, field: string, hasItemType: boolean): Promise<never> {
+  return mapD1Error(error, {
+    MANAGED_ITEM_CLASSIFICATION_INVALID: () => hasItemType
+      ? invalidInput(`${field}.item_type`, "unknown_for_kind")
+      : invalidInput(`${field}.kind`, "unknown_kind"),
+    MANAGED_ITEM_TAG_LIMIT_EXCEEDED: () => invalidInput(`${field}.tag_ids`, "too_many_tags"),
+    TAG_NOT_FOUND: () => invalidInput(`${field}.tag_ids`, "not_found"),
+  });
+}
+
+function itemDiff(item: ManagedItemPayload, plan: ManagedItemWritePlan) {
   return { ...item, tags: plan.tags };
 }
 
-function buildItem(context: CommandContext, item: ManagedItemPayload, plan: ManagedItemCreationPlan) {
+function buildItem(context: CommandContext, item: ManagedItemPayload, plan: ManagedItemWritePlan) {
   const itemId = crypto.randomUUID();
   return {
     ...managedItemCreationStatements(context.db, context.householdId, plan, itemId),

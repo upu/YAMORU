@@ -229,29 +229,57 @@ export function revisionGuardStatement(db: D1Database, id: string): D1PreparedSt
   ).bind(id);
 }
 
-function evidenceCondition(evidence: BusinessEvidence, parameter: number): string {
-  const placeholder = `?${String(parameter)}`;
+const COLUMN_NAME = /^[a-z_]+$/u;
+
+// 証跡ごとのSQL条件と、条件が使う値。値の番号はstartから順に振る。
+function evidenceCondition(evidence: BusinessEvidence, start: number): { sql: string; values: unknown[] } {
+  const placeholder = `?${String(start)}`;
   if ("activeCompletionLogId" in evidence) {
-    return `EXISTS (SELECT 1 FROM activity_logs t
+    return {
+      sql: `EXISTS (SELECT 1 FROM activity_logs t
       WHERE t.id = ${placeholder} AND t.household_id = integration_operations.household_id
         AND t.action = 'completed'
         AND NOT EXISTS (SELECT 1 FROM activity_logs n
           WHERE n.household_id = t.household_id AND n.task_occurrence_id = t.task_occurrence_id
             AND n.action = 'completed' AND n.id <> t.id
-            AND (n.recorded_at > t.recorded_at OR (n.recorded_at = t.recorded_at AND n.id > t.id))))`;
+            AND (n.recorded_at > t.recorded_at OR (n.recorded_at = t.recorded_at AND n.id > t.id))))`,
+      values: [evidence.activeCompletionLogId],
+    };
   }
-  // tableはコード内の定数だけを取り、利用者の入力を埋め込まない。
+  // tableと列名はコード内の定数だけを取り、利用者の入力を埋め込まない。
+  if ("values" in evidence) {
+    const entries = Object.entries(evidence.values);
+    if (entries.some(([column]) => !COLUMN_NAME.test(column))) throw new Error("invalid evidence column");
+    const matches = entries.map(([column], index) => ` AND b.${column} IS ?${String(start + 1 + index)}`).join("");
+    return {
+      sql: `EXISTS (SELECT 1 FROM ${evidence.table} b
+    WHERE b.household_id = integration_operations.household_id AND b.id = ${placeholder}${matches})`,
+      values: [evidence.rowId, ...entries.map(([, value]) => value)],
+    };
+  }
   if ("rowId" in evidence) {
-    return `EXISTS (SELECT 1 FROM ${evidence.table} b
-    WHERE b.household_id = integration_operations.household_id AND b.id = ${placeholder})`;
+    return {
+      sql: `EXISTS (SELECT 1 FROM ${evidence.table} b
+    WHERE b.household_id = integration_operations.household_id AND b.id = ${placeholder})`,
+      values: [evidence.rowId],
+    };
   }
-  return `EXISTS (SELECT 1 FROM ${evidence.table} b
-    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder})`;
+  return {
+    sql: `EXISTS (SELECT 1 FROM ${evidence.table} b
+    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder})`,
+    values: [evidence.idempotencyKey],
+  };
 }
 
-function evidenceValue(evidence: BusinessEvidence): string {
-  if ("activeCompletionLogId" in evidence) return evidence.activeCompletionLogId;
-  return "rowId" in evidence ? evidence.rowId : evidence.idempotencyKey;
+function evidenceConditions(evidence: BusinessEvidence[], start: number): { sql: string[]; values: unknown[] } {
+  const sql: string[] = [];
+  const values: unknown[] = [];
+  for (const item of evidence) {
+    const condition = evidenceCondition(item, start + values.length);
+    sql.push(condition.sql);
+    values.push(...condition.values);
+  }
+  return { sql, values };
 }
 
 // commitのbatchの最後に置く文。次のすべてを満たすときだけstatusを
@@ -306,14 +334,13 @@ export function commitReceiptStatement(
   if (placements.some(({ path }) => !REVISION_PATH.test(path))) throw new Error("invalid revision path");
   // ?4から、placementごとに(path, kind, id)の3つを使う。
   const assignments = placements.map((_, index) => `?${String(4 + index * 3)}, ${revisionValue(5 + index * 3)}`);
-  const evidenceStart = 4 + placements.length * 3;
-  const conditions = input.evidence.map((evidence, index) => evidenceCondition(evidence, index + evidenceStart));
+  const conditions = evidenceConditions(input.evidence, 4 + placements.length * 3);
   return db.prepare(
     `UPDATE integration_operations
         SET status = CASE
               WHEN status = 'prepared' AND expires_at > ?2
                 AND ${ACTIVE_WRITE_CONNECTION}
-                AND ${conditions.join("\n                AND ")}
+                AND ${conditions.sql.join("\n                AND ")}
               THEN 'succeeded'
             END,
             result = json_set(?3, ${assignments.join(", ")}),
@@ -324,7 +351,7 @@ export function commitReceiptStatement(
     input.at,
     input.result,
     ...placements.flatMap(({ id, kind, path }) => [path, kind, id]),
-    ...input.evidence.map(evidenceValue),
+    ...conditions.values,
   );
 }
 
