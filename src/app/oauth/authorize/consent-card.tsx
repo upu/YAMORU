@@ -2,7 +2,7 @@ import type { StoredOAuthClient } from "../../../lib/d1/oauth-clients";
 import type { AuthorizationPageError, ValidAuthorizationRequest } from "../../../features/integration/oauth/authorization-request";
 import { REQUIRED_SCOPE, SCOPE_DESCRIPTIONS } from "../../../features/integration/scopes";
 import { decideAuthorization } from "./actions";
-import { DISPLAYED_CLIENT_NAME_FIELD } from "./consent-snapshot";
+import { DISPLAYED_CLIENT_NAME_FIELD, DISPLAYED_HOUSEHOLD_ID_FIELD } from "./consent-snapshot";
 import styles from "./consent.module.css";
 
 const PAGE_ERROR_MESSAGES: Record<AuthorizationPageError | "client_unavailable", string> = {
@@ -62,13 +62,13 @@ function ScopeOption({ scope, requested }: { requested: boolean; scope: keyof ty
 type ConsentCardProps = {
   client: StoredOAuthClient;
   email: string;
-  householdName: string;
+  household: { id: string; name: string };
   rawRequest: string;
   request: ValidAuthorizationRequest;
 };
 
 // 接続元の名前はクライアント自身が名乗る値なので、確かめられるホスト名を並べて出す。
-export function ConsentCard({ client, email, householdName, rawRequest, request }: ConsentCardProps) {
+export function ConsentCard({ client, email, household, rawRequest, request }: ConsentCardProps) {
   const clientHost = new URL(client.id).hostname;
   const redirectHost = new URL(request.redirectUri).hostname;
   return (
@@ -80,13 +80,14 @@ export function ConsentCard({ client, email, householdName, rawRequest, request 
         <dt>許可後の戻り先</dt>
         <dd>{redirectHost}</dd>
         <dt>対象の家庭</dt>
-        <dd>{householdName}</dd>
+        <dd>{household.name}</dd>
         <dt>あなたのアカウント</dt>
         <dd>{email}</dd>
       </dl>
       <form action={decideAuthorization}>
         <input name="request" type="hidden" value={rawRequest} />
         <input name={DISPLAYED_CLIENT_NAME_FIELD} type="hidden" value={client.clientName} />
+        <input name={DISPLAYED_HOUSEHOLD_ID_FIELD} type="hidden" value={household.id} />
         <fieldset className={styles.scopes}>
           <legend>許可する範囲</legend>
           <p>外したい範囲はチェックを外してください。読み取りは連携に必須です。</p>

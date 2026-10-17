@@ -40,7 +40,7 @@ describe("同意画面", () => {
           redirectUris: ["https://client.example.test/callback"],
         }}
         email="family@example.test"
-        householdName="架空の家"
+        household={{ id: "household-a", name: "架空の家" }}
         rawRequest="client_id=x"
         request={{
           clientId: CLIENT_ID,
@@ -76,6 +76,7 @@ describe("同意画面", () => {
     renderConsent(["household.read"]);
     // 送信時に照合するため、表示した接続元の名前をフォームへ含める。
     expect(document.querySelector('input[name="displayedClientName"]')).toHaveValue("Example Assistant");
+    expect(document.querySelector('input[name="displayedHouseholdId"]')).toHaveValue("household-a");
     expect(screen.getByRole("button", { name: "許可する" })).toHaveAttribute("value", "approve");
     expect(screen.getByRole("button", { name: "許可しない" })).toHaveAttribute("value", "deny");
   });

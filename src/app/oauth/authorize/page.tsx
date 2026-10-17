@@ -46,7 +46,7 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
         <ConsentCard
           client={context.client}
           email={user.email}
-          householdName={context.household.name}
+          household={context.household}
           rawRequest={params.toString()}
           request={context.request}
         />

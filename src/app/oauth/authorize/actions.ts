@@ -7,7 +7,7 @@ import { approveAuthorization, denyAuthorization } from "../../../features/integ
 import { buildAuthorizationResponseUrl } from "../../../features/integration/oauth/authorization-request";
 import { getOAuthRuntime } from "../../../features/integration/oauth/runtime";
 import { loadAuthorizationContext } from "./authorization-context";
-import { DISPLAYED_CLIENT_NAME_FIELD, isSameConsentScreen } from "./consent-snapshot";
+import { isSameConsentScreen } from "./consent-snapshot";
 
 function stringValues(values: FormDataEntryValue[]): string[] {
   return values.filter((value): value is string => typeof value === "string");
@@ -26,12 +26,12 @@ export async function decideAuthorization(formData: FormData): Promise<void> {
   if (context.kind === "page_error") redirect(`/oauth/authorize?${params.toString()}`);
   const { client, household, request } = context;
   if (formData.get("decision") !== "approve") redirect(denyAuthorization(config, request));
-  // 表示した後に接続元の名前が変わったら、新しい名前で同意画面を出し直す。
-  if (!isSameConsentScreen(formData.get(DISPLAYED_CLIENT_NAME_FIELD), client)) {
-    redirect(`/oauth/authorize?${params.toString()}`);
-  }
   if (household === null) {
     redirect(buildAuthorizationResponseUrl(request.redirectUri, config, { error: "access_denied" }, request.state));
+  }
+  // 表示した後に接続元の名前や所属する家庭が変わったら、新しい内容で同意画面を出し直す。
+  if (!isSameConsentScreen(formData, { clientName: client.clientName, householdId: household.id })) {
+    redirect(`/oauth/authorize?${params.toString()}`);
   }
   const url = await approveAuthorization({ config, db }, {
     approvedScopes: stringValues(formData.getAll("scope")),

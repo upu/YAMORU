@@ -239,9 +239,18 @@ describe("本文の上限", () => {
 });
 
 describe("同意画面の表示と送信の照合", () => {
-  it("表示した接続元の名前が送信時と一致するときだけ許可を受け付ける", () => {
-    expect(isSameConsentScreen("Example Assistant", { clientName: "Example Assistant" })).toBe(true);
-    expect(isSameConsentScreen("Example Assistant", { clientName: "Renamed Assistant" })).toBe(false);
-    expect(isSameConsentScreen(null, { clientName: "Example Assistant" })).toBe(false);
+  function displayed(values: Record<string, string>): FormData {
+    const formData = new FormData();
+    for (const [name, value] of Object.entries(values)) formData.set(name, value);
+    return formData;
+  }
+  const current = { clientName: "Example Assistant", householdId: "household-a" };
+
+  it("表示した接続元の名前と家庭が送信時と一致するときだけ許可を受け付ける", () => {
+    const shown = { displayedClientName: "Example Assistant", displayedHouseholdId: "household-a" };
+    expect(isSameConsentScreen(displayed(shown), current)).toBe(true);
+    expect(isSameConsentScreen(displayed(shown), { ...current, clientName: "Renamed Assistant" })).toBe(false);
+    expect(isSameConsentScreen(displayed(shown), { ...current, householdId: "household-b" })).toBe(false);
+    expect(isSameConsentScreen(displayed({ displayedClientName: "Example Assistant" }), current)).toBe(false);
   });
 });
