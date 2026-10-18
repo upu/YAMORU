@@ -7,7 +7,12 @@ tags: [yamoru, decisions, notifications, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-supersedes: YDR-063（日次の本文とevent IDの送信単位のみ）
+partially_supersedes:
+  - ydr_id: YDR-063
+    scope: 日次の本文とevent IDの送信単位
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 検証節の#442完了条件に含むEventsの日次まとめのscheduler送信配線・実connector・実到達と購読解除/失効
 ---
 
 # YDR-065: 日次まとめの本文と各候補の配信結果を別々に保持する
@@ -42,5 +47,7 @@ groupの所属履歴と有効な確保は別表にし、一つのrecipientは同
 終端本文は90日後に100件ずつ破棄する。accepted/cancelledはgroupごと削除でき、unknown/failedは最小ID・状態・所属を保持する。非終端の本文は消さない。groupの清掃を既存outboxの清掃より先に行う。家庭・本人・接続・groupの物理削除はFKでcascadeし、元outboxの削除では所属と確保をcascadeするが、残る本文の件数は短縮しない。
 
 実D1で更新DB・旧SQL・所有者・不変性・cascade・全取消、filter別の本文、競合、家族の完了、休止、世代変更、再試行上限、結果保存失敗、中断、期限と索引を検証する。架空transportの署名付き受領は実TLSと実dotの到達の証明ではない。scheduler接続、実connector、非対応時の定期取得と実到達・解除・失効の確認が残る間、#442は閉じない。
+
+このうちEventsの日次まとめのschedulerへのHTTP送信配線・実connector・実到達と購読解除/失効を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。group・本文・結果・原子性・回復と上記の実D1テストは維持し、定期取得の実案内・停止と接続失効の確認は今回に残す。
 
 参照: [Cloudflare D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)、[D1 limits](https://developers.cloudflare.com/d1/platform/limits/)（2026-10-18確認）。

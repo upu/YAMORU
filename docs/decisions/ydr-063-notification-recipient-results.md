@@ -7,7 +7,9 @@ tags: [yamoru, decisions, notifications, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-superseded_by: YDR-065（日次の本文とevent IDの送信単位のみ）
+partially_superseded_by:
+  - ydr_id: YDR-065
+    scope: 日次の本文とevent IDの送信単位
 ---
 
 # YDR-063: 通知の宛先集合と結果を購読の世代ごとに保持する

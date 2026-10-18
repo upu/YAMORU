@@ -7,6 +7,9 @@ tags: [yamoru, decisions, notifications, integration]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 検証節の#442完了条件に含むEventsの実connector・scheduler送信配線・日次まとめの実配送・実到達と購読停止/失効
 ---
 
 # YDR-064: 署名付き通知のHTTP送信と結果保存を別々に再試行する
@@ -34,5 +37,7 @@ HTTPを呼ぶ関数は一度だけPOSTし、再送しない。応答を得た後
 新schemaは不要で、適用済み0043・0044と旧SQLを維持する。送信jobは内部APIであり、runtimeへの配線やEvents providerの有効化を含めない。
 
 D1と架空transportの統合テストで、部分受領と再試行、結果不明、二宛先の上限、保存だけの再試行、家族の完了、通知方式変更、旧形式、要求中断、所有者境界を検証する。mockの受領は実connectorのTLSや実dotへの到達を証明しない。実connector、schedulerへの配線、日次まとめ、非対応時の定期取得、実dotの到達・停止・失効は#442の残る合格条件である。
+
+このうちEventsの実connector・schedulerへのHTTP送信配線・日次まとめの実配送・実dot到達と購読停止/失効を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。内部job・結果保存・再送防止と上記の統合テストは維持し、定期取得の実案内・停止と接続失効の確認は今回に残す。
 
 参照: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。

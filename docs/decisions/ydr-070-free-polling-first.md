@@ -10,6 +10,14 @@ decision_date: 2026-10-18
 partially_supersedes:
   - ydr_id: YDR-050
     scope: 決定5のv0.21.0でEventsを第一候補にする優先順位
+  - ydr_id: YDR-060
+    scope: 検証節の#442完了条件に含むEventsの実送信・実dot到達と購読解除
+  - ydr_id: YDR-064
+    scope: 検証節の#442完了条件に含むEventsの実connector・scheduler送信配線・日次まとめの実配送・実到達と購読停止/失効
+  - ydr_id: YDR-065
+    scope: 検証節の#442完了条件に含むEventsの日次まとめのscheduler送信配線・実connector・実到達と購読解除/失効
+  - ydr_id: YDR-066
+    scope: 配備節の#442完了条件に含むEventsの実TLS・実dot到達と購読解除/失効
   - ydr_id: YDR-067
     scope: 末尾の#442完了条件に含むEventsの実TLS・到達・購読解除・購読失効
   - ydr_id: YDR-069
@@ -29,10 +37,13 @@ Cloudflare Containersによる別の送信経路には、現アカウントで�
 ## 置き換える範囲
 
 - [YDR-050](ydr-050-conversation-reminders.md)決定5の「MCP Eventsを第一候補とする」優先順位を、v0.21.0では定期取得を先行する方針へ置き換える。本人設定、家庭共有の予定との分離、候補の正本、返答、停止、既読との区別は維持する。
+- [YDR-060](ydr-060-event-subscription-boundary.md)の検証節、[YDR-064](ydr-064-signed-notification-event-jobs.md)・[YDR-065](ydr-065-daily-notification-groups.md)末尾の検証条件、[YDR-066](ydr-066-scheduled-event-delivery.md)の配備節から、Eventsの実connector・schedulerへのHTTP送信配線・日次まとめの実配送・実dot到達・購読解除/失効を#442の必須条件とする部分だけを#474へ移す。購読暗号化、所有者境界、複数宛先の結果保存、group・送信job・Cronの内部実装とその回復テストは維持する。定期取得の実到達・停止・接続失効の条件は今回に残す。
 - [YDR-067](ydr-067-periodic-notification-claims.md)末尾の#442完了条件から、Eventsの実TLS・到達・購読解除・購読失効を切り離す。claim/ack、接続・家庭・本人・leaseの束縛、全件の原子性、unknownの回復・再送防止は置き換えない。
 - [YDR-069](ydr-069-pinned-http-runtime.md)の実Events検証を#442の必須条件とした部分だけを、後続[#474](https://github.com/upu/YAMORU/issues/474)へ移す。送信providerの初期無効、固定IP・元hostnameのTLS検証、宛先制限・上限・中断判定は維持する。
 
 既存Events実装と適用済みD1 migrationは保持する。通常fetchや証明書検証の無効化で到達制約を迂回しない。#474はv0.21.0のmilestone・親#189の必須子Issue・#443/#444の前提に加えない。後続採用時は通信経路と費用を改めて決める。
+
+YDR-055/056/059の実通知・実dot確認は定期取得で満たす条件として残す。YDR-059の署名・購読・接続時宛先検証は外向きcallback送信の採用条件として維持し、定期取得をHTTP送信の代用品として扱わない。
 
 ## v0.21.0の通知経路と合格条件
 

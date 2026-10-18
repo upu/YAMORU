@@ -7,6 +7,7 @@
 - `Accepted`であり、後続のYDRに`superseded_by`で置き換えられていない判断だけを現在有効として扱う。
 - `Superseded`の判断は、現在の仕様ではなく過去の経緯として扱う。各文書のフロントマターにある`supersedes`/`superseded_by`から置き換え関係をたどる。
 - 一部だけを置き換える関係は`partially_supersedes`/`partially_superseded_by`の`ydr_id`と`scope`で示す。元の文書は`Accepted`を維持し、`scope`に指定した判断だけを新YDRへ置き換える。残る契約を文書全体ごと除外しない。
+- 従来の置換フィールドの文字列に対象範囲が併記されている場合も、索引と本文で明示された範囲だけの置換として読む。新しい部分置換は上の構造化フィールドで記録する。
 - 各文書の`status`(OKF上のライフサイクル状態)と、`decision_status`(Accepted / Superseded)は別の情報である。混同しない。
 
 ## 一覧
@@ -72,13 +73,13 @@
 | YDR-057 | 在庫の観測と補充を分け、訂正を追記する | Accepted | [ydr-057-stock-observation-and-refill-history.md](ydr-057-stock-observation-and-refill-history.md) |
 | YDR-058 | MCPの回数制限と同時実行枠をD1で共有する | Accepted | [ydr-058-mcp-request-budgets.md](ydr-058-mcp-request-budgets.md) |
 | YDR-059 | 通知outboxと走査の進捗をD1に永続化する | Accepted | [ydr-059-durable-notification-outbox.md](ydr-059-durable-notification-outbox.md) |
-| YDR-060 | 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する | Accepted | [ydr-060-event-subscription-boundary.md](ydr-060-event-subscription-boundary.md) |
+| YDR-060 | 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-060-event-subscription-boundary.md](ydr-060-event-subscription-boundary.md) |
 | YDR-061 | 通知時の元対象を保持し、詳細と再送防止の保存期限を分ける | Accepted | [ydr-061-notification-source-and-retention.md](ydr-061-notification-source-and-retention.md) |
 | YDR-062 | 古いpreviewの作り直しで意味のある差分が出た変更だけ、本人の追加確認を必須にする | Accepted | [ydr-062-integration-command-confirmation.md](ydr-062-integration-command-confirmation.md) |
 | YDR-063 | 通知の宛先集合と結果を購読の世代ごとに保持する | Accepted（日次の本文・event IDの送信単位のみYDR-065で置換） | [ydr-063-notification-recipient-results.md](ydr-063-notification-recipient-results.md) |
-| YDR-064 | 署名付き通知のHTTP送信と結果保存を別々に再試行する | Accepted | [ydr-064-signed-notification-event-jobs.md](ydr-064-signed-notification-event-jobs.md) |
-| YDR-065 | 日次まとめの本文と各候補の配信結果を別々に保持する | Accepted | [ydr-065-daily-notification-groups.md](ydr-065-daily-notification-groups.md) |
-| YDR-066 | 通知の送信開始を接続ごとの定期実行の確保へ結び付ける | Accepted | [ydr-066-scheduled-event-delivery.md](ydr-066-scheduled-event-delivery.md) |
+| YDR-064 | 署名付き通知のHTTP送信と結果保存を別々に再試行する | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-064-signed-notification-event-jobs.md](ydr-064-signed-notification-event-jobs.md) |
+| YDR-065 | 日次まとめの本文と各候補の配信結果を別々に保持する | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-065-daily-notification-groups.md](ydr-065-daily-notification-groups.md) |
+| YDR-066 | 通知の送信開始を接続ごとの定期実行の確保へ結び付ける | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-066-scheduled-event-delivery.md](ydr-066-scheduled-event-delivery.md) |
 | YDR-067 | 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-067-periodic-notification-claims.md](ydr-067-periodic-notification-claims.md) |
 | YDR-068 | 検査済みIPへのTLS検証にソースから生成したRustlsを使う | Accepted | [ydr-068-pinned-tls-engine.md](ydr-068-pinned-tls-engine.md) |
 | YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
