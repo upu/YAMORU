@@ -24,6 +24,8 @@ partially_supersedes:
     scope: 末尾の#442完了条件に含むEventsの実TLS・到達・購読解除・購読失効
   - ydr_id: YDR-069
     scope: 実Events検証を#442の必須条件とする部分
+  - ydr_id: YDR-068
+    scope: 有効化節の#442完了条件に含む実callbackの購読・到達・解除・失効
 ---
 
 # YDR-070: v0.21.0は無料運用を維持し、実証した定期取得で通知する
@@ -42,6 +44,7 @@ Cloudflare Containersによる別の送信経路には、現アカウントで�
 - [YDR-060](ydr-060-event-subscription-boundary.md)の検証節、[YDR-063](ydr-063-notification-recipient-results.md)の配備節、[YDR-064](ydr-064-signed-notification-event-jobs.md)・[YDR-065](ydr-065-daily-notification-groups.md)末尾の検証条件、[YDR-066](ydr-066-scheduled-event-delivery.md)の配備節から、Eventsの実connector・schedulerへのHTTP送信配線・日次まとめの実配送・実dot到達・購読解除/失効を#442の必須条件とする部分だけを#474へ移す。購読暗号化、所有者境界、複数宛先の結果保存、group・送信job・Cronの内部実装とその回復テストは維持する。定期取得の実到達・停止・接続失効の条件は今回に残す。
 - [YDR-067](ydr-067-periodic-notification-claims.md)末尾の#442完了条件から、Eventsの実TLS・到達・購読解除・購読失効を切り離す。claim/ack、接続・家庭・本人・leaseの束縛、全件の原子性、unknownの回復・再送防止は置き換えない。
 - [YDR-069](ydr-069-pinned-http-runtime.md)の実Events検証を#442の必須条件とした部分だけを、後続[#474](https://github.com/upu/YAMORU/issues/474)へ移す。送信providerの初期無効、固定IP・元hostnameのTLS検証、宛先制限・上限・中断判定は維持する。
+- [YDR-068](ydr-068-pinned-tls-engine.md)の有効化節も、実callbackの購読・到達・解除・失効を#442の必須条件とする部分だけを#474へ移す。Rustlsの生成・証明書検証・宛先制限と、定期取得側の追加scope・実行主体・実測遅延の確認は維持する。
 
 既存Events実装と適用済みD1 migrationは保持する。通常fetchや証明書検証の無効化で到達制約を迂回しない。#474はv0.21.0のmilestone・親#189の必須子Issue・#443/#444の前提に加えない。後続採用時は通信経路と費用を改めて決める。
 

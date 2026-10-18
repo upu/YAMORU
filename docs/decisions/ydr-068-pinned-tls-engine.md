@@ -7,6 +7,9 @@ tags: [yamoru, decisions, notifications, integration, cloudflare]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 有効化節の#442完了条件に含む実callbackの購読・到達・解除・失効
 ---
 
 # YDR-068: 検査済みIPへのTLS検証にソースから生成したRustlsを使う
@@ -28,3 +31,5 @@ root storeはOSの更新へ自動追従しない。CAやsecurity advisoryへの�
 ## 有効化
 
 この部品の追加ではEvents providerを有効にしない。HTTP connectorの接続後、実callbackの購読・到達・解除・失効を確認する。定期取得側の追加scope・実行主体・実測遅延も#442の別の検証項目であり、TLS単体試験で代用しない。スキーマ・既存購読・通知設定・家庭の業務データの変更はない。
+
+このうち実callbackの購読・到達・解除・失効を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。Rustlsの生成・証明書検証・宛先制限・有効化条件は維持し、定期取得の追加scope・実行主体・実測遅延は今回に残す。
