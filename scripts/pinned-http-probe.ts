@@ -11,7 +11,7 @@ const sourceHashes = httpSourceHashes();
 const failures: Partial<Record<string, { reason: string; requestStarted: boolean }>> = {
   large_body: { reason: "payload_too_large", requestStarted: true }, redirect: { reason: "redirect_not_allowed", requestStarted: true },
   wrong: { reason: "unreachable", requestStarted: false }, expired: { reason: "unreachable", requestStarted: false }, selfsigned: { reason: "unreachable", requestStarted: false },
-  private: { reason: "blocked_url", requestStarted: false }, delay: { reason: "timeout", requestStarted: true },
+  private: { reason: "blocked_url", requestStarted: false }, cloudflare: { reason: "unreachable", requestStarted: false }, delay: { reason: "timeout", requestStarted: true },
 };
 for (const testCase of ["echo", "status", "large_head", ...Object.keys(failures)]) {
   const response = await fetch(new URL(`/?case=${testCase}`, origin), { signal: AbortSignal.timeout(15_000), redirect: "error" });

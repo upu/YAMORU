@@ -49,6 +49,6 @@ node node_modules/wrangler/bin/wrangler.js dev --config packages/pinned-tls/prob
 node scripts/pinned-http-probe.ts http://127.0.0.1:8792
 ```
 
-公開httpbin/badsslだけへ架空の署名付き本文を送る。10ケースで日本語本文・署名・秘密headerの除去、202受領、大きな本文のhead-only成功/本文読取り拒否、redirect拒否、証明書負例、private URL拒否、送信開始後の10秒timeoutを確認する。D1・Secrets・任意callback入力は持たない。終了後はWranglerをCtrl-Cで停止する。
+公開httpbin/badssl/Cloudflareだけを対象にする。11ケースで日本語本文・署名・秘密headerの除去、202受領、大きな本文のhead-only成功/本文読取り拒否、redirect拒否、証明書負例、private URL拒否、送信開始後の10秒timeoutを確認する。Cloudflare宛てはTCP拒否・アプリケーション送信未開始の対照試験で、実callbackの到達性を推定しない。D1・Secrets・任意callback入力は持たない。終了後はWranglerをCtrl-Cで停止する。
 
 実測記録`probe/http-edge-result-2026-10-18.json`はsourceとWASM hashを保持し、`tests/notification-http-evidence.test.ts`で照合する。通信実装または生成物を変えた際は両probeの該当する実測を更新する。通常unit/CIでは公開fixtureへ接続しない。実callbackの購読・到達・解除・失効と定期取得の実行主体・遅延は引き続き#442で検証する。

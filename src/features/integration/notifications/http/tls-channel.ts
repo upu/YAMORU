@@ -35,8 +35,9 @@ export class TlsChannel {
     this.pending = result.value;
     this.offset = 0;
   }
-  async handshake(opened: Promise<unknown>) {
+  async handshake(opened: Promise<unknown>, connected?: () => void) {
     await this.scope.wait(() => opened);
+    connected?.();
     while (this.tls.handshaking()) { await this.flush(); await this.receive(); }
     await this.flush();
   }

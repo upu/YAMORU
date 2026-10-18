@@ -12,6 +12,7 @@ const fixtures = {
   expired: { url: "https://expired.badssl.com/" },
   selfsigned: { url: "https://self-signed.badssl.com/" },
   private: { url: "https://127.0.0.1/" },
+  cloudflare: { url: "https://www.cloudflare.com/cdn-cgi/trace" },
   delay: { url: "https://httpbin.org/delay/15" },
 };
 

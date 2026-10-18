@@ -6,6 +6,30 @@ import { pinnedRequest, tcpFixture, textBytes } from "./support/pinned-tcp";
 
 afterEach(() => { vi.restoreAllMocks(); });
 describe("pinned TCP/TLS HTTP exchange", () => {
+  it.each([
+    ["open", "proxy request failed, cannot connect to the specified address private-fixture", "tcp_connect", "tcp_address_disallowed", false],
+    ["open", "TCP Loop detected private-fixture", "tcp_connect", "tcp_loop", false],
+    ["opened", "proxy request failed, cannot connect to the specified address private-fixture", "tcp_connect", "tcp_address_disallowed", false],
+    ["tls", "private-certificate-and-host", "tls_handshake", "unclassified", false],
+    ["send", "private-request-and-secret", "http_send", "unclassified", true],
+    ["response", "private-response", "http_response", "unreachable", true],
+  ] as const)("records only fixed diagnostics for %s failures without changing sent-state or cleanup", async (stage, message, phase, category, started) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const f = tcpFixture(stage === "response" ? "invalid response\r\n\r\n" : undefined, {
+      opened: stage === "opened" ? Promise.reject(new Error(message)) : undefined,
+      write: (bytes) => stage === "send" && bytes[0] === 80 ? Promise.reject(new Error(message)) : Promise.resolve(),
+    });
+    if (stage === "open") f.openTcp.mockImplementation(() => { throw new Error(message); });
+    if (stage === "tls") f.tls.receive_tls.mockImplementation(() => { throw new Error(message); });
+    await expect(createPinnedHttpConnector(f)(pinnedRequest({ path: "/private-callback?token=private", headers: { "webhook-signature": "private-signature" } })))
+      .rejects.toMatchObject({ reason: "unreachable", requestStarted: started });
+    expect(warn.mock.calls).toEqual([[{ event: "mcp_event_transport_failure", phase, category, request_started: started }]]);
+    expect(f.tls.free).toHaveBeenCalledTimes(1);
+    expect(f.openTcp).toHaveBeenCalledTimes(1);
+    expect(f.socket.close).toHaveBeenCalledTimes(stage === "open" ? 0 : 1);
+    if (!started) expect(f.tls.write_application).not.toHaveBeenCalled();
+  });
+
   it("connects by checked IP, authenticates the original name, then writes UTF-8 POST once", async () => {
     const f = tcpFixture();
     const connect = createPinnedHttpConnector(f);

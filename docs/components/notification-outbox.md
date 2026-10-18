@@ -65,4 +65,6 @@ previewの送信provider有効化、定期取得の実行主体との接続、�
 
 `worker-transport-loader.ts`は最初のPOSTまでnative moduleの評価とTLS instance作成を遅らせる。`notification-worker-transport-loader.test.ts`は無効時・有効でも未送信の間にmoduleを読み込まないこと、送信時の引数と応答の委譲を確認する。
 
-`tests/notification-dns-resolver.test.ts`は名前・全アドレス・本文と中断、`notification-http-response.test.ts`はframing・本文/metadata上限・切断、`notification-pinned-connector.test.ts`は認証前の送信禁止・資源解放・遅いI/Oを検査する。`notification-worker-events.test.ts`は有効化条件とrequest分離の入口。[HTTP実測記録](../../packages/pinned-tls/probe/http-edge-result-2026-10-18.json)は公開fixtureへ架空の署名付き本文だけを送った10ケースで、source/WASM hashをunit testで照合する。実dotへの通知の成功とは扱わない。再実行は[package README](../../packages/pinned-tls/README.md)を参照。
+`tests/notification-dns-resolver.test.ts`は名前・全アドレス・本文と中断、`notification-http-response.test.ts`はframing・本文/metadata上限・切断、`notification-pinned-connector.test.ts`は認証前の送信禁止・資源解放・遅いI/Oを検査する。`notification-worker-events.test.ts`は有効化条件とrequest分離の入口。[HTTP実測記録](../../packages/pinned-tls/probe/http-edge-result-2026-10-18.json)は公開fixtureの11ケースで、source/WASM hashをunit testで照合する。Cloudflare宛てのTCP拒否も対照とし、実dotへの通知の成功とは扱わない。再実行は[package README](../../packages/pinned-tls/README.md)を参照。
+
+通信の失敗は`mcp_event_transport_failure`へ処理段階・固定分類・送信開始のbooleanだけを記録する。DNS、TCP接続、TLS、HTTP送信・応答を区別し、既知のTCP宛先拒否とloopは固定分類へ落とす。元の例外文・IP・hostname・callback URL・header・本文を記録せず、結果不明の判定や再試行条件を変更しない。[Workers TCPの制約](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/#considerations)に該当するかは実callbackでの分類と照合し、公開対照試験だけで断定しない。
