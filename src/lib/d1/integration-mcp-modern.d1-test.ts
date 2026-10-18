@@ -109,6 +109,28 @@ it("検証済み送信providerを渡した場合だけEventsを公開し、Mcp-N
   expect((await db.prepare("SELECT * FROM notification_event_subscriptions WHERE state='active'").all()).results).toEqual([]);
   expect((await db.prepare("SELECT * FROM integration_mcp_commit_leases").all()).results).toEqual([]);
 });
+it("読み取り接続でも通知候補を含まないEvents定義を発見でき、購読と解除には追加scopeを要する", async () => {
+  let calls = 0;
+  events = { providerId: "fictional-test-provider", transport: { post: async () => { calls++; return Response.json({}); } } };
+  const readOnly = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read" })).access_token;
+  const listed = await rpc("events/list", {}, {}, readOnly);
+  expect(listed.status).toBe(200);
+  expect(await listed.json()).toMatchObject({ result: { events: [{ name: "attention.ready", _meta: { securitySchemes: [{ type: "oauth2", scopes: ["household.read", "events.subscribe"] }] } }] } });
+  const delivery = { mode: "webhook", url: "https://receiver.example.com/events" };
+  for (const [method, params] of [
+    ["events/subscribe", { name: "attention.ready", delivery: { ...delivery, secret: `whsec_${btoa("z".repeat(32))}` } }],
+    ["events/unsubscribe", { name: "attention.ready", delivery }],
+  ] as const) {
+    const denied = await rpc(method, params, {}, readOnly);
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("www-authenticate")).toContain("events.subscribe");
+  }
+  expect(calls).toBe(0);
+  expect((await db.prepare("SELECT id FROM notification_event_subscriptions").all()).results).toEqual([]);
+  expect((await rpc("events/list", {}, {}, "invalid-token")).status).toBe(401);
+  events = undefined;
+  expect((await rpc("events/list", {}, {}, readOnly)).status).toBe(404);
+});
 it("Eventsのscope不足・callback失敗・header不一致を区別し、秘密をエラーへ返さない", async () => {
   let calls = 0;
   events = { providerId: "fictional-test-provider", transport: { post: async () => { calls++; return Response.json({ challenge: "wrong" }); } } };

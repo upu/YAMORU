@@ -36,7 +36,9 @@ export async function runEventMethod(context: McpContext, method: string, params
   if (!provider) throw new ModernMcpError(404, -32601, "Method not found");
   const authorize = async () => {
     if (!context.config) throw new EventSubscriptionError("connection_unavailable");
-    const auth = await authenticateBearerRequest({ ...context, config: context.config }, context.request, ["household.read", "events.subscribe"]);
+    // 定義の発見に購読権限を要すると、追加同意の前にイベントを発見できない。
+    const scopes = method === "events/list" ? ["household.read"] as const : ["household.read", "events.subscribe"] as const;
+    const auth = await authenticateBearerRequest({ ...context, config: context.config }, context.request, scopes);
     if (!auth.ok) throw new EventSubscriptionError("connection_unavailable");
     return auth.principal;
   };

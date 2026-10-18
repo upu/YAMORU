@@ -49,7 +49,7 @@ async function legacyResponse(context: McpContext, body: { parsedBody: unknown }
 }
 async function eventAuthorization(request: Request, deps: McpDependencies & { config: OAuthConfig }, body: unknown) {
   const method = (body as { method?: unknown } | null)?.method;
-  if (!deps.events || typeof method !== "string" || !method.startsWith("events/")) return null;
+  if (!deps.events || typeof method !== "string" || !method.startsWith("events/") || method === "events/list") return null;
   const auth = await authenticateBearerRequest(deps, request, ["household.read", "events.subscribe"]);
   return auth.ok ? null : auth.response;
 }
