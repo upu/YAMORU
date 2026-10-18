@@ -13,17 +13,17 @@ stale_after: 2026-11-17
 
 [プロダクト計画](yamoru-project-plan.md)のv0.21.0を具体化する、[#189](https://github.com/upu/YAMORU/issues/189)の設計成果物である。[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)が共通操作、[YDR-050](../decisions/ydr-050-conversation-reminders.md)が通知方針を定める。
 
-本書のTool名・型・保存責務は後続Issueの実装契約であり、現在提供されているAPIではない。設計PRのマージで設計確定とし、#189の設計チェック項目を更新する。親Issueは全子Issueと実接続確認が完了するまで閉じない。
+本書はTool名・型・保存責務の実装契約である。提供済みの範囲と検証状況は以下の現在地と各Componentに記録する。親Issue #189は全子Issueと実接続確認が完了するまで閉じない。
 
-2026-10-17時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充処理をコードで確認した。OAuth接続、MCP操作、MCP Events、通知の実到達は未実装・未検証である。以下の「確認する」は後続Issueの合格条件を示す。
+2026-10-18時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充に加え、OAuth接続と共通commandを使うMCP操作を実装し、previewの実dotで会話操作を確認した。MCP Eventsの実配信、通知到達・返答と全体E1〜E8の実接続確認は完了していない。以下の「確認する」は各Issueの合格条件を示し、実装済みと実証済みを区別する。
 
 #435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
 
-#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、実際の接続先との接続確認(E1)は未実施である。
+#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、previewで実dotの接続・本人照会を実証した。E1の家庭B・未所属の実接続検証は#444に残る。
 
 #437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`、確認画面、`operation_get`の確認状態と`confirmation_token`)は、古いpreviewの作り直しで意味のある差分が出た操作だけを対象として実装した([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。
 
-2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerでOAuthから登録・完了・次回確認と切断後の照合を検証するが、実dotの接続実証と通知の到達は未完了であり、#439/#442/#444の完了と区別する。
+2026-10-18時点で、#438の在庫command、#440の候補生成、#441の本人設定・配信履歴、#439の認証付きMCP入口を実装した。[MCP Component](../components/mcp.md)に公開schema・権限・検証入口を示す。ローカルの公式SDKとビルド済みWorkerの検証に加え、previewで実dotの登録・取得・完了・次回確認・解除/再接続・権限不足・曖昧な対象の検索を実証し、同Componentに記録した。通知到達は#442、通知への返答は#443、全体の実接続E1〜E8の確認は#444に残る。
 
 ## 1. 家庭での操作とToolの対応
 
