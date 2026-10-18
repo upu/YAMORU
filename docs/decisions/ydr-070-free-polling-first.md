@@ -7,7 +7,13 @@ tags: [yamoru, decisions, notifications, integration]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-supersedes: [YDR-050, YDR-067, YDR-069]
+partially_supersedes:
+  - ydr_id: YDR-050
+    scope: 決定5のv0.21.0でEventsを第一候補にする優先順位
+  - ydr_id: YDR-067
+    scope: 末尾の#442完了条件に含むEventsの実TLS・到達・購読解除・購読失効
+  - ydr_id: YDR-069
+    scope: 実Events検証を#442の必須条件とする部分
 ---
 
 # YDR-070: v0.21.0は無料運用を維持し、実証した定期取得で通知する

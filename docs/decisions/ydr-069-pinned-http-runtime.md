@@ -7,7 +7,9 @@ tags: [yamoru, decisions, notifications, integration, cloudflare]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-superseded_by: YDR-070
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 実Events検証を#442の必須条件とする部分
 ---
 
 # YDR-069: 検査済みIPのHTTP送信を明示設定されたWorkerで使う

@@ -7,7 +7,9 @@ tags: [yamoru, decisions, notifications, d1, mcp]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-superseded_by: YDR-070
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 末尾の#442完了条件に含むEventsの実TLS・到達・購読解除・購読失効
 ---
 
 # YDR-067: 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する

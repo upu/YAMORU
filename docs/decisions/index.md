@@ -6,6 +6,7 @@
 
 - `Accepted`であり、後続のYDRに`superseded_by`で置き換えられていない判断だけを現在有効として扱う。
 - `Superseded`の判断は、現在の仕様ではなく過去の経緯として扱う。各文書のフロントマターにある`supersedes`/`superseded_by`から置き換え関係をたどる。
+- 一部だけを置き換える関係は`partially_supersedes`/`partially_superseded_by`の`ydr_id`と`scope`で示す。元の文書は`Accepted`を維持し、`scope`に指定した判断だけを新YDRへ置き換える。残る契約を文書全体ごと除外しない。
 - 各文書の`status`(OKF上のライフサイクル状態)と、`decision_status`(Accepted / Superseded)は別の情報である。混同しない。
 
 ## 一覧
@@ -85,4 +86,4 @@
 
 ## 新しい意思決定の追加
 
-新しいYDRは、この一覧への追記と、対応する個別ファイルの追加を同じ変更内で行う。既存のAcceptedな判断を変更する場合は、新しいYDRを追加し、置き換え元と置き換え先の双方に`supersedes`/`superseded_by`を設定する。
+新しいYDRは、この一覧への追記と、対応する個別ファイルの追加を同じ変更内で行う。既存のAcceptedな判断を変更する場合は、新しいYDRを追加する。全面置換は双方の`supersedes`/`superseded_by`、部分置換は双方の`partially_supersedes`/`partially_superseded_by`に置き換える判断の範囲を明記する。
