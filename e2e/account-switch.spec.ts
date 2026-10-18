@@ -11,7 +11,7 @@ for (const signOutFirst of [true, false]) {
       db.prepare("INSERT INTO profiles (user_id, nickname) VALUES ('member', '家族Bさん')"),
       db.prepare("INSERT INTO household_members (household_id, user_id) VALUES ('household-a', 'member')"),
     ]);
-  
+
     await login(page);
     await page.goto("/account");
     await expect(page.getByText("owner@example.test", { exact: true })).toBeVisible();
@@ -23,7 +23,7 @@ for (const signOutFirst of [true, false]) {
       await page.goto("/account");
       await expect(page).toHaveURL(/\/login(?:\?|$)/u);
     }
-  
+
     await login(page, member);
     await page.goto("/account");
     await expect(page.getByText(member.email, { exact: true })).toBeVisible();
@@ -32,7 +32,7 @@ for (const signOutFirst of [true, false]) {
     await page.reload();
     await expect(page.getByText(member.email, { exact: true })).toBeVisible();
     await expect(page.getByText("家族Bさん", { exact: true })).toBeVisible();
-  
+
     // /loginへ直接進んだ場合も、成功した再認証で前のprincipalを置き換える。
     await login(page);
     await page.goto("/account");
