@@ -53,6 +53,7 @@ import notificationOutboxSourcesSql from "../../../../d1/migrations/0042_notific
 import notificationEventRecipientsSql from "../../../../d1/migrations/0043_notification_event_recipients.sql?raw";
 import notificationEventBodyRetentionSql from "../../../../d1/migrations/0044_notification_event_body_retention.sql?raw";
 import integrationCommandConfirmationSql from "../../../../d1/migrations/0045_integration_command_confirmation.sql?raw";
+import notificationEventGroupsSql from "../../../../d1/migrations/0046_notification_event_groups.sql?raw";
 
 // d1/migrations/のファイル名と同じ順序。migrationを追加したらここへ足す。
 const MIGRATIONS = [
@@ -101,6 +102,7 @@ const MIGRATIONS = [
   { name: "0043_notification_event_recipients", sql: notificationEventRecipientsSql },
   { name: "0044_notification_event_body_retention", sql: notificationEventBodyRetentionSql },
   { name: "0045_integration_command_confirmation", sql: integrationCommandConfirmationSql },
+  { name: "0046_notification_event_groups", sql: notificationEventGroupsSql },
 ] as const;
 
 export type MigrationName = (typeof MIGRATIONS)[number]["name"];

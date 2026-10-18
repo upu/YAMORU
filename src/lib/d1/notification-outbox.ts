@@ -7,7 +7,7 @@ import type { SchedulerLease } from "./notification-scheduler";
 import { aggregateRecipientState, eventRecipientStatuses } from "./notification-recipient-state";
 
 type OutboxState = "pending" | "leased" | "sending" | "retry_wait" | Exclude<DeliveryOutcome, "deferred">;
-type OutboxRow = { delivery_id: string; candidate_id: string; candidate_name: string; state: OutboxState; lease_token: string; attempts: number; first_sent_at: string | null; revision: number; next_attempt_at: string };
+type OutboxRow = { delivery_id: string; candidate_id: string; candidate_name: string; state: OutboxState; lease_token: string; lease_expires_at: string; attempts: number; first_sent_at: string | null; revision: number; next_attempt_at: string };
 export type NotificationLease = { deliveryId: string; candidateId: string; leaseToken: string };
 export type SendResult = { kind: "accepted" | "unknown" | "failed" | "retry"; reason?: string };
 export class NotificationOutboxError extends Error {
