@@ -47,6 +47,8 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 
 実ランタイムへの送信provider設定、定期取得の実行主体との接続、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
+[YDR-068](../decisions/ydr-068-pinned-tls-engine.md)の`packages/pinned-tls/`は、検査済みIPに対して元hostnameの証明書とSNIを使うTLS部品である。[実験](../spikes/pinned-tls.md)は実Cloudflareで正例・証明書負例を確認しているが、HTTP connector/runtimeへの接続や実dotへの到達の証拠ではない。
+
 0044はbatchの終端時刻を旧SQLにも対応するtriggerで同期し、本文が残る終端記録だけの期限索引で100件ずつ清掃する。本文破棄後のunknown/failed証拠は以後の対象検索から外れる。`notification-event-body-retention-migration.d1-test.ts`と配信テストのquery plan検査で、時刻保持・旧更新・全取消・索引利用を確認する。
 
 [YDR-064](../decisions/ydr-064-signed-notification-event-jobs.md)の送信jobは宛先の開始→署名付きPOST一回→同じtokenで結果保存をつなぐ。HTTPは二宛先まで並行、DB遷移はjob内で直列化し、保存失敗でPOSTを繰り返さない。通知方式も本文に固定し、変更後に古い方式の本文を送らない。旧形式の方式省略は個別を意味する。`notification-event-delivery.test.ts`は署名・応答分類、`notification-event-job.d1-test.ts`は実D1と架空transportの統合の入口。内部provider注入時のscheduler接続はYDR-066で追加し、runtimeのproviderは引き続き無効である。

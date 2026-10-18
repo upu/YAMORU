@@ -68,6 +68,8 @@ export default defineConfig([
     },
   },
   globalIgnores([
+    // wasm-bindgen生成物は固定toolchainから再生成・照合する。
+    "packages/pinned-tls/generated/**",
     ".next/**",
     "out/**",
     "coverage/**",
