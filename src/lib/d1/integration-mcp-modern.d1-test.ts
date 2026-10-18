@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { beforeAll, beforeEach, expect, it } from "vitest";
+import { beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { applyAllMigrations } from "./test-support/migrations";
 import { resetHouseholdFixtures } from "./test-support/households";
 import { connect, registerTestClient, testOAuthConfig } from "./test-support/oauth";
@@ -148,4 +148,28 @@ it("Eventsのscope不足・callback失敗・header不一致を区別し、秘密
   expect(JSON.parse(body)).toMatchObject({ error: { code: -32015, data: { reason: "challenge_failed" } } });
   expect(body).not.toContain(params.delivery.secret);
   expect(body).not.toContain("private-fixture");
+});
+it("Eventsの入力・署名鍵・callback失敗を固定分類だけで記録し、要求の値や未知のキー名をログへ出さない", async () => {
+  let calls = 0;
+  events = { providerId: "fictional-test-provider", transport: { post: async () => { calls++; return Response.json({ challenge: "wrong-private-challenge" }); } } };
+  const access = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
+  const params = { name: "attention.ready", delivery: { mode: "webhook", url: "https://receiver.example.com/events?token=private-fixture", secret: `whsec_${btoa("z".repeat(32))}` } };
+  const cases = [
+    [{ ...params, "private-unknown-key": "private-value" }, "invalid_input", "subscription_schema"],
+    [{ ...params, arguments: { "private-unknown-key": "private-value" } }, "invalid_input", "filter_schema"],
+    [{ ...params, arguments: { kinds: ["consumable"], todo_rule_ids: ["private-rule-id"] } }, "invalid_input", "filter_conflict"],
+    [{ ...params, delivery: { ...params.delivery, secret: "private-invalid-secret" } }, "invalid_input", "signing_secret"],
+    [{ ...params, delivery: { ...params.delivery, url: "http://private-fixture.local/events" } }, "invalid_callback", "blocked_url"],
+    [params, "callback_unavailable", "challenge_failed"],
+  ] as const;
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    for (const [input, code, reason] of cases) {
+      warn.mockClear();
+      expect((await rpc("events/subscribe", input, {}, access)).status).toBe(400);
+      expect(warn.mock.calls).toEqual([[{ event: "mcp_event_failure", method: "events/subscribe", code, reason }]]);
+    }
+    expect(calls).toBe(1);
+    expect((await db.prepare("SELECT id FROM notification_event_subscriptions").all()).results).toEqual([]);
+  } finally { warn.mockRestore(); }
 });

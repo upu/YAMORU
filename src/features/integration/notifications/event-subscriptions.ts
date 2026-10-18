@@ -32,7 +32,7 @@ function available(deps: Dependencies) {
 }
 function normalizedSecret(value: string) {
   try { return `whsec_${btoa(String.fromCharCode(...decodeWebhookSecret(value)))}`; }
-  catch { throw new EventSubscriptionError("invalid_input"); }
+  catch { throw new EventSubscriptionError("invalid_input", "signing_secret"); }
 }
 async function verifyResponse(response: Response, challenge: string, signal: AbortSignal) {
   if (!response.ok) { discardBody(response.body); throw new EventSubscriptionError("callback_unavailable", "http_error"); }
@@ -82,7 +82,7 @@ export function createEventSubscriptionService(deps: Dependencies) {
       const { principal } = await currentOwner(deps);
       available(deps);
       const parsed = subscribeSchema.safeParse(raw);
-      if (!parsed.success) throw new EventSubscriptionError("invalid_input");
+      if (!parsed.success) throw new EventSubscriptionError("invalid_input", "subscription_schema");
       const filter = normalizeEventFilter(parsed.data.arguments);
       await validateEventTargets(deps.db, principal, filter);
       const url = normalizeWebhookUrl(parsed.data.delivery.url);
@@ -107,7 +107,7 @@ export function createEventSubscriptionService(deps: Dependencies) {
     async unsubscribe(raw: unknown) {
       const { principal } = await currentOwner(deps);
       const parsed = stopSchema.safeParse(raw);
-      if (!parsed.success) throw new EventSubscriptionError("invalid_input");
+      if (!parsed.success) throw new EventSubscriptionError("invalid_input", "subscription_schema");
       const filter = normalizeEventFilter(parsed.data.arguments);
       const url = normalizeWebhookUrl(parsed.data.delivery.url);
       await stopEventSubscription(deps.db, principal, await identity(principal, url, filter), clock(), deps.commitGuard);

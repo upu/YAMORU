@@ -60,6 +60,8 @@ providerが有効な場合、`events/list`は認証済みの`household.read`で�
 
 Eventsの購読APIは同じ認証入口を使い、household.readとevents.subscribeを要する。subscribe/unsubscribeはcommitの回数・同時枠・DB時刻のfenceを共有する。callback失敗は静的な分類付きの-32015で返し、URLや秘密を応答へ載せない。runtimeに検証済みproviderがない間はEventsを公開しない。[通知outbox](notification-outbox.md)に購読と実送信の実装・未完了の境界を示す。
 
+Events処理の既知の失敗は`mcp_event_failure`へmethod・code・reasonの固定分類だけを記録する。入力schema、filterのschema/矛盾、署名鍵の形式とcallback確認を区別し、要求本文・未知のキー名・URL・鍵・token・家庭IDをログへ出さない。HTTP400だけで原因を推測せず、この分類と実応答を照合する。入力エラーの外部応答は従来の固定messageのままとする。
+
 server/discoverとconnection_getのEvents可否は、同じprovider設定を反映する。購読APIの対応と実配信は区別し、実送信の完成前はnotification_deliveryをfalseとする。
 
 Mcp-NameはTool・Resource・Prompt向けの標準ヘッダーであり、Events購読では必須にしない。EventsでもMcp-MethodとprotocolVersionは本文と照合する。[Streamable HTTPの標準ヘッダー](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)（2026-10-18確認）。
