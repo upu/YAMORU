@@ -7,9 +7,12 @@ tags: [yamoru, decisions, notifications, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+superseded_by: YDR-065（日次の本文とevent IDの送信単位のみ）
 ---
 
 # YDR-063: 通知の宛先集合と結果を購読の世代ごとに保持する
+
+日次まとめの本文とevent IDの送信単位だけは[YDR-065](ydr-065-daily-notification-groups.md)が置き換える。候補単位の宛先結果・上限・所有者・元本文の保持は引き続き有効。
 
 [#442](https://github.com/upu/YAMORU/issues/442)で[YDR-059](ydr-059-durable-notification-outbox.md)・[YDR-060](ydr-060-event-subscription-boundary.md)・[YDR-061](ydr-061-notification-source-and-retention.md)を具体化する。共有予定や通知設定を変更しない。
 

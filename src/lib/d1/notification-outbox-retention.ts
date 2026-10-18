@@ -1,6 +1,12 @@
 export async function pruneNotificationOutbox(db: D1Database, now: Date) {
   const cutoff = new Date(now.getTime() - 90 * 86_400_000).toISOString();
   await db.batch([
+    db.prepare(`UPDATE notification_event_groups SET body=NULL WHERE id IN (
+      SELECT id FROM notification_event_groups WHERE terminal_at IS NOT NULL AND terminal_at<? AND body IS NOT NULL
+      ORDER BY terminal_at,id LIMIT 100)`).bind(cutoff),
+    db.prepare(`DELETE FROM notification_event_groups WHERE id IN (
+      SELECT id FROM notification_event_groups WHERE state IN ('accepted','cancelled') AND terminal_at<?
+      ORDER BY terminal_at,id LIMIT 100)`).bind(cutoff),
     db.prepare(`UPDATE notification_event_batches SET body=NULL WHERE delivery_id IN (
       SELECT delivery_id FROM notification_event_batches WHERE terminal_at IS NOT NULL AND terminal_at<? AND body IS NOT NULL
       ORDER BY terminal_at,delivery_id LIMIT 100)`).bind(cutoff),

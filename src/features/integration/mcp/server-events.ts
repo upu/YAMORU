@@ -6,11 +6,15 @@ import { EventSubscriptionError } from "../notifications/event-errors";
 import { WebhookEndpointError } from "../notifications/webhook-transport";
 import { createEventSubscriptionService } from "../notifications/event-subscriptions";
 import { eventFilterSchema } from "../notifications/event-filter";
-export const attentionEventPayloadSchema = z.strictObject({ delivery_id: z.string(), candidate_ids: z.array(z.string()).min(1).max(1), observed_at: z.iso.datetime(), notification_mode: z.enum(["daily", "individual"]).optional(),
-  source: z.strictObject({ kind: z.enum(["todo_occurrence", "consumable"]), entity_id: z.string(), todo_rule_id: z.string().nullable() }) });
+const sourceSchema = z.strictObject({ kind: z.enum(["todo_occurrence", "consumable"]), entity_id: z.string(), todo_rule_id: z.string().nullable() });
+export const attentionEventPayloadSchema = z.union([
+  z.strictObject({ delivery_id: z.string(), candidate_ids: z.array(z.string()).min(1).max(1), observed_at: z.iso.datetime(), notification_mode: z.enum(["daily", "individual"]).optional(), source: sourceSchema }),
+  z.strictObject({ group_id: z.string(), candidate_ids: z.array(z.string()).min(1).max(50), observed_at: z.iso.datetime(), notification_mode: z.literal("daily"),
+    items: z.array(z.strictObject({ delivery_id: z.string(), candidate_id: z.string(), source: sourceSchema })).min(1).max(50) }),
+]);
 function eventDefinition() {
   return { name: "attention.ready", title: "家の用事のお知らせ", delivery: ["webhook"],
-    description: "本人の通知設定に従って案内できる候補です。通知は遅れたり重複・順序逆転したりする場合があります。案内や操作の前にattention_getとentity_getで最新状態を確認してください。sourceは通知時の対象を示し、繰り返しTodoの次回へ読み替えないでください。cursorは非対応です。",
+    description: "本人の通知設定に従って案内できる候補です。通知は遅れたり重複・順序逆転したりする場合があります。案内や操作の前にattention_getとentity_getで最新状態を確認してください。source（まとめではitemsの各source）は通知時の対象を示し、繰り返しTodoの次回へ読み替えないでください。cursorは非対応です。",
     inputSchema: z.toJSONSchema(eventFilterSchema, { io: "input" }), payloadSchema: z.toJSONSchema(attentionEventPayloadSchema),
     _meta: { securitySchemes: [{ type: "oauth2", scopes: ["household.read", "events.subscribe"] }] } };
 }

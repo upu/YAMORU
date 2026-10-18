@@ -16,11 +16,18 @@ async function modeDecision(db: D1Database, p: IntegrationPrincipal, decision: N
   const { settings } = await getNotificationSettings(db, { userId: p.userId }, p.householdId);
   return settings.mode === mode ? decision : { state: "cancelled", reason: "notification_mode_changed", nextAt: null };
 }
-type RecipientRow = { subscription_id: string; lifecycle: string; state: RecipientState; attempts: number; first_sent_at: string | null; next_attempt_at: string };
+export type RecipientRow = { subscription_id: string; lifecycle: string; state: RecipientState; attempts: number; first_sent_at: string | null; next_attempt_at: string };
 export type EventRecipientAttempt = { subscriptionId: string; token: string; eventId: string; body: string; encryptedDestination: string; providerId: string };
 type LiveSubscription = EventSubscriptionRow & { encrypted_destination: string; provider_id: string };
 function retryExhausted(row: RecipientRow, now: Date) {
   return row.attempts >= 8 || (row.first_sent_at !== null && now.getTime() - Date.parse(row.first_sent_at) >= 86_400_000);
+}
+function recipientResult(row: RecipientRow, result: SendResult, now: Date): { state: "accepted" | "unknown" | "failed" | "retry_wait"; nextAt: string; reason: string | null } {
+  const exhausted = retryExhausted(row, now);
+  const state = result.kind === "retry" ? exhausted ? "failed" : "retry_wait" : result.kind;
+  const delay = Math.min(3_600_000, 30_000 * 2 ** Math.max(0, row.attempts - 1));
+  const nextAt = state === "retry_wait" ? new Date(now.getTime() + delay + Math.floor(Math.random() * delay / 4)).toISOString() : now.toISOString();
+  return { state, nextAt, reason: result.kind === "retry" && exhausted ? "retry_limit" : result.reason ?? null };
 }
 function subscriptionUsable(sub: EventSubscriptionRow | null, row: RecipientRow, now: Date): sub is LiveSubscription {
   return Boolean(sub?.encrypted_destination && sub.provider_id && sub.state === "active" && sub.lifecycle === row.lifecycle && sub.expires_at > now.toISOString());
@@ -97,6 +104,7 @@ export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipa
   const currentDecision = await storage.sendDecision(db, p, lease.candidateId, now);
   const row = await db.prepare("SELECT * FROM notification_event_recipients WHERE delivery_id=? AND subscription_id=?").bind(lease.deliveryId, subscriptionId).first<RecipientRow>();
   if (!row || !["pending", "retry_wait"].includes(row.state) || row.next_attempt_at > now.toISOString()) return null;
+  if (await db.prepare("SELECT 1 FROM notification_event_group_claims WHERE delivery_id=? AND subscription_id=?").bind(lease.deliveryId, subscriptionId).first()) return null;
   const frozen = await frozenEvent(db, lease.deliveryId);
   if (!frozen) throw new NotificationOutboxError("read_conflict");
   const decision = await modeDecision(db, p, currentDecision, frozen.mode);
@@ -108,6 +116,9 @@ export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipa
   const statements = [storage.leaseGuard(db, p, lease, guards[0], parent.state === "sending" ? "sending" : "leased"),
     parentRevisionGuard(db, lease.deliveryId, parent.revision, guards[1]), childGuard(db, lease.deliveryId, row, guards[2]),
     storage.stampGuard(db, p, lease.candidateId, stamp, guards[3], sending)];
+  const claimGuard = crypto.randomUUID(); guards.push(claimGuard);
+  statements.push(db.prepare(`INSERT INTO attention_guards(id,valid) SELECT ?,CASE WHEN NOT EXISTS(
+    SELECT 1 FROM notification_event_group_claims WHERE delivery_id=? AND subscription_id=?) THEN 1 ELSE 0 END`).bind(claimGuard, lease.deliveryId, subscriptionId));
   const token = crypto.randomUUID();
   let attempt: EventRecipientAttempt | null = null;
   if (plan.kind === "send") {
@@ -127,16 +138,13 @@ export async function finishEventRecipient(db: D1Database, p: IntegrationPrincip
   const row = await db.prepare("SELECT * FROM notification_event_recipients WHERE delivery_id=? AND subscription_id=? AND state='sending' AND attempt_token=?")
     .bind(lease.deliveryId, attempt.subscriptionId, attempt.token).first<RecipientRow>();
   if (!row) throw new NotificationOutboxError("lease_lost");
-  const exhausted = retryExhausted(row, now);
-  const state = result.kind === "retry" ? exhausted ? "failed" : "retry_wait" : result.kind;
-  const delay = Math.min(3_600_000, 30_000 * 2 ** Math.max(0, row.attempts - 1));
-  const nextAt = state === "retry_wait" ? new Date(now.getTime() + delay + Math.floor(Math.random() * delay / 4)).toISOString() : now.toISOString();
+  const { state, nextAt, reason } = recipientResult(row, result, now);
   const guards = Array.from({ length: 3 }, () => crypto.randomUUID());
   const tokenGuard = db.prepare("INSERT INTO attention_guards(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM notification_event_recipients WHERE delivery_id=? AND subscription_id=? AND state='sending' AND attempt_token=?) THEN 1 ELSE 0 END")
     .bind(guards[2], lease.deliveryId, attempt.subscriptionId, attempt.token);
   await storage.batch(db, [storage.leaseGuard(db, p, lease, guards[0], "sending"), parentRevisionGuard(db, lease.deliveryId, parent.revision, guards[1]), tokenGuard,
     db.prepare("UPDATE notification_event_recipients SET state=?,attempt_token=NULL,next_attempt_at=?,reason=?,updated_at=? WHERE delivery_id=? AND subscription_id=?")
-      .bind(state, nextAt, result.kind === "retry" && exhausted ? "retry_limit" : result.reason ?? null, now.toISOString(), lease.deliveryId, attempt.subscriptionId),
+      .bind(state, nextAt, reason, now.toISOString(), lease.deliveryId, attempt.subscriptionId),
     db.prepare("UPDATE notification_outbox SET revision=revision+1 WHERE delivery_id=?").bind(lease.deliveryId), storage.cleanupGuards(db, guards)], "lease_lost");
   return { state, nextAt };
 }
@@ -161,3 +169,5 @@ export async function settleNotificationEvent(db: D1Database, p: IntegrationPrin
     storage.cleanupGuards(db, guards)], "read_conflict");
   return { state: aggregate.state, nextAt };
 }
+// 日次まとめでも宛先ごとの上限と親leaseの照合を同じSQLで行う。
+export const notificationRecipientStorage = { modeDecision, retryExhausted, recipientResult, subscriptionUsable, recipientPlan, startRecipientStatements, parentRevisionGuard, childGuard, frozenEvent };
