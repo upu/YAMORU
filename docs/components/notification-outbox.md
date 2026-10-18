@@ -45,12 +45,14 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 
 0043と[YDR-063](../decisions/ydr-063-notification-recipient-results.md)は一致した全宛先の集合・安定event ID・本文と、宛先ごとの試行結果を保存する。受領済み・unknownを再送せず、他の未送信宛先だけを続行する。解除・失効を越えた購読世代には古い通知を送らず、有効期間中の鍵更新は継続できる。親leaseとrevisionは各宛先のbatchでも照合する。購読の削除では証拠を消さず、親配信の物理削除はcascadeする。終端から90日後は本文を100件ずつ消し、unknown/failedの最小結果を保持する。`notification-event-dispatch.d1-test.ts`・`notification-event-lifecycle.d1-test.ts`・`notification-event-recipients-migration.d1-test.ts`が複数宛先の回復、境界、更新DBの入口。
 
-複数購読先への実送信、日次まとめのscheduler接続、定期取得のclaim/ack、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
+実ランタイムへの送信provider設定、定期取得のclaim/ack、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
 0044はbatchの終端時刻を旧SQLにも対応するtriggerで同期し、本文が残る終端記録だけの期限索引で100件ずつ清掃する。本文破棄後のunknown/failed証拠は以後の対象検索から外れる。`notification-event-body-retention-migration.d1-test.ts`と配信テストのquery plan検査で、時刻保持・旧更新・全取消・索引利用を確認する。
 
-[YDR-064](../decisions/ydr-064-signed-notification-event-jobs.md)の送信jobは宛先の開始→署名付きPOST一回→同じtokenで結果保存をつなぐ。HTTPは二宛先まで並行、DB遷移はjob内で直列化し、保存失敗でPOSTを繰り返さない。通知方式も本文に固定し、変更後に古い方式の本文を送らない。旧形式の方式省略は個別を意味する。`notification-event-delivery.test.ts`は署名・応答分類、`notification-event-job.d1-test.ts`は実D1と架空transportの統合の入口。jobはschedulerへ未接続で、runtimeのproviderは引き続き無効である。
+[YDR-064](../decisions/ydr-064-signed-notification-event-jobs.md)の送信jobは宛先の開始→署名付きPOST一回→同じtokenで結果保存をつなぐ。HTTPは二宛先まで並行、DB遷移はjob内で直列化し、保存失敗でPOSTを繰り返さない。通知方式も本文に固定し、変更後に古い方式の本文を送らない。旧形式の方式省略は個別を意味する。`notification-event-delivery.test.ts`は署名・応答分類、`notification-event-job.d1-test.ts`は実D1と架空transportの統合の入口。内部provider注入時のscheduler接続はYDR-066で追加し、runtimeのproviderは引き続き無効である。
 
 参照: [OpenNext custom worker](https://opennext.js.org/cloudflare/howtos/custom-worker)、[Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)、[MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。
 
-0046と[YDR-065](../decisions/ydr-065-daily-notification-groups.md)は日次の固定本文・所属履歴・有効な確保を追加する。各候補の結果と上限は既存recipientを使い、一通の全件を同じtokenで原子的に開始・保存する。古い本文を削って再利用せず、未送信だけを再編成する。`notification-event-groups.d1-test.ts`がfilter・競合・家族の完了・休止・方式変更・上限・中断・保存失敗・保持期限、`notification-event-groups-migration.d1-test.ts`が更新DB・旧SQL・複合FK・cascadeの入口。内部jobでは同じ署名付きPOST経路を使い、保存失敗ではHTTPを再送しない。現在のAPIは10候補、一jobは全宛先の延べ10候補までとし、schema/payloadの保存上限50と区別する。group-awareなschedulerと全親leaseの再取得・後処理、実TLS/到達の確認は未実装・未検証で、runtime providerは無効のままである。
+0046と[YDR-065](../decisions/ydr-065-daily-notification-groups.md)は日次の固定本文・所属履歴・有効な確保を追加する。各候補の結果と上限は既存recipientを使い、一通の全件を同じtokenで原子的に開始・保存する。古い本文を削って再利用せず、未送信だけを再編成する。`notification-event-groups.d1-test.ts`がfilter・競合・家族の完了・休止・方式変更・上限・中断・保存失敗・保持期限、`notification-event-groups-migration.d1-test.ts`が更新DB・旧SQL・複合FK・cascadeの入口。内部jobでは同じ署名付きPOST経路を使い、保存失敗ではHTTPを再送しない。現在のAPIは10候補、一jobは全宛先の延べ10候補までとし、schema/payloadの保存上限50と区別する。全親leaseの再取得と後処理を行う定期送信はYDR-066で追加する。実TLS/到達は未検証で、runtime providerは無効のままである。
+
+[YDR-066](../decisions/ydr-066-scheduled-event-delivery.md)の内部provider注入時は、`notifications/event-scheduler.ts`から日次・個別jobへ進む。`notification-event-work.ts`が再試行groupを優先して全親を一括確保し、開始batchでも現在のCronを照合する。scopeを失った後の回収はCronの保守権限で行い、未処理groupも走査の対象に残す。`notification-policy.ts`の処理内frameとページ評価で重複読取りを減らし、各候補stampは同じ家庭・設定revisionへ束縛する。`notification-event-scheduler.d1-test.ts`が実D1と架空HTTPの定期送信・競合・回復・二家庭の呼出枠、`notification-policy-frame.d1-test.ts`が設定変更・先頭候補解消・scope/session変更・所有者・全取消の入口。Workerへproviderを設定していないため、これらは実dotの通知到達を証明しない。
