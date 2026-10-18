@@ -7,8 +7,8 @@ export type EventFilter = { kinds: (typeof kinds[number])[]; todo_rule_ids?: str
 const unique = (values: string[] | undefined) => values === undefined ? undefined : [...new Set(values)].sort();
 function selectedKinds(raw: z.infer<typeof eventFilterSchema>) {
   let selected = [...new Set(raw.kinds ?? kinds)];
-  if (raw.todo_rule_ids && !selected.includes("todo_occurrence")) throw new EventSubscriptionError("invalid_input");
-  if (raw.consumable_ids && !selected.includes("consumable")) throw new EventSubscriptionError("invalid_input");
+  if (raw.todo_rule_ids && !selected.includes("todo_occurrence")) throw new EventSubscriptionError("invalid_input", "filter_conflict");
+  if (raw.consumable_ids && !selected.includes("consumable")) throw new EventSubscriptionError("invalid_input", "filter_conflict");
   const targets: typeof selected = [];
   if (raw.todo_rule_ids) targets.push("todo_occurrence");
   if (raw.consumable_ids) targets.push("consumable");
@@ -17,7 +17,7 @@ function selectedKinds(raw: z.infer<typeof eventFilterSchema>) {
 }
 export function normalizeEventFilter(value: unknown): EventFilter {
   const parsed = eventFilterSchema.safeParse(value ?? {});
-  if (!parsed.success) throw new EventSubscriptionError("invalid_input");
+  if (!parsed.success) throw new EventSubscriptionError("invalid_input", "filter_schema");
   const raw = parsed.data;
   const todo = unique(raw.todo_rule_ids);
   const stock = unique(raw.consumable_ids);

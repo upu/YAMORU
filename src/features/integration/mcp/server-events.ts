@@ -18,9 +18,14 @@ function eventDefinition() {
     inputSchema: z.toJSONSchema(eventFilterSchema, { io: "input" }), payloadSchema: z.toJSONSchema(attentionEventPayloadSchema),
     _meta: { securitySchemes: [{ type: "oauth2", scopes: ["household.read", "events.subscribe"] }] } };
 }
-function mappedError(error: unknown): never {
-  if (error instanceof WebhookEndpointError) throw new ModernMcpError(400, -32602, "Invalid callback URL", { reason: error.reason });
+function mappedError(error: unknown, method: string): never {
+  if (error instanceof WebhookEndpointError) {
+    console.warn({ event: "mcp_event_failure", method, code: "invalid_callback", reason: error.reason });
+    throw new ModernMcpError(400, -32602, "Invalid callback URL", { reason: error.reason });
+  }
   if (!(error instanceof EventSubscriptionError)) throw error;
+  // 要求・例外全体にはcallbackや鍵が含まれ得るため、固定分類だけを記録する。
+  console.warn({ event: "mcp_event_failure", method, code: error.code, reason: error.reason ?? null });
   switch (error.code) {
     case "callback_unavailable": throw new ModernMcpError(400, -32015, "Callback verification failed", { reason: error.reason ?? "unreachable" });
     case "invalid_input": throw new ModernMcpError(400, -32602, "Invalid event parameters");
@@ -53,5 +58,5 @@ export async function runEventMethod(context: McpContext, method: string, params
     if (method === "events/subscribe") return await service.subscribe(input);
     if (method === "events/unsubscribe") return await service.unsubscribe(input);
     throw new ModernMcpError(404, -32601, "Method not found");
-  } catch (error) { mappedError(error); }
+  } catch (error) { mappedError(error, method); }
 }
