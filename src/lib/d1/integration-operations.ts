@@ -243,7 +243,9 @@ export const ACTIVE_WRITE_CONNECTION = `EXISTS (
      AND c.expires_at > ?2
      AND u.session_version = c.user_session_version
      AND (' ' || c.scopes || ' ') LIKE '% household.read %'
-     AND instr(' ' || c.scopes || ' ', CASE WHEN integration_operations.command LIKE 'notification.%'
+     AND c.user_id = integration_operations.user_id AND c.client_id = integration_operations.client_id
+     AND instr(' ' || c.scopes || ' ', CASE WHEN integration_operations.command IN ('notification.claim','notification.ack')
+       THEN ' events.subscribe ' WHEN integration_operations.command LIKE 'notification.%'
        THEN ' notifications.manage ' ELSE ' household.write ' END)>0
 )`;
 
@@ -309,7 +311,8 @@ function evidenceCondition(evidence: BusinessEvidence, start: number): { sql: st
   }
   return {
     sql: `EXISTS (SELECT 1 FROM ${evidence.table} b
-    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder})`,
+    WHERE b.household_id = integration_operations.household_id AND b.idempotency_key = ${placeholder}
+      ${evidence.table === "notification_poll_claims" ? "AND b.user_id=integration_operations.user_id AND b.connection_id=integration_operations.connection_id" : ""})`,
     values: [evidence.idempotencyKey],
   };
 }
@@ -368,12 +371,12 @@ export function commitReceiptStatement(
     evidence: BusinessEvidence[];
     id: string;
     result: string;
-    revisionEntity: { id: string; kind: string };
+    revisionEntity?: { id: string; kind: string };
     revisionPlacements?: RevisionPlacement[];
   },
 ): D1PreparedStatement {
   if (input.evidence.length === 0) throw new Error("commit requires business evidence");
-  const placements = [{ ...input.revisionEntity, path: "$.revision" }, ...(input.revisionPlacements ?? [])];
+  const placements = [...(input.revisionEntity ? [{ ...input.revisionEntity, path: "$.revision" }] : []), ...(input.revisionPlacements ?? [])];
   if (placements.some(({ path }) => !REVISION_PATH.test(path))) throw new Error("invalid revision path");
   // ?4から、placementごとに(path, kind, id)の3つを使う。
   const assignments = placements.map((_, index) => `?${String(4 + index * 3)}, ${revisionValue(5 + index * 3)}`);
@@ -387,7 +390,7 @@ export function commitReceiptStatement(
                 AND ${conditions.sql.join("\n                AND ")}
               THEN 'succeeded'
             END,
-            result = json_set(?3, ${assignments.join(", ")}),
+            result = ${assignments.length ? `json_set(?3, ${assignments.join(", ")})` : "json(?3)"},
             resolved_at = ?2
       WHERE id = ?1`,
   ).bind(

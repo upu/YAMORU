@@ -1,5 +1,6 @@
 import { findIntegrationOperation } from "../../../lib/d1/integration-operations";
 import { CommandError } from "../commands/contract";
+import { commandScope } from "../commands/command-scope";
 import { ReadError } from "../read-contract";
 import { bearerErrorResponse } from "../oauth/bearer";
 import type { IntegrationScope } from "../scopes";
@@ -13,7 +14,7 @@ async function missingScope(context: McpContext, name: McpToolName, args: Record
     const operation = typeof args.operation_id === "string" ? await findIntegrationOperation(context.db, context.principal.connectionId, args.operation_id) : null;
     command = operation?.command;
   }
-  return typeof command === "string" && command.startsWith("notification.") ? "notifications.manage" : "household.write";
+  return commandScope(typeof command === "string" ? command : "");
 }
 export async function mcpAuthChallenge(context: McpContext, name: McpToolName, args: Record<string, unknown>, error: unknown) {
   if (error instanceof McpAuthenticationError) return error.response.headers.get("www-authenticate");

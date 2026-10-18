@@ -17,7 +17,8 @@ function wantedConnection(clients: string, instant: string) {
       AND s.connection_id=c.id AND json_extract(s.settings,'$.enabled')=1 AND coalesce(json_extract(s.settings,'$.muted'),0)=0))
     OR EXISTS(SELECT 1 FROM notification_outbox o WHERE o.connection_id=c.id AND o.state IN ('pending','leased','sending','retry_wait'))
     OR EXISTS(SELECT 1 FROM notification_event_groups g WHERE g.connection_id=c.id AND g.state IN ('pending','retry_wait'))
-    OR EXISTS(SELECT 1 FROM notification_event_groups g WHERE g.connection_id=c.id AND g.state='sending'))`;
+    OR EXISTS(SELECT 1 FROM notification_event_groups g WHERE g.connection_id=c.id AND g.state='sending')
+    OR EXISTS(SELECT 1 FROM notification_poll_claims q WHERE q.connection_id=c.id AND q.state='claimed'))`;
 }
 export async function seedNotificationSchedule(db: D1Database, allowedClientIds: readonly string[], now: Date) {
   const eligible = wantedConnection("?1", "?2");
