@@ -77,6 +77,7 @@
 | YDR-063 | 通知の宛先集合と結果を購読の世代ごとに保持する | Accepted（日次の本文・event IDの送信単位のみYDR-065で置換） | [ydr-063-notification-recipient-results.md](ydr-063-notification-recipient-results.md) |
 | YDR-064 | 署名付き通知のHTTP送信と結果保存を別々に再試行する | Accepted | [ydr-064-signed-notification-event-jobs.md](ydr-064-signed-notification-event-jobs.md) |
 | YDR-065 | 日次まとめの本文と各候補の配信結果を別々に保持する | Accepted | [ydr-065-daily-notification-groups.md](ydr-065-daily-notification-groups.md) |
+| YDR-066 | 通知の送信開始を接続ごとの定期実行の確保へ結び付ける | Accepted | [ydr-066-scheduled-event-delivery.md](ydr-066-scheduled-event-delivery.md) |
 
 ## 新しい意思決定の追加
 

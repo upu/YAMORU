@@ -6,6 +6,8 @@ import { eventSubscription } from "./notification-event-subscriptions";
 import { notificationRecipientStorage as recipients, type EventRecipientAttempt, type RecipientRow } from "./notification-event-dispatch";
 import { NotificationOutboxError, notificationOutboxStorage as storage, type NotificationLease, type SendResult } from "./notification-outbox";
 import type { RecipientState } from "./notification-recipient-state";
+import { notificationScheduleGuard, type SchedulerLease } from "./notification-scheduler";
+import { notificationPolicyStamp, readNotificationPolicyFrame, type NotificationPolicyFrame } from "./notification-policy";
 const databaseNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 // 最新状態の再照合と保存の再試行にもD1の呼出枠を残す。残りは次のjobへ回す。
 export const DAILY_GROUP_ITEM_LIMIT = 10;
@@ -41,10 +43,10 @@ function membershipGuard(db: D1Database, group: GroupRow, guard: string) {
     (SELECT count(*) FROM notification_event_group_claims WHERE group_id=?)=? THEN 1 ELSE 0 END`)
     .bind(guard, group.id, group.item_count, group.id, group.item_count);
 }
-async function snapshot(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, subscriptionId: string, now: Date) {
+async function snapshot(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, subscriptionId: string, now: Date, frame: NotificationPolicyFrame) {
   const parent = await storage.loadLease(db, p, lease);
-  const stamp = await storage.readStamp(db, p, lease.candidateId);
-  const decision = await recipients.modeDecision(db, p, await storage.sendDecision(db, p, lease.candidateId, now), "daily");
+  const stamp = notificationPolicyStamp(await storage.readStamp(db, p, lease.candidateId), frame);
+  const decision = await recipients.modeDecision(db, p, await storage.sendDecision(db, p, lease.candidateId, now, frame), "daily", frame);
   const row = await db.prepare("SELECT * FROM notification_event_recipients WHERE delivery_id=? AND subscription_id=?")
     .bind(lease.deliveryId, subscriptionId).first<RecipientRow>();
   return { lease, parent, stamp, decision, row };
@@ -63,12 +65,13 @@ function releaseClaims(db: D1Database, id: string) { return db.prepare("DELETE F
 function bumpParents(db: D1Database, ids: string[]) {
   return db.prepare("UPDATE notification_outbox SET revision=revision+1 WHERE delivery_id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(ids));
 }
-export async function freezeDailyNotificationGroup(db: D1Database, p: IntegrationPrincipal, leases: readonly NotificationLease[], subscriptionId: string, now: Date): Promise<FrozenNotificationGroup | null> {
+export async function freezeDailyNotificationGroup(db: D1Database, p: IntegrationPrincipal, leases: readonly NotificationLease[], subscriptionId: string, now: Date, maintenance?: SchedulerLease): Promise<FrozenNotificationGroup | null> {
   await storage.requireIdentity(db, p); leaseMap(leases);
   const sub = await eventSubscription(db, p, subscriptionId);
+  const frame = await readNotificationPolicyFrame(db, p, now);
   const selected: (Snapshot & { row: RecipientRow; source: z.infer<typeof sourceSchema>["data"]["source"] })[] = [];
   for (const lease of [...leases].sort((a, b) => a.deliveryId.localeCompare(b.deliveryId))) {
-    const entry = await snapshot(db, p, lease, subscriptionId, now);
+    const entry = await snapshot(db, p, lease, subscriptionId, now, frame);
     const row = entry.row;
     if (!row || !["pending", "retry_wait"].includes(row.state) || row.next_attempt_at > now.toISOString() || entry.decision.state !== "ready" || !recipients.subscriptionUsable(sub, row, now)) continue;
     if (await db.prepare("SELECT 1 FROM notification_event_group_claims WHERE delivery_id=? AND subscription_id=?").bind(lease.deliveryId, subscriptionId).first()) continue;
@@ -81,6 +84,7 @@ export async function freezeDailyNotificationGroup(db: D1Database, p: Integratio
   const body = canonicalJson({ eventId, name: "attention.ready", timestamp: now.toISOString(), data: { group_id: id, candidate_ids: selected.map((s) => s.lease.candidateId), observed_at: now.toISOString(), notification_mode: "daily",
     items: selected.map((s) => ({ delivery_id: s.lease.deliveryId, candidate_id: s.lease.candidateId, source: s.source })) }, cursor: null });
   const guards: string[] = []; const statements: D1PreparedStatement[] = [];
+  if (maintenance) { const guard = crypto.randomUUID(); guards.push(guard); statements.push(notificationScheduleGuard(db, p, maintenance, guard)); }
   for (const entry of selected) {
     const ids = Array.from({ length: 5 }, () => crypto.randomUUID()); guards.push(...ids);
     statements.push(...snapshotGuards(db, p, entry, ids, true), recipients.childGuard(db, entry.lease.deliveryId, entry.row, ids[3]),
@@ -100,9 +104,10 @@ export async function freezeDailyNotificationGroup(db: D1Database, p: Integratio
   await storage.batch(db, statements, "read_conflict");
   return { id, subscriptionId, eventId, body };
 }
-async function cancelUnsent(db: D1Database, p: IntegrationPrincipal, group: GroupRow, entries: Snapshot[], now: Date, reason: string) {
+async function cancelUnsent(db: D1Database, p: IntegrationPrincipal, group: GroupRow, entries: Snapshot[], now: Date, reason: string, maintenance?: SchedulerLease) {
   const guards = [crypto.randomUUID()];
   const statements = [groupGuard(db, p, group, guards[0])];
+  if (maintenance) { const guard = crypto.randomUUID(); guards.push(guard); statements.push(notificationScheduleGuard(db, p, maintenance, guard)); }
   const sub = await eventSubscription(db, p, group.subscription_id);
   for (const entry of entries) {
     const ids = Array.from({ length: 3 }, () => crypto.randomUUID()); guards.push(...ids);
@@ -125,25 +130,27 @@ function startMemberStatements(db: D1Database, p: IntegrationPrincipal, entry: S
   return [...snapshotGuards(db, p, entry, ids, true), recipients.childGuard(db, entry.lease.deliveryId, entry.row, ids[3]),
     ...recipients.startRecipientStatements(db, p, entry.lease, entry.row, plan.sub, token, ids[4], now)];
 }
-export async function beginDailyNotificationGroup(db: D1Database, p: IntegrationPrincipal, groupId: string, leases: readonly NotificationLease[], now: Date): Promise<EventRecipientAttempt | null> {
+export async function beginDailyNotificationGroup(db: D1Database, p: IntegrationPrincipal, groupId: string, leases: readonly NotificationLease[], now: Date, maintenance?: SchedulerLease): Promise<EventRecipientAttempt | null> {
   await storage.requireIdentity(db, p); const byId = leaseMap(leases);
   const group = await ownedGroup(db, p, groupId);
   if (!["pending", "retry_wait"].includes(group.state) || group.next_attempt_at > now.toISOString()) return null;
   const members = (await groupMembers(db, groupId)).results;
   if (!group.body || members.length !== group.item_count || members.some((m) => m.claim_group !== groupId)) {
-    await cancelUnsent(db, p, group, [], now, "membership_changed"); return null;
+    await cancelUnsent(db, p, group, [], now, "membership_changed", maintenance); return null;
   }
   const entries: Snapshot[] = [];
+  const frame = await readNotificationPolicyFrame(db, p, now);
   for (const member of members) {
     const lease = byId.get(member.delivery_id); if (!lease) throw new NotificationOutboxError("lease_lost");
-    entries.push(await snapshot(db, p, lease, group.subscription_id, now));
+    entries.push(await snapshot(db, p, lease, group.subscription_id, now, frame));
   }
   const sub = await eventSubscription(db, p, group.subscription_id);
   const ready = entries.every((e) => e.row && ["pending", "retry_wait"].includes(e.row.state) && e.row.next_attempt_at <= now.toISOString() && recipients.recipientPlan(e.decision, e.row, sub, now).kind === "send");
-  if (!ready) { await cancelUnsent(db, p, group, entries, now, "members_changed"); return null; }
+  if (!ready) { await cancelUnsent(db, p, group, entries, now, "members_changed", maintenance); return null; }
   if (!sub?.encrypted_destination || !sub.provider_id) throw new NotificationOutboxError("read_conflict");
   const token = crypto.randomUUID(); const guards = [crypto.randomUUID(), crypto.randomUUID()];
   const statements = [groupGuard(db, p, group, guards[0]), membershipGuard(db, group, guards[1])];
+  if (maintenance) { const guard = crypto.randomUUID(); guards.push(guard); statements.push(notificationScheduleGuard(db, p, maintenance, guard)); }
   for (const entry of entries) {
     statements.push(...startMemberStatements(db, p, entry, sub, token, guards, now));
   }
@@ -191,13 +198,14 @@ export async function finishDailyNotificationGroup(db: D1Database, p: Integratio
   await storage.batch(db, statements, "lease_lost");
   return { state, nextAt };
 }
-export async function recoverNotificationEventGroups(db: D1Database, p: IntegrationPrincipal, now: Date) {
-  await storage.requireIdentity(db, p);
+export async function recoverNotificationEventGroups(db: D1Database, p: IntegrationPrincipal, now: Date, maintenance?: SchedulerLease) {
+  if (maintenance) await storage.requireOwner(db, p); else await storage.requireIdentity(db, p);
   const groups = (await db.prepare(`SELECT * FROM notification_event_groups WHERE household_id=? AND user_id=? AND connection_id=?
     AND state='sending' AND attempt_expires_at<=${databaseNow} ORDER BY attempt_expires_at,id LIMIT 100`).bind(p.householdId, p.userId, p.connectionId).all<GroupRow>()).results;
   for (const group of groups) {
-    const guards = [crypto.randomUUID(), crypto.randomUUID()];
+    const guards = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
     await storage.batch(db, [groupGuard(db, p, group, guards[0]),
+      ...(maintenance ? [notificationScheduleGuard(db, p, maintenance, guards[2])] : []),
       db.prepare(`INSERT INTO attention_guards(id,valid) SELECT ?,CASE WHEN EXISTS(SELECT 1 FROM notification_event_groups WHERE id=? AND attempt_expires_at<=${databaseNow}) THEN 1 ELSE 0 END`).bind(guards[1], group.id),
       db.prepare(`UPDATE notification_event_recipients SET state='unknown',attempt_token=NULL,reason='group_interrupted',updated_at=?
         WHERE subscription_id=? AND state='sending' AND attempt_token=? AND delivery_id IN (SELECT delivery_id FROM notification_event_group_items WHERE group_id=?)`)
@@ -208,3 +216,4 @@ export async function recoverNotificationEventGroups(db: D1Database, p: Integrat
   }
   return groups.length;
 }
+export const notificationGroupStorage = { groupGuard, terminalGroup, releaseClaims, ownedGroup };

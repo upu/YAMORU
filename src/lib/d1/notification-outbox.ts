@@ -1,6 +1,6 @@
 import type { IntegrationPrincipal } from "../../features/integration/principal";
 import { NotificationError } from "../../features/integration/notifications/contract";
-import { currentNotificationCandidate, evaluateNotification, type NotificationDecision } from "./notification-policy";
+import { assertNotificationPolicyFrame, currentNotificationCandidate, evaluateNotificationPage, evaluateNotificationWithFrame, readNotificationPolicyFrame, type NotificationDecision, type NotificationEvaluation, type NotificationPolicyFrame } from "./notification-policy";
 import { deliveryRecordStatements, type DeliveryOutcome } from "./notification-deliveries";
 import { usableNotificationConnection } from "./notification-settings";
 import type { SchedulerLease } from "./notification-scheduler";
@@ -16,9 +16,11 @@ export class NotificationOutboxError extends Error {
 const databaseNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
 const leaseOf = (row: OutboxRow): NotificationLease => ({ deliveryId: row.delivery_id, candidateId: row.candidate_id, leaseToken: row.lease_token });
 const retryExhausted = (row: OutboxRow, now: Date) => row.attempts >= 8 || (row.first_sent_at !== null && now.getTime() - Date.parse(row.first_sent_at) >= 86_400_000);
-async function sendDecision(db: D1Database, p: IntegrationPrincipal, candidateId: string, now: Date) {
-  if (!await usableNotificationConnection(db, p, p.connectionId, now)) return { state: "cancelled" as const, reason: "connection_unavailable", nextAt: null };
-  return evaluateNotification(db, p, candidateId, now);
+async function sendDecision(db: D1Database, p: IntegrationPrincipal, candidateId: string, now: Date, frame?: NotificationPolicyFrame) {
+  const current = frame ?? await readNotificationPolicyFrame(db, p, now);
+  assertNotificationPolicyFrame(p, current);
+  if (!current.usable) return { state: "cancelled" as const, reason: "connection_unavailable", nextAt: null };
+  return evaluateNotificationWithFrame(db, p, candidateId, now, current);
 }
 
 async function requireOwner(db: D1Database, p: IntegrationPrincipal) {
@@ -76,21 +78,28 @@ async function batch(db: D1Database, statements: D1PreparedStatement[], code: "l
     throw error;
   }
 }
-export async function enqueueNotification(db: D1Database, p: IntegrationPrincipal, candidateId: string, now: Date) {
-  await requireIdentity(db, p);
-  const stamp = await readStamp(db, p, candidateId);
-  const decision = await evaluateNotification(db, p, candidateId, now);
-  if (decision.state !== "ready" && decision.state !== "deferred") return null;
-  const candidate = await currentNotificationCandidate(db, p.householdId, candidateId, now);
-  if (!candidate) return null;
-  const guard = crypto.randomUUID();
-  await batch(db, [stampGuard(db, p, candidateId, stamp, guard, true),
-    db.prepare(`INSERT INTO notification_outbox(delivery_id,household_id,user_id,connection_id,candidate_id,candidate_name,state,next_attempt_at,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,'pending',?,?,?) ON CONFLICT DO NOTHING`)
-      .bind(crypto.randomUUID(), p.householdId, p.userId, p.connectionId, candidateId, candidate.name, decision.nextAt ?? now.toISOString(), now.toISOString(), now.toISOString()),
-    cleanupGuards(db, [guard])], "read_conflict");
+export async function enqueueNotification(db: D1Database, p: IntegrationPrincipal, candidateId: string, now: Date, frame?: NotificationPolicyFrame) {
+  const selected = await enqueueNotificationPage(db, p, [candidateId], now, frame);
+  if (!selected.has(candidateId)) return null;
   return db.prepare(`SELECT delivery_id AS deliveryId FROM notification_outbox WHERE household_id=? AND user_id=? AND connection_id=? AND candidate_id=?
     AND state IN ('pending','leased','sending','retry_wait','unknown','failed')`).bind(p.householdId, p.userId, p.connectionId, candidateId).first<{ deliveryId: string }>();
+}
+export async function enqueueNotificationPage(db: D1Database, p: IntegrationPrincipal, candidateIds: readonly string[], now: Date, frame?: NotificationPolicyFrame) {
+  await requireIdentity(db, p);
+  const current = frame ?? await readNotificationPolicyFrame(db, p, now);
+  const evaluated = await evaluateNotificationPage(db, p, candidateIds, now, current);
+  const selected = new Set<string>(); const guards: string[] = []; const statements: D1PreparedStatement[] = [];
+  for (const [candidateId, { decision, candidate, stamp }] of evaluated) {
+    if (!candidate || !["ready", "deferred"].includes(decision.state)) continue;
+    selected.add(candidateId); const guard = crypto.randomUUID(); guards.push(guard);
+    statements.push(stampGuard(db, p, candidateId, stamp, guard, true),
+      db.prepare(`INSERT INTO notification_outbox(delivery_id,household_id,user_id,connection_id,candidate_id,candidate_name,state,next_attempt_at,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,'pending',?,?,?) ON CONFLICT DO NOTHING`)
+      .bind(crypto.randomUUID(), p.householdId, p.userId, p.connectionId, candidateId, candidate.name, decision.nextAt ?? now.toISOString(), now.toISOString(), now.toISOString()),
+    );
+  }
+  if (statements.length) await batch(db, [...statements, cleanupGuards(db, guards)], "read_conflict");
+  return selected;
 }
 export async function leaseNotification(db: D1Database, p: IntegrationPrincipal, now: Date): Promise<NotificationLease | null> {
   await requireIdentity(db, p);
@@ -197,9 +206,13 @@ function reconciledTime(row: OutboxRow, decision: NotificationDecision, now: Dat
   return scheduled;
 }
 type StopReason = "client_disabled" | "connection_unavailable";
-async function reconcileRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, stopReason?: StopReason, maintenance?: SchedulerLease) {
-  const stamp = await readStamp(db, p, row.candidate_id);
-  const decision = stopReason ? { state: "cancelled" as const, reason: stopReason, nextAt: null } : await sendDecision(db, p, row.candidate_id, now);
+async function rowEvaluation(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, stopReason: StopReason | undefined, evaluated: NotificationEvaluation | undefined) {
+  const stamp = evaluated?.stamp ?? await readStamp(db, p, row.candidate_id);
+  const decision = stopReason ? { state: "cancelled" as const, reason: stopReason, nextAt: null } : evaluated?.decision ?? await sendDecision(db, p, row.candidate_id, now);
+  return { stamp, decision };
+}
+async function reconcileRow(db: D1Database, p: IntegrationPrincipal, row: OutboxRow, now: Date, stopReason?: StopReason, maintenance?: SchedulerLease, evaluated?: NotificationEvaluation) {
+  const { stamp, decision } = await rowEvaluation(db, p, row, now, stopReason, evaluated);
   const terminalOutcome = decision.state === "cancelled" || decision.state === "suppressed" ? decision.state : null;
   const recipients = terminalOutcome ? await eventRecipientStatuses(db, row.delivery_id) : [];
   const aggregate = recipients.length ? aggregateRecipientState(recipients, now, "cancel") : null;
@@ -220,13 +233,19 @@ export async function reconcilePendingNotifications(db: D1Database, p: Integrati
   await requireIdentity(db, p);
   return reconcilePending(db, p, now, after, stopReason);
 }
+async function pendingEvaluations(db: D1Database, p: IntegrationPrincipal, page: OutboxRow[], now: Date, stopped: boolean) {
+  if (stopped || !page.length) return null;
+  const frame = await readNotificationPolicyFrame(db, p, now);
+  return frame.usable ? evaluateNotificationPage(db, p, page.map((r) => r.candidate_id), now, frame) : null;
+}
 async function reconcilePending(db: D1Database, p: IntegrationPrincipal, now: Date, after: string, stopReason?: StopReason, maintenance?: SchedulerLease) {
   const rows = (await db.prepare(`SELECT * FROM notification_outbox WHERE household_id=? AND user_id=? AND connection_id=?
     AND state IN ('pending','retry_wait') AND delivery_id>? ORDER BY delivery_id LIMIT 26`)
     .bind(p.householdId, p.userId, p.connectionId, after).all<OutboxRow>()).results;
   const page = rows.slice(0, 25);
+  const evaluated = await pendingEvaluations(db, p, page, now, stopReason !== undefined);
   for (const row of page) {
-    try { await reconcileRow(db, p, row, now, stopReason, maintenance); }
+    try { await reconcileRow(db, p, row, now, stopReason, maintenance, evaluated?.get(row.candidate_id)); }
     catch (error) { if (!(error instanceof NotificationOutboxError)) throw error; }
   }
   return { nextAfter: rows.length > 25 ? page[page.length - 1].delivery_id : "", processed: page.length };
@@ -244,4 +263,4 @@ async function requireLegacyDelivery(db: D1Database, lease: NotificationLease) {
   if (await db.prepare("SELECT 1 FROM notification_event_batches WHERE delivery_id=?").bind(lease.deliveryId).first()) throw new NotificationOutboxError("read_conflict");
 }
 // 宛先別配信も親と同じ家庭・最新判定・lease fenceを使う。HTTPへ直接公開しない。
-export const notificationOutboxStorage = { requireIdentity, loadLease, readStamp, stampGuard, leaseGuard, cleanupGuards, batch, updateOutcome, sendDecision };
+export const notificationOutboxStorage = { requireOwner, requireIdentity, loadLease, readStamp, stampGuard, leaseGuard, cleanupGuards, batch, updateOutcome, sendDecision };

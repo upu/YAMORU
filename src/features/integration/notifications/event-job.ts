@@ -4,7 +4,8 @@ import { beginEventRecipient, finishEventRecipient, settleNotificationEvent, typ
 import { beginDailyNotificationGroup, finishDailyNotificationGroup, DAILY_GROUP_ITEM_LIMIT } from "../../../lib/d1/notification-event-groups";
 import { sendEventRecipient } from "./event-delivery";
 import type { PinnedWebhookTransport } from "./webhook-transport";
-type Dependencies = { db: D1Database; principal: IntegrationPrincipal; secret: string; providerId: string; transport: PinnedWebhookTransport; now?: () => Date; signal?: AbortSignal };
+import type { SchedulerLease } from "../../../lib/d1/notification-scheduler";
+type Dependencies = { db: D1Database; principal: IntegrationPrincipal; secret: string; providerId: string; transport: PinnedWebhookTransport; now?: () => Date; signal?: AbortSignal; maintenance?: SchedulerLease };
 export class NotificationEventJobError extends Error {
   constructor() { super("notification_event_storage_unavailable"); }
 }
@@ -58,7 +59,7 @@ export async function deliverFrozenNotificationEvent(deps: Dependencies, lease: 
   if (!validSet(recipientIds, 20)) throw new Error("invalid_recipient_set");
   const clock = deps.now ?? (() => new Date());
   const started = await dispatchAttempts(deps, recipientIds,
-    (id) => beginEventRecipient(deps.db, deps.principal, lease, id, clock()),
+    (id) => beginEventRecipient(deps.db, deps.principal, lease, id, clock(), deps.maintenance),
     (_id, attempt, result) => finishEventRecipient(deps.db, deps.principal, lease, attempt, result, clock()));
   const outcome = await retryTransition(() => settleNotificationEvent(deps.db, deps.principal, lease, clock()));
   return { ...outcome, started };
@@ -70,7 +71,7 @@ export async function deliverFrozenDailyNotificationEvents(deps: Dependencies, l
   if ((count?.total ?? 0) > DAILY_GROUP_ITEM_LIMIT) throw new Error("invalid_group_budget");
   const clock = deps.now ?? (() => new Date());
   const started = await dispatchAttempts(deps, groupIds,
-    (id) => beginDailyNotificationGroup(deps.db, deps.principal, id, leases, clock()),
+    (id) => beginDailyNotificationGroup(deps.db, deps.principal, id, leases, clock(), deps.maintenance),
     (id, attempt, result) => finishDailyNotificationGroup(deps.db, deps.principal, id, leases, attempt, result, clock()));
   const outcomes = [];
   for (const lease of leases) outcomes.push({ deliveryId: lease.deliveryId, ...await retryTransition(() => settleNotificationEvent(deps.db, deps.principal, lease, clock())) });

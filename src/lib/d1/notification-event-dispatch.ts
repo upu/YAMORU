@@ -7,13 +7,20 @@ import { NotificationOutboxError, notificationOutboxStorage as storage, type Not
 import { aggregateRecipientState, eventRecipientStatuses, type RecipientState } from "./notification-recipient-state";
 import type { NotificationDecision } from "./notification-policy";
 import { getNotificationSettings } from "./notification-settings";
+import { notificationPolicyStamp, readNotificationPolicyFrame, type NotificationPolicyFrame } from "./notification-policy";
 import { z } from "zod";
+import { notificationScheduleGuard, type SchedulerLease } from "./notification-scheduler";
 const databaseNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')";
+function scheduleStatements(db: D1Database, p: IntegrationPrincipal, maintenance: SchedulerLease | undefined, guards: string[]) {
+  if (!maintenance) return [];
+  const id = crypto.randomUUID(); guards.push(id);
+  return [notificationScheduleGuard(db, p, maintenance, id)];
+}
 type FrozenEvent = { eventId: string; body: string; mode: "daily" | "individual"; recipientIds: string[] };
 const frozenModeSchema = z.object({ data: z.object({ notification_mode: z.enum(["daily", "individual"]).optional() }) });
-async function modeDecision(db: D1Database, p: IntegrationPrincipal, decision: NotificationDecision, mode: FrozenEvent["mode"]): Promise<NotificationDecision> {
+async function modeDecision(db: D1Database, p: IntegrationPrincipal, decision: NotificationDecision, mode: FrozenEvent["mode"], frame?: NotificationPolicyFrame): Promise<NotificationDecision> {
   if (decision.state === "cancelled" || decision.state === "suppressed") return decision;
-  const { settings } = await getNotificationSettings(db, { userId: p.userId }, p.householdId);
+  const settings = frame?.settings ?? (await getNotificationSettings(db, { userId: p.userId }, p.householdId)).settings;
   return settings.mode === mode ? decision : { state: "cancelled", reason: "notification_mode_changed", nextAt: null };
 }
 export type RecipientRow = { subscription_id: string; lifecycle: string; state: RecipientState; attempts: number; first_sent_at: string | null; next_attempt_at: string };
@@ -61,11 +68,12 @@ async function frozenEvent(db: D1Database, deliveryId: string): Promise<FrozenEv
   const recipients = (await db.prepare("SELECT subscription_id FROM notification_event_recipients WHERE delivery_id=? ORDER BY subscription_id").bind(deliveryId).all<{ subscription_id: string }>()).results;
   return { eventId: row.event_id, body: row.body, mode: frozenModeSchema.parse(JSON.parse(row.body)).data.notification_mode ?? "individual", recipientIds: recipients.map((r) => r.subscription_id) };
 }
-export async function freezeNotificationEvent(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, now: Date) {
+export async function freezeNotificationEvent(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, now: Date, maintenance?: SchedulerLease, frame?: NotificationPolicyFrame) {
   await storage.requireIdentity(db, p);
   const row = await storage.loadLease(db, p, lease);
-  const stamp = await storage.readStamp(db, p, lease.candidateId);
-  if ((await storage.sendDecision(db, p, lease.candidateId, now)).state !== "ready") return null;
+  const current = frame ?? await readNotificationPolicyFrame(db, p, now);
+  const stamp = notificationPolicyStamp(await storage.readStamp(db, p, lease.candidateId), current);
+  if ((await storage.sendDecision(db, p, lease.candidateId, now, current)).state !== "ready") return null;
   const frozen = await frozenEvent(db, lease.deliveryId);
   if (frozen) return frozen;
   if (row.state !== "leased") throw new NotificationOutboxError("read_conflict");
@@ -77,7 +85,7 @@ export async function freezeNotificationEvent(db: D1Database, p: IntegrationPrin
   if (subscriptions.length > 20) throw new NotificationOutboxError("read_conflict");
   const selected = subscriptions.filter((s) => eventFilterMatches(normalizeEventFilter(JSON.parse(s.filters)), { kind: source.kind, entityId: source.entity_id, todoRuleId: source.todo_rule_id }));
   if (!selected.length) return null;
-  const { settings } = await getNotificationSettings(db, { userId: p.userId }, p.householdId);
+  const { settings } = current;
   const eventId = `evt_${crypto.randomUUID()}`;
   const body = canonicalJson({ eventId, name: "attention.ready", timestamp: now.toISOString(), data: { delivery_id: lease.deliveryId, candidate_ids: [lease.candidateId], observed_at: now.toISOString(), notification_mode: settings.mode, source }, cursor: null });
   const guards = Array.from({ length: 4 }, () => crypto.randomUUID());
@@ -88,7 +96,9 @@ export async function freezeNotificationEvent(db: D1Database, p: IntegrationPrin
       ON s.id=json_extract(j.value,'$.id') AND s.connection_id=?2 AND s.revision=json_extract(j.value,'$.revision') AND s.lifecycle=json_extract(j.value,'$.lifecycle')
       AND s.state='active' AND s.expires_at>${databaseNow} WHERE s.id IS NULL) THEN 1 ELSE 0 END`)
     .bind(guards[3], p.connectionId, JSON.stringify(snapshot));
+  const scheduled = scheduleStatements(db, p, maintenance, guards);
   await storage.batch(db, [storage.leaseGuard(db, p, lease, guards[0], "leased"), parentRevisionGuard(db, lease.deliveryId, row.revision, guards[1]),
+    ...scheduled,
     storage.stampGuard(db, p, lease.candidateId, stamp, guards[2], true), unchanged,
     db.prepare("INSERT INTO notification_event_batches(delivery_id,household_id,user_id,connection_id,event_id,body,frozen_at) VALUES(?,?,?,?,?,?,?)")
       .bind(lease.deliveryId, p.householdId, p.userId, p.connectionId, eventId, body, now.toISOString()),
@@ -97,20 +107,22 @@ export async function freezeNotificationEvent(db: D1Database, p: IntegrationPrin
     db.prepare("UPDATE notification_outbox SET revision=revision+1 WHERE delivery_id=?").bind(lease.deliveryId), storage.cleanupGuards(db, guards)], "read_conflict");
   return frozenEvent(db, lease.deliveryId);
 }
-export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, subscriptionId: string, now: Date): Promise<EventRecipientAttempt | null> {
+export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, subscriptionId: string, now: Date, maintenance?: SchedulerLease, stopOnly = false): Promise<EventRecipientAttempt | null> {
   await storage.requireIdentity(db, p);
   const parent = await storage.loadLease(db, p, lease);
-  const stamp = await storage.readStamp(db, p, lease.candidateId);
-  const currentDecision = await storage.sendDecision(db, p, lease.candidateId, now);
+  const current = await readNotificationPolicyFrame(db, p, now);
+  const stamp = notificationPolicyStamp(await storage.readStamp(db, p, lease.candidateId), current);
+  const currentDecision = await storage.sendDecision(db, p, lease.candidateId, now, current);
   const row = await db.prepare("SELECT * FROM notification_event_recipients WHERE delivery_id=? AND subscription_id=?").bind(lease.deliveryId, subscriptionId).first<RecipientRow>();
   if (!row || !["pending", "retry_wait"].includes(row.state) || row.next_attempt_at > now.toISOString()) return null;
   if (await db.prepare("SELECT 1 FROM notification_event_group_claims WHERE delivery_id=? AND subscription_id=?").bind(lease.deliveryId, subscriptionId).first()) return null;
   const frozen = await frozenEvent(db, lease.deliveryId);
   if (!frozen) throw new NotificationOutboxError("read_conflict");
-  const decision = await modeDecision(db, p, currentDecision, frozen.mode);
+  const decision = await modeDecision(db, p, currentDecision, frozen.mode, current);
   if (decision.state === "deferred") return null;
   const sub = await eventSubscription(db, p, subscriptionId);
   const plan = recipientPlan(decision, row, sub, now);
+  if (stopOnly && plan.kind === "send") return null;
   const sending = plan.kind === "send";
   const guards = Array.from({ length: sending ? 5 : 4 }, () => crypto.randomUUID());
   const statements = [storage.leaseGuard(db, p, lease, guards[0], parent.state === "sending" ? "sending" : "leased"),
@@ -120,6 +132,7 @@ export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipa
   statements.push(db.prepare(`INSERT INTO attention_guards(id,valid) SELECT ?,CASE WHEN NOT EXISTS(
     SELECT 1 FROM notification_event_group_claims WHERE delivery_id=? AND subscription_id=?) THEN 1 ELSE 0 END`).bind(claimGuard, lease.deliveryId, subscriptionId));
   const token = crypto.randomUUID();
+  statements.push(...scheduleStatements(db, p, maintenance, guards));
   let attempt: EventRecipientAttempt | null = null;
   if (plan.kind === "send") {
     statements.push(...startRecipientStatements(db, p, lease, row, plan.sub, token, guards[4], now));
@@ -131,6 +144,9 @@ export async function beginEventRecipient(db: D1Database, p: IntegrationPrincipa
   }
   await storage.batch(db, [...statements, storage.cleanupGuards(db, guards)], "read_conflict");
   return attempt;
+}
+export async function reconcileEventRecipient(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, subscriptionId: string, now: Date, maintenance?: SchedulerLease) {
+  await beginEventRecipient(db, p, lease, subscriptionId, now, maintenance, true);
 }
 export async function finishEventRecipient(db: D1Database, p: IntegrationPrincipal, lease: NotificationLease, attempt: EventRecipientAttempt, result: SendResult, now: Date) {
   await storage.requireIdentity(db, p);
