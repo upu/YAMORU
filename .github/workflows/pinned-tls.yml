@@ -1,0 +1,60 @@
+name: Pinned TLS source build
+
+on:
+  pull_request:
+    paths:
+      - packages/pinned-tls/**
+      - scripts/pinned-tls-*
+      - tests/pinned-tls-engine.test.ts
+      - .github/workflows/pinned-tls.yml
+  push:
+    branches: [main]
+    paths:
+      - packages/pinned-tls/**
+      - scripts/pinned-tls-*
+      - tests/pinned-tls-engine.test.ts
+      - .github/workflows/pinned-tls.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  source-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install Node dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.99.1 --profile minimal --target wasm32-unknown-unknown
+      - name: Install checksum-verified build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir="${RUNNER_TEMP}/yamoru-pinned-tls-tools"
+          mkdir -p "$tool_dir"
+          cd "$tool_dir"
+          curl --fail --silent --show-error --location https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz --output zig.tar.xz
+          echo '1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026  zig.tar.xz' | sha256sum --check
+          tar -xJf zig.tar.xz
+          asset=wasm-bindgen-0.2.129-x86_64-unknown-linux-musl.tar.gz
+          base=https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.129
+          curl --fail --silent --show-error --location "$base/$asset" --output "$asset"
+          echo "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e  $asset" | sha256sum --check
+          tar -xzf "$asset"
+          echo "ZIG=$tool_dir/zig-x86_64-linux-0.17.0/zig" >> "$GITHUB_ENV"
+          echo "WASM_BINDGEN=$tool_dir/wasm-bindgen-0.2.129-x86_64-unknown-linux-musl/wasm-bindgen" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" >> "$GITHUB_ENV"
+      - name: Rebuild and compare every generated TLS artifact
+        run: node scripts/pinned-tls-build.ts --check
+      - name: Test ClientHello and application-data boundaries on the generated binary
+        run: npx vitest run tests/pinned-tls-engine.test.ts

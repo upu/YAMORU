@@ -1,5 +1,6 @@
 # Dependencies and build outputs
 node_modules/
+packages/pinned-tls/target/
 .next/
 out/
 coverage/

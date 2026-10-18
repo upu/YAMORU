@@ -15,3 +15,4 @@
 | Supabase招待受諾 | 期限付き一回限りの招待受諾とRLSによる家庭間分離 | [household-invitation-acceptance.md](household-invitation-acceptance.md) |
 | Cloudflare Workers + D1 | Cloudflare中心構成(B案)への移行可否、RLS代替のアプリ層認可 | [cloudflare-workers-d1.md](cloudflare-workers-d1.md) |
 | Cloudflare Workers + Supabase | Cloudflare中心構成(A案)への移行可否、実ログインフローの実機検証 | [cloudflare-workers-supabase.md](cloudflare-workers-supabase.md) |
+| Cloudflare Workers + TLS | 固定IP・元hostnameの証明書検証とRustls WASMの実測 | [pinned-tls.md](pinned-tls.md) |

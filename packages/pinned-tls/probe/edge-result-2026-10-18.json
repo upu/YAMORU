@@ -1,0 +1,46 @@
+{
+  "captured_at": "2026-10-18T03:31:02.707Z",
+  "wasm_sha256": "f03d36b89a0c1d1f20baa226f2fddb440c899495c46820fef087250a7a66b8b3",
+  "results": [
+    {
+      "ok": true,
+      "testCase": "valid",
+      "address": "104.154.89.105",
+      "hostname": "badssl.com",
+      "handshakeComplete": true,
+      "applicationBytes": 56,
+      "receivedTlsBytes": 4874,
+      "statusLine": "HTTP/1.1 200 OK"
+    },
+    {
+      "ok": false,
+      "testCase": "wrong",
+      "address": "104.154.89.105",
+      "hostname": "wrong.host.badssl.com",
+      "handshakeComplete": false,
+      "applicationBytes": 0,
+      "receivedTlsBytes": 4524,
+      "error": "invalid peer certificate: certificate not valid for name \"wrong.host.badssl.com\"; certificate is only valid for DnsName(\"*.badssl.com\") or DnsName(\"badssl.com\")"
+    },
+    {
+      "ok": false,
+      "testCase": "expired",
+      "address": "104.154.89.105",
+      "hostname": "expired.badssl.com",
+      "handshakeComplete": false,
+      "applicationBytes": 0,
+      "receivedTlsBytes": 4773,
+      "error": "invalid peer certificate: certificate expired: verification time 1792294262 (UNIX), but certificate is not valid after 1428883199 (363411063 seconds ago)"
+    },
+    {
+      "ok": false,
+      "testCase": "selfsigned",
+      "address": "104.154.89.105",
+      "hostname": "self-signed.badssl.com",
+      "handshakeComplete": false,
+      "applicationBytes": 0,
+      "receivedTlsBytes": 1353,
+      "error": "invalid peer certificate: UnknownIssuer"
+    }
+  ]
+}

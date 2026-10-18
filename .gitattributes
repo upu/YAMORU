@@ -1,0 +1,5 @@
+packages/pinned-tls/generated/* text eol=lf
+packages/pinned-tls/generated/*.wasm binary
+packages/pinned-tls/generated/THIRD-PARTY-NOTICES.txt whitespace=-blank-at-eol,-blank-at-eof
+packages/pinned-tls/Cargo.lock text eol=lf
+packages/pinned-tls/**/*.rs text eol=lf
