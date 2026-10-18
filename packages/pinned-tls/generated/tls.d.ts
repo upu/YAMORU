@@ -6,6 +6,7 @@ export class TlsClient {
     [Symbol.dispose](): void;
     handshaking(): boolean;
     constructor(hostname: string);
+    peer_closed(): boolean;
     read_application(): Uint8Array;
     receive_tls(bytes: Uint8Array): void;
     take_tls(): Uint8Array;
@@ -19,6 +20,7 @@ export interface InitOutput {
     readonly __wbg_tlsclient_free: (a: number, b: number) => void;
     readonly tlsclient_handshaking: (a: number, b: number) => void;
     readonly tlsclient_new: (a: number, b: number, c: number) => void;
+    readonly tlsclient_peer_closed: (a: number, b: number) => void;
     readonly tlsclient_read_application: (a: number, b: number) => void;
     readonly tlsclient_receive_tls: (a: number, b: number, c: number, d: number) => void;
     readonly tlsclient_take_tls: (a: number, b: number) => void;

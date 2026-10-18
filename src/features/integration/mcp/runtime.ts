@@ -1,6 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getOAuthRuntime } from "../oauth/runtime";
 import type { McpDependencies } from "./http";
+import { readWorkerEvents } from "../notifications/worker-events";
 function allowedOrigins(value: string | undefined) {
   return (value ?? "").split(/[\s,]+/u).filter(Boolean).flatMap((entry) => {
     try {
@@ -12,5 +13,5 @@ function allowedOrigins(value: string | undefined) {
 export async function getMcpRuntime(): Promise<McpDependencies> {
   const runtime = await getOAuthRuntime();
   const { env } = await getCloudflareContext({ async: true });
-  return { ...runtime, cursorSecret: process.env.AUTH_SECRET ?? env.AUTH_SECRET, allowedOrigins: allowedOrigins(env.YAMORU_MCP_ALLOWED_ORIGINS) };
+  return { ...runtime, cursorSecret: process.env.AUTH_SECRET ?? env.AUTH_SECRET, allowedOrigins: allowedOrigins(env.YAMORU_MCP_ALLOWED_ORIGINS), events: readWorkerEvents(env) };
 }

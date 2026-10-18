@@ -59,6 +59,8 @@ declare global {
     // 空白またはカンマ区切りの完全一致。未設定なら外部接続を受け付けない(YDR-052)。
     YAMORU_OAUTH_ALLOWED_CLIENT_IDS?: string;
     YAMORU_MCP_ALLOWED_ORIGINS?: string;
+    // 実送信のproviderを明示したときだけ、native WorkerからMCP・定期処理へ渡す。
+    YAMORU_EVENTS_PROVIDER?: string;
   }
 }
 

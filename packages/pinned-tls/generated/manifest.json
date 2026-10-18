@@ -9,15 +9,15 @@
     "packages/pinned-tls/Cargo.toml": "5d60acf491011b080876f21cec7392bb1826c0b71b5c5d08f6cce3e9e534a3a7",
     "packages/pinned-tls/Cargo.lock": "4d7e05de6936341c099a7305ebdd98a8cf128b11b70ecaaf8f5f5988d0197ea5",
     "packages/pinned-tls/rust-toolchain.toml": "690e8b2d01e4b515848ba8c0cfcb69e54605754c53f29f95eacb61ea7b4fb3b6",
-    "packages/pinned-tls/src/lib.rs": "7e91b4c5592db045a7b61b0685cb9880bad58a12e99d04e304d879e05571ff80",
+    "packages/pinned-tls/src/lib.rs": "84b1d37c10cfbcc574ce6b69e1040eecb360368f61775983a6474d2a3901107e",
     "scripts/pinned-tls-build.ts": "2f8da9d5ffd85247d68a9559bd404137a0d7704298cef622bc661227b40eb1ec",
     "scripts/pinned-tls-tool.mjs": "21862df2712c73afaa03f0a5c9d612ea64753e66de486dfbe2d3dd4e49431ce5"
   },
   "outputs": {
     "THIRD-PARTY-NOTICES.txt": "750cfb74b0899e04fbb8addc5ecc9065cfef4fb91e224440d1ab7c52d039e5c7",
-    "tls.d.ts": "4c4719b0cbee00a6fcdf031e08caebe68d729b06db59d4dc219d4ecb27396a7f",
-    "tls.js": "0ae3f1705c74b6b0c2938d02243f6e81ceecf99ae77780ac303678c458cd2085",
-    "tls_bg.wasm": "553d62e3d9ab931dfa394534fc97ce691771c3697a9d6e0dbac8f28e2b609b71",
-    "tls_bg.wasm.d.ts": "3d42693c205520f82b611c734a0bb98a79609edf428e86cf721648c23920fb56"
+    "tls.d.ts": "af252008849c6cf350814d1aa009e433484d65bde422ddd37b97d811bce06270",
+    "tls.js": "8dede5d1fe7853fde06ea38dcc66e4b2fd556d01c4c921b476edb390c66a1d98",
+    "tls_bg.wasm": "f78dd43a866e8b3109c53f3c40ebb00aef03779f862cc564da4f996d0acaf5f0",
+    "tls_bg.wasm.d.ts": "a22b778e0bc2c88848e265d3b7dac46550958a6d19929909527d7d6b01e75260"
   }
 }

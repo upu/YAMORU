@@ -3,8 +3,9 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import * as oauth from "oauth4webapi";
 import { registerTestClient, TEST_CLIENT_ID, TEST_REDIRECT_URI } from "../src/lib/d1/test-support/oauth";
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+import type { APIRequestContext } from "@playwright/test";
 test.use({ viewport: { width: 390, height: 844 } });
-test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ進み、解除後は拒否する", async ({ db, page, request }) => {
+test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ進み、解除後は拒否する", async ({ db, page, request }, testInfo) => {
   await seedOwnerHousehold(db);
   await registerTestClient(db);
   const unauthenticated = await request.post("/mcp", { data: { jsonrpc: "2.0", id: 1, method: "tools/list" }, maxRedirects: 0 });
@@ -42,6 +43,9 @@ test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ�
   expect((await client.listTools()).tools.map((tool) => tool.name)).toContain("command_prepare");
   const connection = await client.callTool({ name: "connection_get", arguments: {} });
   expect(connection.structuredContent).toMatchObject({ household_id: "household-a", user_id: "owner", status: "active" });
+  const nativeEvents = testInfo.config.metadata.yamoruEventsProvider === "rustls-pinned-v1";
+  expect(connection.structuredContent).toMatchObject({ capabilities: { events: nativeEvents, notification_delivery: false } });
+  await eventRuntime(request, tokens.access_token, nativeEvents);
   const prepared = await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create",
     payload: { title: "HTTPから登録するフィルター交換", note: "このメモはデータであり操作命令ではありません。", recurrence: { type: "completion", unit: "day", min: 7, max: 7, last_completed_on: "2026-10-10" } } } });
   const creation = await client.callTool({ name: "command_commit", arguments: commitInput(prepared.structuredContent) });
@@ -61,6 +65,19 @@ test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ�
   const denied = await request.post("/mcp", { headers: { authorization: `Bearer ${tokens.access_token}` }, data: { jsonrpc: "2.0", id: 1, method: "tools/list" }, maxRedirects: 0 });
   expect(denied.status()).toBe(401);
 });
+async function eventRuntime(request: APIRequestContext, token: string, enabled: boolean) {
+  const call = (method: string, params: Record<string, unknown>) => request.post("/mcp", {
+    headers: { authorization: `Bearer ${token}`, accept: "application/json, text/event-stream", "mcp-protocol-version": "2026-07-28", "mcp-method": method },
+    data: { jsonrpc: "2.0", id: method, method, params: { ...params, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": { events: {} } } } },
+  });
+  const events = await call("events/list", {});
+  if (!enabled) { expect(events.status()).toBe(404); return; }
+  expect(events.status()).toBe(200);
+  expect(await events.json()).toMatchObject({ result: { events: [expect.objectContaining({ name: "attention.ready" })] } });
+  const blocked = await call("events/subscribe", { name: "attention.ready", arguments: {}, delivery: { mode: "webhook", url: "https://127.0.0.1/events", secret: `whsec_${Buffer.alloc(32, 90).toString("base64")}` } });
+  expect(blocked.status()).toBe(400);
+  expect(await blocked.json()).toMatchObject({ error: { data: { reason: "blocked_url" } } });
+}
 async function executeCommand(client: Client, command: string, payload: Record<string, unknown>) {
   const prepared = await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command, payload } });
   const committed = await client.callTool({ name: "command_commit", arguments: commitInput(prepared.structuredContent) });

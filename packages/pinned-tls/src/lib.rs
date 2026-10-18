@@ -17,6 +17,7 @@ fn error(e: impl std::fmt::Display) -> JsValue { JsValue::from_str(&e.to_string(
 pub struct TlsClient {
     connection: ClientConnection,
     failed: bool,
+    peer_closed: bool,
 }
 
 impl TlsClient {
@@ -39,11 +40,15 @@ impl TlsClient {
         config.enable_early_data = false;
         let mut connection = ClientConnection::new(Arc::new(config), server_name).map_err(error)?;
         connection.set_buffer_limit(Some(65_536));
-        Ok(TlsClient { connection, failed: false })
+        Ok(TlsClient { connection, failed: false, peer_closed: false })
     }
     pub fn handshaking(&self) -> Result<bool, JsValue> {
         self.ensure_active()?;
         Ok(self.connection.is_handshaking())
+    }
+    pub fn peer_closed(&self) -> Result<bool, JsValue> {
+        self.ensure_active()?;
+        Ok(self.peer_closed && !self.connection.is_handshaking())
     }
     pub fn take_tls(&mut self) -> Result<Vec<u8>, JsValue> {
         self.ensure_active()?;
@@ -83,7 +88,8 @@ impl TlsClient {
         while input.position() < bytes.len() as u64 {
             let n = self.connection.read_tls(&mut input).map_err(error)?;
             if n == 0 { return Err(error("TLS input made no progress")); }
-            self.connection.process_new_packets().map_err(error)?;
+            let state = self.connection.process_new_packets().map_err(error)?;
+            self.peer_closed |= state.peer_has_closed();
         }
         Ok(())
     }
