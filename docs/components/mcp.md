@@ -36,9 +36,11 @@ status: stable
 
 ## SDKと配備
 
-公式`@modelcontextprotocol/sdk` 1.32.1、Zod 4.6.7、Cloudflare向け`@cfworker/json-schema` 4.1.1を使う。Workerで動的コード生成をしないvalidatorを指定する。公式SDKの対応版は`2025-11-25`以前であり、ここで通し確認した版は`2025-11-25`。MCP Events 2.0 (`2026-07-28`)への対応をSDK採用から推定しない。Events・通知配信はまだcapabilitiesでfalseを返し、#442で実装・実証する。
+公式`@modelcontextprotocol/sdk` 1.32.1、Zod 4.6.7、Cloudflare向け`@cfworker/json-schema` 4.1.1を使う。Workerで動的コード生成をしないvalidatorを指定する。公式SDKの対応版は`2025-11-25`以前であり、ここで通し確認した版は`2025-11-25`。MCP Events 2.0 (`2026-07-28`)への対応をSDK採用から推定しない。独自の2026入口は明示的なprovider有効時だけEventsを公開する。`notification_delivery`は実dotの到達・解除・失効等を#442で実証するまでfalseとし、Eventsの公開だけで通知完成とはしない。
 
 #442では`2026-07-28`の入口を明示的に追加する。initializeを使わない要求ごとにprotocolVersion・clientCapabilitiesとHTTPのMCP-Protocol-Version / Mcp-Method / Mcp-Nameを照合する。nameのBase64 sentinelも復号して比較し、不一致はHeaderMismatch、未知の版は対応版を案内する。Toolの一覧・説明・schema・実行・OAuth challengeを旧版と共有し、業務判定は複製しない。resultTypeとserverInfoを返すが、Eventsの購読や配信をそのことだけで対応済みにしない。
+
+providerが有効な場合、`events/list`は認証済みの`household.read`で固定のイベント名・filter schema・payload schema・必要scopeだけを返す。家庭の候補や購読先は返さない。発見に`events.subscribe`を要求すると、追加同意の前にイベントが見つからず接続先へ権限要求を登録できないためである。`events/subscribe`と`events/unsubscribe`は引き続きreadと`events.subscribe`を要求し、callback確認・購読保存は追加同意後だけ行う。provider無効時の非公開と未認証の拒否は維持する。
 
 `YAMORU_OAUTH_ALLOWED_CLIENT_IDS`が既定で空のため、MCPも既定で無効。設定は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
 
