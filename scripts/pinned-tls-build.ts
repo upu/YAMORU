@@ -33,7 +33,8 @@ function wrapper(mode: "cc" | "ar") {
 }
 
 function compile() {
-  const versions = { rust: run(process.env.RUSTC ?? "rustc", ["--version"]), zig: run(zig, ["version"]), bindgen: run(bindgen, ["--version"]) };
+  if (process.platform !== "linux") throw new Error("Generate canonical TLS artifacts on Linux (use WSL on Windows)");
+  const versions = { platform: process.platform, rust: run(process.env.RUSTC ?? "rustc", ["--version"]), zig: run(zig, ["version"]), bindgen: run(bindgen, ["--version"]) };
   if (!versions.rust.startsWith("rustc 1.99.1 ") || versions.zig !== "0.17.0" || versions.bindgen !== "wasm-bindgen 0.2.129") throw new Error("Use the documented pinned toolchain");
   const cargoHome = process.env.CARGO_HOME;
   if (!cargoHome) throw new Error("Set CARGO_HOME explicitly for reproducible path mapping");
@@ -48,6 +49,21 @@ function compile() {
 }
 
 type CrateMetadata = { name: string; version: string; license: string | null; manifest_path: string };
+function reportDifference(filename: string, actual: Buffer, target: string) {
+  const expected = existsSync(target) ? readFileSync(target) : Buffer.alloc(0);
+  if (filename !== "manifest.json" || expected.length === 0) {
+    console.error(JSON.stringify({ filename, expected: hash(expected), actual: hash(actual) }));
+    return;
+  }
+  const before = JSON.parse(expected.toString("utf8")) as Record<string, Record<string, string>>;
+  const after = JSON.parse(actual.toString("utf8")) as Record<string, Record<string, string>>;
+  for (const section of ["versions", "inputs", "outputs"]) {
+    const keys = new Set([...Object.keys(before[section]), ...Object.keys(after[section])]);
+    for (const key of keys) {
+      if (before[section][key] !== after[section][key]) console.error(JSON.stringify({ section, key, expected: before[section][key], actual: after[section][key] }));
+    }
+  }
+}
 function notices() {
   const metadata = JSON.parse(run(cargo, ["metadata", "--locked", "--format-version", "1"])) as { packages: CrateMetadata[] };
   return metadata.packages.filter((entry) => entry.name !== "yamoru-pinned-tls").sort((a, b) => a.name.localeCompare(b.name, "en")).map((entry) => {
@@ -70,7 +86,10 @@ for (const filename of readdirSync(generated)) {
   const actual = readFileSync(path.join(generated, filename));
   const target = path.join(destination, filename);
   if (process.argv.includes("--check")) {
-    if (!existsSync(target) || !actual.equals(readFileSync(target))) throw new Error(`Generated TLS artifact differs: ${filename}`);
+    if (!existsSync(target) || !actual.equals(readFileSync(target))) {
+      reportDifference(filename, actual, target);
+      throw new Error(`Generated TLS artifact differs: ${filename}`);
+    }
   } else writeFileSync(target, actual);
 }
 console.log(`TLS artifacts ${process.argv.includes("--check") ? "match" : "generated"}: ${JSON.stringify(versions)}`);

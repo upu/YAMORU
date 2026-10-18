@@ -19,7 +19,7 @@ YDR-060の「検証済みIPへ接続しながら元hostのTLS証明書とSNIを�
 
 ## 境界
 
-`packages/pinned-tls/` にRust source、Cargo.lock、固定toolchain、生成WASM・JS・型宣言・第三者ライセンスを保持する。専用CIは固定版から再生成してbyte単位で照合し、通常のunit testもsource/生成物のhashと実際のClientHelloを検査する。
+`packages/pinned-tls/` にRust source、Cargo.lock、固定toolchain、生成WASM・JS・型宣言・第三者ライセンスを保持する。残るpanic位置のパス区切りのOS差を避け、生成元はLinuxに統一する。Windows開発時の再生成はWSLで行う。専用CIは固定版から再生成してbyte単位で照合し、通常のunit testもsource/生成物のhashと実際のClientHelloを検査する。
 
 Mozilla由来のwebpki-rootsを使い、hostname・有効期間・信頼chainの検証を無効にするAPIを設けない。early dataとsession resumptionを無効にする。Rustlsのhandshake完了前はアプリケーションの平文を受け付けず、TLS解析・書き込み失敗後は同じclientを再利用しない。呼び出し側はリクエストごとにclientを作り、暗号文・平文の上限、socketの中断、最後の解放を担当する。
 

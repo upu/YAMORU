@@ -1,6 +1,6 @@
 {
-  "captured_at": "2026-10-18T03:31:02.707Z",
-  "wasm_sha256": "f03d36b89a0c1d1f20baa226f2fddb440c899495c46820fef087250a7a66b8b3",
+  "captured_at": "2026-10-18T03:46:15.613Z",
+  "wasm_sha256": "553d62e3d9ab931dfa394534fc97ce691771c3697a9d6e0dbac8f28e2b609b71",
   "results": [
     {
       "ok": true,
@@ -30,7 +30,7 @@
       "handshakeComplete": false,
       "applicationBytes": 0,
       "receivedTlsBytes": 4773,
-      "error": "invalid peer certificate: certificate expired: verification time 1792294262 (UNIX), but certificate is not valid after 1428883199 (363411063 seconds ago)"
+      "error": "invalid peer certificate: certificate expired: verification time 1792295173 (UNIX), but certificate is not valid after 1428883199 (363411974 seconds ago)"
     },
     {
       "ok": false,

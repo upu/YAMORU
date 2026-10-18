@@ -21,7 +21,7 @@ stale_after: 2026-11-18
 | Rustls WASM | 固定IP | expired.badssl.com | 期限切れで拒否、HTTP要求を渡さず |
 | Rustls WASM | 固定IP | self-signed.badssl.com | UnknownIssuerで拒否、HTTP要求を渡さず |
 
-Rustlsの同じ4ケースはlocal workerdでも同じ結果だった。Node strict TLSは正しいhostnameの証明書を検証し、wrong.hostの対照ではERR_TLS_CERT_ALTNAME_INVALIDになった。
+初期の試験用Rustls生成物ではlocal workerdでも同じ4ケースを確認した。同梱するLinux生成物の実Cloudflare確認は[実測記録](../../packages/pinned-tls/probe/edge-result-2026-10-18.json)にWASM hashと結果を保持し、unit testでもhash一致を確認する。Node strict TLSは正しいhostnameの証明書を検証し、wrong.hostの対照ではERR_TLS_CERT_ALTNAME_INVALIDになった。
 
 nativeのSocket.openedは失敗する接続でもresolveしたため、TLS検証完了の証拠には使わない。write呼び出しを試みたこととwire上でHTTP要求が送られたことも区別する。ローカルではunsupported expectedServerHostnameのログが出た。upstream [workerd #6903](https://github.com/cloudflare/workerd/issues/6903)と整合するが、こちらの実験でpacket captureによるSNI欠落までは調べていない。
 

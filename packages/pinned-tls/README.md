@@ -8,7 +8,7 @@ Mozillaの公開trust anchorsだけを使い、独自CA・検証無効化・earl
 
 ## 再生成
 
-Rust 1.99.1（wasm32-unknown-unknown target）、Zig 0.17.0、wasm-bindgen-cli 0.2.129、プロジェクトのNodeを使う。各公式配布のchecksumを確認する。Rustはrustupの既定構成、Zigとwasm-bindgenはそれぞれの公式配布でよい。既存の環境変数を変更する場合は、そのshellだけに限定する。
+生成環境はLinuxに統一する。Rust 1.99.1（wasm32-unknown-unknown target）、Zig 0.17.0、wasm-bindgen-cli 0.2.129、プロジェクトのNode、host用C linkerを使う。各公式配布のchecksumを確認する。Rustはrustupの既定構成、Zigとwasm-bindgenは公式配布でよい。既存の環境変数を変更する場合は、そのshellだけに限定する。
 
 ```sh
 export CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
@@ -19,7 +19,9 @@ node scripts/pinned-tls-build.ts --check
 npx vitest run tests/pinned-tls-engine.test.ts
 ```
 
-WindowsでもPowerShellの `$env:CARGO_HOME`、`$env:ZIG`、`$env:WASM_BINDGEN` を設定して同じNodeコマンドを実行する。ビルド用のRust/C compiler flagsと一時wrapperはscriptが設定する。crate sourceの絶対パスをremapし、debug情報を除去する。`--check` は再生成した全ファイルをbyte単位で照合する。通常のunit testはmanifestの入力・出力hashを照合し、Rust toolchainを必要としない。専用CIがソースから再ビルドする。
+WindowsではWSL内でLinux用の各toolを使って再生成する。PowerShell/Windowsでの生成はscriptが拒否する。crate sourceの絶対パスをremapし、debug情報を除去しても、panic位置の残るパス区切りはhost OSで異なるためである。通常のアプリ開発・unit testはWindowsのままでよく、Rust toolchainを必要としない。
+
+ビルド用のRust/C compiler flagsと一時wrapperはscriptが設定する。`--check` は再生成した全ファイルをbyte単位で照合する。通常のunit testはmanifestの入力・出力hashを照合し、専用Linux CIがソースから再ビルドする。
 
 Rustls、ring、webpki-roots等のバージョン・checksumはCargo.lockで固定する。root storeはOSの更新へ自動追従しないため、CA変更やsecurity advisoryの際はlockを更新し、再生成・CI照合・実Cloudflareの正例/負例を通して配備する。ライセンスは `generated/THIRD-PARTY-NOTICES.txt` に同梱する。
 

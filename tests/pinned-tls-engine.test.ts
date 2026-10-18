@@ -75,8 +75,9 @@ describe("source-built TLS engine", () => {
 
   it("keeps generated binaries and source provenance in agreement", () => {
     const manifest = JSON.parse(readFileSync(new URL("../packages/pinned-tls/generated/manifest.json", import.meta.url), "utf8")) as {
-      inputs: Record<string, string>; outputs: Record<string, string>;
+      inputs: Record<string, string>; outputs: Record<string, string>; versions: { platform: string };
     };
+    expect(manifest.versions.platform).toBe("linux");
     const edge = JSON.parse(readFileSync(new URL("../packages/pinned-tls/probe/edge-result-2026-10-18.json", import.meta.url), "utf8")) as { wasm_sha256: string };
     expect(manifest.outputs["tls_bg.wasm"]).toBe(edge.wasm_sha256);
     for (const [filename, checksum] of Object.entries(manifest.inputs)) {
