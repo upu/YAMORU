@@ -27,6 +27,8 @@ DNS・接続・TLS・HTTP読取りを含むPOST全体を10秒で中断する。T
 
 `YAMORU_EVENTS_PROVIDER=rustls-pinned-v1`を明示したnative Workerだけにproviderを作る。MCPとCronは同じfactoryを使う。fetchではコピーしたenvのSymbol slotを通してOpenNextへ渡し、既存のOAuth・CORS・予算制限の経路を保つ。元envを変更せず、requestのtransportやsocketをglobalに保存しない。通常のNext devにはnative slotがなく、Eventsは無効のままとする。
 
+native adapterは最初のPOSTで動的に読み込む。WASMの実体は事前コンパイルされたmodule assetを使い、instanceの作成をEvents無効時や通常ページの表示で行わない。loaderは通信処理を保持せず、POSTごとに独立したtransportへ委譲する。
+
 本変更ではe2e環境だけで設定し、previewとproductionでは未設定を維持する。built Worker E2EはEvents有効とprivate宛先の拒否を確認し、通常のNext E2EはEvents無効を確認する。公開fixtureの実Cloudflare試験ではDNSから署名付きPOSTまでを通し、応答・証明書拒否・redirect・本文上限・timeoutを記録する。sourceとWASMのhashを保存し、実測した実装との一致も検査する。
 
 これらは実ChatGPT callbackの購読・到達・解除・失効、定期取得の実行主体と遅延の証明ではない。追加scopeの本人同意と実接続検証を経てからpreviewの有効化を行い、#442はその検証まで開いておく。D1 migrationは不要で、既存の保存済み行を変更しない。

@@ -78,7 +78,7 @@ export default defineConfig([
     // opennextjs-cloudflare buildとwrangler devが出力する
     // バンドル済みWorkerスクリプト・ローカルD1状態(生成物)。
     ".open-next/**",
-    ".wrangler/**",
+    "**/.wrangler/**",
     "d1/.wrangler-state/**",
   ]),
 ]);

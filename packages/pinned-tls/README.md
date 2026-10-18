@@ -42,7 +42,7 @@ node scripts/pinned-tls-probe.ts http://127.0.0.1:8791
 
 ## HTTP connectorの実環境試験
 
-`src/features/integration/notifications/worker-transport.mjs`は、DoHによるpublic IP検査からraw TCP・Rustls・上限付きHTTPまでを接続する。アプリ側の有効化条件は[YDR-069](../../docs/decisions/ydr-069-pinned-http-runtime.md)。preview/productionではproviderを設定せず、e2eだけで有効化する。
+`src/features/integration/notifications/worker-transport.mjs`は、DoHによるpublic IP検査からraw TCP・Rustls・上限付きHTTPまでを接続する。`worker-transport-loader.ts`が最初のPOSTで動的に読み込むため、Events無効時や通常ページ表示ではTLSを初期化しない。アプリ側の有効化条件は[YDR-069](../../docs/decisions/ydr-069-pinned-http-runtime.md)。preview/productionではproviderを設定せず、e2eだけで有効化する。
 
 ```sh
 node node_modules/wrangler/bin/wrangler.js dev --config packages/pinned-tls/probe/http-wrangler.jsonc --remote --ip 127.0.0.1 --port 8792

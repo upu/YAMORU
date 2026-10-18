@@ -1,4 +1,4 @@
-import { createWorkerNotificationTransport } from "../../../src/features/integration/notifications/worker-transport.mjs";
+import { createLazyWorkerNotificationTransport } from "../../../src/features/integration/notifications/worker-transport-loader.ts";
 import { WebhookEndpointError } from "../../../src/features/integration/notifications/webhook-transport.ts";
 import { standardWebhookHeaders } from "../../../src/features/integration/notifications/event-crypto.ts";
 
@@ -25,7 +25,7 @@ const worker = {
       const body = fixture.body ?? "{}";
       const fixtureKey = `whsec_${btoa(String.fromCharCode(...new Uint8Array(32).fill(90)))}`;
       const headers = await standardWebhookHeaders(fixtureKey, "fictional-sub", "fictional-event", body, new Date());
-      const response = await createWorkerNotificationTransport().post(fixture.url, { body, readResponseBody: !fixture.head,
+      const response = await createLazyWorkerNotificationTransport().post(fixture.url, { body, readResponseBody: !fixture.head,
         headers: { ...headers, authorization: "fictional-do-not-forward", cookie: "fictional-do-not-forward" } });
       let echo;
       if (testCase === "echo") {

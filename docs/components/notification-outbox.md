@@ -63,4 +63,6 @@ previewの送信provider有効化、定期取得の実行主体との接続、�
 
 [YDR-069](../decisions/ydr-069-pinned-http-runtime.md)で`worker-transport.mjs`からDoH・raw TCP・Rustls・上限付きHTTPを接続する。`worker-events.ts`は正確な`YAMORU_EVENTS_PROVIDER=rustls-pinned-v1`だけを受け付け、MCPにはコピーしたenvのSymbol slot、Cronには同じfactoryを渡す。上記YDR-064〜066の「runtime未設定」はpreview/productionでは継続し、e2e環境だけで有効にする。通常のNext E2Eは無効を、built Worker E2Eは有効とprivate callback拒否をassertする。
 
+`worker-transport-loader.ts`は最初のPOSTまでnative moduleの評価とTLS instance作成を遅らせる。`notification-worker-transport-loader.test.ts`は無効時・有効でも未送信の間にmoduleを読み込まないこと、送信時の引数と応答の委譲を確認する。
+
 `tests/notification-dns-resolver.test.ts`は名前・全アドレス・本文と中断、`notification-http-response.test.ts`はframing・本文/metadata上限・切断、`notification-pinned-connector.test.ts`は認証前の送信禁止・資源解放・遅いI/Oを検査する。`notification-worker-events.test.ts`は有効化条件とrequest分離の入口。[HTTP実測記録](../../packages/pinned-tls/probe/http-edge-result-2026-10-18.json)は公開fixtureへ架空の署名付き本文だけを送った10ケースで、source/WASM hashをunit testで照合する。実dotへの通知の成功とは扱わない。再実行は[package README](../../packages/pinned-tls/README.md)を参照。
