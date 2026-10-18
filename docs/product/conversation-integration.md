@@ -15,11 +15,11 @@ stale_after: 2026-11-17
 
 本書はTool名・型・保存責務の実装契約である。提供済みの範囲と検証状況は以下の現在地と各Componentに記録する。親Issue #189は全子Issueと実接続確認が完了するまで閉じない。
 
-2026-10-18時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充に加え、OAuth接続と共通commandを使うMCP操作を実装し、previewの実dotで会話操作を確認した。定期取得の一時タスクによる案内と停止も実dotで確認した。定期取得の周期・重複抑止・停止は#442で、通知への完了・スヌーズ・予定変更・訂正/取消の返答は#443で実dot確認を完了した。全体の実接続と最終回帰は#444で照合し、親#189は全体完成まで開いておく。本人の無料運用の選択を[YDR-070](../decisions/ydr-070-free-polling-first.md)に記録し、v0.21.0は定期取得を先行する。未実証のMCP Events実配信は後続#474へ分ける。以下の「確認する」は各Issueの合格条件を示し、実装済みと実証済みを区別する。
+2026-10-18時点で、既存Webの家庭境界・Todo完了/取消/訂正・補充に加え、OAuth接続と共通commandを使うMCP操作を実装し、previewの実dotで会話操作を確認した。定期取得の周期・重複抑止・停止は#442で、通知への完了・スヌーズ・予定変更・訂正/取消の返答は#443で実dot確認を完了した。#444の全体照合は[実接続と回帰検証](../references/conversation-integration-checks.md)に集約し、実dot、previewの実HTTP、ローカル試験の範囲を分ける。本人の無料運用の選択を[YDR-070](../decisions/ydr-070-free-polling-first.md)に記録し、v0.21.0は定期取得を先行する。未実証のMCP Events実配信は後続#474へ分ける。以下の「確認する」は各Issueの合格条件を示し、実装済みと実証済みを区別する。本番公開と実家庭での利用確認は別の段階である。
 
 #435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
 
-#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、previewで実dotの接続・本人照会を実証した。E1の家庭B・未所属の実接続検証は#444に残る。
+#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、previewで実dotの接続・本人照会を実証した。#444では実dotの別家庭の取得・変更拒否と、previewの実HTTPで未所属の同意拒否を確認した。未所属のdot接続を成立させたという意味ではない。
 
 #437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`、確認画面、`operation_get`の確認状態と`confirmation_token`)は、古いpreviewの作り直しで意味のある差分が出た操作だけを対象として実装した([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。
 
