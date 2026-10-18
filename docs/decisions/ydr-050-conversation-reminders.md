@@ -8,9 +8,14 @@ status: stable
 decision_status: Accepted
 decision_date: 2026-10-17
 supersedes: YDR-009
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 決定5のv0.21.0でEventsを第一候補にする優先順位
 ---
 
 # YDR-050: YAMORUが通知候補を決定し会話連携先へ届ける
+
+決定5のEventsを第一候補とする優先順位だけを[YDR-070](ydr-070-free-polling-first.md)で置き換える。v0.21.0は本人の無料運用の選択に従って定期取得を先行し、それ以外の通知・共有・返答の責務は維持する。
 
 - 状態: Accepted
 - 決定日: 2026-10-17

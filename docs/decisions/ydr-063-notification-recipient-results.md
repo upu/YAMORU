@@ -7,7 +7,11 @@ tags: [yamoru, decisions, notifications, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
-superseded_by: YDR-065（日次の本文とevent IDの送信単位のみ）
+partially_superseded_by:
+  - ydr_id: YDR-065
+    scope: 日次の本文とevent IDの送信単位
+  - ydr_id: YDR-070
+    scope: 配備節の#442完了条件に含むEventsの実connector・日次まとめの実配送・実dot到達と購読解除/失効
 ---
 
 # YDR-063: 通知の宛先集合と結果を購読の世代ごとに保持する
@@ -44,5 +48,7 @@ superseded_by: YDR-065（日次の本文とevent IDの送信単位のみ）
 0044はbatchへ終端時刻を追加し、旧・新Workerの親更新をtriggerで同期する。本文が残る終端記録だけの期限索引を清掃に使い、破棄済み本文の証拠を毎回読み直さない。backfillでは親の元の時刻を使い、既存本文・event ID・日時を変更しない。0043と同じ追加だけの互換性を維持する。
 
 この追加は内部の保存APIであり、runtimeのEvents providerを有効にしない。実connector、定期取得の代替方式、日次まとめ、実dotの到達・解除・失効は#442の残る合格条件である。
+
+このうちEventsの実connector・日次まとめの実配送・実dot到達と購読解除/失効を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。宛先集合・結果・世代・保存と回復の契約は維持し、定期取得の実案内・停止と接続失効の確認は今回に残す。
 
 参照: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events)（2026-10-18確認）。

@@ -7,6 +7,9 @@ tags: [yamoru, decisions, notifications, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 配備節の#442完了条件に含むEventsの実TLS・実dot到達と購読解除/失効
 ---
 
 # YDR-066: 通知の送信開始を接続ごとの定期実行の確保へ結び付ける
@@ -51,5 +54,7 @@ schemaは0046のままで新migrationを追加しない。既存のID・元日�
 | contract後 | 置換・rename・dropを伴わずcontractは不要 |
 
 runtimeが無効な間はa10cf6aへ戻しても行と既存Webを保持する。実配信を有効にする前に、本判断のgroup-awareな回収以降をrollback先とし、検証済みconnectorと購読の実証を揃える。遠隔D1を手動変更せず、通常のmain CI・preview自動配備で確認する。TLS、定期取得、実dotの到達・解除・失効が未確認のまま#442を閉じない。
+
+このうちEventsの実TLS・実dot到達と購読解除/失効を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。内部schedulerと回収・rollbackの契約は維持し、定期取得による案内・停止と接続失効の確認は今回に残す。
 
 参照: [Cloudflare D1 limits](https://developers.cloudflare.com/d1/platform/limits/)、[D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)（2026-10-18確認）。

@@ -7,6 +7,9 @@ tags: [yamoru, decisions, notifications, integration, d1]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 検証節の#442完了条件に含むEventsの実送信・実dot到達と購読解除
 ---
 
 # YDR-060: 通知の購読とcallbackの秘密を本人の接続に結び付けて保存する
@@ -41,5 +44,7 @@ URLはHTTPSの443だけとし、接続ごとにDNSの全応答を検査する。
 | contract後 | 置換する旧構造はなくcontract不要 |
 
 送信providerをruntimeで設定しない間はEventsを公開しない。ローカルのmockでの署名・購読成功は、実connectorのTLS動作やdotへの到達を証明しない。実送信・複数購読先の結果保存・非対応時の定期取得・実dotの到達と解除は、#442の残る合格条件として扱う。
+
+このうちEventsの実送信・実dot到達と購読解除を#442の必須条件とする部分だけは[YDR-070](ydr-070-free-polling-first.md)で後続#474へ移す。購読の保存・暗号化・所有者境界と複数購読先の結果保存を含む既存の契約・テストは維持し、定期取得の実案内と停止を#442で確認する。
 
 参照: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events)、[MCP Events draft](https://github.com/modelcontextprotocol/experimental-ext-triggers-events/blob/main/docs/design-sketch-proposal.md)（2026-10-18確認）。ChatGPTのcallback errorはOpenAI文書に合わせて-32015を使う。

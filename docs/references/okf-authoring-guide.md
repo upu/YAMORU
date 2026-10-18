@@ -84,7 +84,11 @@ decision_date: YYYY-MM-DD
 (どうなったら見直すか)
 ```
 
-既存のAcceptedな判断を置き換える場合は、置き換え元・置き換え先の両方に`supersedes` / `superseded_by`を設定し、`decision_status`をそれぞれ更新する。フィールドの詳細な使い方は`docs/decisions/ydr-007-notification-field-trial.md`(Superseded側)と`docs/decisions/ydr-009-drop-notifications-consolidate-home.md`(Accepted側)を参照。新規追加時は`docs/decisions/index.md`の一覧への追記も同じ変更内で行う。
+既存のAccepted文書を全面的に置き換える場合は、置き換え元・置き換え先の両方に`supersedes` / `superseded_by`を設定し、`decision_status`をそれぞれ更新する。全面置換の例は`docs/decisions/ydr-007-notification-field-trial.md`(Superseded側)と`docs/decisions/ydr-009-drop-notifications-consolidate-home.md`(Accepted側)を参照する。
+
+一部の判断だけを変え、残る契約を維持する場合は、元の文書の`decision_status: Accepted`を維持する。新文書の`partially_supersedes`と元文書の`partially_superseded_by`へ、対象`ydr_id`と置き換える範囲`scope`の組をリストで設定する。本文と意思決定索引にも対象範囲を明記し、全面置換の`superseded_by`を新たに設定しない。例は`docs/decisions/ydr-070-free-polling-first.md`とYDR-050/067/069を参照する。これらの部分置換フィールドはYAMORU固有の拡張である。
+
+新規追加時は`docs/decisions/index.md`の一覧への追記も同じ変更内で行う。
 
 ## 3. `status`と領域固有の状態を混同しない
 

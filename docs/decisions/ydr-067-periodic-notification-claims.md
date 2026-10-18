@@ -7,6 +7,9 @@ tags: [yamoru, decisions, notifications, d1, mcp]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-18
+partially_superseded_by:
+  - ydr_id: YDR-070
+    scope: 末尾の#442完了条件に含むEventsの実TLS・到達・購読解除・購読失効
 ---
 
 # YDR-067: 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する
@@ -49,3 +52,5 @@ decision_date: 2026-10-18
 旧Workerへ戻す間は新commandを処理できないが、sendingの親は既存の期限切れ回復でunknownになり、再送されない。新Workerへ戻した後にheaderも回復する。遠隔D1は通常のmain CIとpreview自動配備で更新し、適用済みmigrationを変更しない。
 
 この実装だけでは15分の実行主体や実dotの通知到達は用意できない。実行周期と遅延、Eventsの実TLS・到達・解除・失効の証拠が揃うまで#442を閉じず、通知完成や即時到達を保証しない。
+
+上の#442完了条件のうちEventsの実TLS・到達・購読解除・購読失効を必須とする部分だけは、本人の無料運用の選択に基づく[YDR-070](ydr-070-free-polling-first.md)で置き換え、後続#474へ移す。定期取得の実行主体・周期・遅延・案内・停止の証明と、本書のclaim/ack契約は引き続き必要である。
