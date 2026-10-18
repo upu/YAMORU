@@ -41,3 +41,34 @@ for (const signOutFirst of [true, false]) {
     await expect(page.getByText("家族Bさん", { exact: true })).toHaveCount(0);
   });
 }
+
+test("ログアウト前の読み取り応答が後から届いても前のセッションに戻らない", async ({ db, page }) => {
+  await seedOwnerHousehold(db);
+  await login(page);
+  await page.goto("/account");
+  await expect(page.getByText("owner@example.test", { exact: true })).toBeVisible();
+  const background = await page.context().newPage();
+  await background.goto("/account");
+  const probe = new URL("/account?session_probe=logout", page.url()).toString();
+  const ready = Promise.withResolvers<undefined>();
+  const release = Promise.withResolvers<undefined>();
+  await background.route(probe, async (route) => {
+    const response = await route.fetch();
+    ready.resolve(undefined);
+    await release.promise;
+    await route.fulfill({ response });
+  });
+  const oldRead = background.evaluate(async (url) => (await fetch(url, { cache: "no-store" })).status, probe);
+  try {
+    await ready.promise;
+    await page.getByRole("button", { name: "設定メニュー" }).click();
+    await page.getByRole("button", { name: "ログアウト", exact: true }).click();
+    await expect(page).toHaveURL(/\/login$/u);
+  } finally {
+    release.resolve(undefined);
+    await oldRead;
+    await background.close();
+  }
+  await page.goto("/account");
+  await expect(page).toHaveURL(/\/login(?:\?|$)/u);
+});
