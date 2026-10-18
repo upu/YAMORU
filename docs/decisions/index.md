@@ -61,7 +61,7 @@
 | YDR-047 | Todoのメモを実施ごとの記録ではなくTaskRuleの手順として持つ | Accepted | [ydr-047-todo-note-on-task-rule.md](ydr-047-todo-note-on-task-rule.md) |
 | YDR-048 | ManagedItemのタグを家庭単位のマスタと多対多の関連として保存する | Accepted | [ydr-048-managed-item-tags.md](ydr-048-managed-item-tags.md) |
 | YDR-049 | 会話操作を認証された共通ユースケースへ集約する | Accepted | [ydr-049-conversation-command-boundary.md](ydr-049-conversation-command-boundary.md) |
-| YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
+| YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted（v0.21.0のEvents優先だけYDR-070で置換） | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
 | YDR-051 | 必達日を各回の予定・目安とは独立した暦日として持つ | Accepted（YDR-031/046のホーム除外を部分置換） | [ydr-051-occurrence-hard-deadline.md](ydr-051-occurrence-hard-deadline.md) |
 | YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
 | YDR-053 | 会話読み取りのrevisionを家庭世代で保守的に管理する | Accepted | [ydr-053-conversation-read-revisions.md](ydr-053-conversation-read-revisions.md) |
@@ -78,9 +78,10 @@
 | YDR-064 | 署名付き通知のHTTP送信と結果保存を別々に再試行する | Accepted | [ydr-064-signed-notification-event-jobs.md](ydr-064-signed-notification-event-jobs.md) |
 | YDR-065 | 日次まとめの本文と各候補の配信結果を別々に保持する | Accepted | [ydr-065-daily-notification-groups.md](ydr-065-daily-notification-groups.md) |
 | YDR-066 | 通知の送信開始を接続ごとの定期実行の確保へ結び付ける | Accepted | [ydr-066-scheduled-event-delivery.md](ydr-066-scheduled-event-delivery.md) |
-| YDR-067 | 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する | Accepted | [ydr-067-periodic-notification-claims.md](ydr-067-periodic-notification-claims.md) |
+| YDR-067 | 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-067-periodic-notification-claims.md](ydr-067-periodic-notification-claims.md) |
 | YDR-068 | 検査済みIPへのTLS検証にソースから生成したRustlsを使う | Accepted | [ydr-068-pinned-tls-engine.md](ydr-068-pinned-tls-engine.md) |
-| YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
+| YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
+| YDR-070 | v0.21.0は無料運用を維持し、実証した定期取得で通知する | Accepted | [ydr-070-free-polling-first.md](ydr-070-free-polling-first.md) |
 
 ## 新しい意思決定の追加
 

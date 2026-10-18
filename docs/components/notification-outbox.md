@@ -45,7 +45,7 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 
 0043と[YDR-063](../decisions/ydr-063-notification-recipient-results.md)は一致した全宛先の集合・安定event ID・本文と、宛先ごとの試行結果を保存する。受領済み・unknownを再送せず、他の未送信宛先だけを続行する。解除・失効を越えた購読世代には古い通知を送らず、有効期間中の鍵更新は継続できる。親leaseとrevisionは各宛先のbatchでも照合する。購読の削除では証拠を消さず、親配信の物理削除はcascadeする。終端から90日後は本文を100件ずつ消し、unknown/failedの最小結果を保持する。`notification-event-dispatch.d1-test.ts`・`notification-event-lifecycle.d1-test.ts`・`notification-event-recipients-migration.d1-test.ts`が複数宛先の回復、境界、更新DBの入口。
 
-previewの送信provider有効化、定期取得の実行主体との接続、実dotの到達は#442で引き続き検証する。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
+[YDR-070](../decisions/ydr-070-free-polling-first.md)により、v0.21.0の#442は定期取得の実行主体との接続・実dotの案内・周期/遅延・停止を検証する。Eventsのprovider有効化と実配送・購読解除/失効は後続#474へ分け、今回の必須前提にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
 [YDR-068](../decisions/ydr-068-pinned-tls-engine.md)の`packages/pinned-tls/`は、検査済みIPに対して元hostnameの証明書とSNIを使うTLS部品である。[実験](../spikes/pinned-tls.md)は実Cloudflareで正例・証明書負例とclose_notifyを確認している。HTTP connector/runtimeとの接続はYDR-069で追加するが、実dotへの到達の証拠ではない。
 
@@ -59,7 +59,9 @@ previewの送信provider有効化、定期取得の実行主体との接続、�
 
 [YDR-066](../decisions/ydr-066-scheduled-event-delivery.md)の内部provider注入時は、`notifications/event-scheduler.ts`から日次・個別jobへ進む。`notification-event-work.ts`が再試行groupを優先して全親を一括確保し、開始batchでも現在のCronを照合する。scopeを失った後の回収はCronの保守権限で行い、未処理groupも走査の対象に残す。`notification-policy.ts`の処理内frameとページ評価で重複読取りを減らし、各候補stampは同じ家庭・設定revisionへ束縛する。`notification-event-scheduler.d1-test.ts`が実D1と架空HTTPの定期送信・競合・回復・二家庭の呼出枠、`notification-policy-frame.d1-test.ts`が設定変更・先頭候補解消・scope/session変更・所有者・全取消の入口。Workerへproviderを設定していないため、これらは実dotの通知到達を証明しない。
 
-0047と[YDR-067](../decisions/ydr-067-periodic-notification-claims.md)の`notification.claim`・`notification.ack`は、`commands/notification-poll.ts`から`notification-poll.ts`・`notification-poll-statements.ts`へ進む。readとevents.subscribeを要求し、prepareでは確保せず、commitで最大50候補を5分間確保する。既存outboxを使い、Eventの固定本文を持つ親を横取りしない。ackは集合のIDとtoken・全親の世代を照合し、案内の報告と既読を区別する。`notification-poll-recovery.ts`は現在のCronで期限切れをunknownへ回復し、親がないheaderも走査に残す。`notification-poll-commands.d1-test.ts`が50件・権限・同じack・全取消・競合・回復・保持期限、`notification-poll-migration.d1-test.ts`が更新DB・旧SQL・複合FK・cascade、`integration-mcp.d1-test.ts`がwire schemaと権限回復案内の入口。15分の実行主体と実測遅延は未実証で、claim/ackだけをもって通知完成とはしない。
+0047と[YDR-067](../decisions/ydr-067-periodic-notification-claims.md)の`notification.claim`・`notification.ack`は、`commands/notification-poll.ts`から`notification-poll.ts`・`notification-poll-statements.ts`へ進む。readとevents.subscribeを要求し、prepareでは確保せず、commitで最大50候補を5分間確保する。既存outboxを使い、Eventの固定本文を持つ親を横取りしない。ackは集合のIDとtoken・全親の世代を照合し、案内の報告と既読を区別する。`notification-poll-recovery.ts`は現在のCronで期限切れをunknownへ回復し、親がないheaderも走査に残す。`notification-poll-commands.d1-test.ts`が50件・権限・同じack・全取消・競合・回復・保持期限、`notification-poll-migration.d1-test.ts`が更新DB・旧SQL・複合FK・cascade、`integration-mcp.d1-test.ts`がwire schemaと権限回復案内の入口。claim/ackの実装だけでは外部の定期タスクを作らない。
+
+previewの実dotでは、一時タスクの予定15:46:40 JSTに対し候補確保15:47:58.646、案内報告15:48:24.480を確認し、dot上にも確認時刻15:48:02の案内が現れた。その後タスクのis_enabled=false / next_run_time=nullを読み戻した（[実測記録](https://github.com/upu/YAMORU/issues/442#issuecomment-6247389120)）。これは一回の実行証拠であり、継続周期や到達遅延の上限の保証ではない。#442では有限回の繰り返しと重複抑止も照合し、#444で最終headの導入・復旧を確認する。案内文の確認時刻を、利用者の既読時刻や独立計測した画面到達時刻として扱わない。
 
 [YDR-069](../decisions/ydr-069-pinned-http-runtime.md)で`worker-transport.mjs`からDoH・raw TCP・Rustls・上限付きHTTPを接続する。`worker-events.ts`は正確な`YAMORU_EVENTS_PROVIDER=rustls-pinned-v1`だけを受け付け、MCPにはコピーしたenvのSymbol slot、Cronには同じfactoryを渡す。上記YDR-064〜066の「runtime未設定」はpreview/productionでは継続し、e2e環境だけで有効にする。通常のNext E2Eは無効を、built Worker E2Eは有効とprivate callback拒否をassertする。
 
