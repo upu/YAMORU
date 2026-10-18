@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { MCP_TOOL_DEFINITIONS, type McpToolName } from "./catalog";
-import { mcpOutputSchema } from "./output-schemas";
+import { mcpPublicOutputSchema } from "./output-schemas";
 import { createMcpToolService, mcpToolError } from "./service";
 import { mcpAuthChallenge } from "./auth-challenge";
 import type { McpContext } from "./server";
@@ -19,7 +19,7 @@ export function listMcpTools() {
   return MCP_TOOL_DEFINITIONS.map((tool) => ({ name: tool.name, title: tool.title, description: tool.description,
     securitySchemes: toolSecuritySchemes(tool.name), _meta: { securitySchemes: toolSecuritySchemes(tool.name) },
     inputSchema: { ...z.toJSONSchema(tool.schema, { io: "input" }), type: "object" as const },
-    outputSchema: { ...z.toJSONSchema(mcpOutputSchema(tool.name)), type: "object" as const }, annotations: toolAnnotations(tool) }));
+    outputSchema: { ...z.toJSONSchema(mcpPublicOutputSchema(tool.name)), type: "object" as const }, annotations: toolAnnotations(tool) }));
 }
 export function createMcpToolRunner(context: McpContext) {
   const service = createMcpToolService(context);

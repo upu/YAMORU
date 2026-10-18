@@ -2,6 +2,7 @@ import { type Page } from "@playwright/test";
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 
 import { createManagedItem } from "../src/lib/d1/managed-items";
+import { delayActionRequest, runServerAction } from "./support/server-action";
 
 // Issue #288: 家庭内で1件目の「放課後デイサービス」を自由入力で登録済みという
 // 前提を作る。2件目を登録するときに、同じ表記を候補から選べることを確かめる。
@@ -53,9 +54,11 @@ test("登録画面で家庭内の自由入力の詳しい種類を候補から�
   await expect(customItemType).toHaveValue("放課後デイサービス");
 
   await page.getByLabel("名前").fill("放課後等デイサービスB");
-  await page.getByRole("button", { name: "管理対象を登録" }).click();
+  await delayActionRequest(page, "/managed-items/new");
+  await runServerAction(page, () => page.getByRole("button", { name: "管理対象を登録" }).click());
 
-  await expect(page).toHaveURL(/\/managed-items\/[^/]+$/u);
+  await expect(page).toHaveURL(/\/managed-items\/(?!new$)[^/]+$/u);
+  await expect(page.getByRole("heading", { level: 1, name: "放課後等デイサービスB" })).toBeVisible();
   await expect(page.getByText("放課後デイサービス").first()).toBeVisible();
 
   // 表記が揃っているため、一覧の詳しい種類の絞り込みで2件ともまとめて見つかる。
@@ -77,9 +80,11 @@ test("候補にない詳しい種類は、これまでどおりそのまま自�
   await expect(page.getByRole("group", { name: "使用中の詳しい種類から選ぶ" })).toHaveCount(0);
 
   await page.getByLabel("名前").fill("週末の訪問リハビリ");
-  await page.getByRole("button", { name: "管理対象を登録" }).click();
+  await delayActionRequest(page, "/managed-items/new");
+  await runServerAction(page, () => page.getByRole("button", { name: "管理対象を登録" }).click());
 
-  await expect(page).toHaveURL(/\/managed-items\/[^/]+$/u);
+  await expect(page).toHaveURL(/\/managed-items\/(?!new$)[^/]+$/u);
+  await expect(page.getByRole("heading", { level: 1, name: "週末の訪問リハビリ" })).toBeVisible();
   await expect(page.getByText("訪問リハビリ").first()).toBeVisible();
 });
 

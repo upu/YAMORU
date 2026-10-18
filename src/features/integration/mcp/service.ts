@@ -22,9 +22,10 @@ async function connection(context: McpContext, principal: IntegrationPrincipal) 
   const row = await readIntegrationConnectionProfile(context.db, principal);
   if (!row) throw new ReadError("not_found");
   return { schema_version: 1, request_id: crypto.randomUUID(), as_of: (context.now?.() ?? new Date()).toISOString(),
-    connection_management_url: `${context.config.issuer}/settings/integrations`, user_id: principal.userId, household_id: principal.householdId, connection_id: principal.connectionId,
+    connection_management_url: `${context.config.issuer}/settings/integrations`, integration_guide_url: `${context.config.issuer}/settings/integrations/guide`, user_id: principal.userId, household_id: principal.householdId, connection_id: principal.connectionId,
     client_id: principal.clientId, site_origin: context.config.issuer, ...row, scopes: [...principal.scopes], status: "active",
     capabilities: { supported_commands: [...COMMAND_NAMES], events: Boolean(context.events), notification_delivery: false, transport_protocols: [...MCP_SUPPORTED_VERSIONS],
+      notification_polling: { supported: true, executor: "connected_client", external_task_status: "unknown", interval_hint_minutes: 15, requires_scopes: ["household.read", "events.subscribe"] },
       unsupported_commands: ["todo.update", "todo.reschedule", "managed_item.update"].filter((name) => !(COMMAND_NAMES as readonly string[]).includes(name)) } };
 }
 export function createMcpToolService(context: McpContext) {

@@ -30,11 +30,11 @@ prepareでは書き込まず本人への差分を示し、commit時に設定・�
 
 成功結果のrevisionは受付記録のbatch内で読み取って保存する。設定はsettings取得と同じ整数、候補はattention_getと同じ`[1,id,candidateRevision]`のJSON文字列とし、続く操作へそのまま渡せる。後から別の設定変更をしても、再送は最初に保存した結果を返す。
 
-## #442への引き継ぎ
+## 定期取得による通知と稼働確認
 
-この実装は配信を開始しない。画面にも準備中と表示する。MCP adapter・outbox・lease・定期実行・実接続検証を実装した後で表示を更新する。
+v0.21.0は[YDR-070](../decisions/ydr-070-free-polling-first.md)に従い、外部の定期取得を使う。`delivery-status.tsx`は本人の保存済み状態と連携可否を表示する。外部タスクの有効状態・次回予定・実行結果はYAMORUから確認できず、保存だけで外部タスクを作成したとは表示しない。導入・復旧は`/settings/integrations/guide`へ案内する。
 
-#442の永続outbox・lease・走査の入口は[通知outbox・定期走査](notification-outbox.md)へ追加している。実送信・購読と実dotでの確認は引き続き未完了であり、準備中の表示を維持する。
+#442の永続outbox・lease・走査と定期取得の入口は[通知outbox・定期走査](notification-outbox.md)。実dotの定期起動・案内・重複抑止・停止を#442で、返答を#443で確認した。Eventsの実送信・購読は後続#474であり、利用可能とは表示しない。実接続と模擬試験の境界は[検証表](../references/conversation-integration-checks.md)を参照する。
 
 - `evaluateNotification`は配信権の確保ではない。同じ本人・接続・候補・通知回をoutboxの一意制約とleaseで確保し、送信直前にも再判定する。
 - `deferred`は同じ配信IDを保ってpendingへ戻し、leaseを解放してnextAtを保存する。通知回数は増やさない。settings/control更新時に既存outboxの次回時刻を再計算する連携を#442で追加する。今の判定はキャッシュを使わず変更を即時に反映する。
