@@ -17,6 +17,15 @@ function dnsFetch(a: Record[], aaaa: Record[] = []) {
 const signal = () => new AbortController().signal;
 
 describe("public DNS-over-HTTPS resolver", () => {
+  it("records a fixed DNS failure without the hostname or raw resolver error", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error("private-hostname-and-token"));
+      await expect(createPublicDnsResolver(fetcher)("private.example.com", signal())).rejects.toMatchObject({ reason: "unreachable", requestStarted: false });
+      expect(warn.mock.calls).toEqual([[{ event: "mcp_event_transport_failure", phase: "dns", category: "unclassified", request_started: false }]]);
+    } finally { warn.mockRestore(); }
+  });
+
   it("checks A and AAAA each time through only the fixed HTTPS resolver", async () => {
     const fetcher = dnsFetch([{ name: "receiver.example.com.", type: 1, data: "8.8.8.8" }], [{ name: "receiver.example.com.", type: 28, data: "2001:4860:4860::8888" }]);
     const resolve = createPublicDnsResolver(fetcher);

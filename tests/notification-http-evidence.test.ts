@@ -11,7 +11,8 @@ it("matches the checked-in HTTP implementation and TLS binary to the real edge p
   expect(evidence.source_sha256).toEqual(httpSourceHashes());
   const wasm = readFileSync(new URL("../packages/pinned-tls/generated/tls_bg.wasm", import.meta.url));
   expect(evidence.wasm_sha256).toBe(createHash("sha256").update(wasm).digest("hex"));
-  expect(evidence.results.map((result) => result.testCase)).toEqual(["echo", "status", "large_head", "large_body", "redirect", "wrong", "expired", "selfsigned", "private", "delay"]);
+  expect(evidence.results.map((result) => result.testCase)).toEqual(["echo", "status", "large_head", "large_body", "redirect", "wrong", "expired", "selfsigned", "private", "cloudflare", "delay"]);
   expect(evidence.results.find((result) => result.testCase === "wrong")).toMatchObject({ ok: false, requestStarted: false });
   expect(evidence.results.find((result) => result.testCase === "delay")).toMatchObject({ ok: false, reason: "timeout", requestStarted: true });
+  expect(evidence.results.find((result) => result.testCase === "cloudflare")).toMatchObject({ ok: false, reason: "unreachable", requestStarted: false });
 });

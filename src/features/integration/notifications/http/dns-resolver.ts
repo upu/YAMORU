@@ -49,6 +49,7 @@ export function createPublicDnsResolver(fetcher: typeof fetch = fetch) {
       if (!addresses.length || addresses.length > 16) throw new WebhookEndpointError("blocked_address");
       return [...new Set(addresses)];
     } catch (error) {
+      console.warn({ event: "mcp_event_transport_failure", phase: "dns", category: error instanceof WebhookEndpointError ? error.reason : "unclassified", request_started: false });
       if (error instanceof WebhookEndpointError) throw error;
       throw new WebhookEndpointError(signal.aborted ? "timeout" : "unreachable");
     } finally { stop.abort(); scope.dispose(); }
