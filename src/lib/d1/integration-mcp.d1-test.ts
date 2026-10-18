@@ -12,6 +12,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CfWorkerJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/cfworker-provider.js";
 import { COMMAND_NAMES } from "../../features/integration/commands/contract";
+import { enqueueNotification } from "./notification-outbox";
 const db = env.DB;
 let token: string;
 beforeAll(() => applyAllMigrations(db));
@@ -49,6 +50,7 @@ it("OAuthで認証してMCP discoveryと家庭の読み取りを行い、秘密�
   expect(metadata.annotations.readOnlyHint).toBe(false);
   expect(listed.result.tools.find((t) => t.name === "connection_get")).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["household.read"] }] });
   expect(listed.result.tools.find((t) => t.name === "notification_settings_get")).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["household.read", "notifications.manage"] }] });
+  expect(listed.result.tools.find((t) => t.name === "notification_context_get")).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["household.read", "notifications.manage"] }] });
   const connection = await tool("connection_get", {});
   expect(connection.structuredContent).toMatchObject({ household_id: "household-a", user_id: "user-a", status: "active", request_id: expect.any(String), as_of: expect.any(String), connection_management_url: `${testOAuthConfig.issuer}/settings/integrations`, capabilities: { events: false } });
   expect(JSON.stringify(connection)).not.toContain(token);
@@ -174,6 +176,35 @@ it("定期取得のclaim/ackをMCPで実行し、不足権限はevents.subscribe
     expect(denied).toMatchObject({ isError: true, structuredContent: { error: { code: "insufficient_scope" } } });
     expect(JSON.stringify(denied)).toContain("events.subscribe"); expect(JSON.stringify(denied)).not.toContain("notifications.manage");
   }
+});
+it("公開Toolで通知の元の回を照合し、参照付き完了と不足する通知権限を扱う", async () => {
+  token = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read household.write notifications.manage events.subscribe" })).access_token;
+  const auth = await verifyAccessToken({ db, config: testOAuthConfig }, token, []);
+  if (!auth.ok) throw new Error("Missing auth");
+  await saveNotificationSettings(db, householdAMember, { ...DEFAULT_SETTINGS, enabled: true, connectionId: auth.principal.connectionId, mode: "individual", quietEnabled: false }, 0, new Date());
+  const task = await createHouseholdAMaintenanceTask(db);
+  const attention = await tool("attention_get", {});
+  const candidate = (attention.structuredContent.candidates as { candidate_id: string; entity_id: string }[]).find((c) => c.entity_id === task.occurrenceId);
+  if (!candidate) throw new Error("Missing candidate");
+  const delivery = await enqueueNotification(db, auth.principal, candidate.candidate_id, new Date());
+  if (!delivery) throw new Error("Missing delivery");
+  const context = await tool("notification_context_get", { delivery_id: delivery.deliveryId });
+  expect(context).toMatchObject({ structuredContent: { selection_required: false, selected: { entity: { id: task.occurrenceId } } } });
+  const selected = context.structuredContent.selected as { notification_reference: Record<string, unknown> };
+  const args = { command: "todo.complete", operation_id: crypto.randomUUID(), target: { kind: "todo_occurrence", id: task.occurrenceId }, payload: {}, notification_reference: selected.notification_reference };
+  const prepared = await tool("command_prepare", args);
+  expect(prepared.isError).not.toBe(true);
+  expect(await tool("command_commit", commitInput(prepared.structuredContent))).toMatchObject({ structuredContent: { status: "succeeded" } });
+  const readWrite = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read household.write" })).access_token;
+  for (const [name, input] of [["notification_context_get", { delivery_id: delivery.deliveryId }], ["command_prepare", { ...args, operation_id: crypto.randomUUID() }]] as const) {
+    const denied = await tool(name, input, readWrite);
+    expect(denied).toMatchObject({ isError: true, structuredContent: { error: { code: "insufficient_scope" } } });
+    expect(JSON.stringify(denied)).toContain("notifications.manage");
+  }
+  const readOnly = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read" })).access_token;
+  const missingBoth = await tool("command_prepare", { ...args, operation_id: crypto.randomUUID() }, readOnly);
+  expect(JSON.stringify(missingBoth)).toContain("household.write");
+  expect(JSON.stringify(missingBoth)).toContain("notifications.manage");
 });
 it("不足項目は共通エラーで返し、同名候補を勝手に一つへ絞らない", async () => {
   const missing = await tool("command_prepare", { command: "todo.create", operation_id: crypto.randomUUID(), payload: {} });

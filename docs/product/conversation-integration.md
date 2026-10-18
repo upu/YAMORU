@@ -115,6 +115,7 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 | `operation_get` | `operation_id` | `prepared / succeeded / rejected / expired / unknown`、保存結果、再取得方法、確認状態。確認済みで未実行なら元commandのscopeも検証し`confirmation_token`を返す。別接続のreceipt/tokenは返さない |
 | `notification_settings_get` | `{}` | 本人の設定とrevision、適用中の次回通知時刻 |
 | `delivery_list` | `cursor?, limit?` | 本人向け候補ID・状態・見送り理由・最終試行時刻。既定20、最大50。callback URLやsecretは返さない |
+| `notification_context_get` | `delivery_id, candidate_id?` | 元の回/消耗品、現在状態、`selected.notification_reference`。複数件は`selection_required`で選択し、欠落件数は`missing_count`。source不明/90日超過/削除は選び直す。最大50件、leaseや秘密は返さない |
 
 対象kindは`managed_item / todo_rule / todo_occurrence / consumable`。名称が一致しても複数候補は確定しない。関連名・別名に一致した場合は一致フィールドと短い理由を返す。ページ順は安定キーで固定し、cursorへ検索条件・家庭・主体を束縛する。期限切れcursorには`cursor_expired`と安全な再取得方法を返す。
 
@@ -139,6 +140,8 @@ wire形式はJSON。名前はsnake_case、ID/revision/cursorは意味を推測�
 出力は`operation_id, status, preview_id, expires_at, normalized_command, affected_entities, diff, schedule_effect, confirmation, fingerprint`。`confirmation`は`state(not_needed / required / unresolved), reason_codes[]`を持ち、requiredでは`confirmation_url`と`expires_at`も返す。未解決の必須値があればcommit可能なpreviewを発行しない。previewは10分有効で、期限はサーバーが返す。prepareは業務データを変更しないがpreview/receiptを永続化するため、MCPのreadOnly扱いにはしない。
 
 対象を新規作成するcommandではtarget/revisionを省略し、関連する既存IDのrevisionをaffected_entitiesへ含める。個人設定は本人の設定revision、訂正は対象記録と現在の投影のrevisionを使う。prepareとcommitの両方でcommand別のscopeをサーバー側から引き、要求内に書かれたscopeは採用しない。
+
+通知への返答では`notification_context_get`で対象を照合し、`command_prepare`に任意の`notification_reference: {delivery_id,candidate_id}`を添える。これは通知に保存された元対象の検査を追加する入力であり、scopeや利用者の指示の代わりにはならない。完了/訂正/取消、予定変更、本人スヌーズ、在庫の観測/補充/訂正に対応し、prepare・commitの再計画・業務と同じbatchで照合する。詳細とrollback条件は[YDR-071](../decisions/ydr-071-notification-reply-reference.md)。参照なしの通常操作は従来どおりとする。
 
 `command_commit`入力は`operation_id, preview_id, fingerprint`と、確認必須の場合のサーバー発行`confirmation_token`のみ。payloadを再入力させない。tokenは認証済みYAMORU確認画面で該当previewへ同意したとき発行し、同じ主体・内容・期限へ束縛する。日常の明確な操作では追加確認画面を要求しない。MCPクライアント固有の確認UIが追加で要求される場合はそれに従う。
 
@@ -265,7 +268,7 @@ v0.21.0では、本人が別途設定した接続先の定期実行主体が`att
 
 これらもprepare/commitと操作IDの契約に従い、本人の`events.subscribe`と`household.read`を要する。`notifications.manage`だけの接続はprepare/commitとも拒否する。claim/ackは本人・家庭・接続・有効な配信設定とleaseへ束縛し、別接続宛ての配信を確保・報告できない。家庭の業務データを変更しない。ackのreportedはクライアントの案内報告であり既読ではない。lease切れの送信不明は同じunknown規則で扱う。自動実行主体を確保できない場合、通知完成を主張せず#442/#444を未完了として残す。
 
-返答は`delivery_id/candidate_id/occurrence_id`から現在対象を解決する。通知に複数件ある「やった」はどれか確認する。通知の期限切れ/接続失効では変更せず、現在の候補を案内する。新しいOccurrenceへ暗黙に付け替えない。自己発行イベントで繰り返し完了や通知ループを起こさない。
+返答は`notification_context_get`で`delivery_id/candidate_id`から保存済みの元Occurrence/消耗品と現在状態を解決する。通知に複数件ある「やった」はどれか確認する。一部の詳細が消えても残りを勝手に選ばない。通知の期限切れ/接続失効では変更せず、現在の候補を選び直す。参照付きcommandは元対象と一致する場合だけ実行し、新しいOccurrenceへ暗黙に付け替えない。自己発行イベントで繰り返し完了や通知ループを起こさない。
 
 ## 8. 保存・移行・運用
 

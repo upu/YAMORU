@@ -45,6 +45,7 @@ export function createMcpToolService(context: McpContext) {
         case "attention_get": result = await attention.attentionGet(args); break;
         case "notification_settings_get": result = await notifications.notificationSettingsGet(); break;
         case "delivery_list": result = await notifications.deliveryList(args); break;
+        case "notification_context_get": result = await notifications.notificationContextGet(args); break;
         case "command_prepare": result = await commands.prepare(principal, args); break;
         case "command_commit": result = await commands.commit(principal, args); break;
         case "operation_get": result = await commands.get(principal, args); break;

@@ -28,6 +28,7 @@ function uuidValue(value: unknown, field: string): string {
 
 export type PrepareRequest = {
   command: CommandName;
+  notificationReference?: { delivery_id: string; candidate_id: string };
   expectedRevision: unknown;
   operationId: string;
   payload: unknown;
@@ -35,11 +36,13 @@ export type PrepareRequest = {
 };
 
 export function parsePrepareRequest(input: unknown): PrepareRequest {
-  const value = objectValue(input, "input", ["operation_id", "command", "target", "expected_revision", "payload"]);
+  const value = objectValue(input, "input", ["operation_id", "command", "target", "expected_revision", "payload", "notification_reference"]);
   const operationId = uuidValue(value.operation_id, "operation_id");
   if (!isCommandName(value.command)) throw new CommandError("unsupported_capability", { operationId });
+  const reference = value.notification_reference === undefined ? undefined : objectValue(value.notification_reference, "notification_reference", ["delivery_id", "candidate_id"]);
   return {
     command: value.command,
+    ...(reference ? { notificationReference: { delivery_id: idValue(reference.delivery_id, "notification_reference.delivery_id"), candidate_id: idValue(reference.candidate_id, "notification_reference.candidate_id") } } : {}),
     expectedRevision: value.expected_revision,
     operationId,
     payload: value.payload,

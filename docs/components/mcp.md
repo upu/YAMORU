@@ -12,6 +12,8 @@ status: stable
 
 `src/app/mcp/route.ts` → `src/features/integration/mcp/http.ts`は、既存OAuthのresource `/mcp`へStreamable HTTPを接続する。認証・業務判定は[外部連携](integration.md)、読み取りは[会話読み取り](conversation-read.md)へ委譲する。SQLや日付計算をMCPへ複製しない。
 
+通知への返答は`notification_context_get`と任意の`command_prepare.notification_reference`を[通知への返答](notification-replies.md)へ委譲する。どちらも現在の通知設定権限を検証し、元の回への束縛、複数件の選択、sourceの保持期限をサーバーで照合する。本人スヌーズと家庭の完了/予定変更のscopeは引き続き分ける。
+
 | 変更したいこと | 入口 |
 |---|---|
 | HTTP、Origin、本文上限、OAuth challenge | `mcp/http.ts`、環境取得は`runtime.ts` |
