@@ -36,6 +36,7 @@ Auth.js Credentialsによるログイン、家庭(household)の作成と所属�
 - パスワードハッシュのPBKDF2反復回数はCloudflare Workersの実行上限に合わせる([YDR-025](../decisions/ydr-025-pbkdf2-iterations-within-workers-limit.md))。変更時は`src/lib/auth/password.ts`と`tests/password.test.ts`を一組で見る。
 - 家庭メンバーは全員が家庭内データを編集できる。細かな権限区別を持ち込まない([YDR-005](../decisions/ydr-005-no-realtime-no-fine-grained-permissions.md)のうち継続する部分)。
 - アカウント単位のニックネームと家庭内の表示名は同一概念として扱う([YDR-018](../decisions/ydr-018-account-nickname-as-member-display-name.md))。
+- Workerでは`open-next.config.ts`でPOSTの応答ヘッダー・Cookieをhandler優先にする。Auth.js middlewareは変更前のセッションを更新するため、既定のmiddleware優先ではログイン時の置き換え・ログアウト時の削除が上書きされ、前の利用者が残る。[OpenNextの優先順位](https://opennext.js.org/aws/config/full_example)に従い、GETの更新は従来どおりに保つ。認証・家庭境界のチェックは省略しない。
 
 ## 関連YDR
 
@@ -55,3 +56,5 @@ npm run typecheck
 ```
 
 家庭間分離を変える場合は`src/lib/d1/authorization.d1-test.ts`と各機能の`*-authorization.d1-test.ts`、共有導線の回帰は`e2e/family-sharing.spec.ts`で確認する。
+
+同じブラウザーの本人切り替えは`e2e/account-switch.spec.ts`で、ログアウト後の保護画面拒否、別家族のメールと名前、再読込、ログアウトせず再認証する場合を確認する。通常のNext devに加えて`npm run test:e2e:worker`のビルド済みWorkerでも行う。Worker E2EではHTTPのlocalhostに合わせて`AUTH_URL`を明示し、入口とhandlerのCookie名の判定を揃える。Cookieや資格情報の値はログへ出さない。
