@@ -32,6 +32,14 @@ function serverNames(record: Uint8Array) {
 }
 
 describe("source-built TLS engine", () => {
+  it("does not expose authenticated close_notify on an unverified or failed TLS session", () => {
+    const tls = new TlsClient("badssl.com");
+    try {
+      expect(tls.peer_closed()).toBe(false);
+      expect(() => { tls.receive_tls(new TextEncoder().encode("HTTP/1.1 200 OK\r\n\r\n")); }).toThrow();
+      expect(() => tls.peer_closed()).toThrow("TLS connection failed");
+    } finally { tls.free(); }
+  });
   it("sends the original DNS hostname in the actual ClientHello SNI", () => {
     const tls = new TlsClient("badssl.com");
     try { expect(serverNames(tls.take_tls())).toEqual(["badssl.com"]); }

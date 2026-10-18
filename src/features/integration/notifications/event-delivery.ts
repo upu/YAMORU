@@ -31,6 +31,6 @@ export async function sendEventRecipient(deps: Dependencies, attempt: EventRecip
   } catch { return { kind: "failed", reason: "key_unavailable" }; }
   if (deps.signal?.aborted) return { kind: "retry", reason: "timeout" };
   const signal = deps.signal ? AbortSignal.any([deps.signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000);
-  try { return receivedResponse(await deps.transport.post(prepared.url, { body: attempt.body, headers: prepared.headers, signal })); }
+  try { return receivedResponse(await deps.transport.post(prepared.url, { body: attempt.body, headers: prepared.headers, signal, readResponseBody: false })); }
   catch (error) { return transportFailure(error); }
 }

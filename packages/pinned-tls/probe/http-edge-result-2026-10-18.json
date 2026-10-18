@@ -1,0 +1,104 @@
+{
+  "captured_at": "2026-10-18T05:11:27.338Z",
+  "wasm_sha256": "f78dd43a866e8b3109c53f3c40ebb00aef03779f862cc564da4f996d0acaf5f0",
+  "source_sha256": {
+    "packages/pinned-tls/generated/tls.js": "8dede5d1fe7853fde06ea38dcc66e4b2fd556d01c4c921b476edb390c66a1d98",
+    "packages/pinned-tls/probe/http-worker.js": "34d7a9ce7e1709933fd13c97a2b9857ab0aab9a402793254d55838eaef8dfdcd",
+    "packages/pinned-tls/probe/http-wrangler.jsonc": "a19c5b01bfac0f456f45181e906e58b75e3bffc5a8110eac79250b95e35ee8ed",
+    "scripts/pinned-http-evidence.ts": "1f7da90f95aae5436e858207f362d33debdbef9250a8b4caeec9e54fe5c66dea",
+    "scripts/pinned-http-probe.ts": "5ce4b78c6d6d286354ada8c118f125c519c0eaf6cfee0cd44e81caeddb64bd0c",
+    "src/features/integration/notifications/event-crypto.ts": "00deeb864fb2e0cc74ffd278ced5694dd75fa2a93159cf0216c2460e2b9202b8",
+    "src/features/integration/notifications/http/body.ts": "99f5e303fc06c06cea5cdd071f89a6d906fa795b9b4fa225835a4ca5e0ac23db",
+    "src/features/integration/notifications/http/bytes.ts": "81fa89fe7e844d1aac6aa11ec1ff3223bfdd1bc88fa2415bb7bb2a046ba3569d",
+    "src/features/integration/notifications/http/dns-answer.ts": "fbadea67605d7aec03cc9535a9bdd41c0c07b9ffb99fd7f18eee5897cc574f8d",
+    "src/features/integration/notifications/http/dns-resolver.ts": "d6937617b49af1d09988cde613e84a7e695b512f1f3fc8d69f953a1a75edbf62",
+    "src/features/integration/notifications/http/headers.ts": "aee3c536d6aa263f6e743c7dd646dae643477f148f4895996ce599bbbd441dae",
+    "src/features/integration/notifications/http/lifecycle.ts": "2b277282775d7ecbefcabbb6d53a964bb2b6fad688bbcd5d8ef0fb9b79d932bd",
+    "src/features/integration/notifications/http/pinned-connector.ts": "ff47de484a3781432deea962cd363ebfceae3fa9c5e13c08075a135e453435b3",
+    "src/features/integration/notifications/http/request.ts": "ad3219d36cb14db37306a943d424823e02f16a346026da559347631fd84f75bb",
+    "src/features/integration/notifications/http/response.ts": "5554b800421c4b49ad78a283cc604bd0c29ecf8774adc940f98e560dc2174b04",
+    "src/features/integration/notifications/http/socket.ts": "4573cc5aa39a0a44ea2b730a5917da143f8381fd2e39c580a7334fbdcf34262c",
+    "src/features/integration/notifications/http/tls-channel.ts": "e68b85816a253c3c250094cc931f9fd8f6ae47aeebc2edb397eb39b90fac6745",
+    "src/features/integration/notifications/webhook-transport.ts": "250834d1a1ba6074b0f8e2a50f0b047f0590c9b38beaa5e63c15c560018797d1",
+    "src/features/integration/notifications/worker-transport-loader.ts": "2054abb19c2bd41d3c5aa317dc1835bf5af124800a4b7a4b6e53d59d1c22d3c1",
+    "src/features/integration/notifications/worker-transport.mjs": "20b9dea4500c278df08a2c09488017cd094e503edd0252051bb4caeb95a894c4"
+  },
+  "results": [
+    {
+      "testCase": "echo",
+      "ok": true,
+      "status": 200,
+      "headOnly": false,
+      "echo": {
+        "messageMatches": true,
+        "webhookIdMatches": true,
+        "signatureMatches": true,
+        "privateHeadersAbsent": true
+      },
+      "elapsedMs": 994
+    },
+    {
+      "testCase": "status",
+      "ok": true,
+      "status": 202,
+      "headOnly": true,
+      "elapsedMs": 713
+    },
+    {
+      "testCase": "large_head",
+      "ok": true,
+      "status": 200,
+      "headOnly": true,
+      "elapsedMs": 709
+    },
+    {
+      "testCase": "large_body",
+      "ok": false,
+      "reason": "payload_too_large",
+      "requestStarted": true,
+      "elapsedMs": 720
+    },
+    {
+      "testCase": "redirect",
+      "ok": false,
+      "reason": "redirect_not_allowed",
+      "requestStarted": true,
+      "elapsedMs": 759
+    },
+    {
+      "testCase": "wrong",
+      "ok": false,
+      "reason": "unreachable",
+      "requestStarted": false,
+      "elapsedMs": 338
+    },
+    {
+      "testCase": "expired",
+      "ok": false,
+      "reason": "unreachable",
+      "requestStarted": false,
+      "elapsedMs": 327
+    },
+    {
+      "testCase": "selfsigned",
+      "ok": false,
+      "reason": "unreachable",
+      "requestStarted": false,
+      "elapsedMs": 336
+    },
+    {
+      "testCase": "private",
+      "ok": false,
+      "reason": "blocked_url",
+      "requestStarted": false,
+      "elapsedMs": 0
+    },
+    {
+      "testCase": "delay",
+      "ok": false,
+      "reason": "timeout",
+      "requestStarted": true,
+      "elapsedMs": 10000
+    }
+  ]
+}

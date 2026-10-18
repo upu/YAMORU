@@ -34,7 +34,8 @@
   "env": {
     "e2e": {
       "vars": {
-        "YAMORU_OAUTH_ALLOWED_CLIENT_IDS": "https://client.example.test/oauth/client.json"
+        "YAMORU_OAUTH_ALLOWED_CLIENT_IDS": "https://client.example.test/oauth/client.json",
+        "YAMORU_EVENTS_PROVIDER": "rustls-pinned-v1"
       },
       "d1_databases": [
         {

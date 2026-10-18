@@ -41,13 +41,13 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 
 0042と[YDR-061](../decisions/ydr-061-notification-source-and-retention.md)は通知時の元entity IDとTodo rule IDを候補から独立して保持する。候補の解消・元実体の削除後も次回へ読み替えず、既に候補が消えた過去行は推測でbackfillしない。詳細とsourceは終端から90日後に順次削除するが、unknown/failedのID・状態・試行数は保持して自動再送を防ぐ。pendingなど非終端の記録は削除しない。`notification-outbox-context*.d1-test.ts`が元の回・消耗品・旧SQL・全取消・cascade・期限と100件の上限の入口。
 
-現在は永続走査、送信管理と購読の基盤である。2026版のevents/list・subscribe・unsubscribeは明示的な送信providerの注入時だけ公開する。runtimeはproviderを設定しておらず、外部向けEventsは無効である。`createPinnedWebhookTransport`はDNS resolverと接続先IP・元hostのTLSを維持するconnectorを必須にし、通常のfetchで代用しない。テストの架空providerは実環境の証拠ではない。
+現在は永続走査、送信管理と購読の基盤である。2026版のevents/list・subscribe・unsubscribeは明示的な送信providerの注入時だけ公開する。native WorkerのproviderはYDR-069で追加するが、preview/productionは未設定で外部向けEventsを無効のままとする。`createPinnedWebhookTransport`はDNS resolverと接続先IP・元hostのTLSを維持するconnectorを必須にし、通常のfetchで代用しない。テストの架空providerは実環境の証拠ではない。
 
 0043と[YDR-063](../decisions/ydr-063-notification-recipient-results.md)は一致した全宛先の集合・安定event ID・本文と、宛先ごとの試行結果を保存する。受領済み・unknownを再送せず、他の未送信宛先だけを続行する。解除・失効を越えた購読世代には古い通知を送らず、有効期間中の鍵更新は継続できる。親leaseとrevisionは各宛先のbatchでも照合する。購読の削除では証拠を消さず、親配信の物理削除はcascadeする。終端から90日後は本文を100件ずつ消し、unknown/failedの最小結果を保持する。`notification-event-dispatch.d1-test.ts`・`notification-event-lifecycle.d1-test.ts`・`notification-event-recipients-migration.d1-test.ts`が複数宛先の回復、境界、更新DBの入口。
 
-実ランタイムへの送信provider設定、定期取得の実行主体との接続、実dotの到達は#442で引き続き実装・検証する。未検証の送信経路は有効にしない。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
+previewの送信provider有効化、定期取得の実行主体との接続、実dotの到達は#442で引き続き検証する。イベントにreplay cursorはなく、差分取得のcursorとは区別する。
 
-[YDR-068](../decisions/ydr-068-pinned-tls-engine.md)の`packages/pinned-tls/`は、検査済みIPに対して元hostnameの証明書とSNIを使うTLS部品である。[実験](../spikes/pinned-tls.md)は実Cloudflareで正例・証明書負例を確認しているが、HTTP connector/runtimeへの接続や実dotへの到達の証拠ではない。
+[YDR-068](../decisions/ydr-068-pinned-tls-engine.md)の`packages/pinned-tls/`は、検査済みIPに対して元hostnameの証明書とSNIを使うTLS部品である。[実験](../spikes/pinned-tls.md)は実Cloudflareで正例・証明書負例とclose_notifyを確認している。HTTP connector/runtimeとの接続はYDR-069で追加するが、実dotへの到達の証拠ではない。
 
 0044はbatchの終端時刻を旧SQLにも対応するtriggerで同期し、本文が残る終端記録だけの期限索引で100件ずつ清掃する。本文破棄後のunknown/failed証拠は以後の対象検索から外れる。`notification-event-body-retention-migration.d1-test.ts`と配信テストのquery plan検査で、時刻保持・旧更新・全取消・索引利用を確認する。
 
@@ -60,3 +60,9 @@ URLのoriginも暗号文の中だけに置く。適用済みschemaのcallback_or
 [YDR-066](../decisions/ydr-066-scheduled-event-delivery.md)の内部provider注入時は、`notifications/event-scheduler.ts`から日次・個別jobへ進む。`notification-event-work.ts`が再試行groupを優先して全親を一括確保し、開始batchでも現在のCronを照合する。scopeを失った後の回収はCronの保守権限で行い、未処理groupも走査の対象に残す。`notification-policy.ts`の処理内frameとページ評価で重複読取りを減らし、各候補stampは同じ家庭・設定revisionへ束縛する。`notification-event-scheduler.d1-test.ts`が実D1と架空HTTPの定期送信・競合・回復・二家庭の呼出枠、`notification-policy-frame.d1-test.ts`が設定変更・先頭候補解消・scope/session変更・所有者・全取消の入口。Workerへproviderを設定していないため、これらは実dotの通知到達を証明しない。
 
 0047と[YDR-067](../decisions/ydr-067-periodic-notification-claims.md)の`notification.claim`・`notification.ack`は、`commands/notification-poll.ts`から`notification-poll.ts`・`notification-poll-statements.ts`へ進む。readとevents.subscribeを要求し、prepareでは確保せず、commitで最大50候補を5分間確保する。既存outboxを使い、Eventの固定本文を持つ親を横取りしない。ackは集合のIDとtoken・全親の世代を照合し、案内の報告と既読を区別する。`notification-poll-recovery.ts`は現在のCronで期限切れをunknownへ回復し、親がないheaderも走査に残す。`notification-poll-commands.d1-test.ts`が50件・権限・同じack・全取消・競合・回復・保持期限、`notification-poll-migration.d1-test.ts`が更新DB・旧SQL・複合FK・cascade、`integration-mcp.d1-test.ts`がwire schemaと権限回復案内の入口。15分の実行主体と実測遅延は未実証で、claim/ackだけをもって通知完成とはしない。
+
+[YDR-069](../decisions/ydr-069-pinned-http-runtime.md)で`worker-transport.mjs`からDoH・raw TCP・Rustls・上限付きHTTPを接続する。`worker-events.ts`は正確な`YAMORU_EVENTS_PROVIDER=rustls-pinned-v1`だけを受け付け、MCPにはコピーしたenvのSymbol slot、Cronには同じfactoryを渡す。上記YDR-064〜066の「runtime未設定」はpreview/productionでは継続し、e2e環境だけで有効にする。通常のNext E2Eは無効を、built Worker E2Eは有効とprivate callback拒否をassertする。
+
+`worker-transport-loader.ts`は最初のPOSTまでnative moduleの評価とTLS instance作成を遅らせる。`notification-worker-transport-loader.test.ts`は無効時・有効でも未送信の間にmoduleを読み込まないこと、送信時の引数と応答の委譲を確認する。
+
+`tests/notification-dns-resolver.test.ts`は名前・全アドレス・本文と中断、`notification-http-response.test.ts`はframing・本文/metadata上限・切断、`notification-pinned-connector.test.ts`は認証前の送信禁止・資源解放・遅いI/Oを検査する。`notification-worker-events.test.ts`は有効化条件とrequest分離の入口。[HTTP実測記録](../../packages/pinned-tls/probe/http-edge-result-2026-10-18.json)は公開fixtureへ架空の署名付き本文だけを送った10ケースで、source/WASM hashをunit testで照合する。実dotへの通知の成功とは扱わない。再実行は[package README](../../packages/pinned-tls/README.md)を参照。

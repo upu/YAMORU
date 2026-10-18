@@ -17,6 +17,11 @@ async function fixture(response = new Response(null, { status: 202 }), previous?
   const deps = { principal, secret: master, providerId: "test", transport: { post }, now: () => now };
   return { attempt, post, deps };
 }
+it("通知の送信では本文を待たず、最終HTTPステータスだけを要求する", async () => {
+  const { attempt, deps, post } = await fixture();
+  await sendEventRecipient(deps, attempt);
+  expect(post.mock.calls[0][1].readResponseBody).toBe(false);
+});
 it("同じID・本文を一度だけ送り、再試行でも署名時刻だけを更新する", async () => {
   const { attempt, post, deps } = await fixture();
   expect(await sendEventRecipient(deps, attempt)).toEqual({ kind: "accepted" });

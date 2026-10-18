@@ -9,6 +9,7 @@ const CASES = {
   wrong: { address: "104.154.89.105", hostname: "wrong.host.badssl.com" },
   expired: { address: "104.154.89.105", hostname: "expired.badssl.com" },
   selfsigned: { address: "104.154.89.105", hostname: "self-signed.badssl.com" },
+  close_notify: { address: "104.154.89.105", hostname: "badssl.com" },
 };
 
 const worker = {
@@ -54,9 +55,11 @@ const worker = {
         tls.write_application(head);
         applicationBytes = head.length;
         await flushTls();
+        let firstStatusLine;
         for (let reads = 0; reads < 64; reads++) {
           const plaintext = tls.read_application();
-          if (plaintext.length) return new TextDecoder().decode(plaintext).split("\r\n")[0];
+          if (plaintext.length && firstStatusLine === undefined) firstStatusLine = new TextDecoder().decode(plaintext).split("\r\n")[0];
+          if (firstStatusLine && (testCase !== "close_notify" || tls.peer_closed())) return firstStatusLine;
           await receive();
           await flushTls();
         }
@@ -71,7 +74,7 @@ const worker = {
           reject(new Error("probe_timeout"));
         }, 10_000); }),
       ]);
-      return Response.json({ ok: true, testCase, address, hostname, handshakeComplete, applicationBytes, receivedTlsBytes, statusLine });
+      return Response.json({ ok: true, testCase, address, hostname, handshakeComplete, applicationBytes, receivedTlsBytes, statusLine, peerClosed: tls.peer_closed() });
     } catch (error) {
       return Response.json({ ok: false, testCase, address, hostname, handshakeComplete, applicationBytes, receivedTlsBytes, error: String(error).slice(0, 500) });
     } finally {

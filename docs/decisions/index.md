@@ -80,6 +80,7 @@
 | YDR-066 | 通知の送信開始を接続ごとの定期実行の確保へ結び付ける | Accepted | [ydr-066-scheduled-event-delivery.md](ydr-066-scheduled-event-delivery.md) |
 | YDR-067 | 定期取得の候補確保と案内報告を本人・接続・leaseへ束縛する | Accepted | [ydr-067-periodic-notification-claims.md](ydr-067-periodic-notification-claims.md) |
 | YDR-068 | 検査済みIPへのTLS検証にソースから生成したRustlsを使う | Accepted | [ydr-068-pinned-tls-engine.md](ydr-068-pinned-tls-engine.md) |
+| YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
 
 ## 新しい意思決定の追加
 

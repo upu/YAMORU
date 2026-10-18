@@ -1,6 +1,6 @@
 {
-  "captured_at": "2026-10-18T03:46:15.613Z",
-  "wasm_sha256": "553d62e3d9ab931dfa394534fc97ce691771c3697a9d6e0dbac8f28e2b609b71",
+  "captured_at": "2026-10-18T04:35:55.879Z",
+  "wasm_sha256": "f78dd43a866e8b3109c53f3c40ebb00aef03779f862cc564da4f996d0acaf5f0",
   "results": [
     {
       "ok": true,
@@ -10,7 +10,8 @@
       "handshakeComplete": true,
       "applicationBytes": 56,
       "receivedTlsBytes": 4874,
-      "statusLine": "HTTP/1.1 200 OK"
+      "statusLine": "HTTP/1.1 200 OK",
+      "peerClosed": false
     },
     {
       "ok": false,
@@ -30,7 +31,7 @@
       "handshakeComplete": false,
       "applicationBytes": 0,
       "receivedTlsBytes": 4773,
-      "error": "invalid peer certificate: certificate expired: verification time 1792295173 (UNIX), but certificate is not valid after 1428883199 (363411974 seconds ago)"
+      "error": "invalid peer certificate: certificate expired: verification time 1792298154 (UNIX), but certificate is not valid after 1428883199 (363414955 seconds ago)"
     },
     {
       "ok": false,
@@ -41,6 +42,17 @@
       "applicationBytes": 0,
       "receivedTlsBytes": 1353,
       "error": "invalid peer certificate: UnknownIssuer"
+    },
+    {
+      "ok": true,
+      "testCase": "close_notify",
+      "address": "104.154.89.105",
+      "hostname": "badssl.com",
+      "handshakeComplete": true,
+      "applicationBytes": 56,
+      "receivedTlsBytes": 4905,
+      "statusLine": "HTTP/1.1 200 OK",
+      "peerClosed": true
     }
   ]
 }

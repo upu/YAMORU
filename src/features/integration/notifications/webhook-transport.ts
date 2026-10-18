@@ -28,16 +28,17 @@ export function normalizeWebhookUrl(value: string) {
     return url.href;
   } catch { throw new WebhookEndpointError("blocked_url"); }
 }
-export type PinnedWebhookRequest = { address: string; family: 4 | 6; expectedServerHostname: string; port: 443; path: string; body: string; headers: Record<string, string>; signal: AbortSignal };
+type ConnectionProgress = "connecting" | "request_started";
+export type PinnedWebhookRequest = { address: string; family: 4 | 6; expectedServerHostname: string; port: 443; path: string; body: string; headers: Record<string, string>; signal: AbortSignal; readResponseBody?: boolean; reportProgress?: (stage: ConnectionProgress) => void };
 // connectorは一つの検証済みIPへ接続し、元のhostのSNIと証明書検証を行う。
 // 通常のfetchや、IPを再解決する実装を渡さない。実環境での検証は別途必要。
 type Dependencies = { resolve: (hostname: string, signal: AbortSignal) => Promise<readonly string[]>; connect: (request: PinnedWebhookRequest) => Promise<Response> };
-type PostInput = { body: string; headers: Record<string, string>; signal?: AbortSignal };
-async function withinSignal<T>(run: () => Promise<T>, signal: AbortSignal, started: boolean) {
+type PostInput = { body: string; headers: Record<string, string>; signal?: AbortSignal; readResponseBody?: boolean };
+async function withinSignal<T>(run: () => Promise<T>, signal: AbortSignal, started: boolean | (() => boolean)) {
   if (signal.aborted) throw new WebhookEndpointError("timeout");
   let remove = () => {};
   const interrupted = new Promise<never>((_resolve, reject) => {
-    const abort = () => { reject(new WebhookEndpointError("timeout", started)); };
+    const abort = () => { reject(new WebhookEndpointError("timeout", typeof started === "boolean" ? started : started())); };
     signal.addEventListener("abort", abort, { once: true });
     remove = () => { signal.removeEventListener("abort", abort); };
   });
@@ -62,10 +63,12 @@ export function createPinnedWebhookTransport(deps: Dependencies) {
       const address = await validatedAddress(deps, host, signal);
       const headers = new Headers(input.headers);
       headers.set("host", url.host);
+      let phase: ConnectionProgress | "unknown" = "unknown";
+      const reportProgress = (stage: ConnectionProgress) => { if (phase !== "request_started") phase = stage; };
       let response: Response;
       try {
         response = await withinSignal(() => deps.connect({ ...address, expectedServerHostname: host, port: 443, path: `${url.pathname}${url.search}`,
-          body: input.body, headers: Object.fromEntries(headers.entries()), signal }), signal, true);
+          body: input.body, headers: Object.fromEntries(headers.entries()), signal, readResponseBody: input.readResponseBody ?? true, reportProgress }), signal, () => phase !== "connecting");
       } catch (error) { throw error instanceof WebhookEndpointError ? error : new WebhookEndpointError("unreachable", true); }
       if (response.status >= 300 && response.status < 400) {
         discardBody(response.body);

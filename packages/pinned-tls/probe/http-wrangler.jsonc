@@ -1,0 +1,6 @@
+{
+  "name": "yamoru-pinned-http-probe",
+  "main": "http-worker.js",
+  "compatibility_date": "2026-08-19",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"]
+}

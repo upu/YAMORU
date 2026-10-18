@@ -1,5 +1,20 @@
 import { expect, it, vi } from "vitest";
 import { createPinnedWebhookTransport, isPublicWebhookAddress, normalizeWebhookUrl } from "../src/features/integration/notifications/webhook-transport";
+it.each([true, false])("確認本文と通知ステータスの読み方%sをconnectorへ明示する", async (readResponseBody) => {
+  const connect = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+  const transport = createPinnedWebhookTransport({ resolve: () => Promise.resolve(["8.8.8.8"]), connect });
+  await transport.post("https://receiver.example.com/", { body: "{}", headers: {}, readResponseBody });
+  expect(connect).toHaveBeenCalledWith(expect.objectContaining({ readResponseBody }));
+});
+it("送信開始後の古いconnecting報告で結果不明を未送信へ戻さない", async () => {
+  const controller = new AbortController();
+  const transport = createPinnedWebhookTransport({ resolve: () => Promise.resolve(["8.8.8.8"]), connect: (request) => {
+    request.reportProgress?.("connecting"); request.reportProgress?.("request_started"); request.reportProgress?.("connecting");
+    controller.abort();
+    return new Promise<Response>(() => {});
+  } });
+  await expect(transport.post("https://receiver.example.com/", { body: "{}", headers: {}, signal: controller.signal })).rejects.toMatchObject({ reason: "timeout", requestStarted: true });
+});
 it("非公開・予約・IPv4埋込アドレスを拒否する", () => {
   for (const address of ["8.8.8.8", "1.1.1.1", "2001:4860:4860::8888"]) expect(isPublicWebhookAddress(address)).toBe(true);
   for (const address of ["0.0.0.0", "10.0.0.1", "100.64.0.1", "127.0.0.1", "169.254.169.254", "172.16.0.1", "192.168.1.1", "192.0.2.1", "198.18.0.1", "198.51.100.1", "203.0.113.1", "224.0.0.1", "240.0.0.1", "255.255.255.255", "::", "::1", "fd00::1", "fe80::1", "ff02::1", "2001:db8::1", "::ffff:127.0.0.1"]) expect(isPublicWebhookAddress(address)).toBe(false);
