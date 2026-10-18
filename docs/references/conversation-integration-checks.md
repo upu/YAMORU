@@ -3,7 +3,7 @@ type: Playbook
 title: 会話連携の実接続と回帰検証
 description: 定期取得先行版の確認入口と、実dot・実HTTP・ローカルD1で検証した範囲を分ける
 tags: [yamoru, integration, notifications, testing]
-status: draft
+status: stable
 ---
 
 # 会話連携の実接続と回帰検証
@@ -17,6 +17,8 @@ status: draft
 - `connection_get.capabilities.notification_polling`は`{supported:true,executor:"connected_client",external_task_status:"unknown",interval_hint_minutes:15,requires_scopes:["household.read","events.subscribe"]}`を返す。15分は提案であり起動・到達の保証ではない。`integration_guide_url`は同じ環境の導入・復旧画面を指す。従来の`events`と`notification_delivery:false`は維持し、外部の定期取得対応は新しい項目で明示する。
 - 解除後は接続先からOAuthをやり直し、本人設定の通知先も選び直す。解除前の家庭記録は残す。結果不明の変更は同じ操作IDの`operation_get`へ戻し、別IDで再実行しない。
 
+ChatGPTのカスタムMCPで通知も使う場合は、OAuth詳細設定のデフォルトと基本スコープに、利用する範囲を指定する。定期取得には`household.read`と`events.subscribe`、会話からの通知設定には`notifications.manage`、Todo変更には`household.write`が必要である。4つすべてを使う検証用接続では両欄へ4つを指定する。読み取りだけの接続へ一律に4つを要求する手順ではない。基本スコープはすべての認可要求に加わる([公式仕様](https://developers.openai.com/plugins/build/plugins))。デフォルトだけではToolのscopeタグが優先され、再接続しても通知取得の許可が戻らない場合がある。同意画面と`connection_get.scopes`の両方で、必要な範囲を確認する。
+
 ## 検証の種類を混ぜない
 
 | 条件 | ローカルの実HTTP・SDK・D1 | previewの実dotで確認済みの範囲 |
@@ -25,11 +27,11 @@ status: draft
 | E2 登録・過去日完了・次回・訂正/取消 | 同HTTP E2E、command/replyのD1試験。同ID再送と保存結果も照合 | #439の登録→取得→完了→次回確認、#443の過去日完了・訂正・安全な取消 |
 | E4 再送・中断・lease・回復 | 公式SDKでcommit応答喪失を注入。poll/outboxのD1試験で再起動・期限・順序・原子性・unknownを確認 | #442で重複抑止、#443で同じ取消結果を再取得。実dotにネットワーク故障を注入したとは扱わない |
 | E5 家族の先行完了・snooze・静かな時間 | HTTPで別家族principalの同時完了。通知policy/frame/scheduleとreplyのD1 fixture。タイムゾーン・DSTを純粋計算で確認 | #443の本人snoozeと共有期限の不変。#444で通知前の家族完了による候補の解消、通知後の家族完了と返答時の二重記録防止、Asia/Tokyoの静かな時間の見送りと解除後の定期照合による回復を確認 |
-| E6 停止・失効・解除 | HTTPの解除後401。OAuth/notification/replyのD1試験で期限・所属・scope・batch直前の失効を確認 | #439の解除/再連携、#442/#443の通知OFF・一時タスク停止・次回予定なし。最終版の解除/再接続を#444で照合する |
+| E6 停止・失効・解除 | HTTPの解除後401。OAuth/notification/replyのD1試験で期限・所属・scope・batch直前の失効を確認 | #439の解除/再連携、#442/#443の通知OFF・一時タスク停止・次回予定なし。#444で本人のパスワード再設定による旧接続の失効、Webからの明示解除後の実dotの認証拒否、同じ4権限での通常再接続と本人照会を確認 |
 | E7 定期取得 | poll claim/ack・重複・回復をD1と実HTTPで検証 | [#442の実測](https://github.com/upu/YAMORU/issues/442#issuecomment-6248489269)：保存済み15分周期、実際の2回の起動、1回の案内、2回目の重複なし、停止。周期と実測遅延を区別する |
 | E8 通知への返答 | 元の回・複数選択・保持期限・次回誤操作拒否・原子性をD1で確認 | [#443の実測](https://github.com/upu/YAMORU/issues/443#issuecomment-6249193835)：選択確認、完了・通知延期・期限変更・訂正・取消・結果再取得。3件まとめは手動一回で、新しい周期実証ではない |
 
-ローカルHTTP E2Eは架空client・架空家庭を使い、通常のNextとビルド済みWorkerへ同じテストを通す。第二家族の同意はfixtureで用意するがtoken交換とMCP操作はHTTPで行う。preview実dotや実家庭をその成功だけで代替しない。#444の未確認欄と最終gateを照合してから、#444と親#189を閉じる。
+ローカルHTTP E2Eは架空client・架空家庭を使い、通常のNextとビルド済みWorkerへ同じテストを通す。第二家族の同意はfixtureで用意するがtoken交換とMCP操作はHTTPで行う。preview実dotや実家庭をその成功だけで代替しない。#444と親#189の完了判定には、この区別と各PRの最終headのCIを照合する。
 
 ## 2026-10-18の実接続と最終gate
 
@@ -39,13 +41,24 @@ status: draft
 
 同じGで、Asia/Tokyoの22:00〜08:00には`scheduled_or_quiet`で確保・案内を見送った。静かな時間を外した直後は保存済み待機時刻による`retry_wait`であり、22:15:24 JSTの定期照合後に通知可能へ戻った。設定変更直後の起動・案内や到達上限を保証したとは扱わない。Gの案内は手動1回で、15分周期の証拠はE7の#442を使う。
 
-別家庭の管理対象は今回だけのfixtureであり、実dotの取得・変更準備がともに`not_found`となり内容が返らず、保存済みの名前も不変だった。照合後、その管理対象と家庭だけを片付け、残数0を確認した。既存の所属と認証情報は変えていない。本人の通知設定は元のOFF・通知先なし・日次09:00・Asia/Tokyo・静かな時間22:00〜08:00へ復元し、既存の一時タスク2件も無効・次回予定なしと読み戻した。新しい定期タスクやEvents購読は作っていない。
+別家庭の管理対象は今回だけのfixtureであり、実dotの取得・変更準備がともに`not_found`となり内容が返らず、保存済みの名前も不変だった。照合後、その管理対象と家庭だけを片付け、残数0を確認した。この家庭境界の検証では既存の所属と認証情報を変えていない。本人の通知設定は元のOFF・通知先なし・日次09:00・Asia/Tokyo・静かな時間22:00〜08:00へ復元し、既存の一時タスク2件も無効・次回予定なしと読み戻した。新しい定期タスクやEvents購読は作っていない。
 
 未所属の確認は、独立した一時利用者だけをpreview D1へ追加し、通常のCredentialsログインから新しいセッションを取得した。実HTTPの認可画面は「家庭への所属が必要です」を表示し、許可ボタンを出さなかった。取得した同じフォームを`decision=approve`に改変して送っても`303 / access_denied`となり、認可コードは返らず接続行も0件だった。Cookieと一時的な資格情報は検証プロセス内だけで扱い、既存ブラウザーのセッションや本番のSecretは使わない。完了後は一時利用者を片付け、残数0を確認した。これはpreviewの実HTTP検証であり、実dotへ未所属の接続を成立させたという記録ではない。
 
 並列のローカル検証ではunitの時間切れと生成validatorの破損が発生した。テストとtimeoutを変えず、同じ失敗2ファイルを単独で確認してからunit全体を`--maxWorkers=4`で実行した。破損した既知の生成ファイルだけを再生成し、typecheckも通した。これをアプリの不具合修正や単なる再実行成功と混同しない。
 
-残る実previewの確認は、最終版での本人による解除・旧接続の拒否・同じ許可範囲での再接続である。ローカルHTTP/Workerでは確認済みだが、実接続の代わりにはしない。結果をこの表へ反映するまで文書は`draft`、#444と親#189は未完了とする。
+最終の停止・復旧はPR #480のmain `3fe71c2a8a67fac7ef010fcf6866d0968e03c3bc`のpreviewで確認した（実行コードは上の`d150b83`と同じ）。本人の明示了承で架空利用者Bだけのパスワードを再設定し、新しいパスワードの入力・確認・送信とログインは本人が行った。一時的なローカル入力画面は終了済みであり、資格情報は記録していない。旧接続は`credentials_changed`で失効し、実MCP呼び出しも`oauth_token_invalid_grant`で拒否された。
+
+通常の再接続で通知取得のscopeが抜ける設定も観測した。`notifications.manage`だけでは`notification.claim`が拒否され、再認証の案内でも不足したままだった。この同意は取り消し、上記の基本・デフォルトスコープを明示したpreview専用の「通知連携」を設定した。元の「会話操作」は残し、古い接続をWebから解除した。サーバーのscope検証は変更していない。
+
+通知連携で4権限の接続を実dotから確認した後、23:05:10.441 JSTにWebからその接続も明示解除した。実dotが同じ接続の`connection_get`を1回呼ぶと`UNAUTHORIZED / oauth_token_invalid_grant / Reauthentication required`となり、再接続せず停止した。同じ通知連携の「再接続」から通常の同意画面を開き直すと4権限が要求され、新しい接続で本人・家庭・権限を実dotから読み戻せた。
+
+| 最終照会 | request_id | as_of（UTC） |
+|---|---|---|
+| 再接続後の`connection_get` | `a8def27a-4e66-467b-9f60-0a1b2b5ba77e` | 2026-10-18T14:08:38.618Z |
+| 同じ接続の`notification_settings_get` | `dee7cc45-c67a-4b42-849c-8483d96bcff9` | 2026-10-18T14:08:40.338Z |
+
+再接続後も通知はOFF・通知先なし・revision 9の元の設定であり、タスク2件も無効・次回予定なしだった。G/Hは実dotの`entity_get`で完了済み・一回限りと再照合したが、その応答だけでは次回なしの直接確認とは扱わない。次回なしの根拠は、完了記録の`next_task_occurrence_id:null`を照合したD1の記録である。期限経過やbatch直前の失効、再送・中断などの故障注入は上表の自動試験であり、実dotで故障を注入したとはしない。
 
 ## ローカルD1のbookmark障害
 

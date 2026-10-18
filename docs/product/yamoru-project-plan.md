@@ -585,7 +585,7 @@ YAMORUには家族構成、所有物、契約、税金、写真、説明書な�
 - 通知は本人が有効にした一つの会話連携先から検証する。本人の無料運用の選択に従い、v0.21.0は外部の定期取得を先行し、実行主体・周期・次回予定・実測遅延・案内・停止を検証する（[YDR-070](../decisions/ydr-070-free-polling-first.md)）。MCP Eventsの実配送は後続#474とし、今回の必須前提にしない。安全な送信経路の条件や未検証の到達を保証しない方針は維持する。
 - 実接続で登録→照会→完了→次回確認、候補→通知→返答、家族の同時完了、通知延期、認証失効と解除を確認する。模擬テスト成功を実接続の代わりにしない。
 
-責務の決定は[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)、通知方針は[YDR-050](../decisions/ydr-050-conversation-reminders.md)、Toolごとの契約と検証は[会話連携設計](conversation-integration.md)を参照する。これらは実装方針であり、連携済みを意味しない。消費予測、Watchアプリ完成、複数通知チャネルの追加は今回の対象外とする。
+責務の決定は[YDR-049](../decisions/ydr-049-conversation-command-boundary.md)、通知方針は[YDR-050](../decisions/ydr-050-conversation-reminders.md)、Toolごとの契約は[会話連携設計](conversation-integration.md)を参照する。previewの実dot・実HTTPとローカル試験の結果は[実接続と回帰検証](../references/conversation-integration-checks.md)へ集約する。実装方針だけで連携済みとは扱わず、本番公開や実家庭での運用確認とも区別する。消費予測、Watchアプリ完成、複数通知チャネルの追加は今回の対象外とする。
 
 ## 13. 最初の受け入れテスト
 

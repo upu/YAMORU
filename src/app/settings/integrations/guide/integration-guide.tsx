@@ -10,6 +10,7 @@ export function IntegrationGuide({ endpoint }: { endpoint: string | null }) {
       <p>開いたYAMORUの同意画面で、アカウント・家庭・接続元と許可する範囲を確認してください。パスワードや認証コードを会話へ貼らないでください。</p>
       <ul>{INTEGRATION_SCOPES.map((scope) => <li key={scope}><strong>{SCOPE_DESCRIPTIONS[scope].label}</strong>：{SCOPE_DESCRIPTIONS[scope].detail}</li>)}</ul>
       <p>読み取りは必須です。家庭の記録を変える場合だけ変更を許可します。通知設定はこの画面からも変更でき、通知の受け取りとは別の許可です。</p>
+      <p>通知を使う場合は、同意画面に「あなた向けの通知を受け取る」があることを確認します。再接続しても表示されなければ、接続先の設定で通知の受け取りも要求するようにしてください。通知設定の管理だけでは、お知らせを取得できません。</p>
     </section>
     <section className="detail-card" aria-labelledby="test-title"><h2 id="test-title">2. 接続と一度だけのお知らせを確かめる</h2>
       <p>まず会話で「YAMORUの接続先と家庭、許可している操作を確認して」と伝えます。表示された家庭が自分の家庭か確かめてください。</p>
