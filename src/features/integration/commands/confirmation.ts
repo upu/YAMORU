@@ -34,7 +34,7 @@ export async function subjectKeyOf(normalized: NormalizedCommand): Promise<strin
 // なく実施日だけを比べる(作り直すたびに「今」が進むため)。
 export async function meaningfulDigestOf(normalized: NormalizedCommand, preview: CommandPreview): Promise<string> {
   const preparedAt = normalized.payload.occurred_source === "prepared_at";
-  const meaningful = withoutKeys(preview, (key) => key.endsWith("revision") || (preparedAt && key === "occurred_at"));
+  const meaningful = withoutKeys(preview, (key) => key === "notification_reference" || key.endsWith("revision") || (preparedAt && key === "occurred_at"));
   return sha256Hex(canonicalJson(meaningful));
 }
 

@@ -6,6 +6,7 @@ import { getNotificationSettings, usableNotificationConnection } from "../../../
 import { listDeliveries } from "../../../lib/d1/notification-deliveries";
 import { nextAllowedNotificationTime } from "./schedule";
 import { deliveryToWire, settingsToWire } from "./wire";
+import { readReplyContext } from "./reply-context";
 
 type Dependencies = { db: D1Database; authorize: () => Promise<IntegrationPrincipal>; cursorSecret: string; now?: () => Date };
 async function authorized(deps: Dependencies, now: Date) {
@@ -20,6 +21,13 @@ async function authorized(deps: Dependencies, now: Date) {
 export function createNotificationReader(deps: Dependencies) {
   const cursor = createReadCursor(deps.cursorSecret);
   return {
+    async notificationContextGet(input: unknown) {
+      const now = deps.now?.() ?? new Date();
+      const principal = await authorized(deps, now);
+      const result = await readReplyContext(deps, principal, now, input);
+      await authorized(deps, now);
+      return result;
+    },
     async notificationSettingsGet() {
       const now = deps.now?.() ?? new Date();
       const principal = await authorized(deps, now);

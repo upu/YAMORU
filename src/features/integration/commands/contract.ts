@@ -37,6 +37,7 @@ export type CommandTarget = {
 // 対象を新しく作るcommand(todo.create等)は対象を持たない(5節)。
 export type NormalizedCommand = {
   command: CommandName;
+  notification_reference?: { delivery_id: string; candidate_id: string };
   payload: Record<string, unknown>;
   target: CommandTarget | null;
 };

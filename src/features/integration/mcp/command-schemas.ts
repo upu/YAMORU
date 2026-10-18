@@ -43,7 +43,8 @@ const payloads = {
   "notification.claim": z.strictObject({ candidate_ids: z.array(text).optional(), candidate_revisions: z.record(text, text).optional() }),
   "notification.ack": z.strictObject({ delivery_id: text.optional(), lease_token: text.optional(), outcome: text.optional() }),
 } satisfies Record<CommandName, z.ZodObject>;
-const envelope = { operation_id: text, target: z.strictObject({ kind: text, id: text }).nullable().optional(), expected_revision: text.optional() };
+const envelope = { operation_id: text, target: z.strictObject({ kind: text, id: text }).nullable().optional(), expected_revision: text.optional(),
+  notification_reference: z.strictObject({ delivery_id: text, candidate_id: text }).optional().describe("通知への返答ではnotification_context_getが返した元の参照を付ける。対象は元の回に固定される。") };
 // 必須の業務値を欠く入力も共通層へ渡し、missing_requiredとして質問項目を返す。
 export const commandPrepareSchema = z.discriminatedUnion("command", [
   z.strictObject({ ...envelope, command: z.literal("todo.create"), payload: payloads["todo.create"].optional() }),

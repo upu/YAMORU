@@ -247,6 +247,8 @@ export const ACTIVE_WRITE_CONNECTION = `EXISTS (
      AND instr(' ' || c.scopes || ' ', CASE WHEN integration_operations.command IN ('notification.claim','notification.ack')
        THEN ' events.subscribe ' WHEN integration_operations.command LIKE 'notification.%'
        THEN ' notifications.manage ' ELSE ' household.write ' END)>0
+     AND (json_type(integration_operations.normalized_command,'$.notification_reference') IS NULL
+       OR instr(' '||c.scopes||' ',' notifications.manage ')>0)
 )`;
 
 export async function isWriteConnectionActive(db: D1Database, operationRowId: string, at: string): Promise<boolean> {

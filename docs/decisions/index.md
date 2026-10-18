@@ -84,6 +84,7 @@
 | YDR-068 | 検査済みIPへのTLS検証にソースから生成したRustlsを使う | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-068-pinned-tls-engine.md](ydr-068-pinned-tls-engine.md) |
 | YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
 | YDR-070 | v0.21.0は無料運用を維持し、実証した定期取得で通知する | Accepted | [ydr-070-free-polling-first.md](ydr-070-free-polling-first.md) |
+| YDR-071 | 通知への返答を保存済みの元対象へ結び付ける | Accepted | [ydr-071-notification-reply-reference.md](ydr-071-notification-reply-reference.md) |
 
 ## 新しい意思決定の追加
 

@@ -8,7 +8,7 @@ import type { McpContext } from "./server";
 
 export function toolSecuritySchemes(name: McpToolName) {
   const scopes = ["household.read"];
-  if (name === "notification_settings_get" || name === "delivery_list") scopes.push("notifications.manage");
+  if (name === "notification_settings_get" || name === "delivery_list" || name === "notification_context_get") scopes.push("notifications.manage");
   return [{ type: "oauth2" as const, scopes }];
 }
 export function toolAnnotations(tool: typeof MCP_TOOL_DEFINITIONS[number]) {

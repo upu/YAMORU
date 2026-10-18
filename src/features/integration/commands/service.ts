@@ -48,6 +48,7 @@ import { commandScope } from "./command-scope";
 import { stockCorrectHandler, stockObserveHandler, stockRefillHandler } from "./stock";
 import { todoRescheduleHandler } from "./todo-reschedule";
 import { todoUpdateHandler } from "./todo-update";
+import { planWithNotificationReference, requireNotificationReferenceAccess } from "./notification-reference";
 
 // command_prepare / command_commit / operation_get(conversation-integration.md
 // 5節)。principalは検証済みのaccess tokenからだけ作られたもの(bearer.ts)で、
@@ -194,8 +195,9 @@ async function planAndSave(
   const handler = HANDLERS[parsed.command];
   const context = contextOf(request);
   const normalized = handler.normalize(context, parsed);
+  if (parsed.notificationReference) normalized.notification_reference = parsed.notificationReference;
   const revision = await currentRevision(db, householdId);
-  const plan = await handler.plan(context, normalized);
+  const plan = await planWithNotificationReference(context, normalized, handler);
   // previewの読み取り中に家族が更新した。保存せず、同じ操作IDでの再試行に委ねる。
   if (!sameRevision(revision, await currentRevision(db, householdId))) throw new CommandError("temporarily_unavailable");
   if (expected !== null) checkExpectedRevision(expected, revision, plan.preview);
@@ -207,11 +209,14 @@ async function prepare(request: Request, input: unknown): Promise<Record<string,
   const parsed = parsePrepareRequest(input);
   requireScope(request.principal, "household.read");
   requireScope(request.principal, commandScope(parsed.command));
+  if (parsed.notificationReference) requireScope(request.principal, "notifications.manage");
+  await requireNotificationReferenceAccess(contextOf(request), { notification_reference: parsed.notificationReference });
   const requestHash = await sha256Hex(canonicalJson({
     command: parsed.command,
     expected_revision: parsed.expectedRevision ?? null,
     payload: parsed.payload ?? null,
     target: parsed.target ?? null,
+    ...(parsed.notificationReference ? { notification_reference: parsed.notificationReference } : {}),
   }));
   const { db } = request.deps;
   const { connectionId } = request.principal;
@@ -258,7 +263,7 @@ async function resolveWithoutCommit(
 async function replan(request: Request, operation: IntegrationOperation): Promise<CommandPlan | Record<string, unknown>> {
   const normalized = JSON.parse(operation.normalizedCommand) as NormalizedCommand;
   try {
-    const plan = await handlerOf(normalized.command).plan(contextOf(request), normalized);
+    const plan = await planWithNotificationReference(contextOf(request), normalized, handlerOf(normalized.command));
     const revision = await currentRevision(request.deps.db, operation.householdId);
     const unchanged = canonicalJson(plan.preview) === operation.preview &&
       sameRevision(revision, { epoch: operation.revisionEpoch, version: operation.revisionVersion });
@@ -343,6 +348,7 @@ async function commit(request: Request, input: unknown): Promise<Record<string, 
   const operation = await findIntegrationOperation(request.deps.db, request.principal.connectionId, parsed.operationId);
   if (operation === null) throw new CommandError("not_found", { operationId: parsed.operationId });
   requireScope(request.principal, commandScope(operation.command));
+  await requireNotificationReferenceAccess(contextOf(request), JSON.parse(operation.normalizedCommand) as NormalizedCommand);
   // payloadは再入力させない。previewと内容の指紋が保存した操作と一致することだけを確かめる。
   if (operation.previewId !== parsed.previewId || operation.fingerprint !== parsed.fingerprint) {
     throw new CommandError("idempotency_conflict", { operationId: parsed.operationId });
@@ -360,6 +366,7 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
     return { operation_id: parsed.operationId, recovery: "prepare_same_operation", status: "unknown" };
   }
   if (operation.command.startsWith("notification.")) requireScope(request.principal, commandScope(operation.command));
+  await requireNotificationReferenceAccess(contextOf(request), JSON.parse(operation.normalizedCommand) as NormalizedCommand);
   return {
     operation_id: operation.operationId,
     command: operation.command,
@@ -383,6 +390,7 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
 async function confirmationTokenOutput(request: Request, operation: IntegrationOperation): Promise<Record<string, unknown>> {
   if (visibleConfirmationStatus(operation, request.now) !== "approved" || visibleStatus(operation, request.now) !== "prepared") return {};
   if (!request.principal.scopes.includes(commandScope(operation.command))) return {};
+  if ((JSON.parse(operation.normalizedCommand) as NormalizedCommand).notification_reference && !request.principal.scopes.includes("notifications.manage")) return {};
   const token = await request.tokens.issue(operation);
   return token === null ? {} : { confirmation_token: token };
 }
