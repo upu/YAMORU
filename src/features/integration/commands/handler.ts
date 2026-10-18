@@ -3,6 +3,7 @@ import type { RevisionPlacement } from "../../../lib/d1/integration-operations";
 import type { BusinessStatements } from "../../../lib/d1/todos/command-plans";
 import { tokyoDate } from "./input";
 import { CommandError, type CommandPreview, type CommandTarget, type NormalizedCommand } from "./contract";
+import type { IntegrationPrincipal } from "../principal";
 
 // command別の処理が満たす形。normalizeは要求だけから確定できる値を固める
 // (「今」や「昨日」の絶対化を含む)。planは現在の家庭データを読み、previewと、
@@ -14,13 +15,14 @@ export type CommandContext = {
   householdId: string;
   now: Date;
   userId: string;
+  principal?: IntegrationPrincipal;
 };
 
 export type CommandExecution = BusinessStatements & {
   result: Record<string, unknown>;
   // 対応する読み取りToolと同じ形式のrevisionを返す対象。次の操作の
   // expected_revision/settings_revision/candidate_revisionに使える。
-  revisionEntity: { id: string; kind: "attention_candidate" | "consumable" | "managed_item" | "notification_settings" | "todo_occurrence" };
+  revisionEntity?: { id: string; kind: "attention_candidate" | "consumable" | "managed_item" | "notification_settings" | "todo_occurrence" };
   // 複数の対象を作る操作で、結果の中の各対象にもrevisionを付ける位置。
   revisionPlacements?: RevisionPlacement[];
 };

@@ -40,6 +40,8 @@ const payloads = {
   "notification.configure": z.strictObject({ settings_revision: z.number().optional(), enabled: z.boolean().optional(), connection_id: nullableText, time_zone: text.optional(), mode: text.optional(), digest_time: text.optional(), muted: z.boolean().optional(),
     quiet_hours: z.strictObject({ enabled: z.boolean().optional(), start: text.optional(), end: text.optional() }).optional(), repeat_policy: z.strictObject({ high_hours: z.number().optional(), normal_hours: z.number().optional() }).optional() }),
   "notification.snooze": z.strictObject({ candidate_id: text.optional(), candidate_revision: text.optional(), until: nullableText, muted: z.boolean().optional() }),
+  "notification.claim": z.strictObject({ candidate_ids: z.array(text).optional(), candidate_revisions: z.record(text, text).optional() }),
+  "notification.ack": z.strictObject({ delivery_id: text.optional(), lease_token: text.optional(), outcome: text.optional() }),
 } satisfies Record<CommandName, z.ZodObject>;
 const envelope = { operation_id: text, target: z.strictObject({ kind: text, id: text }).nullable().optional(), expected_revision: text.optional() };
 // 必須の業務値を欠く入力も共通層へ渡し、missing_requiredとして質問項目を返す。
@@ -58,4 +60,6 @@ export const commandPrepareSchema = z.discriminatedUnion("command", [
   z.strictObject({ ...envelope, command: z.literal("stock.correct"), payload: payloads["stock.correct"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("notification.configure"), payload: payloads["notification.configure"].optional() }),
   z.strictObject({ ...envelope, command: z.literal("notification.snooze"), payload: payloads["notification.snooze"].optional() }),
+  z.strictObject({ ...envelope, command: z.literal("notification.claim"), payload: payloads["notification.claim"].optional() }),
+  z.strictObject({ ...envelope, command: z.literal("notification.ack"), payload: payloads["notification.ack"].optional() }),
 ]);

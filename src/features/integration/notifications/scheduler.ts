@@ -12,6 +12,7 @@ import { recoverNotificationEventGroups } from "../../../lib/d1/notification-eve
 import { reconcileNotificationGroups } from "../../../lib/d1/notification-event-work";
 import { sendScheduledNotificationEvents, type NotificationEventProvider } from "./event-scheduler";
 import { readNotificationPolicyFrame } from "../../../lib/d1/notification-policy";
+import { pruneNotificationPollClaims, recoverNotificationPollClaims } from "../../../lib/d1/notification-poll-recovery";
 type Dependencies = { db: D1Database; allowedClientIds: readonly string[]; now?: () => Date; candidateLimit?: number; connectionLimit?: number; events?: NotificationEventProvider };
 const systemNow = () => new Date();
 function bounded(value: number | undefined, fallback: number, max: number) {
@@ -23,6 +24,7 @@ async function processConnection(deps: Dependencies, lease: SchedulerLease, limi
   const p = await schedulerPrincipal(deps.db, lease);
   if (!p) return lease;
   const now = deps.now?.() ?? new Date();
+  await recoverNotificationPollClaims(deps.db, p, lease, now);
   const allowed = deps.allowedClientIds.includes(p.clientId);
   if (!allowed || !await usableNotificationConnection(deps.db, p, p.connectionId, now)) {
     const reason = allowed ? "connection_unavailable" : "client_disabled";
@@ -69,5 +71,6 @@ export async function runNotificationScheduler(deps: Dependencies) {
   await pruneDeliveryHistory(deps.db, clock());
   await pruneEventSubscriptions(deps.db, clock());
   await pruneNotificationOutbox(deps.db, clock());
+  await pruneNotificationPollClaims(deps.db, clock());
   return { processed, failed };
 }

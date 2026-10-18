@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, expect, it } from "vitest";
 import { handleMcpRequest } from "../../features/integration/mcp/http";
-import { resetHouseholdFixtures } from "./test-support/households";
+import { createHouseholdAMaintenanceTask, householdAMember, resetHouseholdFixtures } from "./test-support/households";
+import { saveNotificationSettings } from "./notification-settings";
+import { DEFAULT_SETTINGS } from "../../features/integration/notifications/contract";
 import { applyAllMigrations } from "./test-support/migrations";
 import { connect, registerTestClient, testOAuthConfig } from "./test-support/oauth";
 import { revokeConnection } from "./oauth-connections";
@@ -151,6 +153,27 @@ it("通知の候補・本人設定・配信履歴を公開し、設定commandも
   expect(await tool("delivery_list", {})).toMatchObject({ structuredContent: { items: [], next_cursor: null } });
   const preview = await prepare("notification.configure", { settings_revision: settings.structuredContent.revision, muted: true });
   expect(await tool("command_commit", commitInput(preview))).toMatchObject({ structuredContent: { status: "succeeded", result: { settings: { muted: true }, shared_schedule_changed: false } } });
+});
+it("定期取得のclaim/ackをMCPで実行し、不足権限はevents.subscribeを案内する", async () => {
+  token = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read events.subscribe" })).access_token;
+  const auth = await verifyAccessToken({ db, config: testOAuthConfig }, token, []); if (!auth.ok) throw new Error("Missing auth");
+  await saveNotificationSettings(db, householdAMember, { ...DEFAULT_SETTINGS, enabled: true, connectionId: auth.principal.connectionId, quietEnabled: false }, 0, new Date());
+  const task = await createHouseholdAMaintenanceTask(db);
+  const attention = await tool("attention_get", {});
+  const candidates = attention.structuredContent.candidates as { candidate_id: string; entity_id: string; revision: string }[];
+  const candidate = candidates.find((c) => c.entity_id === task.occurrenceId); if (!candidate) throw new Error("Missing candidate");
+  const payload = { candidate_ids: [candidate.candidate_id], candidate_revisions: { [candidate.candidate_id]: candidate.revision } };
+  const committed = await tool("command_commit", commitInput(await prepare("notification.claim", payload)));
+  expect(committed).toMatchObject({ structuredContent: { status: "succeeded" } });
+  const c = committed.structuredContent.result as Record<string, unknown>;
+  const ack = { delivery_id: c.delivery_id, lease_token: c.lease_token, outcome: "reported" };
+  expect(await tool("command_commit", commitInput(await prepare("notification.ack", ack)))).toMatchObject({ structuredContent: { status: "succeeded", result: { outcome: "reported" } } });
+  const manage = (await connect(db, { householdId: "household-a", userId: "user-a", requestedScope: "household.read notifications.manage" })).access_token;
+  for (const [command, input] of [["notification.claim", payload], ["notification.ack", ack]]) {
+    const denied = await tool("command_prepare", { command, operation_id: crypto.randomUUID(), payload: input }, manage);
+    expect(denied).toMatchObject({ isError: true, structuredContent: { error: { code: "insufficient_scope" } } });
+    expect(JSON.stringify(denied)).toContain("events.subscribe"); expect(JSON.stringify(denied)).not.toContain("notifications.manage");
+  }
 });
 it("不足項目は共通エラーで返し、同名候補を勝手に一つへ絞らない", async () => {
   const missing = await tool("command_prepare", { command: "todo.create", operation_id: crypto.randomUUID(), payload: {} });

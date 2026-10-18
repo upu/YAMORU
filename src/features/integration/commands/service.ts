@@ -43,6 +43,8 @@ import { todoCreateHandler } from "./todo-create";
 import { todoCorrectHandler, todoUndoHandler } from "./todo-history";
 import { notificationConfigureHandler } from "./notification-configure";
 import { notificationSnoozeHandler } from "./notification-snooze";
+import { notificationAckHandler, notificationClaimHandler } from "./notification-poll";
+import { commandScope } from "./command-scope";
 import { stockCorrectHandler, stockObserveHandler, stockRefillHandler } from "./stock";
 import { todoRescheduleHandler } from "./todo-reschedule";
 import { todoUpdateHandler } from "./todo-update";
@@ -71,6 +73,8 @@ const HANDLERS: Record<CommandName, CommandHandler> = {
   "todo.update": todoUpdateHandler,
   "notification.configure": notificationConfigureHandler,
   "notification.snooze": notificationSnoozeHandler,
+  "notification.claim": notificationClaimHandler,
+  "notification.ack": notificationAckHandler,
 };
 
 export type CommandServiceDependencies = {
@@ -104,16 +108,12 @@ function requireScope(principal: IntegrationPrincipal, scope: IntegrationScope):
   if (!principal.scopes.includes(scope)) throw new CommandError("insufficient_scope");
 }
 
-function commandScope(command: string): IntegrationScope {
-  return command.startsWith("notification.") ? "notifications.manage" : "household.write";
-}
-
 function issuerOf(request: Request): string | null {
   return request.deps.config?.issuer ?? null;
 }
 
 function contextOf({ deps, now, principal }: Request): CommandContext {
-  return { db: deps.db, householdId: principal.householdId, now, userId: principal.userId };
+  return { db: deps.db, householdId: principal.householdId, now, userId: principal.userId, principal };
 }
 
 function handlerOf(command: string): CommandHandler {
@@ -359,7 +359,7 @@ async function get(request: Request, input: unknown): Promise<Record<string, unk
   if (operation === null) {
     return { operation_id: parsed.operationId, recovery: "prepare_same_operation", status: "unknown" };
   }
-  if (operation.command.startsWith("notification.")) requireScope(request.principal, "notifications.manage");
+  if (operation.command.startsWith("notification.")) requireScope(request.principal, commandScope(operation.command));
   return {
     operation_id: operation.operationId,
     command: operation.command,
