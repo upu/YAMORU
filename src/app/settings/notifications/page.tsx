@@ -11,6 +11,7 @@ import { nextAllowedNotificationTime } from "../../../features/integration/notif
 import { NotificationSettingsForm } from "./settings-form";
 import { CandidateControls } from "./candidate-controls";
 import { DeliveryHistoryList } from "./delivery-history";
+import { NotificationDeliveryStatus } from "./delivery-status";
 import styles from "./notifications.module.css";
 
 type Query = { candidates?: string; before?: string };
@@ -48,7 +49,8 @@ export default async function NotificationSettingsPage({ searchParams }: { searc
   return <main className="page-form account-page">
     <nav className="back-nav" aria-label="ページ移動"><Link href="/settings/integrations">← 外部サービスとの連携へ</Link></nav>
     <header className="detail-hero"><h1>あなたの通知設定</h1><p>この設定はあなたへの通知だけに使います。家族の通知や、共有する予定・期限は変わりません。</p></header>
-    <section className="detail-card"><p>通知の配信は準備中です。設定を保存しても、まだ通知は届きません。</p>
+    <NotificationDeliveryStatus settings={saved.settings} connectionAvailable={connections.some((c) => c.id === saved.settings.connectionId)} />
+    <section className="detail-card">
       <NotificationSettingsForm {...saved} connections={connections} nextAt={nextAt} />
     </section>
     <section className="detail-card" aria-labelledby="candidate-title"><h2 id="candidate-title">用事ごとの通知休止</h2>

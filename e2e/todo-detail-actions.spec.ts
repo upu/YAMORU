@@ -3,6 +3,7 @@ import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 
 import { createOneTimeTask } from "../src/lib/d1/todos";
 import { addDaysToTokyoDateUtcIso, PHASE_ONE_TIME_ZONE } from "../src/app/time-zone";
+import { delayActionRequest, runServerAction } from "./support/server-action";
 
 // Issue #392: 未完了Todoの詳細から、内容を確認したまま担当と完了を実行できる。
 // 操作の成否そのものはコンポーネントテストで見るため、ここでは実際のD1と
@@ -55,11 +56,13 @@ test("Todo詳細で担当を設定すると、その場の表示が最新の担�
 
   const assignee = page.getByLabel(`${TODO_TITLE}の担当`);
   await expect(assignee).toHaveValue("");
+  await delayActionRequest(page, new URL(page.url()).pathname);
 
-  await assignee.selectOption({ label: OTHER_MEMBER_NICKNAME });
+  await runServerAction(page, () => assignee.selectOption({ label: OTHER_MEMBER_NICKNAME }));
 
   // 再検証後の詳細画面が、選び直した担当を保ったまま表示される。
   await expect(page.getByLabel(`${TODO_TITLE}の担当`)).toHaveValue("member2");
+  await expect(page.getByLabel(`${TODO_TITLE}の担当`)).toBeEnabled();
   await page.reload();
   await expect(page.getByLabel(`${TODO_TITLE}の担当`)).toHaveValue("member2");
 });

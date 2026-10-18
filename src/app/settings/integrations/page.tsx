@@ -25,6 +25,7 @@ export default async function IntegrationsPage() {
         <h1>外部サービスとの連携</h1>
         <p>会話アシスタントなど、あなたが家庭のデータへのアクセスを許可した外部サービスです。</p>
       </header>
+      <section className="detail-card"><h2>会話アシスタントから使う</h2><p>接続と許可、お知らせの試し方、定期的な確認と停止の手順を案内します。</p><Link href="/settings/integrations/guide">会話連携の始め方・通知が来ないとき</Link></section>
       <section className="detail-card"><h2>あなたへの通知</h2><p>通知の時間や用事ごとの休止、配信履歴を確認できます。</p><Link href="/settings/notifications">通知設定と配信履歴</Link></section>
       <section aria-labelledby="connections-title" className="detail-card">
         <h2 id="connections-title">連携中・過去の連携</h2>

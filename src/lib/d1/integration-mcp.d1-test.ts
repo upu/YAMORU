@@ -52,6 +52,10 @@ it("OAuthで認証してMCP discoveryと家庭の読み取りを行い、秘密�
   expect(listed.result.tools.find((t) => t.name === "notification_settings_get")).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["household.read", "notifications.manage"] }] });
   expect(listed.result.tools.find((t) => t.name === "notification_context_get")).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["household.read", "notifications.manage"] }] });
   const connection = await tool("connection_get", {});
+  expect(connection.structuredContent).toMatchObject({ capabilities: { notification_polling: {
+    supported: true, executor: "connected_client", external_task_status: "unknown", interval_hint_minutes: 15,
+  } } });
+  expect(connection.structuredContent).toMatchObject({ integration_guide_url: `${testOAuthConfig.issuer}/settings/integrations/guide` });
   expect(connection.structuredContent).toMatchObject({ household_id: "household-a", user_id: "user-a", status: "active", request_id: expect.any(String), as_of: expect.any(String), connection_management_url: `${testOAuthConfig.issuer}/settings/integrations`, capabilities: { events: false } });
   expect(JSON.stringify(connection)).not.toContain(token);
   const foreign = await tool("entity_get", { kind: "managed_item", id: "item-b" });
@@ -73,6 +77,8 @@ it("公式SDKクライアントで再接続し、commit後の通信切断を保�
     } });
   await client.connect(transport);
   expect((await client.listTools()).tools.map((t) => t.name)).toContain("command_prepare");
+  expect(await client.callTool({ name: "entity_get", arguments: { kind: "managed_item", id: "item-b" } }))
+    .toMatchObject({ isError: true, structuredContent: { error: { code: "not_found" } } });
   const prepared = (await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create", payload: { title: "通信切断を照合する用事", recurrence: { type: "manual" } } } })).structuredContent;
   if (!prepared) throw new Error("prepared result missing");
   await expect(client.callTool({ name: "command_commit", arguments: commitInput(prepared) })).rejects.toThrow("simulated network disconnect");

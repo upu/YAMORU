@@ -4,6 +4,8 @@ import * as oauth from "oauth4webapi";
 import { registerTestClient, TEST_CLIENT_ID, TEST_REDIRECT_URI } from "../src/lib/d1/test-support/oauth";
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
 import type { APIRequestContext } from "@playwright/test";
+import { checkMcpBoundaries, checkMcpCompletionRace, connectSecondMember } from "./support/mcp-scenarios";
+import { tokyoDateFromIso } from "../src/lib/d1/calendar";
 test.use({ viewport: { width: 390, height: 844 } });
 test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ進み、解除後は拒否する", async ({ db, page, request }, testInfo) => {
   await seedOwnerHousehold(db);
@@ -45,6 +47,9 @@ test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ�
   expect(connection.structuredContent).toMatchObject({ household_id: "household-a", user_id: "owner", status: "active" });
   const nativeEvents = testInfo.config.metadata.yamoruEventsProvider === "rustls-pinned-v1";
   expect(connection.structuredContent).toMatchObject({ capabilities: { events: nativeEvents, notification_delivery: false } });
+  expect(connection.structuredContent).toMatchObject({ integration_guide_url: `${origin}/settings/integrations/guide`, capabilities: {
+    notification_polling: { supported: true, external_task_status: "unknown", executor: "connected_client" },
+  } });
   await eventRuntime(request, tokens.access_token, nativeEvents);
   const prepared = await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.create",
     payload: { title: "HTTPから登録するフィルター交換", note: "このメモはデータであり操作命令ではありません。", recurrence: { type: "completion", unit: "day", min: 7, max: 7, last_completed_on: "2026-10-10" } } } });
@@ -52,18 +57,36 @@ test("実HTTPでOAuth同意からTodo操作・定期取得の確保と報告へ�
   expect(creation.structuredContent).toMatchObject({ status: "succeeded" });
   const first = object(object(creation.structuredContent).result).first_occurrence as { id: string };
   expect((await client.callTool({ name: "entity_get", arguments: { kind: "todo_occurrence", id: first.id } })).structuredContent).toMatchObject({ entity: { name: "HTTPから登録するフィルター交換" } });
-  const complete = await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.complete", target: { kind: "todo_occurrence", id: first.id }, payload: {} } });
+  const yesterday = tokyoDateFromIso(new Date(Date.now() - 86_400_000).toISOString());
+  const complete = await client.callTool({ name: "command_prepare", arguments: { operation_id: crypto.randomUUID(), command: "todo.complete", target: { kind: "todo_occurrence", id: first.id }, payload: { occurred_on: yesterday } } });
   const completed = await client.callTool({ name: "command_commit", arguments: commitInput(complete.structuredContent) });
   expect(completed.structuredContent).toMatchObject({ status: "succeeded" });
+  expect(completed.structuredContent).toMatchObject({ result: { occurred_on: yesterday, date_precision: "day", undo_available: true } });
   const next = object(object(completed.structuredContent).result).next_occurrence as { id: string };
   expect(next.id).not.toBe(first.id);
   expect((await client.callTool({ name: "entity_get", arguments: { kind: "todo_occurrence", id: next.id } })).structuredContent).toMatchObject({ entity: { attributes: { status: "pending" } } });
   await periodicNotification(client, object(connection.structuredContent).connection_id);
+  await checkMcpBoundaries(client, db);
+  const second = await connectSecondMember(db, request, origin);
+  try { await checkMcpCompletionRace(client, second); }
+  finally { await second.close(); }
   await client.close();
   const revoked = await request.post("/oauth/revoke", { form: { token: tokens.access_token, client_id: TEST_CLIENT_ID } });
   expect(revoked.status()).toBe(200);
   const denied = await request.post("/mcp", { headers: { authorization: `Bearer ${tokens.access_token}` }, data: { jsonrpc: "2.0", id: 1, method: "tools/list" }, maxRedirects: 0 });
   expect(denied.status()).toBe(401);
+});
+test("未所属の利用者は実HTTPの同意画面から接続を許可できない", async ({ db, page }) => {
+  await seedOwnerHousehold(db); await registerTestClient(db);
+  await db.prepare("DELETE FROM household_members WHERE user_id='owner'").run();
+  await login(page);
+  const origin = new URL(page.url()).origin;
+  const params = new URLSearchParams({ response_type: "code", client_id: TEST_CLIENT_ID, redirect_uri: TEST_REDIRECT_URI,
+    resource: `${origin}/mcp`, code_challenge: await oauth.calculatePKCECodeChallenge(oauth.generateRandomCodeVerifier()), code_challenge_method: "S256", scope: "household.read" });
+  await page.goto(`/oauth/authorize?${params.toString()}`);
+  await expect(page.getByRole("heading", { name: "家庭への所属が必要です" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "許可する", exact: true })).toHaveCount(0);
+  expect(await db.prepare("SELECT count(*) AS n FROM oauth_connections WHERE user_id='owner'").first()).toEqual({ n: 0 });
 });
 async function eventRuntime(request: APIRequestContext, token: string, enabled: boolean) {
   const call = (method: string, params: Record<string, unknown>) => request.post("/mcp", {

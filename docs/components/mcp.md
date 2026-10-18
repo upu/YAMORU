@@ -10,6 +10,8 @@ status: stable
 
 ## 責務と入口
 
+導入・復旧と最終確認の種類は[会話連携の検証表](../references/conversation-integration-checks.md)へまとめる。`connection_get`の`notification_polling`はAPIの対応と外部タスクの状態不明を分け、`integration_guide_url`を返す。従来のEvents関連のbooleanだけで定期取得まで非対応と判断しない。公開output schemaは成功形と構造化エラーのunionで、SDK内部の成功時検証とは分ける。
+
 `src/app/mcp/route.ts` → `src/features/integration/mcp/http.ts`は、既存OAuthのresource `/mcp`へStreamable HTTPを接続する。認証・業務判定は[外部連携](integration.md)、読み取りは[会話読み取り](conversation-read.md)へ委譲する。SQLや日付計算をMCPへ複製しない。
 
 通知への返答は`notification_context_get`と任意の`command_prepare.notification_reference`を[通知への返答](notification-replies.md)へ委譲する。どちらも現在の通知設定権限を検証し、元の回への束縛、複数件の選択、sourceの保持期限をサーバーで照合する。本人スヌーズと家庭の完了/予定変更のscopeは引き続き分ける。
@@ -38,7 +40,7 @@ status: stable
 
 ## SDKと配備
 
-公式`@modelcontextprotocol/sdk` 1.32.1、Zod 4.6.7、Cloudflare向け`@cfworker/json-schema` 4.1.1を使う。Workerで動的コード生成をしないvalidatorを指定する。公式SDKの対応版は`2025-11-25`以前であり、ここで通し確認した版は`2025-11-25`。MCP Events 2.0 (`2026-07-28`)への対応をSDK採用から推定しない。独自の2026入口は明示的なprovider有効時だけEventsを公開する。`notification_delivery`は実dotの到達・解除・失効等を#442で実証するまでfalseとし、Eventsの公開だけで通知完成とはしない。
+公式`@modelcontextprotocol/sdk` 1.32.1、Zod 4.6.7、Cloudflare向け`@cfworker/json-schema` 4.1.1を使う。Workerで動的コード生成をしないvalidatorを指定する。公式SDKの対応版は`2025-11-25`以前であり、ここで通し確認した版は`2025-11-25`。MCP Events 2.0 (`2026-07-28`)への対応をSDK採用から推定しない。独自の2026入口は明示的なprovider有効時だけEventsを公開する。v0.21.0はYDR-070により定期取得を先行し、未実証のEvents実送信は#474へ分ける。従来の`notification_delivery:false`は維持し、外部の定期取得APIへの対応は`notification_polling`で明示する。どの対応フラグも外部タスクの稼働・到達の証明にはしない。
 
 #442では`2026-07-28`の入口を明示的に追加する。initializeを使わない要求ごとにprotocolVersion・clientCapabilitiesとHTTPのMCP-Protocol-Version / Mcp-Method / Mcp-Nameを照合する。nameのBase64 sentinelも復号して比較し、不一致はHeaderMismatch、未知の版は対応版を案内する。Toolの一覧・説明・schema・実行・OAuth challengeを旧版と共有し、業務判定は複製しない。resultTypeとserverInfoを返すが、Eventsの購読や配信をそのことだけで対応済みにしない。
 
@@ -64,7 +66,7 @@ Eventsの購読APIは同じ認証入口を使い、household.readとevents.subsc
 
 Events処理の既知の失敗は`mcp_event_failure`へmethod・code・reasonの固定分類だけを記録する。入力schema、filterのschema/矛盾、署名鍵の形式とcallback確認を区別し、要求本文・未知のキー名・URL・鍵・token・家庭IDをログへ出さない。HTTP400だけで原因を推測せず、この分類と実応答を照合する。入力エラーの外部応答は従来の固定messageのままとする。
 
-server/discoverとconnection_getのEvents可否は、同じprovider設定を反映する。購読APIの対応と実配信は区別し、実送信の完成前はnotification_deliveryをfalseとする。
+server/discoverとconnection_getのEvents可否は、同じprovider設定を反映する。購読APIの対応と実配信は区別する。外部の定期取得は、これらのEvents関連booleanと別に対応・実行主体・タスク状態不明を返す。
 
 Mcp-NameはTool・Resource・Prompt向けの標準ヘッダーであり、Events購読では必須にしない。EventsでもMcp-MethodとprotocolVersionは本文と照合する。[Streamable HTTPの標準ヘッダー](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#standard-request-headers)（2026-10-18確認）。
 

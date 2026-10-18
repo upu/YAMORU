@@ -9,6 +9,8 @@ test("個人の通知設定を保存し、候補の休止と解除で共有予�
   await page.goto("/settings/integrations");
   await page.getByRole("link", { name: "通知設定と配信履歴" }).click();
   await expect(page.getByRole("heading", { name: "あなたの通知設定" })).toBeVisible();
+  await expect(page.getByText("通知設定はOFFです。")).toBeVisible();
+  await expect(page.getByText(/外部の定期タスクの稼働状態はYAMORUから確認できません/)).toBeVisible();
   await expect(page.getByLabel("通知を有効にする")).not.toBeChecked();
   await expect(page.getByText(/現在は通知を受け取れません/)).toBeVisible();
   await page.getByLabel("まとめる時刻").fill("10:30");
@@ -27,4 +29,18 @@ test("個人の通知設定を保存し、候補の休止と解除で共有予�
   const rows = await db.prepare("SELECT must_complete_by FROM task_occurrences").all<{ must_complete_by: string }>();
   expect(rows.results.every((row) => row.must_complete_by === "2026-01-01")).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("notification-settings-mobile.png"), fullPage: true });
+});
+
+test("会話連携の導入・一度だけの確認・復旧・停止へモバイル幅で到達できる", async ({ page, db }, testInfo) => {
+  await seedOwnerHousehold(db); await page.setViewportSize({ width: 390, height: 844 }); await login(page);
+  await page.goto("/settings/integrations");
+  await page.getByRole("link", { name: "会話連携の始め方・通知が来ないとき" }).click();
+  await expect(page.getByRole("heading", { name: "会話連携の始め方", exact: true })).toBeVisible();
+  await expect(page.getByText(`${new URL(page.url()).origin}/mcp`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "通知が来ないとき・連携を止めるとき" })).toBeVisible();
+  await expect(page.getByText(/YAMORUから外部の定期タスクは作成・停止しません/)).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("integration-guide-mobile.png"), fullPage: true });
+  await page.getByRole("link", { name: "通知設定と配信履歴" }).click();
+  await expect(page.getByRole("heading", { name: "通知の仕組みと稼働確認" })).toBeVisible();
 });

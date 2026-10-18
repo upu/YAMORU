@@ -1,4 +1,5 @@
 import { expect, login, seedOwnerHousehold, test } from "./support/fixtures";
+import { delayActionRequest, runServerAction } from "./support/server-action";
 
 // Issue #332: AI提案は入力補助であり、使えない環境でも登録は止まらない。
 // ローカルE2E(wrangler env e2e)にはWorkers AIのバインディングを置いていない
@@ -23,9 +24,11 @@ test("AIを利用できない環境でも案内を出すだけで、これまで
   // 候補が出なくても、#288までの入力補助と手入力はそのまま使える。
   await page.getByLabel("詳しい種類（任意）").selectOption("__custom__");
   await page.getByLabel("詳しい種類を入力").fill("全自動コーヒーマシン");
-  await page.getByRole("button", { name: "管理対象を登録" }).click();
+  await delayActionRequest(page, "/managed-items/new");
+  await runServerAction(page, () => page.getByRole("button", { name: "管理対象を登録" }).click());
 
-  await expect(page).toHaveURL(/\/managed-items\/[^/]+$/u);
+  await expect(page).toHaveURL(/\/managed-items\/(?!new$)[^/]+$/u);
+  await expect(page.getByRole("heading", { level: 1, name: "デロンギ マグニフィカS" })).toBeVisible();
   await expect(page.getByText("全自動コーヒーマシン").first()).toBeVisible();
 });
 

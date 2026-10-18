@@ -301,38 +301,38 @@ CREATE TABLE integration_operations (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   client_id TEXT NOT NULL REFERENCES oauth_clients(id),
   connection_id TEXT NOT NULL REFERENCES oauth_connections(id) ON DELETE CASCADE,
-
-
+  -- クライアントが一つの操作につき一度だけ生成するUUID。通信の再試行でも
+  -- 同じ値を送る。一意性は接続ごとに保証する(接続は本人・家庭・clientを含む)。
   operation_id TEXT NOT NULL,
-
-
+  -- commandの種類はアプリ側で検証する。後続のcommandを追加するたびに
+  -- CHECK制約を作り直さなくて済むよう、ここでは列挙しない。
   command TEXT NOT NULL,
-
-
+  -- 最初のprepare要求(command・対象・payload)の正規化JSONのSHA-256。
+  -- 同じoperation_idの再prepareが同じ内容かを照合する。
   request_hash TEXT NOT NULL,
-
+  -- 確定した操作内容(command・対象・正規化payload・参照revision)のSHA-256。
   fingerprint TEXT NOT NULL,
   preview_id TEXT NOT NULL UNIQUE,
-
+  -- 「今」や「昨日」をprepare時に絶対値へ固定した正規化command(JSON)。
   normalized_command TEXT NOT NULL,
-
-
-
+  -- previewを作ったときの家庭の世代(0032のhousehold_read_versions、YDR-053)。
+  -- commitのbatchは最初の文でこの世代が変わっていないことを確かめ、変わって
+  -- いればbatch全体を取り消す。家族による無関係な更新でも再確認になる保守的な方式。
   revision_epoch TEXT NOT NULL,
   revision_version INTEGER NOT NULL,
-
-
+  -- 利用者へ示した差分と次回への影響(JSON)。commit時に同じ内容を
+  -- 計算し直し、変わっていればstale_previewとして実行しない。
   preview TEXT NOT NULL,
   status TEXT NOT NULL,
-
+  -- rejected / expiredの理由コード(conversation-integration.md 5節)。
   reason_code TEXT,
-
-
+  -- 拒否したときに返した詳細(field_errors・current_state、JSON)。同じ操作IDの
+  -- 再送やoperation_getにも、最初の応答と同じ内容を返すために保存する。
   reason_detail TEXT,
-
-
+  -- 業務側の記録(activity_logs・completion_corrections)へ渡した
+  -- idempotency_keyの元。受付記録と業務の履歴をこの値で結び付ける。
   business_key TEXT NOT NULL UNIQUE,
-
+  -- 成功時の結果(JSON)。再送には保存したこの値を返し、再実行しない。
   result TEXT,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
@@ -437,28 +437,28 @@ CREATE TABLE managed_item_type_presets (
 CREATE TABLE managed_item_type_suggestions (
   id TEXT PRIMARY KEY,
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
-
-
+  -- 提案を求めたときに選択されていた大分類。次回提案では同じ大分類の履歴
+  -- だけを使う(プリセットの詳しい種類が大分類で絞られるのと同じ見え方)。
   kind_code TEXT NOT NULL,
-
-
+  -- 提案の手がかりにした、入力中の管理対象名。AIへ送ったのと同じ最小限の
+  -- 文脈だけを残し、メモや外部リンクは保存しない。
   item_name TEXT NOT NULL,
-
-
+  -- 実際に画面へ出した候補のJSON配列(文字列の配列)。採用・修正の判定は
+  -- この配列との突き合わせで行う。
   suggested_labels TEXT NOT NULL,
   adopted_label TEXT,
   adoption_kind TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   adopted_at TEXT,
-
-
-
-
-
+  -- idだけで一意だが、他の家庭スコープのテーブル(task_rules、consumables、
+  -- task_rule_schedulesなど)と同じく複合UNIQUEを置く。子テーブルから
+  -- (id, household_id)への複合外部キーを張れる形を、後からのテーブル再作成
+  -- なしで保てるようにするためである(SQLiteの複合外部キーは参照先の
+  -- UNIQUE索引を要求する)。
   UNIQUE (id, household_id),
   CHECK (adoption_kind IS NULL OR adoption_kind IN ('ai_suggestion', 'corrected')),
-
-
+  -- 採用結果は3列そろって入るか、3列とも入らないかのどちらかにする。
+  -- 「採用された種類が分からないのに採用済み」という中途半端な行を作らない。
   CHECK ((adoption_kind IS NULL) = (adopted_label IS NULL)),
   CHECK ((adoption_kind IS NULL) = (adopted_at IS NULL))
 );
@@ -759,22 +759,22 @@ CREATE TABLE oauth_authorization_codes (
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   client_id TEXT NOT NULL REFERENCES oauth_clients(id),
-
-
+  -- 同意画面に表示したクライアント名。交換までにCIMDが更新されても、
+  -- 利用者が同意した名前を接続へ引き継ぐ。
   client_name TEXT NOT NULL,
   scopes TEXT NOT NULL,
   redirect_uri TEXT NOT NULL,
   resource TEXT NOT NULL,
   code_challenge TEXT NOT NULL,
   code_challenge_method TEXT NOT NULL,
-
-
+  -- 同意した時点のusers.session_version。交換までにパスワードが変わったら、
+  -- このcodeからは接続を作らない。
   user_session_version INTEGER NOT NULL,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
-
-
+  -- 消費済みのcodeが再び提示された時刻。これがあるcodeからは接続を作らない
+  -- (同時に交換された場合に、後から接続が作られるのも防ぐ)。
   replayed_at TEXT,
   connection_id TEXT REFERENCES oauth_connections(id) ON DELETE CASCADE,
   CHECK (length(client_name) BETWEEN 1 AND 100),
@@ -802,16 +802,16 @@ CREATE TABLE oauth_connections (
   household_id TEXT NOT NULL REFERENCES households(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   client_id TEXT NOT NULL REFERENCES oauth_clients(id),
-
-
+  -- 同意画面に表示したクライアント名。後でCIMDが変わっても、利用者が
+  -- 同意した時点の表示を接続管理画面で確認できるよう写しておく。
   client_name TEXT NOT NULL,
   scopes TEXT NOT NULL,
   resource TEXT NOT NULL,
   issuer TEXT NOT NULL,
-
+  -- 接続を作った時点のusers.session_version。
   user_session_version INTEGER NOT NULL,
   created_at TEXT NOT NULL,
-
+  -- 最後に発行したrefresh tokenの期限。これを過ぎた接続は再接続が必要。
   expires_at TEXT NOT NULL,
   last_used_at TEXT,
   revoked_at TEXT,

@@ -10,6 +10,7 @@ import {
   loadProfileNames,
 } from "../../../lib/d1/profiles";
 import { getD1Context } from "../../../lib/d1/context";
+import { retryLocalD1Read } from "../../../lib/d1/read-retry";
 import {
   listConsumablesForManagedItem,
   type ConsumableSummary,
@@ -116,25 +117,15 @@ export function ManagedItemDetailContent({
   );
 }
 
-export default async function RegisteredManagedItemDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const user = await requireUser();
-  const { id } = await params;
-  const { db, session } = await getD1Context(user);
-  const nowIso = new Date().toISOString();
+async function readDetailPage({ db, session }: Awaited<ReturnType<typeof getD1Context>>, userId: string, id: string) {
   const [data, actorName, consumables, tags] = await Promise.all([
     loadManagedItemDetail(db, session, id),
-    loadActorName(db, session, user.id, FALLBACK_SELF_ACTOR_NAME),
+    loadActorName(db, session, userId, FALLBACK_SELF_ACTOR_NAME),
     listConsumablesForManagedItem(db, session, id),
     listTagsForManagedItem(db, session, id),
   ]);
 
-  if (data === null) notFound();
-
-  const pendingTodos = buildPendingTodos(data.task_rules, nowIso);
+  if (data === null) return null;
   const recentCompletionDrafts = buildRecentCompletions(data.task_rules);
   // Issue #240: 表示する完了記録に必要な家庭メンバーだけを安全に解決する
   // (loadProfileNamesは自家庭の範囲で絞り込む)。最新1件専用の取得処理
@@ -147,6 +138,17 @@ export default async function RegisteredManagedItemDetail({
     // Issue #72: 担当者選択の候補は同じ家庭のメンバーに限る。実施者選択(Issue #18)も同じ候補を使う。
     loadHouseholdMembers(db, session),
   ]);
+  return { data, actorName, consumables, tags, recentCompletionDrafts, performerNames, members };
+}
+
+export default async function RegisteredManagedItemDetail({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser();
+  const { id } = await params;
+  const context = await getD1Context(user);
+  const loaded = await retryLocalD1Read(() => readDetailPage(context, user.id, id));
+  if (!loaded) notFound();
+  const { data, actorName, consumables, tags, recentCompletionDrafts, performerNames, members } = loaded;
+  const pendingTodos = buildPendingTodos(data.task_rules, new Date().toISOString());
   const recentCompletions: RecentCompletionData[] = recentCompletionDrafts.map(
     (completion) => ({
       id: completion.id,

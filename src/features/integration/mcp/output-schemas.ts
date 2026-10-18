@@ -16,4 +16,8 @@ const output = {
   command_commit: z.looseObject({ operation_id: z.string(), status: z.string(), replayed: z.boolean(), recorded_at: z.string(), result: record }),
   operation_get: z.looseObject({ operation_id: z.string(), status: z.string() }),
 } satisfies Record<McpToolName, z.ZodObject>;
+// The official client validates structuredContent even when isError=true.
+const failure = z.looseObject({ error: z.looseObject({ code: z.string(), message: z.string() }) });
+// The SDK server normalizes output schemas to objects and skips isError results.
 export function mcpOutputSchema(name: McpToolName) { return output[name]; }
+export function mcpPublicOutputSchema(name: McpToolName) { return z.union([output[name], failure]); }

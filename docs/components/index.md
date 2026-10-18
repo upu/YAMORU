@@ -16,6 +16,7 @@
 
 | 変更したいこと | 最初に読む実装 | テスト | 詳細文書 |
 |---|---|---|---|
+| 会話連携の導入・通知の稼働確認・復旧と最終検証 | `src/app/settings/integrations/guide/`、`notifications/delivery-status.tsx`、`src/features/integration/mcp/service.ts` | `tests/integration-onboarding-ui.test.tsx`、`e2e/mcp-integration.spec.ts`、`e2e/notification-settings.spec.ts` | [実接続と回帰検証](../references/conversation-integration-checks.md) |
 | 本人の通知設定・スヌーズ・配信履歴 | `src/app/settings/notifications/`、`src/features/integration/notifications/` → `src/lib/d1/notification-settings.ts`、`notification-policy.ts`、`notification-deliveries.ts` | `tests/notification-*.test.*`、`src/lib/d1/notification-*.d1-test.ts`、`e2e/notification-settings.spec.ts` | [個人の通知](notifications.md) |
 | 通知outbox・lease・永続走査の進捗 | `worker.ts` → `src/features/integration/notifications/scheduler.ts`、`src/lib/d1/notification-outbox.ts`、`notification-scheduler.ts` | `src/lib/d1/notification-outbox*.d1-test.ts`、`notification-scheduler.d1-test.ts`、`e2e/notification-scheduler.worker-e2e.ts` | [通知outbox・定期走査](notification-outbox.md) |
 | 検査済みIPと元hostnameのTLS検証部品 | `packages/pinned-tls/src/lib.rs`、`generated/`、`scripts/pinned-tls-build.ts` | `tests/pinned-tls-engine.test.ts`、`scripts/pinned-tls-probe.ts` | [固定IPのTLS試験](../spikes/pinned-tls.md) |
