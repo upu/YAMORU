@@ -43,6 +43,9 @@ status: stable
 
 ## 検証方法
 
+- 消耗品の在庫状態: `src/lib/d1/consumable-stock.d1-test.ts`
+- 消耗品の登録・補充記録・関連・ピン留め: `src/lib/d1/consumable-pins.d1-test.ts`
+
 ```
 npm test -- tests/consumable-stock-actions.test.ts tests/consumable-actions.test.ts tests/consumable-refill-actions.test.ts
 npm test -- tests/consumable-pins-ui.test.tsx tests/help-page.test.tsx

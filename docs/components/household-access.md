@@ -48,6 +48,10 @@ Auth.js Credentialsによるログイン、家庭(household)の作成と所属�
 
 ## 検証方法
 
+- ログイン・パスワード: `tests/password-change-actions.test.ts`、`src/lib/d1/authentication.d1-test.ts`
+- 家庭の作成: `tests/household-ui.test.tsx`
+- 家庭間分離(household_idの扱い): `src/lib/d1/**/*-authorization.d1-test.ts`
+
 ```
 npm test -- tests/auth-actions.test.ts tests/invitation-actions.test.ts tests/invite-accept-actions.test.ts tests/household-actions.test.ts
 npm run test:d1

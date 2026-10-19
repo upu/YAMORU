@@ -72,6 +72,13 @@ D1層が投げる業務エラーは`src/lib/d1/errors.ts`の`D1ErrorCode`(識別
 
 ## 検証方法
 
+- Todoの登録: `tests/todo-registration-actions.test.ts`、`tests/todo-registration-calendar-actions.test.ts`
+- Todoの編集(1回だけ / 現在回 / 次回以降): `tests/todo-edit-actions.test.ts`、`src/lib/d1/recurring-todo-edit.d1-test.ts`
+- 各回の必達日の設定・解除: `src/features/todos/actions/hard-deadline.ts`、`tests/hard-deadline.test.ts`、`src/lib/d1/hard-deadline.d1-test.ts`
+- Todoの完了・完了取消・実施記録の訂正: `tests/complete-maintenance-task-actions.test.ts`、`tests/undo-maintenance-task-completion-actions.test.ts`、`tests/correct-completion-actions.test.ts`、`tests/todo-detail-actions.test.tsx`
+- Todoの担当・延期・予定日の変更(画面共通の操作): `tests/task-occurrence-assignee-actions.test.ts`、`tests/postpone-task-occurrence-actions.test.ts`、`tests/schedule-task-occurrence-actions.test.ts`、`tests/assignee-panel.test.tsx`、`tests/todo-detail-actions.test.tsx`
+- 繰り返し条件と次回予定の計算: `src/lib/d1/interval-recurrence.d1-test.ts`、`src/lib/d1/monthly-weekday-calendar.d1-test.ts`
+
 ```
 npm test
 npm run test:d1
