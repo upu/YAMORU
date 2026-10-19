@@ -7,9 +7,14 @@ tags: [yamoru, decisions, ydr, integration, oauth]
 status: stable
 decision_status: Accepted
 decision_date: 2026-10-17
+partially_superseded_by:
+  - ydr_id: YDR-072
+    scope: 決定5の環境変数だけによる許可一覧と決定6の未設定時の受付無効、および末尾の有効化条件
 ---
 
 # YDR-052: 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける
+
+受付の既定値と環境変数による許可の意味は[YDR-072](ydr-072-chatgpt-default-client.md)で部分置換した。以下は採用当時の判断であり、認証・認可とCIMD検証の条件は引き続き有効である。
 
 - 状態: Accepted
 - 決定日: 2026-10-17

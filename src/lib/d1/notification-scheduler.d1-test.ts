@@ -8,6 +8,8 @@ import { saveNotificationSettings } from "./notification-settings";
 import { drainStoppedNotificationSchedule, enqueueNotification, leaseNotification } from "./notification-outbox";
 import { runNotificationScheduler } from "../../features/integration/notifications/scheduler";
 import { claimNotificationSchedule, seedNotificationSchedule } from "./notification-scheduler";
+import { parseAllowedClientIds } from "../../features/integration/oauth/config";
+import { upsertOAuthClient } from "./oauth-clients";
 const db = env.DB;
 const now = new Date();
 beforeAll(() => applyAllMigrations(db));
@@ -20,6 +22,14 @@ it("外部clientが無効な設定では走査を開始しない", async () => {
   await enabled();
   await runNotificationScheduler({ db, allowedClientIds: [], now: () => now });
   expect((await db.prepare("SELECT * FROM notification_outbox").all()).results).toEqual([]);
+});
+it.each([undefined, "", "https://additional.example.test/client.json"])("追加許可が%jでも標準許可のChatGPT接続を走査する", async (value) => {
+  const clientId = "https://chatgpt.com/oauth/client.json";
+  await upsertOAuthClient(db, { id: clientId, clientName: "ChatGPT", clientUri: null, redirectUris: ["https://chatgpt.com/callback"], metadataFetchedAt: now.toISOString() });
+  await db.prepare("UPDATE oauth_connections SET client_id=? WHERE id=?").bind(clientId, principal.connectionId).run();
+  await enabled();
+  expect(await runNotificationScheduler({ db, allowedClientIds: parseAllowedClientIds(value), now: () => now })).toEqual({ processed: 1, failed: 0 });
+  expect((await db.prepare("SELECT connection_id FROM notification_outbox").all()).results).toEqual([{ connection_id: principal.connectionId }]);
 });
 it("保存したcheckpointから大きな候補集合を続け、同じ候補を重複作成しない", async () => {
   await enabled();

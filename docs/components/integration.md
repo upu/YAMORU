@@ -41,7 +41,7 @@ status: stable
 
 ## 重要な不変条件
 
-- 受付は既定で無効。runtime変数`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`に、実接続で検証したclient_id(CIMDのURL)を設定したときだけmetadata・同意画面・endpointが応答する([YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md))。CIMDは許可したclient_idだけを取得する。
+- ChatGPTのclient_id `https://chatgpt.com/oauth/client.json`を標準許可する。runtime変数`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`は追加許可で、未設定・空でも公開HTTPS originでmetadata・同意画面・endpointが応答する([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。CIMDは標準許可・追加許可のclient_idだけを取得し、検証は省略しない。通知スケジューラも同じ一覧を使う。変数の削除ではChatGPTは停止できず、本人の接続解除は引き続き即時に有効である。
 - 外部入口は`authenticateBearerRequest` / `verifyAccessToken`を通し、そのPrincipalの`householdId`と`userId`だけを使う。要求本文の利用者IDや家庭IDで`getD1Context`を呼ばない([会話連携設計](../product/conversation-integration.md) 3節)。
 - 検証のたびに、tokenの期限、issuer・resource、scope、接続の失効、接続時の家庭への現在の所属、パスワードの世代(`users.session_version`)を確かめる。所属を失った、またはパスワードが変わった接続は失効させ、別の家庭へ転用しない。
 - 通知配信など、tokenを介さずに接続を使う処理(#442)は、送信直前に`isConnectionActive`で接続の有効性を確かめる。

@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveOAuthClient } from "../../features/integration/oauth/client-metadata";
+import { resolveOAuthConfig } from "../../features/integration/oauth/config";
 import { getOAuthClient } from "./oauth-clients";
 import { resetHouseholdFixtures } from "./test-support/households";
 import { applyAllMigrations } from "./test-support/migrations";
@@ -35,6 +36,21 @@ beforeEach(async () => {
 });
 
 describe("CIMDの取得", () => {
+  it.each(["unavailable", "invalid", "valid", "unregistered"])("標準許可もCIMD検証を通る: %s", async (scenario) => {
+    const clientId = "https://chatgpt.com/oauth/client.json";
+    const defaultConfig = resolveOAuthConfig(new URL("https://yamoru.example.test"), {});
+    if (!defaultConfig) throw new Error("Expected default OAuth config");
+    const fetchImpl = fetchReturning(() => scenario === "unavailable" ? new Response(null, { status: 503 }) : Response.json({ ...validDocument, client_id: scenario === "invalid" ? TEST_CLIENT_ID : clientId }));
+    const result = await resolveOAuthClient(db, defaultConfig, scenario === "unregistered" ? TEST_CLIENT_ID : clientId, { fetchImpl });
+    if (scenario === "valid") {
+      expect(result).toMatchObject({ ok: true, client: { id: clientId } });
+      expect(fetchImpl.mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+    } else {
+      expect(result).toEqual({ ok: false, reason: scenario === "invalid" ? "invalid_client_metadata" : scenario === "unavailable" ? "metadata_unavailable" : "client_not_allowed" });
+      expect(await getOAuthClient(db, clientId)).toBeNull();
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(scenario === "unregistered" ? 0 : 1);
+  });
   it("許可済みのclient_idだけを、リダイレクトを追従せずに取得してD1へ写す", async () => {
     const fetchImpl = fetchReturning(() => Response.json(validDocument));
     const result = await resolveOAuthClient(db, config, TEST_CLIENT_ID, { fetchImpl });

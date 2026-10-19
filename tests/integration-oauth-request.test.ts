@@ -13,6 +13,7 @@ import { declaresTooLargeBody, readTextWithLimit } from "../src/features/integra
 import { isSameConsentScreen } from "../src/app/oauth/authorize/consent-snapshot";
 
 const CLIENT_ID = "https://client.example.test/oauth/client.json";
+const CHATGPT_CLIENT_ID = "https://chatgpt.com/oauth/client.json";
 const REDIRECT_URI = "https://client.example.test/callback";
 const config = {
   allowedClientIds: [CLIENT_ID],
@@ -39,26 +40,35 @@ function params(overrides: Record<string, string | null> = {}): URLSearchParams 
 }
 
 describe("外部接続の受付設定", () => {
-  it("許可するclient_idが無ければ受付を無効にする", () => {
-    expect(resolveOAuthConfig(new URL("https://yamoru.example.test/oauth/token"), {})).toBeNull();
-    expect(resolveOAuthConfig(new URL("https://yamoru.example.test/"), { YAMORU_OAUTH_ALLOWED_CLIENT_IDS: " " })).toBeNull();
+  it.each([undefined, "", " ", ",\n"])("追加許可が%jでもChatGPTを標準許可する", (value) => {
+    expect(parseAllowedClientIds(value)).toEqual([CHATGPT_CLIENT_ID]);
+    for (const origin of ["https://yamoru.example.test", "https://preview.example.test"]) {
+      expect(resolveOAuthConfig(new URL(`${origin}/oauth/token`), { YAMORU_OAUTH_ALLOWED_CLIENT_IDS: value }))
+        .toEqual({ allowedClientIds: [CHATGPT_CLIENT_ID], issuer: origin, resource: `${origin}/mcp` });
+    }
   });
 
   it("issuerは受けたオリジン、resourceはその/mcpにする", () => {
     expect(resolveOAuthConfig(new URL("https://yamoru.example.test/oauth/token?x=1"), {
       YAMORU_OAUTH_ALLOWED_CLIENT_IDS: CLIENT_ID,
-    })).toEqual(config);
+    })).toEqual({ ...config, allowedClientIds: [CHATGPT_CLIENT_ID, CLIENT_ID] });
   });
 
   it("loopback以外のhttpでは受付を無効にする", () => {
-    const environment = { YAMORU_OAUTH_ALLOWED_CLIENT_IDS: CLIENT_ID };
+    const environment = {};
     expect(resolveOAuthConfig(new URL("http://yamoru.example.test/"), environment)).toBeNull();
     expect(resolveOAuthConfig(new URL("http://localhost:3000/"), environment)?.issuer).toBe("http://localhost:3000");
   });
 
   it("許可リストはhttpsのURLだけを、空白またはカンマ区切りで読む", () => {
     expect(parseAllowedClientIds(`${CLIENT_ID}, https://b.example.test/c.json\nhttp://insecure.test/c.json`))
-      .toEqual([CLIENT_ID, "https://b.example.test/c.json"]);
+      .toEqual([CHATGPT_CLIENT_ID, CLIENT_ID, "https://b.example.test/c.json"]);
+  });
+
+  it("標準許可と追加許可が重複しても一度だけ含め、その他のclientは許可しない", () => {
+    const allowed = parseAllowedClientIds(`${CHATGPT_CLIENT_ID}, ${CLIENT_ID}, ${CLIENT_ID}`);
+    expect(allowed).toEqual([CHATGPT_CLIENT_ID, CLIENT_ID]);
+    expect(allowed).not.toContain("https://attacker.example.test/client.json");
   });
 });
 

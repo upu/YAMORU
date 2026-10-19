@@ -77,7 +77,7 @@ async function tokenHashes(token: OAuth2Server.Token): Promise<IssuedTokenHashes
 function clientModel({ config, db }: OAuthModelDependencies) {
   return {
     // 公開クライアント(PKCE + token_endpoint_auth_method "none")だけを扱う。
-    // 運用者が許可したclient_idで、同意画面でCIMDを取得済みのものに限る。
+    // 標準または追加で許可したclient_idで、同意画面でCIMDを取得済みのものに限る。
     async getClient(clientId: string, clientSecret: string | null | undefined) {
       if (typeof clientSecret === "string" && clientSecret.length > 0) return false;
       if (!config.allowedClientIds.includes(clientId)) return false;

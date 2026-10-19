@@ -1,7 +1,7 @@
-// 外部クライアント向けOAuthの環境ごとの設定(YDR-052)。
+// 外部クライアント向けOAuthの環境ごとの設定(YDR-052、YDR-072)。
 //
-// - 受付は既定で無効。YAMORU_OAUTH_ALLOWED_CLIENT_IDSへ、実接続で検証した
-//   client_id(CIMDのURL)を完全一致で列挙したときだけ有効になる。
+// - ChatGPTを標準許可し、YAMORU_OAUTH_ALLOWED_CLIENT_IDSは追加許可に使う。
+//   この一覧はOAuthの要求処理とWorkerの通知走査で共有する。
 // - issuerはリクエストを受けたオリジン、resource(MCPサーバーの正規URI)は
 //   `${issuer}/mcp`とする。previewとproductionはオリジンが異なるため、
 //   issuer/resourceも自然に別になり、一方で発行したtokenを他方で受け付けない。
@@ -19,13 +19,14 @@ export type OAuthEnvironment = {
 };
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const DEFAULT_CLIENT_ID = "https://chatgpt.com/oauth/client.json";
 
 export function parseAllowedClientIds(value: string | undefined): string[] {
-  if (value === undefined) return [];
-  return value
+  const additionalClientIds = (value ?? "")
     .split(/[\s,]+/u)
     .map((entry) => entry.trim())
     .filter((entry) => entry.startsWith("https://"));
+  return [...new Set([DEFAULT_CLIENT_ID, ...additionalClientIds])];
 }
 
 // RFC 8414はissuerにhttpsを求める。ローカル開発と自動テストだけはloopbackの
@@ -40,7 +41,6 @@ export function resolveOAuthConfig(
   environment: OAuthEnvironment,
 ): OAuthConfig | null {
   const allowedClientIds = parseAllowedClientIds(environment.YAMORU_OAUTH_ALLOWED_CLIENT_IDS);
-  if (allowedClientIds.length === 0) return null;
   if (!isAcceptableOrigin(requestUrl)) return null;
   const issuer = requestUrl.origin;
   return { allowedClientIds, issuer, resource: `${issuer}${MCP_RESOURCE_PATH}` };

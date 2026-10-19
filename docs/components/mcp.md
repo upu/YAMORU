@@ -30,7 +30,7 @@ status: stable
 ## 不変条件
 
 - `/mcp`だけをAuth.jsのCookie判定から除外し、Bearer検証を必須にする。`/mcp-help`や未知の下位経路は除外しない。Cookieやqueryのtokenを代用しない。
-- 設定前は404、認証なしは401とProtected Resource Metadata、権限不足は説明と`mcp/www_authenticate`を返す。秘密を会話へ貼らせない。
+- loopback以外のHTTPなど受付不可のoriginでOAuth設定を解決できなければ404、認証なしは401とProtected Resource Metadata、権限不足は説明と`mcp/www_authenticate`を返す。追加許可の未設定は404の条件ではない。秘密を会話へ貼らせない。
 - server・transport・Principalは要求ごとに作る。SDKセッションを使わず、操作の保存結果はD1、再送は同じoperation_id、応答喪失はoperation_getを使う。接続を閉じても操作結果は消えない。
 - `command_prepare`はcommandを識別子とするunionを公開し、未実装command・未知のキーを受け付けない。業務の必須値・暦・競合・実施者は共通層が判断する。command追加時は公開schemaも同時に更新する。
 - prepareはpreview/receiptを保存するのでreadOnlyではない。commitは変更操作、attention_getも候補の保存状態を更新するのでreadOnlyではない。権限をannotationsから推定しない。
@@ -46,7 +46,7 @@ status: stable
 
 providerが有効な場合、`events/list`は認証済みの`household.read`で固定のイベント名・filter schema・payload schema・必要scopeだけを返す。家庭の候補や購読先は返さない。発見に`events.subscribe`を要求すると、追加同意の前にイベントが見つからず接続先へ権限要求を登録できないためである。`events/subscribe`と`events/unsubscribe`は引き続きreadと`events.subscribe`を要求し、callback確認・購読保存は追加同意後だけ行う。provider無効時の非公開と未認証の拒否は維持する。
 
-`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`が既定で空のため、MCPも既定で無効。設定は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
+ChatGPTは標準許可され、`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`は追加クライアントだけに使う。未設定・空でもOAuth/MCPの入口は有効であり、変数の削除ではChatGPTを停止できない([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。設定と停止方法は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
 
 回数制限と同時commit枠は[YDR-058](../decisions/ydr-058-mcp-request-budgets.md)とmigration `0039`で追加する。利用者の固定1分窓を全接続で共有し、read 60回・prepare/commit各20回、接続別の有効commit leaseは2件まで。429とRetry-Afterを返し、leaseを業務batch内のDB時刻でfenceする。期限切れのWorkerは書き込めず、古いreleaseは新しい枠へ作用しない。
 
@@ -56,7 +56,7 @@ providerが有効な場合、`events/list`は認証済みの`household.read`で�
 
 - 認証付きMCP入口・Tool定義・接続確認: `config/playwright.worker.config.ts`
 
-`tests/integration-mcp-http.test.ts`は設定前・Cookie/query非採用・Origin・切断済み要求、`integration-mcp.d1-test.ts`はOAuth、schema、家庭境界、登録/完了/在庫、再送・切断後照合・再接続・失効・本文上限を実D1で確認する。
+`tests/integration-mcp-http.test.ts`は受付不可のHTTP originによる404・Cookie/query非採用・Origin・切断済み要求、`integration-mcp.d1-test.ts`はOAuth、schema、家庭境界、登録/完了/在庫、再送・切断後照合・再接続・失効・本文上限を実D1で確認する。
 
 `integration-mcp-limits.d1-test.ts`は並列の回数・同時commit枠と期限切れのfence、`integration-mcp-limits-migration.d1-test.ts`は更新DB・旧SQL・制約・cascadeの検証入口。全migrationを当てるD1テストと生成schema確認は空DBの検証も兼ねる。
 
