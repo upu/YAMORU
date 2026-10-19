@@ -85,6 +85,18 @@ status: stable
 - 一覧の追加導線・詳細の戻る導線(位置と文言の共通規約): `src/app/list-add-link.tsx`、`src/app/floating-add-button.tsx`、`src/app/detail-back-nav.tsx`、`tests/floating-add-button.test.tsx`、`tests/detail-page-navigation.test.tsx`、`tests/todo-registration-ui.test.tsx`、`e2e/floating-add-button.spec.ts`、`e2e/detail-back-navigation.spec.ts`
 - 初回操作ヒント・ヘルプの使い方: `src/app/first-run-hint.tsx`、`tests/consumable-pins-ui.test.tsx`、`tests/help-page.test.tsx`
 
+追加・戻る導線のE2Eは次の分担とし、一覧から登録画面への同じ巡回を詳細テストで繰り返さない。
+
+| 検証項目 | 担当 |
+|---|---|
+| ホームの追加ボタンと下部ナビゲーションの間隔(390px)、右下への固定(1280px) | `e2e/floating-add-button.spec.ts`の幅別ホームケース |
+| Todo・備品・消耗品一覧の追加導線が支援技術から1か所だけ見え、390pxでは右下・1280pxでは本文内に出る | 同specの幅別一覧ケース |
+| モバイルの主要ナビゲーションでTodo・台帳へ移動し、3種類の一覧から名前付きの追加リンクで正しい登録画面へ進む。登録画面には同じ追加リンクを出さない | 同specのモバイル一覧ケース |
+| 3種類の一覧から詳細を開き、本文の上の戻るリンクで元の一覧へ帰る。詳細の編集リンクも見える | `e2e/detail-back-navigation.spec.ts`の一覧・詳細往復ケース |
+| 通常のTodo追加画面には専用の戻る導線を置かず、管理対象から開いた場合は初期選択と再読み込み後の固定戻り先を保つ | 同specのTodo追加画面2ケース |
+
+各ケースは共通fixtureによるDB初期化・独立したログインを維持する。詳細用のデータは必要なケースだけで作り、3種類を巡回するケースは対象名付きの`test.step`で失敗箇所を示す。
+
 ```
 npm run lint
 npm run typecheck
