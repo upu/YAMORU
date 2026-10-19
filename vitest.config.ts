@@ -2,7 +2,10 @@ import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
+    // DOMを使わない計算・server action・HTTPテストはNodeで実行する。
+    // DOM描画やブラウザAPIが必要なテストだけ先頭に
+    // // @vitest-environment jsdom を指定する（拡張子では判定しない）。
+    environment: "node",
     exclude: [
       ...configDefaults.exclude,
       ".claude/worktrees/**",
