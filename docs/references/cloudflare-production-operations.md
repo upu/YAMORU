@@ -61,12 +61,13 @@ Auth.jsのホスト信頼は`src/auth.config.ts`の`trustHost: true`で明示し
 
 ## 外部クライアント連携(OAuth)を有効にする
 
-会話エージェントなどの外部クライアント連携([YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md))は、既定で無効である。migration `0031_oauth_connections`の適用と新Workerの配備だけでは接続を受け付けない。
+外部クライアント連携はChatGPTのclient_id `https://chatgpt.com/oauth/client.json`を標準許可する([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。必要なmigrationを適用したWorkerでは、preview・productionとも環境変数が未設定・空でも、公開HTTPS URLのOAuth/MCP入口を利用できる。接続にはCIMD検証、Webログイン、家庭への所属と本人同意が引き続き必要である。
 
-有効にするのは、実際の接続先との接続確認(設計のE1、#439/#444)を行う環境だけとし、Cloudflare Dashboardのruntime変数`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`へ、その接続先のclient_id(CIMDのURL)を完全一致で設定する。複数あるときは空白かカンマで区切る。`--keep-vars`で配備するため、`wrangler.jsonc`へは書かない。Secretではないが、受付範囲を決める値なので変更は記録を残して行う。
+ChatGPT以外を追加許可する場合だけ、実際の接続先との接続確認(設計のE1、#439/#444)を行う環境のCloudflare Dashboardで、runtime変数`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`へclient_id(CIMDのURL)を完全一致で設定する。複数あるときは空白かカンマで区切る。ChatGPTを列挙しても重複は除かれ、追加clientを設定してもChatGPTの標準許可は残る。`--keep-vars`で配備するため、`wrangler.jsonc`へは書かない。Secretではないが、受付範囲を決める値なので変更は記録を残して行う。
 
-- 無効に戻すには変数を削除する。metadata・同意画面・token endpointが404になり、新しい接続とtokenの発行・更新が止まる。発行済みaccess tokenは最長1時間有効だが、利用者が接続管理画面(`/settings/integrations`)で解除すれば即時に無効になる。
-- 特定のクライアントだけを止めるには、そのclient_idをリストから外す。refreshと新規接続が止まる。
+- **変数を削除してもChatGPTは無効にならない。** metadata・同意画面・token endpointも有効なままである。本人の委任を止めるには接続管理画面(`/settings/integrations`)で解除する。接続のtokenは即時に無効になる。
+- ChatGPTの新規受付自体を止める必要がある場合は、標準許可を外すコード変更をレビュー・配備する。既存接続の停止も必要なら本人による解除を行う。現在、環境変数によるChatGPTの停止スイッチはない。
+- 追加したクライアントを止めるには、そのclient_idを変数から外す。refreshと新規接続が止まる。発行済みaccess tokenも即時に止める必要があれば本人が接続を解除する。
 - ログは`yamoru.oauth.*`のイベント名で、接続ID・client_id・理由コードだけを出す。token・codeは出力しない。
 
 MCPの接続先は公開URLの`/mcp`。[MCP Component](../components/mcp.md)に対応Toolと制約を記載する。初回の実接続は通常のmain自動配備が成功したpreviewで、架空の家庭を使い、読み取り→登録→取得→完了→次回確認→再接続の順に検証する。ローカルの架空clientを許可リストへ持ち込まない。ブラウザーから直接呼ぶクライアントのOriginを追加する必要がある場合だけ、runtime変数`YAMORU_MCP_ALLOWED_ORIGINS`へ検証するoriginを完全一致で設定する(空白/カンマ区切り)。既定は同一originだけを許可する。サーバー間接続もBearer検証を必須とする。

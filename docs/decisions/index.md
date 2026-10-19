@@ -65,7 +65,7 @@
 | YDR-049 | 会話操作を認証された共通ユースケースへ集約する | Accepted | [ydr-049-conversation-command-boundary.md](ydr-049-conversation-command-boundary.md) |
 | YDR-050 | YAMORUが通知候補を決定し会話連携先へ届ける | Accepted（v0.21.0のEvents優先だけYDR-070で置換） | [ydr-050-conversation-reminders.md](ydr-050-conversation-reminders.md) |
 | YDR-051 | 必達日を各回の予定・目安とは独立した暦日として持つ | Accepted（YDR-031/046のホーム除外を部分置換） | [ydr-051-occurrence-hard-deadline.md](ydr-051-occurrence-hard-deadline.md) |
-| YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
+| YDR-052 | 外部クライアントの認可をD1上のOAuth 2.1認可サーバーとして実装し、許可したCIMDクライアントだけを受け付ける | Accepted（受付の既定値と追加許可はYDR-072で部分置換） | [ydr-052-oauth-authorization-server-on-d1.md](ydr-052-oauth-authorization-server-on-d1.md) |
 | YDR-053 | 会話読み取りのrevisionを家庭世代で保守的に管理する | Accepted | [ydr-053-conversation-read-revisions.md](ydr-053-conversation-read-revisions.md) |
 | YDR-054 | 外部commandの受付記録を業務更新と同じD1 batchで確定させる | Accepted（追加確認の未対応の記述をYDR-062で置換） | [ydr-054-integration-command-receipts.md](ydr-054-integration-command-receipts.md) |
 | YDR-055 | 通知候補の発生区間と差分を永続化する | Accepted | [ydr-055-attention-candidate-intervals.md](ydr-055-attention-candidate-intervals.md) |
@@ -85,6 +85,7 @@
 | YDR-069 | 検査済みIPのHTTP送信を明示設定されたWorkerで使う | Accepted（#442のEvents完了条件だけYDR-070で置換） | [ydr-069-pinned-http-runtime.md](ydr-069-pinned-http-runtime.md) |
 | YDR-070 | v0.21.0は無料運用を維持し、実証した定期取得で通知する | Accepted | [ydr-070-free-polling-first.md](ydr-070-free-polling-first.md) |
 | YDR-071 | 通知への返答を保存済みの元対象へ結び付ける | Accepted | [ydr-071-notification-reply-reference.md](ydr-071-notification-reply-reference.md) |
+| YDR-072 | ChatGPTを標準許可し、環境変数を追加許可に使う | Accepted | [ydr-072-chatgpt-default-client.md](ydr-072-chatgpt-default-client.md) |
 
 ## 新しい意思決定の追加
 

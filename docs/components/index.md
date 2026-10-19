@@ -29,6 +29,6 @@
 
 ## まだ実装していない領域
 
-会話向けの共通読み取り(#435)、通知候補生成(#440)、本人の設定と履歴(#441)、認可と接続管理(#436)、実装済みcommand(#437/#438)、認証付きMCP入口(#439)は上の表に入口を示す。許可するclient_idを設定するまで外部受付は無効である。実dotとの接続実証・追加の変更操作・実際の配信は[会話連携設計](../product/conversation-integration.md)に契約と合格条件を定義している。MCP入口の実装やローカルSDKの成功は、実dotとの接続や通知の到達を証明しない。
+会話向けの共通読み取り(#435)、通知候補生成(#440)、本人の設定と履歴(#441)、認可と接続管理(#436)、実装済みcommand(#437/#438)、認証付きMCP入口(#439)は上の表に入口を示す。ChatGPTは標準許可し、その他のclient_idは環境変数で追加許可する([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。実dotとの接続実証・追加の変更操作・実際の配信は[会話連携設計](../product/conversation-integration.md)に契約と合格条件を定義している。MCP入口の実装やローカルSDKの成功は、実dotとの接続や通知の到達を証明しない。
 
 Documents(ファイル添付)、Payments、Replacementは[YDR-003](../decisions/ydr-003-defer-inventory-attachments-payments-replacement.md)により後続Phaseとし、現時点で対応する実装を持たない。同YDRで「独立したPhaseとして追加する」とした在庫は、消耗品として実装済みであり[消耗品](consumables.md)で扱う。

@@ -19,7 +19,7 @@ stale_after: 2026-11-17
 
 #435の共通読み取り入口・revision・検索上限・cursorと配備前提は[会話読み取りComponent](../components/conversation-read.md)に記載する。#436の認証と共通読み取りをMCPへ接続するのは#439で行う。
 
-#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。受付は許可するclient_idを設定するまで無効であり、previewで実dotの接続・本人照会を実証した。#444では実dotの別家庭の取得・変更拒否と、previewの実HTTPで未所属の同意拒否を確認した。未所属のdot接続を成立させたという意味ではない。
+#436で外部クライアントの認可(3節)と接続管理を実装した。方式と採用ライブラリは[YDR-052](../decisions/ydr-052-oauth-authorization-server-on-d1.md)、入口は[外部連携の修正箇所マップ](../components/integration.md)に記録する。ChatGPTを標準許可し、それ以外は環境変数で追加許可する([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。previewで実dotの接続・本人照会を実証した。#444では実dotの別家庭の取得・変更拒否と、previewの実HTTPで未所属の同意拒否を確認した。未所属のdot接続を成立させたという意味ではない。
 
 #437の第1段階として、5節の共通基盤(操作ID・fingerprint・10分のpreview・受付記録・再送時の保存結果・#435の家庭世代による競合検出と`expected_revision`)と、`todo.complete`・`todo.correct`・`todo.undo`を実装した。続いて`todo.create`、`managed_item.create`、`managed_item_with_todo.create`、`todo.reschedule`、`managed_item.update`、`todo.update`を実装した。受付記録の確定方式は[YDR-054](../decisions/ydr-054-integration-command-receipts.md)に記録する。追加確認(`confirmation_url`、確認画面、`operation_get`の確認状態と`confirmation_token`)は、古いpreviewの作り直しで意味のある差分が出た操作だけを対象として実装した([YDR-062](../decisions/ydr-062-integration-command-confirmation.md))。
 

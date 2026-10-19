@@ -46,7 +46,7 @@ status: stable
 
 providerが有効な場合、`events/list`は認証済みの`household.read`で固定のイベント名・filter schema・payload schema・必要scopeだけを返す。家庭の候補や購読先は返さない。発見に`events.subscribe`を要求すると、追加同意の前にイベントが見つからず接続先へ権限要求を登録できないためである。`events/subscribe`と`events/unsubscribe`は引き続きreadと`events.subscribe`を要求し、callback確認・購読保存は追加同意後だけ行う。provider無効時の非公開と未認証の拒否は維持する。
 
-`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`が既定で空のため、MCPも既定で無効。設定は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
+ChatGPTは標準許可され、`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`は追加クライアントだけに使う。未設定・空でもOAuth/MCPの入口は有効であり、変数の削除ではChatGPTを停止できない([YDR-072](../decisions/ydr-072-chatgpt-default-client.md))。設定と停止方法は[Cloudflare運用手順](../references/cloudflare-production-operations.md)に従う。ブラウザーclientのOriginは同一originだけを既定で許可し、Inspector等は`YAMORU_MCP_ALLOWED_ORIGINS`へ完全なoriginを空白/カンマ区切りで設定する。パス・認証情報付きURLは採用しない。Originを送らないサーバー間clientもBearer認証を要する。
 
 回数制限と同時commit枠は[YDR-058](../decisions/ydr-058-mcp-request-budgets.md)とmigration `0039`で追加する。利用者の固定1分窓を全接続で共有し、read 60回・prepare/commit各20回、接続別の有効commit leaseは2件まで。429とRetry-Afterを返し、leaseを業務batch内のDB時刻でfenceする。期限切れのWorkerは書き込めず、古いreleaseは新しい枠へ作用しない。
 
