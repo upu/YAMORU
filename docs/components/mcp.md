@@ -30,7 +30,7 @@ status: stable
 ## 不変条件
 
 - `/mcp`だけをAuth.jsのCookie判定から除外し、Bearer検証を必須にする。`/mcp-help`や未知の下位経路は除外しない。Cookieやqueryのtokenを代用しない。
-- 設定前は404、認証なしは401とProtected Resource Metadata、権限不足は説明と`mcp/www_authenticate`を返す。秘密を会話へ貼らせない。
+- loopback以外のHTTPなど受付不可のoriginでOAuth設定を解決できなければ404、認証なしは401とProtected Resource Metadata、権限不足は説明と`mcp/www_authenticate`を返す。追加許可の未設定は404の条件ではない。秘密を会話へ貼らせない。
 - server・transport・Principalは要求ごとに作る。SDKセッションを使わず、操作の保存結果はD1、再送は同じoperation_id、応答喪失はoperation_getを使う。接続を閉じても操作結果は消えない。
 - `command_prepare`はcommandを識別子とするunionを公開し、未実装command・未知のキーを受け付けない。業務の必須値・暦・競合・実施者は共通層が判断する。command追加時は公開schemaも同時に更新する。
 - prepareはpreview/receiptを保存するのでreadOnlyではない。commitは変更操作、attention_getも候補の保存状態を更新するのでreadOnlyではない。権限をannotationsから推定しない。
@@ -56,7 +56,7 @@ ChatGPTは標準許可され、`YAMORU_OAUTH_ALLOWED_CLIENT_IDS`は追加クラ�
 
 - 認証付きMCP入口・Tool定義・接続確認: `config/playwright.worker.config.ts`
 
-`tests/integration-mcp-http.test.ts`は設定前・Cookie/query非採用・Origin・切断済み要求、`integration-mcp.d1-test.ts`はOAuth、schema、家庭境界、登録/完了/在庫、再送・切断後照合・再接続・失効・本文上限を実D1で確認する。
+`tests/integration-mcp-http.test.ts`は受付不可のHTTP originによる404・Cookie/query非採用・Origin・切断済み要求、`integration-mcp.d1-test.ts`はOAuth、schema、家庭境界、登録/完了/在庫、再送・切断後照合・再接続・失効・本文上限を実D1で確認する。
 
 `integration-mcp-limits.d1-test.ts`は並列の回数・同時commit枠と期限切れのfence、`integration-mcp-limits-migration.d1-test.ts`は更新DB・旧SQL・制約・cascadeの検証入口。全migrationを当てるD1テストと生成schema確認は空DBの検証も兼ねる。
 

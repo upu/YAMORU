@@ -1,13 +1,14 @@
 import { expect, it, vi } from "vitest";
 import { handleMcpRequest } from "../src/features/integration/mcp/http";
-import type { OAuthConfig } from "../src/features/integration/oauth/config";
+import { resolveOAuthConfig, type OAuthConfig } from "../src/features/integration/oauth/config";
 const config: OAuthConfig = { issuer: "https://yamoru.example.test", resource: "https://yamoru.example.test/mcp", allowedClientIds: ["https://client.example.test/oauth/client.json"] };
-function dependencies(enabled = true) {
+function dependencies() {
   const prepareMock = vi.fn();
-  return { config: enabled ? config : null, db: { prepare: prepareMock } as unknown as D1Database, prepareMock, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters" };
+  return { config, db: { prepare: prepareMock } as unknown as D1Database, prepareMock, cursorSecret: "fictional-mcp-cursor-secret-at-least-32-characters" };
 }
-it("設定前のMCP入口は無効で、Cookieログインへ誘導しない", async () => {
-  const response = await handleMcpRequest(new Request(config.resource, { method: "POST", body: "{}" }), dependencies(false));
+it("受付不可のHTTP originではMCP入口を404にし、Cookieログインへ誘導しない", async () => {
+  const request = new Request("http://yamoru.example.test/mcp", { method: "POST", body: "{}" });
+  const response = await handleMcpRequest(request, { ...dependencies(), config: resolveOAuthConfig(new URL(request.url), {}) });
   expect(response.status).toBe(404);
   expect(response.headers.get("location")).toBeNull();
 });
