@@ -41,6 +41,8 @@ it("設定のONと定期タスクの稼働確認を区別する", () => {
   expect(screen.getByText("お知らせの受け取り設定はONです。定期タスクの稼働は連携先で確認してください。")).toBeInTheDocument();
   expect(screen.getByText(/外部の定期タスクの稼働状態はYAMORUから確認できません/)).toBeInTheDocument();
   expect(screen.getByText(/保存するだけでは定期タスクは作成されません/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "定期的なお知らせの準備" })).toHaveAttribute("href", "/settings/integrations/guide#periodic-title");
+  expect(screen.getByRole("link", { name: "通知が来ないとき" })).toHaveAttribute("href", "/settings/integrations/guide#recovery-title");
 });
 it.each([
   { settings: DEFAULT_SETTINGS, available: false, message: "お知らせの受け取り設定はOFFです。" },
