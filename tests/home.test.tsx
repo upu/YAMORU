@@ -333,7 +333,7 @@ describe("ホーム上部の件数サマリー", () => {
     // Issue #394: 対応が必要な件数ほど視線に入るよう、0件の指標は控えめにする。
     expect(within(summary).getAllByText("0")).toHaveLength(3);
     for (const item of within(summary).getAllByText("0")) {
-      expect(item.closest("[data-empty]"))
+      expect(item.closest(`.${homeStyles.summaryItem}`))
         .toHaveAttribute("data-empty", "true");
     }
   });
