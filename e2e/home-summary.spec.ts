@@ -112,6 +112,16 @@ test.describe("390px幅", () => {
     await expectSummaryOnOneRow(page);
     await expectNoHorizontalOverflow(page);
 
+    // クラス名ではなく、数字と文言を含むリンク全体の押せる領域を確かめる。
+    const summaryLinks = summary.getByRole("link");
+    await expect(summaryLinks).toHaveCount(3);
+    for (const link of await summaryLinks.all()) {
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+    }
+
     // Issue #360 / #388: 件数のあるサマリーは該当セクションへの導線を兼ねる。
     // 短い表示ラベルにしても、読み上げ名と移動先は変えない。
     await summary.getByRole("link", { name: "買っておきたいもの1件へ移動" }).click();

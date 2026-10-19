@@ -313,13 +313,17 @@ describe("ホーム上部の件数サマリー", () => {
     const summary = screen.getByLabelText("対応状況");
     const links = within(summary).getAllByRole("link");
     expect(links).toHaveLength(3);
+    // hover・キーボードフォーカスの表示を担う適用条件は残す。
     links.forEach((link) => {
-      expect(link).toHaveClass(homeStyles.summaryItem);
       expect(link).toHaveClass(homeStyles.summaryLink);
     });
     // 数値だけを切り出したリンクは作らない。
     expect(within(summary).getByRole("link", { name: "1件の予定へ移動" }))
       .toHaveTextContent("1件の予定");
+    expect(within(summary).getByRole("link", { name: "期限切れの1件へ移動" }))
+      .toHaveTextContent("1件が期限切れ");
+    expect(within(summary).getByRole("link", { name: "買っておきたいもの1件へ移動" }))
+      .toHaveTextContent("1件 買うもの");
   });
 
   it("0件のサマリーはリンクにせず、件数だけを表示する", () => {

@@ -11,21 +11,13 @@ afterEach(cleanup);
 
 describe("共通の追加ボタン(Issue #215)", () => {
   it("行き先と名前を渡したとおりに、アクセシブルな名前と記号で開く", () => {
-    render(<FloatingAddButton href="/todos/new" label="Todoを追加" />);
-
-    const link = screen.getByRole("link", { name: "Todoを追加" });
-    expect(link).toHaveAttribute("href", "/todos/new");
-    expect(link).toHaveAttribute("title", "Todoを追加");
-    expect(link).toHaveTextContent("＋");
-    expect(link).not.toHaveTextContent("⊕");
-  });
-
-  it("Issue #391: 一覧の追加リンクと同じ文言をそのまま使う", () => {
     render(<FloatingAddButton href="/consumables/new" label="消耗品を登録" />);
 
     const link = screen.getByRole("link", { name: "消耗品を登録" });
     expect(link).toHaveAttribute("href", "/consumables/new");
     expect(link).toHaveAttribute("title", "消耗品を登録");
+    expect(link).toHaveTextContent("＋");
+    expect(link).not.toHaveTextContent("⊕");
   });
 
   // Issue #391: 一覧では、モバイル幅だけこのボタンを主要導線にする。実際の
