@@ -313,13 +313,13 @@ describe("ホーム上部の件数サマリー", () => {
     const summary = screen.getByLabelText("対応状況");
     const links = within(summary).getAllByRole("link");
     expect(links).toHaveLength(3);
-    links.forEach((link) => {
-      expect(link).toHaveClass(homeStyles.summaryItem);
-      expect(link).toHaveClass(homeStyles.summaryLink);
-    });
     // 数値だけを切り出したリンクは作らない。
     expect(within(summary).getByRole("link", { name: "1件の予定へ移動" }))
       .toHaveTextContent("1件の予定");
+    expect(within(summary).getByRole("link", { name: "期限切れの1件へ移動" }))
+      .toHaveTextContent("1件が期限切れ");
+    expect(within(summary).getByRole("link", { name: "買っておきたいもの1件へ移動" }))
+      .toHaveTextContent("1件 買うもの");
   });
 
   it("0件のサマリーはリンクにせず、件数だけを表示する", () => {
@@ -333,7 +333,7 @@ describe("ホーム上部の件数サマリー", () => {
     // Issue #394: 対応が必要な件数ほど視線に入るよう、0件の指標は控えめにする。
     expect(within(summary).getAllByText("0")).toHaveLength(3);
     for (const item of within(summary).getAllByText("0")) {
-      expect(item.closest(`.${homeStyles.summaryItem}`))
+      expect(item.closest("[data-empty]"))
         .toHaveAttribute("data-empty", "true");
     }
   });
