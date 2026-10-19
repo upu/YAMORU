@@ -30,7 +30,7 @@ export function NotificationSettingsForm({ settings: s, revision, connections, n
   const [state, action, pending] = useActionState(saveNotificationAction, INITIAL_NOTIFICATION_STATE);
   return <form action={action} className={styles.fields} aria-label="お知らせの条件">
     <input type="hidden" name="revision" value={revision} />
-    <p id="notification-task-help">連携先で定期タスクを準備してからONにしてください。ここで保存しても、定期タスクは作成・開始されません。</p>
+    <p id="notification-task-help">連携先で定期タスクを準備してからONにしてください。</p>
     <label>定期確認に使う連携先<select name="connectionId" defaultValue={s.connectionId ?? ""}>
       <option value="">連携先を選択</option>
       {s.connectionId && !connections.some((c) => c.id === s.connectionId) ? <option value={s.connectionId}>以前の連携先（現在は利用できません）</option> : null}

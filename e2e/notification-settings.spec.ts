@@ -68,7 +68,7 @@ test("会話連携の導入・一度だけの確認・復旧・停止へモバ�
   await page.goto("/settings/integrations/guide#disconnect-title");
   await expect(page.getByRole("link", { name: "連携状態の確認・解除" })).toBeVisible();
   await page.getByRole("link", { name: "定期的なお知らせの設定・履歴" }).click();
-  await expect(page.getByRole("heading", { name: "定期的なお知らせを使うには" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "お知らせの状態" })).toBeVisible();
   await page.getByRole("link", { name: "通知が来ないとき", exact: true }).click();
   await expect(page.getByText(/連携先の定期タスクが有効か/)).toBeVisible();
   await expect(page.locator("#recovery-title")).toBeInViewport();
