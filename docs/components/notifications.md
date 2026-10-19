@@ -32,7 +32,7 @@ prepareでは書き込まず本人への差分を示し、commit時に設定・�
 
 ## 定期取得による通知と稼働確認
 
-v0.21.0は[YDR-070](../decisions/ydr-070-free-polling-first.md)に従い、外部の定期取得を使う。会話での確認・操作から、任意の定期的なお知らせの導入を分ける。`delivery-status.tsx`は本人の保存済み状態と連携可否、連携先での定期タスクの準備手順を表示する。未設定の詳細フォームは折りたたみ、受け取り可能な接続がなければ新規ONの操作は出さない。保存済みONの設定は接続が失効してもOFFへ戻せる。外部タスクの有効状態・次回予定・実行結果はYAMORUから確認できず、保存だけで外部タスクを作成したとは表示しない。時刻の目安は取得可能な最短時刻として示し、タスクの実行予定・到達時刻とは扱わない。導入・復旧は`/settings/integrations/guide#periodic-title`へ案内する。
+v0.21.0は[YDR-070](../decisions/ydr-070-free-polling-first.md)に従い、外部の定期取得を使う。会話での確認・操作から、任意の定期的なお知らせの導入を分ける。`delivery-status.tsx`は本人の保存済み状態（ON・OFF・休止・接続確認）と次の操作を短く表示し、準備手順はガイドへ集約する。未設定の詳細フォームは折りたたみ、受け取り可能な接続がなければ新規ONの操作は出さない。保存済みONの設定は接続が失効してもOFFへ戻せる。外部タスクの有効状態・次回予定・実行結果はYAMORUから確認できず、保存だけで外部タスクを作成したとは表示しない。時刻の目安は取得可能な最短時刻として示し、タスクの実行予定・到達時刻とは扱わない。導入は`/settings/integrations/guide#periodic-title`、復旧は`/settings/integrations/guide#recovery-title`へ案内する。
 
 #442の永続outbox・lease・走査と定期取得の入口は[通知outbox・定期走査](notification-outbox.md)。実dotの定期起動・案内・重複抑止・停止を#442で、返答を#443で確認した。Eventsの実送信・購読は後続#474であり、利用可能とは表示しない。実接続と模擬試験の境界は[検証表](../references/conversation-integration-checks.md)を参照する。
 

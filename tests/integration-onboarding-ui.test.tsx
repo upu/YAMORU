@@ -38,17 +38,22 @@ it("新規受付が無効なら接続できると案内せず、管理者への�
 });
 it("設定のONと定期タスクの稼働確認を区別する", () => {
   render(<NotificationDeliveryStatus settings={{ ...DEFAULT_SETTINGS, enabled: true, connectionId: "a" }} connectionAvailable />);
-  expect(screen.getByText("お知らせの受け取り設定はONです。定期タスクの稼働は連携先で確認してください。")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "お知らせの状態" })).toBeInTheDocument();
+  expect(screen.getByText("お知らせの受け取り設定はONです。")).toBeInTheDocument();
+  expect(screen.getByText(/稼働は連携先で確認/)).toBeInTheDocument();
+  expect(screen.queryByRole("list")).not.toBeInTheDocument();
   expect(screen.getByText(/外部の定期タスクの稼働状態はYAMORUから確認できません/)).toBeInTheDocument();
   expect(screen.getByText(/保存するだけでは定期タスクは作成されません/)).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "定期的なお知らせの準備" })).toHaveAttribute("href", "/settings/integrations/guide#periodic-title");
   expect(screen.getByRole("link", { name: "通知が来ないとき" })).toHaveAttribute("href", "/settings/integrations/guide#recovery-title");
 });
 it.each([
-  { settings: DEFAULT_SETTINGS, available: false, message: "お知らせの受け取り設定はOFFです。" },
-  { settings: { ...DEFAULT_SETTINGS, enabled: true, muted: true }, available: true, message: "あなたへのお知らせを休止中です。" },
-  { settings: { ...DEFAULT_SETTINGS, enabled: true, connectionId: "old" }, available: false, message: "受け取り先の連携・許可を確認してください。" },
-])("保存済み状態を正しく伝える: $message", ({ settings, available, message }) => {
+  { settings: DEFAULT_SETTINGS, available: false, message: "お知らせの受け取り設定はOFFです。", next: /準備ガイドを確認/ },
+  { settings: { ...DEFAULT_SETTINGS, enabled: true, muted: true }, available: true, message: "あなたへのお知らせを休止中です。", next: /休止する」を解除して保存/ },
+  { settings: { ...DEFAULT_SETTINGS, enabled: true, connectionId: "old" }, available: false, message: "受け取り先の連携・許可を確認してください。", next: /接続し直して/ },
+  { settings: { ...DEFAULT_SETTINGS, enabled: true, muted: true, connectionId: "old" }, available: false, message: "受け取り先の連携・許可を確認してください。", next: /接続し直して/ },
+])("保存済み状態と次の操作を伝える: $message", ({ settings, available, message, next }) => {
   render(<NotificationDeliveryStatus settings={settings} connectionAvailable={available} />);
   expect(screen.getByText(message)).toBeInTheDocument();
+  expect(screen.getByText(next)).toBeInTheDocument();
 });

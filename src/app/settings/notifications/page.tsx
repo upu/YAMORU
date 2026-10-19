@@ -48,7 +48,7 @@ export default async function NotificationSettingsPage({ searchParams }: { searc
   const { saved, connections, candidates, rows, history, nextAt } = data;
   return <main className="page-form account-page">
     <nav className="back-nav" aria-label="ページ移動"><Link href="/settings/integrations">← 外部サービスとの連携へ</Link></nav>
-    <header className="detail-hero"><h1>定期的なお知らせ</h1><p>会話アシスタントの定期タスクを使う方の設定です。この設定はあなたへのお知らせだけに使います。家族の通知や、共有する予定・期限は変わりません。</p></header>
+    <header className="detail-hero"><h1>定期的なお知らせ</h1><p>あなたへのお知らせだけを設定します。家族の通知や、共有する予定・期限は変わりません。</p></header>
     <NotificationDeliveryStatus settings={saved.settings} connectionAvailable={connections.some((c) => c.id === saved.settings.connectionId)} />
     <section className="detail-card">
       <details className={styles.setup} open={saved.settings.enabled || !!saved.settings.connectionId}>
