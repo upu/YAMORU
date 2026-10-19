@@ -54,6 +54,8 @@ providerが有効な場合、`events/list`は認証済みの`household.read`で�
 
 ## 検証と未完了の境界
 
+- 認証付きMCP入口・Tool定義・接続確認: `config/playwright.worker.config.ts`
+
 `tests/integration-mcp-http.test.ts`は設定前・Cookie/query非採用・Origin・切断済み要求、`integration-mcp.d1-test.ts`はOAuth、schema、家庭境界、登録/完了/在庫、再送・切断後照合・再接続・失効・本文上限を実D1で確認する。
 
 `integration-mcp-limits.d1-test.ts`は並列の回数・同時commit枠と期限切れのfence、`integration-mcp-limits-migration.d1-test.ts`は更新DB・旧SQL・制約・cascadeの検証入口。全migrationを当てるD1テストと生成schema確認は空DBの検証も兼ねる。

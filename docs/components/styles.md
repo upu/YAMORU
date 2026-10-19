@@ -82,6 +82,9 @@ status: stable
 
 ## 検証方法
 
+- 一覧の追加導線・詳細の戻る導線(位置と文言の共通規約): `src/app/list-add-link.tsx`、`src/app/floating-add-button.tsx`、`src/app/detail-back-nav.tsx`、`tests/floating-add-button.test.tsx`、`tests/detail-page-navigation.test.tsx`、`tests/todo-registration-ui.test.tsx`、`e2e/floating-add-button.spec.ts`、`e2e/detail-back-navigation.spec.ts`
+- 初回操作ヒント・ヘルプの使い方: `src/app/first-run-hint.tsx`、`tests/consumable-pins-ui.test.tsx`、`tests/help-page.test.tsx`
+
 ```
 npm run lint
 npm run typecheck

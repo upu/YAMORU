@@ -69,6 +69,8 @@ status: stable
 
 ## 検証方法
 
+- 会話連携の導入・通知の稼働確認・復旧と最終検証: `src/app/settings/notifications/delivery-status.tsx`、`src/features/integration/mcp/service.ts`、`tests/integration-onboarding-ui.test.tsx`、`e2e/mcp-integration.spec.ts`、`e2e/notification-settings.spec.ts`
+
 ```
 npm test -- tests/integration-oauth-request.test.ts tests/integration-connections-ui.test.tsx tests/auth-boundary.test.ts tests/integration-command-input.test.ts
 npm run test:d1 -- src/lib/d1/oauth-flow.d1-test.ts src/lib/d1/oauth-connections-authorization.d1-test.ts src/lib/d1/oauth-clients.d1-test.ts src/lib/d1/oauth-connections-migration.d1-test.ts

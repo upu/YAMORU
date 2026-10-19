@@ -10,18 +10,20 @@ status: draft
 
 `worker.ts`はOpenNextのfetchを保持し、scheduledから`src/features/integration/notifications/scheduler.ts`をawaitする。Cronはpreview/productionで5分間隔。公開HTTPに管理用のCron endpointを追加しない。
 
-| 変更対象 | 入口 |
-|---|---|
-| 接続ごとの走査、量の上限、回復 | `notifications/scheduler.ts`、`src/lib/d1/notification-scheduler.ts` |
-| 配信の一意性、lease世代、開始前の判定 | `src/lib/d1/notification-outbox.ts` |
-| 複数宛先の固定、結果・再試行・中断の分離 | `notification-event-dispatch.ts`、`notification-recipient-state.ts` |
-| 固定した本文の署名付きPOSTとjob内の並列処理 | `notifications/event-delivery.ts`、`event-job.ts` |
-| 元のOccurrence・消耗品の保持と保存期限 | migration `0042`、`src/lib/d1/notification-outbox-retention.ts` |
-| 最新の時刻・設定の可否 | `src/lib/d1/notification-policy.ts`、[個人の通知](notifications.md) |
-| 受領・不明結果と履歴の同時保存 | `notification-outbox.ts` → `notification-deliveries.ts` |
-| 購読の本人境界・暗号化・解除競合 | `notifications/event-subscriptions.ts`、`src/lib/d1/notification-event-subscriptions.ts` |
-| callbackの宛先制限・署名 | `notifications/webhook-transport.ts`、`event-crypto.ts` |
-| 実ランタイムの検証 | `e2e/notification-scheduler.worker-e2e.ts`、`config/playwright.worker.config.ts` |
+| 変更したいこと | 最初に読む実装 | テスト・詳細 |
+|---|---|---|
+| 通知outbox・lease・永続走査の進捗 | `worker.ts` → `src/features/integration/notifications/scheduler.ts`、`src/lib/d1/notification-outbox.ts`、`notification-scheduler.ts` | `src/lib/d1/notification-outbox*.d1-test.ts`、`notification-scheduler.d1-test.ts`、`e2e/notification-scheduler.worker-e2e.ts`、`config/playwright.worker.config.ts` |
+| 検査済みIPと元hostnameのTLS検証部品 | `packages/pinned-tls/src/lib.rs`、`generated/`、`scripts/pinned-tls-build.ts` | `tests/pinned-tls-engine.test.ts`、`scripts/pinned-tls-probe.ts`、[固定IPのTLS試験](../spikes/pinned-tls.md) |
+| public DNS・固定IPのHTTP送信・Worker provider | `notifications/worker-transport-loader.ts`、`worker-events.ts` → `worker-transport.mjs`、`notifications/http/` | `tests/notification-{dns-resolver,http-response,pinned-connector,worker-events,worker-transport-loader,http-evidence}.test.ts`、`scripts/pinned-http-probe.ts` |
+| 通知の宛先ごとの結果・再試行・購読世代 | `src/lib/d1/notification-event-dispatch.ts`、`notification-recipient-state.ts` | `notification-event-dispatch.d1-test.ts`、`notification-event-lifecycle.d1-test.ts`、`notification-event-recipients-migration.d1-test.ts` |
+| 日次まとめの本文・全件の開始と保存・中断回復 | `src/lib/d1/notification-event-groups.ts` → `notifications/event-job.ts` | `notification-event-groups.d1-test.ts`、`notification-event-groups-migration.d1-test.ts` |
+| 保存済み通知の定期送信・全親の一括確保・権限縮小後の回収 | `notifications/event-scheduler.ts` → `src/lib/d1/notification-event-work.ts`、`notification-policy.ts` | `notification-event-scheduler.d1-test.ts`、`notification-policy-frame.d1-test.ts` |
+| 定期取得の候補確保・案内報告・期限切れ回収 | `commands/notification-poll.ts` → `src/lib/d1/notification-poll*.ts` | `notification-poll-commands.d1-test.ts`、`notification-poll-migration.d1-test.ts`、`integration-mcp.d1-test.ts` |
+| 署名付きPOSTと宛先別の送信job | `src/features/integration/notifications/event-delivery.ts`、`event-job.ts` | `tests/notification-event-delivery.test.ts`、`src/lib/d1/notification-event-job.d1-test.ts` |
+| Eventsの購読・callback検証・署名 | `src/features/integration/mcp/server-events.ts` → `notifications/event-subscriptions.ts`、`event-crypto.ts`、`webhook-transport.ts`、`src/lib/d1/notification-event-subscriptions.ts` | `tests/notification-event-*.test.ts`、`tests/notification-webhook-transport.test.ts`、`src/lib/d1/notification-event-subscriptions*.d1-test.ts` |
+| 元のOccurrence・消耗品の保持と保存期限 | migration `0042`、`src/lib/d1/notification-outbox-retention.ts` | `src/lib/d1/notification-outbox-context*.d1-test.ts` |
+| 最新の時刻・設定の可否 | `src/lib/d1/notification-policy.ts`、[個人の通知](notifications.md) | `src/lib/d1/notification-policy*.d1-test.ts` |
+| 受領・不明結果と履歴の同時保存 | `notification-outbox.ts` → `notification-deliveries.ts` | `src/lib/d1/notification-outbox*.d1-test.ts` |
 
 家庭共有の日時は変更しない。接続元・本人・家庭・候補を照合し、events.subscribeとhousehold.readを要する。期限切れの送信処理は成功結果を上書きできない。unknownは自動再送せず、失敗の上限も新しい配信IDで回避しない。設定・休止の再評価ではretry_waitのbackoffを短縮しない。
 

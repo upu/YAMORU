@@ -41,6 +41,9 @@ status: stable
 
 ## 検証方法
 
+- 台帳のタグ(作成・付与・解除・表示): `src/app/managed-items/tag-input.ts`
+- 詳しい種類のAI提案: `tests/managed-item-type-suggestion-actions.test.ts`、`src/lib/d1/managed-item-type-suggestions.d1-test.ts`
+
 ```
 npm test -- tests/managed-item-actions.test.ts tests/managed-item-model.test.ts tests/managed-items-ui.test.tsx tests/managed-item-tags-ui.test.tsx
 npm run test:d1

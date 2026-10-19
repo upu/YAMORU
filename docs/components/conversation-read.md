@@ -49,6 +49,8 @@ revisionは家庭単位の保守的な世代。updated_atはその世代のchang
 
 ## 検証
 
+- 会話向け候補検索・詳細・履歴・revision: `src/lib/d1/conversation-read.d1-test.ts`
+
 消耗品の`last_refilled_on`は有効な補充から導出し、観測や取消済み補充を含めない。在庫の履歴は原記録・訂正・取消をそれぞれ返し、`details.record_id`と`record_revision`で訂正対象を識別する。原記録には現在有効な日付・状態・版・取消状態も返す。日付不明の保存状態はWeb履歴へ残し、会話の実施履歴には混ぜない([YDR-057](../decisions/ydr-057-stock-observation-and-refill-history.md))。
 
 `conversation-read.d1-test.ts`（家庭、scope、候補、ページング、snapshot、状態分類、履歴、読取り中の変更）、`conversation-read-migration.d1-test.ts`（旧SQL、rollback、複合FK、別名上限、cascade）、`tests/conversation-read.test.ts`（入力・署名・主体束縛・期限）。全unit/D1/E2Eとschema照合を実行する。実OAuth/MCP接続の成功を意味しない。

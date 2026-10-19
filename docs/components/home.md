@@ -44,6 +44,8 @@ status: stable
 
 ## 検証方法
 
+- ホームに出す内容・並び・状態表示: `e2e/home-summary.spec.ts`
+
 ```
 npm test -- tests/home.test.tsx tests/home-sections.test.ts tests/task-schedule.test.ts
 npm run lint
