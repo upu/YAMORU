@@ -51,6 +51,7 @@ it.each([
   { settings: DEFAULT_SETTINGS, available: false, message: "お知らせの受け取り設定はOFFです。", next: /準備ガイドを確認/ },
   { settings: { ...DEFAULT_SETTINGS, enabled: true, muted: true }, available: true, message: "あなたへのお知らせを休止中です。", next: /休止する」を解除して保存/ },
   { settings: { ...DEFAULT_SETTINGS, enabled: true, connectionId: "old" }, available: false, message: "受け取り先の連携・許可を確認してください。", next: /接続し直して/ },
+  { settings: { ...DEFAULT_SETTINGS, enabled: true, muted: true, connectionId: "old" }, available: false, message: "受け取り先の連携・許可を確認してください。", next: /接続し直して/ },
 ])("保存済み状態と次の操作を伝える: $message", ({ settings, available, message, next }) => {
   render(<NotificationDeliveryStatus settings={settings} connectionAvailable={available} />);
   expect(screen.getByText(message)).toBeInTheDocument();

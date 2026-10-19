@@ -4,10 +4,10 @@ import type { NotificationSettings } from "../../../features/integration/notific
 export function NotificationDeliveryStatus({ settings, connectionAvailable }: { settings: NotificationSettings; connectionAvailable: boolean }) {
   const [state, next] = !settings.enabled
     ? ["お知らせの受け取り設定はOFFです。", "受け取る場合は、準備ガイドを確認して下の条件を設定してください。"]
-    : settings.muted
-      ? ["あなたへのお知らせを休止中です。", "再開する場合は、下の条件で「自分への通知をすべて休止する」を解除して保存してください。"]
-      : !connectionAvailable
-        ? ["受け取り先の連携・許可を確認してください。", "連携先から接続し直して、下の条件で受け取り先を選んでください。"]
+    : !connectionAvailable
+      ? ["受け取り先の連携・許可を確認してください。", "連携先から接続し直して、下の条件で受け取り先を選んでください。"]
+      : settings.muted
+        ? ["あなたへのお知らせを休止中です。", "再開する場合は、下の条件で「自分への通知をすべて休止する」を解除して保存してください。"]
         : ["お知らせの受け取り設定はONです。", "定期タスクの稼働は連携先で確認してください。"];
   return <section className="detail-card" aria-labelledby="notification-status-title">
     <h2 id="notification-status-title">お知らせの状態</h2>
