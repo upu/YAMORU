@@ -14,6 +14,6 @@ export function NotificationDeliveryStatus({ settings, connectionAvailable }: { 
       <li>連携先で次回予定と、最初の実行でのお知らせを確認します。</li>
     </ol>
     <p>設定を保存するだけでは定期タスクは作成されません。外部の定期タスクの稼働状態はYAMORUから確認できません。</p>
-    <Link href="/settings/integrations/guide#periodic-title">定期的なお知らせの準備・届かないとき</Link>
+    <p><Link href="/settings/integrations/guide#periodic-title">定期的なお知らせの準備</Link>・<Link href="/settings/integrations/guide#recovery-title">通知が来ないとき</Link></p>
   </section>;
 }

@@ -14,7 +14,7 @@ status: stable
 
 ## 主要入口
 
-初回接続・本人通知・外部の定期タスク・復旧/停止の案内は`src/app/settings/integrations/guide/`。実dotと模擬試験の区別・最終照合は[会話連携の検証表](../references/conversation-integration-checks.md)を参照する。
+初回接続・本人通知・外部の定期タスク・復旧/停止の案内は`src/app/settings/integrations/guide/`。`integration-guide.tsx`が説明を目的別にまとめ、`guide-section.tsx`が任意の説明の開閉と直接リンク時の展開を扱う。実dotと模擬試験の区別・最終照合は[会話連携の検証表](../references/conversation-integration-checks.md)を参照する。
 
 | 役割 | 実装 |
 |---|---|

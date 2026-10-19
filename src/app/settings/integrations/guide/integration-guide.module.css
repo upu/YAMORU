@@ -1,0 +1,2 @@
+.section > summary { min-height: var(--tap-target); padding: .5rem 0; cursor: pointer; }
+.section > summary h2 { display: inline; }

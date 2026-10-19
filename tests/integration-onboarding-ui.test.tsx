@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import { IntegrationGuide } from "../src/app/settings/integrations/guide/integration-guide";
 import { NotificationDeliveryStatus } from "../src/app/settings/notifications/delivery-status";
@@ -18,6 +18,19 @@ it("現在のYAMORUの接続先だけを示し、初回同意・無害なテス�
   expect(screen.getByText(/15分ぴったりの起動や到達時刻は保証されません/)).toBeInTheDocument();
   expect(screen.getByText(/YAMORUから外部の定期タスクは作成・停止しません/)).toBeInTheDocument();
 });
+it("接続と最初の確認、同意の説明を常時表示し、任意の目的だけを開ける", () => {
+  render(<IntegrationGuide endpoint="https://fictional.example.test/mcp" />);
+  expect(screen.getByRole("heading", { name: "1. 会話アシスタントから接続する" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "2. 会話で確認・操作する" })).toBeVisible();
+  expect(screen.getByText(/パスワードや認証コードを会話へ貼らない/)).toBeVisible();
+  expect(screen.getByText(/家族全員が見るデータが変わります/)).toBeVisible();
+  expect(screen.getByText(/YAMORUから外部の定期タスクは作成・停止しません/)).not.toBeVisible();
+  expect(screen.getByText(/結果に出る実施日・記録日・次回予定/)).not.toBeVisible();
+  expect(screen.getByText(/連携先の定期タスクが有効か/)).not.toBeVisible();
+  expect(screen.getByRole("link", { name: "連携状態の確認・解除", hidden: true })).not.toBeVisible();
+  fireEvent.click(screen.getByText("定期的なお知らせを設定する（任意）"));
+  expect(screen.getByText(/YAMORUから外部の定期タスクは作成・停止しません/)).toBeVisible();
+});
 it("新規受付が無効なら接続できると案内せず、管理者への確認を示す", () => {
   render(<IntegrationGuide endpoint={null} />);
   expect(screen.getByText(/新しい外部サービスとの連携を受け付けていません/)).toBeInTheDocument();
@@ -28,6 +41,8 @@ it("設定のONと定期タスクの稼働確認を区別する", () => {
   expect(screen.getByText("お知らせの受け取り設定はONです。定期タスクの稼働は連携先で確認してください。")).toBeInTheDocument();
   expect(screen.getByText(/外部の定期タスクの稼働状態はYAMORUから確認できません/)).toBeInTheDocument();
   expect(screen.getByText(/保存するだけでは定期タスクは作成されません/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "定期的なお知らせの準備" })).toHaveAttribute("href", "/settings/integrations/guide#periodic-title");
+  expect(screen.getByRole("link", { name: "通知が来ないとき" })).toHaveAttribute("href", "/settings/integrations/guide#recovery-title");
 });
 it.each([
   { settings: DEFAULT_SETTINGS, available: false, message: "お知らせの受け取り設定はOFFです。" },
