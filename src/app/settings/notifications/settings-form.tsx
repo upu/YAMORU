@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useActionState } from "react";
 import type { NotificationSettings } from "../../../features/integration/notifications/contract";
 import { saveNotificationAction } from "./actions";
@@ -27,21 +28,22 @@ function RepeatFields({ settings: s }: { settings: NotificationSettings }) {
 }
 export function NotificationSettingsForm({ settings: s, revision, connections, nextAt }: Props) {
   const [state, action, pending] = useActionState(saveNotificationAction, INITIAL_NOTIFICATION_STATE);
-  return <form action={action} className={styles.fields}>
+  return <form action={action} className={styles.fields} aria-label="お知らせの条件">
     <input type="hidden" name="revision" value={revision} />
-    <label><input type="checkbox" name="enabled" defaultChecked={s.enabled} /> 通知を有効にする</label>
-    <label>通知先<select name="connectionId" defaultValue={s.connectionId ?? ""}>
+    <p id="notification-task-help">連携先で定期タスクを準備してからONにしてください。ここで保存しても、定期タスクは作成・開始されません。</p>
+    <label>定期確認に使う連携先<select name="connectionId" defaultValue={s.connectionId ?? ""}>
       <option value="">連携先を選択</option>
       {s.connectionId && !connections.some((c) => c.id === s.connectionId) ? <option value={s.connectionId}>以前の連携先（現在は利用できません）</option> : null}
       {connections.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
     </select></label>
-    {!connections.length ? <p>通知の受け取りを許可した連携先がありません。外部サービスから連携し、通知の受け取りを許可してください。</p> : null}
+    {!connections.length ? <p>お知らせを受け取れる連携先がありません。<Link href="/settings/integrations/guide#periodic-title">定期的なお知らせの準備へ</Link>進み、接続と受け取りの許可を確認してください。</p> : null}
+    {connections.length || s.enabled ? <label><input type="checkbox" name="enabled" defaultChecked={s.enabled} aria-describedby="notification-task-help" /> 連携先の定期確認でお知らせを受け取る</label> : null}
     <label><input type="checkbox" name="muted" defaultChecked={s.muted} /> 自分への通知をすべて休止する</label>
     <TimeFields settings={s} /><RepeatFields settings={s} />
-    {nextAt ? <p>保存済みの時間設定で、今から発生する候補を知らせられる最初の時刻：<time dateTime={nextAt}>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: s.timeZone }).format(new Date(nextAt))}（{s.timeZone}）</time></p>
-      : <p>現在は通知を受け取れません。通知の有効化・休止・通知先を確認してください。</p>}
-    <p>これは配信可能な時刻の目安です。通知の有効・休止設定、候補の状態、接続先によって変わります。</p>
-    <button type="submit" disabled={pending}>{pending ? "保存中…" : "通知設定を保存"}</button>
+    {nextAt ? <p>保存済みの条件で、連携先の確認時にお知らせを取得できる最短の時刻：<time dateTime={nextAt}>{new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short", timeZone: s.timeZone }).format(new Date(nextAt))}（{s.timeZone}）</time></p>
+      : <p>保存済みの条件では、お知らせの取得を停止しています。受け取り・休止・連携先の設定を確認してください。</p>}
+    <p>この時刻は次回のタスク実行予定や到達時刻ではありません。実際のお知らせは連携先の定期タスクの実行と、用事の状態によって変わります。</p>
+    <button type="submit" disabled={pending}>{pending ? "保存中…" : "お知らせの条件を保存"}</button>
     {state.message ? <p role={state.status === "error" ? "alert" : "status"}>{state.message}</p> : null}
   </form>;
 }

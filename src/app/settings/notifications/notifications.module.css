@@ -1,4 +1,6 @@
 .fields { display: grid; gap: 1rem; }
+.setup > summary { min-height: var(--tap-target); padding: .7rem 0; color: var(--green); font-weight: 800; cursor: pointer; }
+.setup[open] > summary { margin-bottom: 1rem; }
 .fields fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 1rem; min-width: 0; }
 .fields label { display: grid; gap: .4rem; }
 .fields label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: .6rem; min-height: var(--tap-target); }

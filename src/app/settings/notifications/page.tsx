@@ -42,16 +42,19 @@ export default async function NotificationSettingsPage({ searchParams }: { searc
   catch (error) {
     // 認証redirectを握りつぶさず、期限付きcursorのエラーだけ再表示へ案内する。
     if (!(error instanceof Error) || !("code" in error) || !["invalid_cursor", "cursor_expired", "read_conflict", "invalid_input"].includes(String(error.code))) throw error;
-    return <main className="page-form"><h1>あなたの通知設定</h1><p>表示内容を更新してください。</p><Link href="/settings/notifications">最初から表示する</Link></main>;
+    return <main className="page-form"><h1>定期的なお知らせ</h1><p>表示内容を更新してください。</p><Link href="/settings/notifications">最初から表示する</Link></main>;
   }
-  if (!data) return <main className="page-form"><h1>あなたの通知設定</h1><p>家庭に参加すると通知を設定できます。</p><Link href="/household">家庭の設定へ</Link></main>;
+  if (!data) return <main className="page-form"><h1>定期的なお知らせ</h1><p>家庭に参加すると通知を設定できます。</p><Link href="/household">家庭の設定へ</Link></main>;
   const { saved, connections, candidates, rows, history, nextAt } = data;
   return <main className="page-form account-page">
     <nav className="back-nav" aria-label="ページ移動"><Link href="/settings/integrations">← 外部サービスとの連携へ</Link></nav>
-    <header className="detail-hero"><h1>あなたの通知設定</h1><p>この設定はあなたへの通知だけに使います。家族の通知や、共有する予定・期限は変わりません。</p></header>
+    <header className="detail-hero"><h1>定期的なお知らせ</h1><p>会話アシスタントの定期タスクを使う方の設定です。この設定はあなたへのお知らせだけに使います。家族の通知や、共有する予定・期限は変わりません。</p></header>
     <NotificationDeliveryStatus settings={saved.settings} connectionAvailable={connections.some((c) => c.id === saved.settings.connectionId)} />
     <section className="detail-card">
-      <NotificationSettingsForm {...saved} connections={connections} nextAt={nextAt} />
+      <details className={styles.setup} open={saved.settings.enabled || !!saved.settings.connectionId}>
+        <summary>定期的なお知らせの条件を設定する</summary>
+        <NotificationSettingsForm {...saved} connections={connections} nextAt={nextAt} />
+      </details>
     </section>
     <section className="detail-card" aria-labelledby="candidate-title"><h2 id="candidate-title">用事ごとの通知休止</h2>
       <p>「明日のまとめ時刻まで休む」は通知だけを延期します。予定日を動かす場合は、用事の詳細を開いてください。</p>

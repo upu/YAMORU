@@ -3,7 +3,7 @@ import { INTEGRATION_SCOPES, SCOPE_DESCRIPTIONS } from "../../../../features/int
 
 export function IntegrationGuide({ endpoint }: { endpoint: string | null }) {
   return <>
-    <header className="detail-hero"><h1>会話連携の始め方</h1><p>YAMORUが記録と予定を管理し、会話アシスタントが対象の確認・操作・お知らせを手伝います。</p></header>
+    <header className="detail-hero"><h1>会話連携の始め方</h1><p>YAMORUが記録と予定を管理し、会話アシスタントが対象の確認・操作を手伝います。定期的なお知らせは、定期タスクを使える連携先で追加設定する機能です。</p></header>
     <section className="detail-card" aria-labelledby="connect-title"><h2 id="connect-title">1. 会話アシスタントから接続する</h2>
       {endpoint ? <><p>接続先のアプリでMCPサーバーを追加し、このYAMORUのアドレスを指定します。</p><p><code style={{ overflowWrap: "anywhere" }}>{endpoint}</code></p></>
         : <p>現在、このYAMORUでは新しい外部サービスとの連携を受け付けていません。管理者に、利用するサービスが接続を許可されているか確認してください。</p>}
@@ -12,17 +12,23 @@ export function IntegrationGuide({ endpoint }: { endpoint: string | null }) {
       <p>読み取りは必須です。家庭の記録を変える場合だけ変更を許可します。通知設定はこの画面からも変更でき、通知の受け取りとは別の許可です。</p>
       <p>通知を使う場合は、同意画面に「あなた向けの通知を受け取る」があることを確認します。再接続しても表示されなければ、接続先の設定で通知の受け取りも要求するようにしてください。通知設定の管理だけでは、お知らせを取得できません。</p>
     </section>
-    <section className="detail-card" aria-labelledby="test-title"><h2 id="test-title">2. 接続と一度だけのお知らせを確かめる</h2>
+    <section className="detail-card" aria-labelledby="test-title"><h2 id="test-title">2. 会話で確認・操作する</h2>
       <p>まず会話で「YAMORUの接続先と家庭、許可している操作を確認して」と伝えます。表示された家庭が自分の家庭か確かめてください。</p>
-      <p>通知を使う場合は、通知先を選んで有効にし、知らせる時間・静かな時間・タイムゾーンを保存します。</p>
-      <p><Link href="/settings/notifications">通知設定と配信履歴</Link></p>
-      <p>次に「いま通知できる用事を一度だけ知らせて。予定や完了を変更せず、定期タスクは作らないで」と会話で頼みます。対象がない場合や静かな時間には、お知らせが出ないことがあります。</p>
-      <p>配信履歴の「案内したと報告」と、会話に表示されたお知らせを両方確認してください。履歴だけでは、読んだことやTodoの完了を示しません。</p>
+      <p>「今日の用事を教えて」などと依頼できます。登録や完了は、家庭のデータの変更を許可した場合に利用できます。</p>
+      <p>会話での確認・操作には、通知設定や定期タスクは必要ありません。</p>
     </section>
-    <section className="detail-card" aria-labelledby="periodic-title"><h2 id="periodic-title">3. 連携先で定期的な確認を設定する</h2>
-      <p>定期タスクを使える会話アシスタントで「YAMORUのそろそろ対応する用事を15分ごとに確認し、必要なものだけ知らせて」と依頼します。連携先が対応していなければ、自動のお知らせは利用できません。</p>
+    <section className="detail-card" aria-labelledby="periodic-title"><h2 id="periodic-title">3. 定期的なお知らせを設定する（任意）</h2>
+      <p>連携先の会話アシスタントが定期的にYAMORUを確認して知らせる方式です。定期タスクに対応していない連携先では利用できません。YAMORUから直接送り届ける方式は、現在利用できません。</p>
+      <ol>
+        <li>接続時に「あなた向けの通知を受け取る」を許可します。</li>
+        <li>連携先で「YAMORUのそろそろ対応する用事を15分ごとに確認し、必要なものだけ知らせて」と依頼し、定期タスクを準備します。</li>
+        <li>下の設定画面で「定期的なお知らせの条件を設定する」を開きます。連携先・受け取りのON・知らせる時間・静かな時間・タイムゾーンを選んで保存します。</li>
+      </ol>
+      <p><Link href="/settings/notifications">定期的なお知らせの設定・履歴</Link></p>
+      <p>試す場合は「いま通知できる用事を一度だけ知らせて。予定や完了を変更せず、定期タスクは作らないで」と会話で頼みます。対象がない場合や静かな時間には、お知らせが出ないことがあります。</p>
+      <p>配信履歴の「案内したと報告」と、会話に表示されたお知らせを両方確認してください。履歴だけでは、読んだことやTodoの完了を示しません。</p>
       <p>保存後にタスク名・有効状態・周期・次回予定を確認し、実際の実行結果と会話へのお知らせを確かめてください。15分ぴったりの起動や到達時刻は保証されません。利用条件は連携先のサービスに従います。</p>
-      <p>YAMORUから外部の定期タスクは作成・停止しません。YAMORU内の設定が有効でも、外部タスクが停止・失敗していれば届きません。この版では定期取得を使い、MCP Eventsによる自動送信は提供していません。</p>
+      <p>YAMORUから外部の定期タスクは作成・停止しません。YAMORU内の設定がONでも、外部タスクが停止・失敗していれば届きません。外部タスクの稼働状態は連携先で確認してください。</p>
     </section>
     <section className="detail-card" aria-labelledby="reply-title"><h2 id="reply-title">お知らせへの返答と記録の確認</h2>
       <p>「やった」「昨日済ませた」は完了、「明日9時に教えて」は自分への通知だけの延期、「今回の期限を10月25日へ」は家庭で共有する期限の変更です。複数件のお知らせでは、どの用事か伝えてください。</p>

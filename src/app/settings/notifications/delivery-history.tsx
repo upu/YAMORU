@@ -3,7 +3,7 @@ import { DELIVERY_LABELS, REASON_LABELS } from "../../../features/integration/no
 import styles from "./notifications.module.css";
 export function DeliveryHistoryList({ items, timeZone }: { items: DeliveryHistory[]; timeZone: string }) {
   return <>
-    <p>「連携先がイベントを受領」は受け付けた段階、「案内したと報告」は連携先からの報告です。利用者が読んだことを示すものではありません。</p>
+    <p>「案内したと報告」は連携先からの報告です。利用者が読んだことを示すものではありません。用事の完了とも別です。</p>
     {!items.length ? <p>配信履歴はまだありません。</p> : null}
     <ul className={styles.entries}>{items.map((item) => <li key={item.sequence}>
       <h3>{item.candidateName}</h3><p>{DELIVERY_LABELS[item.outcome]}</p>
