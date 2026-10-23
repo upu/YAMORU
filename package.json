@@ -67,7 +67,7 @@
     "oauth4webapi": "3.8.8",
     "typescript": "6.0.3",
     "typescript-eslint": "8.68.0",
-    "vitest": "4.1.12",
+    "vitest": "5.0.5",
     "wrangler": "^4.148.0"
   },
   "allowScripts": {
