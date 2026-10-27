@@ -7,9 +7,10 @@ export async function runServerAction(page: Page, action: () => Promise<unknown>
   const pendingResponse = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url() === actionUrl);
   await action();
+  // Server Actionは実行を終えてから応答ヘッダーを返すため、statusで保存結果を判定できる。
+  // 応答本文のストリームは開いたまま残ることがあり(ビルド済みWorker、Next.js 16.4以降の
+  // next dev)、Playwrightのresponse.finished()はその場合に解決しないので待たない。
   const response = await pendingResponse;
-  const error = await response.finished();
-  if (error !== null) throw error;
   if (response.status() >= 400) throw new Error(`Server Action failed: ${String(response.status())}`);
 }
 
