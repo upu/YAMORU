@@ -70,6 +70,11 @@
     "vitest": "4.1.12",
     "wrangler": "^4.153.0"
   },
+  "overrides": {
+    "miniflare@5.20260815.0-alpha": {
+      "undici": "7.30.1"
+    }
+  },
   "allowScripts": {
     "esbuild@0.25.4": true,
     "esbuild@0.28.1": true,
